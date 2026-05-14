@@ -22,6 +22,7 @@ export interface EnrichmentWarning {
 export interface PipelineState {
   stage: "input" | "progress" | "review" | "done" | "error";
   steps: StepState[];
+  urls?: string[];
   profile?: Profile;
   script?: string;
   sources?: string[];
@@ -81,6 +82,7 @@ export async function generateVideo(
 
   setState({
     stage: "progress",
+    urls,
     steps: INITIAL_STEPS.map((s, i) => ({
       ...s,
       status: i === 0 ? "active" : "pending",

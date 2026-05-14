@@ -79,7 +79,6 @@ export function UrlForm({ onSubmit }: UrlFormProps) {
     { id: "1", value: "", platform: null },
   ]);
   const [senderBrief, setSenderBrief] = useState("");
-  const [showBrief, setShowBrief] = useState(false);
   const [justPasted, setJustPasted] = useState<string | null>(null);
 
   const validUrls = entries
@@ -152,18 +151,18 @@ export function UrlForm({ onSubmit }: UrlFormProps) {
             transition={{ delay: 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="font-[family-name:var(--font-display)] text-5xl md:text-7xl tracking-tight leading-[0.9] mb-5"
           >
-            Your intelligent
+            Send a video
             <br />
-            <span className="italic">emissary</span>
+            <span className="italic">they&apos;ll actually watch</span>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="text-ink-muted text-[15px] leading-relaxed max-w-[380px]"
+            className="text-ink-muted text-[15px] leading-relaxed max-w-[400px]"
           >
-            Drop a social profile. Get a personalised video addressed directly
-            to them, in your voice, in 60 seconds.
+            Paste their profile. We&apos;ll research them, write a personalised
+            script, and render a video in your voice — in about 90 seconds.
           </motion.p>
         </div>
 
@@ -269,54 +268,34 @@ export function UrlForm({ onSubmit }: UrlFormProps) {
             </AnimatePresence>
           </div>
 
-          {/* Sender brief toggle */}
+          {/* Sender brief — always visible, lightweight */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
             className="mb-8"
           >
-            {!showBrief ? (
-              <button
-                type="button"
-                onClick={() => setShowBrief(true)}
-                className="text-xs text-ink-faint hover:text-ink-muted transition-colors flex items-center gap-1.5"
-              >
-                <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <circle cx="8" cy="8" r="6" />
-                  <path d="M8 5.5v5M5.5 8h5" />
-                </svg>
-                Add context about your message
-              </button>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                transition={{ duration: 0.3 }}
-              >
-                <label className="block text-xs uppercase tracking-widest text-ink-faint font-medium mb-2">
-                  What&apos;s your message about?
-                </label>
-                <textarea
-                  value={senderBrief}
-                  onChange={(e) => setSenderBrief(e.target.value)}
-                  placeholder="e.g. I'm building a payments API and want to connect about their experience at Stripe..."
-                  rows={3}
-                  className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm text-ink placeholder:text-ink-faint/50 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 resize-none transition-all"
-                />
-                <p className="text-[11px] text-ink-faint mt-1.5">
-                  This helps the AI write a more relevant script. Optional but recommended.
-                </p>
-                <div className="mt-3">
-                  <VoiceInput
-                    onTranscript={(text) =>
-                      setSenderBrief((prev) => (prev ? `${prev} ${text}` : text))
-                    }
-                    placeholder="Or record a voice note"
-                  />
-                </div>
-              </motion.div>
-            )}
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs uppercase tracking-widest text-ink-faint font-medium">
+                What&apos;s your message about?
+              </label>
+              <VoiceInput
+                onTranscript={(text) =>
+                  setSenderBrief((prev) => (prev ? `${prev} ${text}` : text))
+                }
+                placeholder="Record instead"
+              />
+            </div>
+            <textarea
+              value={senderBrief}
+              onChange={(e) => setSenderBrief(e.target.value)}
+              placeholder="e.g. I'm building a payments API and want to connect about their experience at Stripe..."
+              rows={2}
+              className="w-full rounded-xl border border-cream-dark bg-cream-dark/30 px-4 py-3 text-sm text-ink placeholder:text-ink-faint/50 focus:outline-none focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/10 resize-none transition-all"
+            />
+            <p className="text-[11px] text-ink-faint mt-1.5">
+              Helps the script feel specific. Leave blank for a general intro.
+            </p>
           </motion.div>
 
           {/* Submit */}

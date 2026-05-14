@@ -8,6 +8,7 @@ import type { EnrichmentWarning } from "@/lib/pipeline";
 interface ProgressStepperProps {
   steps: StepState[];
   warnings?: EnrichmentWarning[];
+  urls?: string[];
 }
 
 function EnrichmentWarnings({ warnings }: { warnings?: EnrichmentWarning[] }) {
@@ -80,10 +81,20 @@ const STEP_META: Record<string, { description: string; icon: React.ReactNode }> 
   },
 };
 
-export function ProgressStepper({ steps, warnings }: ProgressStepperProps) {
+export function ProgressStepper({ steps, warnings, urls }: ProgressStepperProps) {
   const activeStep = steps.find((s) => s.status === "active");
   const completedCount = steps.filter((s) => s.status === "complete").length;
   const progress = (completedCount / steps.length) * 100;
+
+  // Extract a readable target from the first URL
+  let targetHint = "";
+  if (urls && urls.length > 0) {
+    try {
+      const firstUrl = new URL(urls[0]);
+      const path = firstUrl.pathname.replace(/^\/in\/|^\//, "").replace(/\/$/, "");
+      if (path) targetHint = path;
+    } catch { /* noop */ }
+  }
 
   return (
     <main className="flex-1 flex items-center justify-center px-6 py-16">
@@ -101,9 +112,19 @@ export function ProgressStepper({ steps, warnings }: ProgressStepperProps) {
           className="mb-12"
         >
           <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl tracking-tight leading-[0.9] mb-4">
-            Composing your
-            <br />
-            <span className="italic">message</span>
+            {targetHint ? (
+              <>
+                Researching
+                <br />
+                <span className="italic">{targetHint}</span>
+              </>
+            ) : (
+              <>
+                Composing your
+                <br />
+                <span className="italic">message</span>
+              </>
+            )}
           </h1>
           <AnimatePresence mode="wait">
             {activeStep && (

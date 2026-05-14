@@ -130,7 +130,7 @@ export function VideoPlayer({ videoUrl, onReset, recipientName }: VideoPlayerPro
             {recipientName ? `Video for ${recipientName}` : "Your video is ready"}
           </h1>
           <p className="text-sm text-ink-muted">
-            Ready to send. Copy the link or download the file.
+            Copy the link and paste it into your outreach message.
           </p>
         </motion.div>
 
