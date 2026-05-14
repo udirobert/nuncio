@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { Header } from "@/components/header";
 import { UrlForm } from "@/components/url-form";
 import { ProgressStepper } from "@/components/progress-stepper";
 import { ScriptReview } from "@/components/script-review";
@@ -15,8 +16,8 @@ export default function Home() {
     steps: [],
   });
 
-  async function handleSubmit(urls: string[]) {
-    await generateVideo(urls, setState);
+  async function handleSubmit(urls: string[], senderBrief?: string) {
+    await generateVideo(urls, setState, senderBrief);
   }
 
   function handleReset() {
@@ -33,90 +34,106 @@ export default function Home() {
   }
 
   return (
-    <AnimatePresence mode="wait">
-      {state.stage === "input" && (
-        <motion.div
-          key="input"
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-          className="flex-1 flex flex-col"
-        >
-          <UrlForm onSubmit={handleSubmit} />
-        </motion.div>
-      )}
+    <>
+      <Header stage={state.stage} />
 
-      {state.stage === "progress" && (
-        <motion.div
-          key="progress"
-          initial={{ opacity: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-          className="flex-1 flex flex-col"
-        >
-          <ProgressStepper steps={state.steps} />
-        </motion.div>
-      )}
+      <AnimatePresence mode="wait">
+        {state.stage === "input" && (
+          <motion.div
+            key="input"
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="flex-1 flex flex-col"
+          >
+            <UrlForm onSubmit={handleSubmit} />
+          </motion.div>
+        )}
 
-      {state.stage === "review" && state.script && state.profile && (
-        <motion.div
-          key="review"
-          initial={{ opacity: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-          className="flex-1 flex flex-col"
-        >
-          <ScriptReview
-            script={state.script}
-            profile={state.profile}
-            sources={state.sources}
-            onEdit={handleEditScript}
-            onRender={handleRender}
-          />
-        </motion.div>
-      )}
+        {state.stage === "progress" && (
+          <motion.div
+            key="progress"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="flex-1 flex flex-col"
+          >
+            <ProgressStepper steps={state.steps} />
+          </motion.div>
+        )}
 
-      {state.stage === "done" && state.videoUrl && (
-        <motion.div
-          key="done"
-          initial={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="flex-1 flex flex-col"
-        >
-          <VideoPlayer videoUrl={state.videoUrl} onReset={handleReset} />
-        </motion.div>
-      )}
+        {state.stage === "review" && state.script && state.profile && (
+          <motion.div
+            key="review"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="flex-1 flex flex-col"
+          >
+            <ScriptReview
+              script={state.script}
+              profile={state.profile}
+              sources={state.sources}
+              onEdit={handleEditScript}
+              onRender={handleRender}
+            />
+          </motion.div>
+        )}
 
-      {state.stage === "error" && (
-        <motion.div
-          key="error"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.4 }}
-          className="flex-1 flex items-center justify-center px-6"
-        >
-          <div className="w-full max-w-[540px] text-center space-y-6">
-            <div className="w-12 h-12 rounded-full bg-error-soft flex items-center justify-center mx-auto">
-              <svg viewBox="0 0 16 16" className="w-5 h-5 text-error" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <circle cx="8" cy="8" r="6" />
-                <path d="M8 5v3.5M8 10.5v.5" />
-              </svg>
+        {state.stage === "done" && state.videoUrl && (
+          <motion.div
+            key="done"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="flex-1 flex flex-col"
+          >
+            <VideoPlayer
+              videoUrl={state.videoUrl}
+              onReset={handleReset}
+              recipientName={state.profile?.name}
+            />
+          </motion.div>
+        )}
+
+        {state.stage === "error" && (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex-1 flex items-center justify-center px-6"
+          >
+            <div className="w-full max-w-[540px] text-center space-y-6">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                className="w-12 h-12 rounded-full bg-error-soft flex items-center justify-center mx-auto"
+              >
+                <svg viewBox="0 0 16 16" className="w-5 h-5 text-error" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="8" cy="8" r="6" />
+                  <path d="M8 5v3.5M8 10.5v.5" />
+                </svg>
+              </motion.div>
+              <div>
+                <p className="text-sm text-ink-light mb-1">{state.error}</p>
+                <p className="text-xs text-ink-faint">
+                  This can happen with rate limits or inaccessible profiles.
+                </p>
+              </div>
+              <button
+                onClick={handleReset}
+                className="btn-press inline-flex items-center gap-2 rounded-2xl border border-cream-dark px-5 py-3.5 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+              >
+                Try again
+              </button>
             </div>
-            <div>
-              <p className="text-sm text-ink-light mb-1">{state.error}</p>
-              <p className="text-xs text-ink-faint">
-                This can happen with rate limits or inaccessible profiles.
-              </p>
-            </div>
-            <button
-              onClick={handleReset}
-              className="btn-press inline-flex items-center gap-2 rounded-xl border border-cream-dark px-5 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
-            >
-              Try again
-            </button>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

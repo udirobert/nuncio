@@ -1,92 +1,168 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "motion/react";
+import { useState, useCallback } from "react";
+import { motion, AnimatePresence } from "motion/react";
 
 interface UrlFormProps {
-  onSubmit: (urls: string[]) => void;
+  onSubmit: (urls: string[], senderBrief?: string) => void;
 }
 
-const PLATFORMS = [
-  {
-    id: "linkedin",
-    label: "LinkedIn",
-    placeholder: "linkedin.com/in/...",
-    icon: (
+interface UrlEntry {
+  id: string;
+  value: string;
+  platform: Platform | null;
+}
+
+type Platform = "linkedin" | "twitter" | "github" | "farcaster" | "facebook" | "other";
+
+const PLATFORM_CONFIG: Record<Platform, { label: string; color: string }> = {
+  linkedin: { label: "LinkedIn", color: "text-[#0A66C2]" },
+  twitter: { label: "X", color: "text-ink" },
+  github: { label: "GitHub", color: "text-ink" },
+  farcaster: { label: "Farcaster", color: "text-[#8B5CF6]" },
+  facebook: { label: "Facebook", color: "text-[#1877F2]" },
+  other: { label: "Profile", color: "text-ink-muted" },
+};
+
+function detectPlatform(url: string): Platform | null {
+  if (!url.trim()) return null;
+  const lower = url.toLowerCase();
+  if (lower.includes("linkedin.com")) return "linkedin";
+  if (lower.includes("twitter.com") || lower.includes("x.com")) return "twitter";
+  if (lower.includes("github.com")) return "github";
+  if (lower.includes("warpcast.com") || lower.includes("farcaster")) return "farcaster";
+  if (lower.includes("facebook.com") || lower.includes("fb.com")) return "facebook";
+  if (lower.startsWith("http")) return "other";
+  return null;
+}
+
+function PlatformIcon({ platform }: { platform: Platform }) {
+  const icons: Record<Platform, React.ReactNode> = {
+    linkedin: (
       <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
         <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
       </svg>
     ),
-  },
-  {
-    id: "twitter",
-    label: "Twitter / X",
-    placeholder: "x.com/...",
-    icon: (
+    twitter: (
       <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
       </svg>
     ),
-  },
-  {
-    id: "other",
-    label: "Other",
-    placeholder: "any public profile URL",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        className="w-4 h-4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      >
+    github: (
+      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+        <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
+      </svg>
+    ),
+    farcaster: (
+      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+        <path d="M18.24 2.4H5.76a3.36 3.36 0 00-3.36 3.36v12.48a3.36 3.36 0 003.36 3.36h12.48a3.36 3.36 0 003.36-3.36V5.76a3.36 3.36 0 00-3.36-3.36zm-1.2 13.68c0 .66-.54 1.2-1.2 1.2h-7.68c-.66 0-1.2-.54-1.2-1.2v-4.8h2.4v3.6h5.28v-3.6h2.4v4.8zm0-6h-2.4V8.52H9.36v1.56h-2.4V7.68c0-.66.54-1.2 1.2-1.2h7.68c.66 0 1.2.54 1.2 1.2v2.4z" />
+      </svg>
+    ),
+    facebook: (
+      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+      </svg>
+    ),
+    other: (
+      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="10" />
         <path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
       </svg>
     ),
-  },
-];
+  };
+  return <>{icons[platform]}</>;
+}
 
 export function UrlForm({ onSubmit }: UrlFormProps) {
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [focused, setFocused] = useState<string | null>(null);
+  const [entries, setEntries] = useState<UrlEntry[]>([
+    { id: "1", value: "", platform: null },
+  ]);
+  const [senderBrief, setSenderBrief] = useState("");
+  const [showBrief, setShowBrief] = useState(false);
+  const [justPasted, setJustPasted] = useState<string | null>(null);
 
-  const urls = Object.values(values).filter((u) => u.trim() !== "");
-  const isValid = urls.length > 0;
+  const validUrls = entries
+    .filter((e) => e.value.trim() && e.platform)
+    .map((e) => e.value.trim());
+  const isValid = validUrls.length > 0;
+
+  const handleChange = useCallback((id: string, value: string) => {
+    setEntries((prev) => {
+      const updated = prev.map((e) =>
+        e.id === id ? { ...e, value, platform: detectPlatform(value) } : e
+      );
+      // Auto-add new row when last row has content
+      const lastEntry = updated[updated.length - 1];
+      if (lastEntry && lastEntry.value.trim() && updated.length < 5) {
+        return [...updated, { id: String(Date.now()), value: "", platform: null }];
+      }
+      return updated;
+    });
+  }, []);
+
+  const handlePaste = useCallback(
+    (id: string, e: React.ClipboardEvent) => {
+      const pasted = e.clipboardData.getData("text");
+      if (pasted && detectPlatform(pasted)) {
+        setJustPasted(id);
+        setTimeout(() => setJustPasted(null), 600);
+      }
+    },
+    []
+  );
+
+  const handleRemove = useCallback((id: string) => {
+    setEntries((prev) => {
+      const filtered = prev.filter((e) => e.id !== id);
+      return filtered.length === 0
+        ? [{ id: String(Date.now()), value: "", platform: null }]
+        : filtered;
+    });
+  }, []);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (isValid) {
-      onSubmit(urls);
+      onSubmit(validUrls, senderBrief.trim() || undefined);
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && isValid) {
+      e.preventDefault();
+      onSubmit(validUrls, senderBrief.trim() || undefined);
     }
   }
 
   return (
-    <main className="flex-1 flex items-center justify-center px-6 py-12">
+    <main className="flex-1 flex items-center justify-center px-6 py-16">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className="w-full max-w-[540px]"
+        onKeyDown={handleKeyDown}
       >
         {/* Brand header */}
-        <div className="mb-12">
+        <div className="mb-14">
           <motion.h1
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="font-[family-name:var(--font-display)] text-5xl md:text-6xl tracking-tight leading-none mb-4"
+            className="font-[family-name:var(--font-display)] text-5xl md:text-7xl tracking-tight leading-[0.9] mb-5"
           >
-            nuncio
+            Your intelligent
+            <br />
+            <span className="italic">emissary</span>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="text-ink-muted text-base leading-relaxed max-w-[400px]"
+            className="text-ink-muted text-[15px] leading-relaxed max-w-[380px]"
           >
-            Your intelligent emissary. Drop a social profile — get a
-            personalised video in 60 seconds.
+            Drop a social profile. Get a personalised video addressed directly
+            to them, in your voice, in 60 seconds.
           </motion.p>
         </div>
 
@@ -96,115 +172,200 @@ export function UrlForm({ onSubmit }: UrlFormProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.5 }}
-          className="space-y-4"
         >
-          <p className="text-xs uppercase tracking-widest text-ink-faint font-medium mb-6">
-            Who are you reaching out to?
-          </p>
-
-          <div className="space-y-3">
-            {PLATFORMS.map((platform, i) => (
-              <motion.div
-                key={platform.id}
-                initial={{ opacity: 0, x: -12 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{
-                  delay: 0.35 + i * 0.08,
-                  duration: 0.5,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-              >
-                <div
-                  className={`
-                    relative flex items-center gap-3 rounded-xl border px-4 py-3
-                    transition-all duration-200
-                    ${
-                      focused === platform.id
-                        ? "border-accent bg-white shadow-sm"
-                        : "border-cream-dark bg-cream-dark/50 hover:border-ink-faint/30"
-                    }
-                  `}
+          {/* URL inputs */}
+          <div className="space-y-2 mb-6">
+            <AnimatePresence mode="popLayout">
+              {entries.map((entry, i) => (
+                <motion.div
+                  key={entry.id}
+                  layout
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <span
-                    className={`transition-colors duration-200 ${
-                      focused === platform.id
-                        ? "text-accent"
-                        : "text-ink-faint"
-                    }`}
+                  <div
+                    className={`
+                      relative flex items-center gap-3 rounded-2xl border px-4 py-3.5
+                      transition-all duration-300
+                      ${justPasted === entry.id ? "scale-[1.02] border-accent bg-accent-soft/30" : ""}
+                      ${entry.platform ? "border-cream-dark bg-white shadow-sm" : "border-cream-dark bg-cream-dark/40"}
+                    `}
+                    style={{
+                      transform: justPasted === entry.id ? "scale(1.02)" : undefined,
+                    }}
                   >
-                    {platform.icon}
-                  </span>
-                  <input
-                    id={platform.id}
-                    type="url"
-                    value={values[platform.id] || ""}
-                    onChange={(e) =>
-                      setValues((v) => ({ ...v, [platform.id]: e.target.value }))
-                    }
-                    onFocus={() => setFocused(platform.id)}
-                    onBlur={() => setFocused(null)}
-                    placeholder={platform.placeholder}
-                    aria-label={platform.label}
-                    className="flex-1 bg-transparent text-sm text-ink placeholder:text-ink-faint/60 focus:outline-none"
-                  />
-                  {values[platform.id] && (
-                    <motion.span
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="w-2 h-2 rounded-full bg-success"
+                    {/* Platform icon */}
+                    <AnimatePresence mode="wait">
+                      {entry.platform ? (
+                        <motion.span
+                          key={entry.platform}
+                          initial={{ scale: 0, rotate: -90 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          exit={{ scale: 0 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 20 }}
+                          className={PLATFORM_CONFIG[entry.platform].color}
+                        >
+                          <PlatformIcon platform={entry.platform} />
+                        </motion.span>
+                      ) : (
+                        <motion.span
+                          key="empty"
+                          className="text-ink-faint/40"
+                        >
+                          <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path d="M6 3h4a4 4 0 010 8H6a4 4 0 010-8z" />
+                            <path d="M8 5v6" />
+                          </svg>
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Input */}
+                    <input
+                      type="url"
+                      value={entry.value}
+                      onChange={(e) => handleChange(entry.id, e.target.value)}
+                      onPaste={(e) => handlePaste(entry.id, e)}
+                      placeholder={i === 0 ? "Paste a profile URL..." : "Add another profile..."}
+                      aria-label={`Profile URL ${i + 1}`}
+                      className="flex-1 bg-transparent text-sm text-ink placeholder:text-ink-faint/50 focus:outline-none"
                     />
-                  )}
-                </div>
-              </motion.div>
-            ))}
+
+                    {/* Platform badge */}
+                    <AnimatePresence>
+                      {entry.platform && (
+                        <motion.span
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          className="text-[10px] uppercase tracking-wider text-ink-faint font-medium"
+                        >
+                          {PLATFORM_CONFIG[entry.platform].label}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Remove button */}
+                    {entry.value && entries.length > 1 && (
+                      <motion.button
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        type="button"
+                        onClick={() => handleRemove(entry.id)}
+                        className="text-ink-faint hover:text-ink transition-colors p-0.5"
+                        aria-label="Remove URL"
+                      >
+                        <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M4 4l8 8M12 4l-8 8" />
+                        </svg>
+                      </motion.button>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
 
+          {/* Sender brief toggle */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="pt-6"
+            transition={{ delay: 0.4 }}
+            className="mb-8"
+          >
+            {!showBrief ? (
+              <button
+                type="button"
+                onClick={() => setShowBrief(true)}
+                className="text-xs text-ink-faint hover:text-ink-muted transition-colors flex items-center gap-1.5"
+              >
+                <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="8" cy="8" r="6" />
+                  <path d="M8 5.5v5M5.5 8h5" />
+                </svg>
+                Add context about your message
+              </button>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                transition={{ duration: 0.3 }}
+              >
+                <label className="block text-xs uppercase tracking-widest text-ink-faint font-medium mb-2">
+                  What&apos;s your message about?
+                </label>
+                <textarea
+                  value={senderBrief}
+                  onChange={(e) => setSenderBrief(e.target.value)}
+                  placeholder="e.g. I'm building a payments API and want to connect about their experience at Stripe..."
+                  rows={3}
+                  className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm text-ink placeholder:text-ink-faint/50 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 resize-none transition-all"
+                />
+                <p className="text-[11px] text-ink-faint mt-1.5">
+                  This helps the AI write a more relevant script. Optional but recommended.
+                </p>
+              </motion.div>
+            )}
+          </motion.div>
+
+          {/* Submit */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
           >
             <button
               type="submit"
               disabled={!isValid}
               className={`
-                btn-press w-full rounded-xl px-6 py-4 text-sm font-medium
-                transition-all duration-300
+                btn-press w-full rounded-2xl px-6 py-4 text-sm font-medium
+                transition-all duration-300 relative overflow-hidden
                 ${
                   isValid
-                    ? "bg-ink text-cream hover:bg-ink-light shadow-lg shadow-ink/10"
+                    ? "bg-ink text-cream shadow-xl shadow-ink/15 hover:shadow-2xl hover:shadow-ink/20 hover:-translate-y-0.5"
                     : "bg-cream-dark text-ink-faint cursor-not-allowed"
                 }
               `}
             >
-              {isValid ? (
-                <span className="flex items-center justify-center gap-2">
-                  Generate video
-                  <svg
-                    viewBox="0 0 16 16"
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
+              <AnimatePresence mode="wait">
+                {isValid ? (
+                  <motion.span
+                    key="ready"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    className="flex items-center justify-center gap-2"
                   >
-                    <path d="M3 8h10M9 4l4 4-4 4" />
-                  </svg>
-                </span>
-              ) : (
-                "Add at least one profile URL"
-              )}
+                    Generate video
+                    <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M3 8h10M9 4l4 4-4 4" />
+                    </svg>
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="waiting"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                  >
+                    Paste a profile URL to begin
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </button>
-          </motion.div>
 
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7 }}
-            className="text-center text-xs text-ink-faint pt-2"
-          >
-            No account needed · Takes about 90 seconds
-          </motion.p>
+            {isValid && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center text-[11px] text-ink-faint mt-3"
+              >
+                ⌘ + Enter · No account needed · ~90 seconds
+              </motion.p>
+            )}
+          </motion.div>
         </motion.form>
       </motion.div>
     </main>

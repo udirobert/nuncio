@@ -46,7 +46,11 @@ function updateStep(
  * Run the full nuncio pipeline: enrich → script → canvas → video
  * Updates state at each step so the UI can show progress.
  */
-export async function generateVideo(urls: string[], setState: SetState) {
+export async function generateVideo(
+  urls: string[],
+  setState: SetState,
+  senderBrief?: string
+) {
   setState({
     stage: "progress",
     steps: INITIAL_STEPS.map((s, i) => ({
@@ -94,7 +98,7 @@ export async function generateVideo(urls: string[], setState: SetState) {
     const scriptRes = await fetch("/api/script", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enrichment: enrichedMarkdown }),
+      body: JSON.stringify({ enrichment: enrichedMarkdown, senderBrief }),
     });
 
     if (!scriptRes.ok) {
