@@ -1,84 +1,48 @@
-# Deploying nuncio to Vultr
+# Deployment Guide
 
-This guide covers deploying nuncio to a Vultr cloud server for the Milan AI Week / AI Agent Olympics submission (Vultr Award track).
-
----
-
-## Prerequisites
-
-- A [Vultr account](https://www.vultr.com/) ($200 credits available via the hackathon promo)
-- The nuncio repo cloned locally
-- All API keys ready (see `.env.example`)
+Deploy nuncio to Vultr using Coolify for automated Git-based deployments with SSL.
 
 ---
 
-## 1. Provision a server
+## Option A: Vultr + Coolify (recommended)
 
-**Recommended:** Vultr Cloud Compute — Shared CPU
+The fastest path to a live URL with auto-deploy on push.
 
-| Setting | Value |
-|---|---|
-| OS | Ubuntu 24.04 LTS |
-| Plan | 1 vCPU / 1 GB / 25 GB SSD ($6/mo) — sufficient for demo |
-| Region | Choose closest to your audience (e.g. Amsterdam for Milan) |
-| Additional features | ✅ Enable IPv6 |
+### 1. Create a Vultr compute instance
 
-After creation, note the **IP address** and **root password** from the Vultr dashboard.
+1. Sign up at [vultr.com](https://www.vultr.com/) (new accounts get $250 free credit)
+2. Deploy a new server:
+   - **Type:** Cloud Compute — Shared CPU
+   - **Location:** Choose closest to your users (or San Francisco for the HeyGen hackathon)
+   - **Image:** Marketplace → **Coolify**
+   - **Plan:** Regular Performance, 2 GB RAM ($10/month) — minimum for building Next.js
+   - **Additional:** Enable IPv4
 
----
+3. Wait for the server to deploy (~60 seconds)
+4. Note the server IP address
 
-## 2. SSH into the server
+### 2. Access Coolify
 
-```bash
-ssh root@<YOUR_SERVER_IP>
-```
+1. Open `http://<YOUR_SERVER_IP>:8000` in your browser
+2. Create your admin account
+3. Complete the initial setup wizard
 
----
+### 3. Connect your GitHub repository
 
-## 3. Install dependencies
+1. In Coolify, go to **Projects → New Project → New Resource**
+2. Select **Public Repository** (or connect your GitHub account for private repos)
+3. Enter: `https://github.com/udirobert/nuncio`
+4. Select branch: `main`
 
-```bash
-# System packages
-apt update && apt upgrade -y
-apt install -y git curl
+### 4. Configure the deployment
 
-# Node.js 22 (LTS)
-curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-apt install -y nodejs
+1. **Build Pack:** Dockerfile
+2. **Dockerfile Location:** `/Dockerfile`
+3. **Port:** 3000
 
-# pnpm
-npm install -g pnpm
+### 5. Set environment variables
 
-# Verify
-node -v   # v22.x
-pnpm -v   # 10.x
-```
-
----
-
-## 4. Clone and build
-
-```bash
-cd /opt
-git clone https://github.com/<your-org>/nuncio.git
-cd nuncio
-
-# Install dependencies
-pnpm install
-
-# Create env file
-cp .env.example .env.local
-```
-
----
-
-## 5. Configure environment variables
-
-```bash
-nano .env.local
-```
-
-Fill in all values:
+In Coolify's environment variables section, add:
 
 ```env
 # TinyFish — profile enrichment
@@ -99,153 +63,165 @@ MELIUS_API_KEY=
 SPEECHMATICS_API_KEY=
 
 # App
-NEXT_PUBLIC_APP_URL=http://<YOUR_SERVER_IP>:3000
+NEXT_PUBLIC_APP_URL=https://your-domain.com
 ```
+
+### 6. Set up a custom domain (optional)
+
+1. In Coolify, go to your resource → **Settings → Domains**
+2. Add your domain (e.g., `nuncio.app`)
+3. Point your domain's DNS A record to the Vultr server IP
+4. Coolify will auto-provision an SSL certificate via Let's Encrypt
+
+### 7. Deploy
+
+Click **Deploy** in Coolify. It will:
+- Pull the repo
+- Build the Docker image
+- Start the container
+- Provision SSL
+
+First deploy takes ~3-5 minutes. Subsequent deploys are faster due to Docker layer caching.
+
+### 8. Enable auto-deploy
+
+In Coolify, enable **Webhooks** for your resource. Add the webhook URL to your GitHub repo:
+- Go to GitHub → Settings → Webhooks → Add webhook
+- Paste the Coolify webhook URL
+- Select "Just the push event"
+
+Now every push to `main` triggers an automatic deployment.
 
 ---
 
-## 6. Build the application
+## Option B: Direct VPS deployment (without Coolify)
+
+If you prefer manual control:
+
+### 1. Provision a Vultr compute instance
+
+- **OS:** Ubuntu 22.04 LTS
+- **Plan:** 2 GB RAM minimum
+
+### 2. SSH into the server
 
 ```bash
+ssh root@<YOUR_SERVER_IP>
+```
+
+### 3. Install dependencies
+
+```bash
+# Install Node.js 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt-get install -y nodejs
+
+# Install pnpm
+corepack enable && corepack prepare pnpm@latest --activate
+
+# Install PM2 for process management
+npm install -g pm2
+
+# Install Caddy for reverse proxy + auto-SSL
+apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+apt-get update && apt-get install caddy
+```
+
+### 4. Clone and build
+
+```bash
+cd /opt
+git clone https://github.com/udirobert/nuncio.git
+cd nuncio
+cp .env.example .env.local
+# Edit .env.local with your API keys
+nano .env.local
+
+pnpm install
 pnpm build
 ```
 
-If the build succeeds, proceed. If it fails, check that all env vars are set — Next.js validates them at build time for any that are used in server components.
-
----
-
-## 7. Run with PM2 (production process manager)
+### 5. Start with PM2
 
 ```bash
-npm install -g pm2
-
-# Start the app
-pm2 start pnpm --name "nuncio" -- start
-
-# Verify it's running
-pm2 status
-curl http://localhost:3000
-
-# Save the process list (auto-restart on reboot)
+pm2 start npm --name "nuncio" -- start
 pm2 save
 pm2 startup
 ```
 
-The app is now live at `http://<YOUR_SERVER_IP>:3000`.
-
----
-
-## 8. (Optional) Add a domain and HTTPS
-
-If you have a domain pointing to the server:
+### 6. Configure Caddy (reverse proxy + SSL)
 
 ```bash
-# Install Caddy — automatic HTTPS via Let's Encrypt
-apt install -y debian-keyring debian-archive-keyring apt-transport-https
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
-apt update
-apt install caddy
-```
-
-Edit the Caddyfile:
-
-```bash
-nano /etc/caddy/Caddyfile
-```
-
-Replace with:
-
-```
+cat > /etc/caddy/Caddyfile << 'EOF'
 your-domain.com {
     reverse_proxy localhost:3000
 }
-```
+EOF
 
-```bash
 systemctl restart caddy
 ```
 
-Caddy will automatically provision an SSL certificate. The app is now live at `https://your-domain.com`.
+Caddy automatically provisions and renews SSL certificates.
 
-Update `NEXT_PUBLIC_APP_URL` in `.env.local` and rebuild:
+### 7. Set up auto-deploy (optional)
+
+Create a deploy script:
 
 ```bash
+cat > /opt/nuncio/deploy.sh << 'EOF'
+#!/bin/bash
 cd /opt/nuncio
-# Update NEXT_PUBLIC_APP_URL to https://your-domain.com
+git pull origin main
+pnpm install --frozen-lockfile
 pnpm build
 pm2 restart nuncio
+EOF
+
+chmod +x /opt/nuncio/deploy.sh
 ```
+
+Add a GitHub webhook that calls this script, or use a simple cron-based pull.
 
 ---
 
-## 9. Verify deployment
+## Option C: Docker deployment (any provider)
+
+Works on Vultr, DigitalOcean, AWS, or any Docker host.
 
 ```bash
-# Health check
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000
-# Should return 200
+# Build
+docker build -t nuncio \
+  --build-arg NEXT_PUBLIC_APP_URL=https://your-domain.com \
+  .
 
-# Demo mode check
-curl -s "http://localhost:3000?demo=true" | head -20
-# Should return HTML
-
-# Check logs
-pm2 logs nuncio --lines 50
+# Run
+docker run -d \
+  --name nuncio \
+  -p 3000:3000 \
+  --env-file .env.local \
+  --restart unless-stopped \
+  nuncio
 ```
 
----
-
-## Troubleshooting
-
-| Issue | Fix |
-|---|---|
-| Build fails with "ANTHROPIC_API_KEY is not configured" | Ensure `.env.local` exists and all keys are set before `pnpm build` |
-| App starts but enrichment fails | Check that `TINYFISH_API_KEY` is valid — `curl -X POST https://api.fetch.tinyfish.ai -H "X-API-Key: $TINYFISH_API_KEY" -H "Content-Type: application/json" -d '{"urls":["https://example.com"]}'` |
-| HeyGen returns 401 | Verify `HEYGEN_API_KEY` is correct and the account has credits |
-| HeyGen returns 400 on video creation | Verify `HEYGEN_AVATAR_ID` and `HEYGEN_VOICE_ID` match your account's avatars/voices |
-| Port 3000 not accessible | Check Vultr firewall settings — add a TCP rule for port 3000 in the Vultr dashboard |
-| PM2 process crashes | `pm2 logs nuncio --err` for error details |
+Put Caddy or nginx in front for SSL termination.
 
 ---
 
-## Quick deploy script
+## Verifying the deployment
 
-For a fresh server, you can paste this entire block:
+Once deployed, verify:
 
-```bash
-#!/bin/bash
-set -e
-
-apt update && apt upgrade -y
-apt install -y git curl
-
-curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-apt install -y nodejs
-npm install -g pnpm pm2
-
-cd /opt
-git clone https://github.com/<your-org>/nuncio.git
-cd nuncio
-pnpm install
-
-# You must still manually create .env.local with your keys
-echo "⚠️  Don't forget to create .env.local with your API keys before building!"
-
-# Once .env.local is ready:
-# pnpm build
-# pm2 start pnpm --name "nuncio" -- start
-# pm2 save && pm2 startup
-```
+1. **Homepage loads:** `https://your-domain.com`
+2. **Demo mode works:** `https://your-domain.com?demo=true`
+3. **API routes respond:** `curl -X POST https://your-domain.com/api/enrich -H "Content-Type: application/json" -d '{"urls":["https://linkedin.com/in/test"]}'`
 
 ---
 
-## Costs
+## Vultr Award eligibility
 
-| Resource | Vultr pricing |
-|---|---|
-| 1 vCPU / 1 GB server | $6/month |
-| Bandwidth | Included (1 TB) |
-| **Total for hackathon** | **~$0.20/day** |
-
-With the $200 Vultr credit, this runs for free for months.
+For the Milan AI Week hackathon Vultr track:
+- Deploy on Vultr ✓
+- Document the deployment (this file) ✓
+- Include Vultr in the tech stack slide of your pitch deck
