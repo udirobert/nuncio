@@ -256,7 +256,12 @@ export function ScriptReview({
           )}
           <button
             onClick={handleRender}
-            className="btn-press flex-[2] rounded-2xl bg-ink px-5 py-4 text-sm font-medium text-cream hover:bg-ink-light transition-all shadow-xl shadow-ink/15 hover:shadow-2xl hover:shadow-ink/20 hover:-translate-y-0.5"
+            disabled={wordCount > 200}
+            className={`btn-press flex-[2] rounded-2xl px-5 py-4 text-sm font-medium transition-all ${
+              wordCount > 200
+                ? "bg-cream-dark text-ink-faint cursor-not-allowed"
+                : "bg-ink text-cream hover:bg-ink-light shadow-xl shadow-ink/15 hover:shadow-2xl hover:shadow-ink/20 hover:-translate-y-0.5"
+            }`}
           >
             <span className="flex items-center justify-center gap-2">
               Render video
@@ -273,7 +278,9 @@ export function ScriptReview({
           transition={{ delay: 0.6 }}
           className="text-center text-[11px] text-ink-faint mt-4"
         >
-          Rendering takes ~60 seconds · Uses 1 credit
+          {wordCount > 200
+            ? `Script is ${wordCount} words — shorten to 200 or fewer to render`
+            : "Rendering takes ~60 seconds · Uses 1 credit"}
         </motion.p>
       </motion.div>
     </main>

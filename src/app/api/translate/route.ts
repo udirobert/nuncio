@@ -1,11 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { translateVideo } from "@/lib/heygen";
+import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 
 /**
  * POST /api/translate
  * Translate a rendered video to another language using HeyGen Video Translate + Lipsync.
  */
 export async function POST(request: NextRequest) {
+  // Rate limit
+  const clientId = getClientId(request);
+  const limit = checkRateLimit(clientId, "translate", RATE_LIMITS.translate);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: `Rate limited. Try again in ${limit.resetIn} seconds.` },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limit.resetIn) },
+      }
+    );
+  }
+
   try {
     const { videoId, targetLanguage } = await request.json();
 
