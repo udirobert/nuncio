@@ -5,6 +5,7 @@ import type { PipelineState } from "@/lib/pipeline";
 
 interface HeaderProps {
   stage: PipelineState["stage"];
+  isDemo?: boolean;
 }
 
 const STAGE_LABELS: Record<PipelineState["stage"], string> = {
@@ -15,7 +16,7 @@ const STAGE_LABELS: Record<PipelineState["stage"], string> = {
   error: "",
 };
 
-export function Header({ stage }: HeaderProps) {
+export function Header({ stage, isDemo }: HeaderProps) {
   const showStage = stage !== "input" && stage !== "error";
 
   return (
@@ -30,27 +31,34 @@ export function Header({ stage }: HeaderProps) {
         nuncio
       </motion.a>
 
-      {showStage && (
-        <motion.div
-          initial={{ opacity: 0, x: 12 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 12 }}
-          className="pointer-events-auto flex items-center gap-2"
-        >
-          {stage === "progress" && (
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
-            </span>
-          )}
-          {stage === "done" && (
-            <span className="flex h-2 w-2 rounded-full bg-success" />
-          )}
-          <span className="text-xs uppercase tracking-widest text-ink-faint font-medium">
-            {STAGE_LABELS[stage]}
+      <div className="pointer-events-auto flex items-center gap-3">
+        {isDemo && (
+          <span className="text-[10px] uppercase tracking-widest font-medium text-warm bg-warm-soft px-2 py-0.5 rounded-full">
+            Demo
           </span>
-        </motion.div>
-      )}
+        )}
+        {showStage && (
+          <motion.div
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 12 }}
+            className="flex items-center gap-2"
+          >
+            {stage === "progress" && (
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
+              </span>
+            )}
+            {stage === "done" && (
+              <span className="flex h-2 w-2 rounded-full bg-success" />
+            )}
+            <span className="text-xs uppercase tracking-widest text-ink-faint font-medium">
+              {STAGE_LABELS[stage]}
+            </span>
+          </motion.div>
+        )}
+      </div>
     </header>
   );
 }

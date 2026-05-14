@@ -1,4 +1,11 @@
 import type { Profile } from "@/lib/claude";
+import {
+  DEMO_PROFILE,
+  DEMO_SCRIPT,
+  DEMO_SOURCES,
+  DEMO_VIDEO_URL,
+  demoDelay,
+} from "@/lib/demo";
 
 export interface StepState {
   id: string;
@@ -16,6 +23,7 @@ export interface PipelineState {
   assetUrls?: string[];
   videoUrl?: string;
   error?: string;
+  isDemo?: boolean;
 }
 
 const INITIAL_STEPS: StepState[] = [
@@ -43,23 +51,62 @@ function updateStep(
 }
 
 /**
+ * Check if demo mode is active.
+ */
+export function isDemoMode(): boolean {
+  if (typeof window === "undefined") return false;
+  const params = new URLSearchParams(window.location.search);
+  return (
+    params.get("demo") === "true" ||
+    process.env.NEXT_PUBLIC_DEMO_MODE === "true"
+  );
+}
+
+/**
  * Run the full nuncio pipeline: enrich → script → canvas → video
- * Updates state at each step so the UI can show progress.
+ * In demo mode, uses cached data with artificial delays.
  */
 export async function generateVideo(
   urls: string[],
   setState: SetState,
   senderBrief?: string
 ) {
+  const demo = isDemoMode();
+
   setState({
     stage: "progress",
     steps: INITIAL_STEPS.map((s, i) => ({
       ...s,
       status: i === 0 ? "active" : "pending",
     })),
+    isDemo: demo,
   });
 
   try {
+    if (demo) {
+      // Demo mode — simulate pipeline with cached data
+      await demoDelay(800);
+      updateStep(setState, "enrich", { status: "complete", elapsed: 0.8 });
+      updateStep(setState, "script", { status: "active" });
+
+      await demoDelay(1500);
+      updateStep(setState, "script", { status: "complete", elapsed: 1.5 });
+      updateStep(setState, "canvas", { status: "active" });
+
+      await demoDelay(1000);
+      updateStep(setState, "canvas", { status: "complete", elapsed: 1.0 });
+
+      setState((prev) => ({
+        ...prev,
+        stage: "review",
+        profile: DEMO_PROFILE,
+        script: DEMO_SCRIPT,
+        sources: DEMO_SOURCES,
+        assetUrls: [],
+      }));
+      return;
+    }
+
     // Stage 1: Enrich
     const enrichStart = Date.now();
     const enrichRes = await fetch("/api/enrich", {
@@ -154,17 +201,30 @@ export async function generateVideo(
 
 /**
  * Render video after script review/edit.
- * Called from the ScriptReview component.
+ * In demo mode, returns a sample video URL after a short delay.
  */
 export async function renderVideo(
   script: string,
   assetUrls: string[],
   setState: SetState
 ) {
+  const demo = isDemoMode();
+
   updateStep(setState, "video", { status: "active" });
   setState((prev) => ({ ...prev, stage: "progress" }));
 
   try {
+    if (demo) {
+      await demoDelay(3000);
+      updateStep(setState, "video", { status: "complete", elapsed: 3.0 });
+      setState((prev) => ({
+        ...prev,
+        stage: "done",
+        videoUrl: DEMO_VIDEO_URL,
+      }));
+      return;
+    }
+
     const videoStart = Date.now();
     const videoRes = await fetch("/api/video", {
       method: "POST",

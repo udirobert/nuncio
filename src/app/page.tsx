@@ -7,7 +7,7 @@ import { UrlForm } from "@/components/url-form";
 import { ProgressStepper } from "@/components/progress-stepper";
 import { ScriptReview } from "@/components/script-review";
 import { VideoPlayer } from "@/components/video-player";
-import { generateVideo, renderVideo } from "@/lib/pipeline";
+import { generateVideo, renderVideo, isDemoMode } from "@/lib/pipeline";
 import type { PipelineState } from "@/lib/pipeline";
 
 export default function Home() {
@@ -35,7 +35,7 @@ export default function Home() {
 
   return (
     <>
-      <Header stage={state.stage} />
+      <Header stage={state.stage} isDemo={state.isDemo || isDemoMode()} />
 
       <AnimatePresence mode="wait">
         {state.stage === "input" && (
