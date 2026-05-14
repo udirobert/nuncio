@@ -81,6 +81,22 @@ export function UrlForm({ onSubmit }: UrlFormProps) {
   const [senderBrief, setSenderBrief] = useState("");
   const [justPasted, setJustPasted] = useState<string | null>(null);
 
+  // Demo mode detection
+  const isDemoActive =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("demo") === "true";
+
+  function handleDemoFill() {
+    setEntries([
+      { id: "1", value: "https://linkedin.com/in/sarahchen", platform: "linkedin" },
+      { id: "2", value: "https://x.com/sarahchen_pay", platform: "twitter" },
+      { id: "3", value: "", platform: null },
+    ]);
+    setSenderBrief(
+      "I'm building a payments infrastructure API and want to connect about their experience scaling cross-border payments at Stripe."
+    );
+  }
+
   const validUrls = entries
     .filter((e) => e.value.trim() && e.platform)
     .map((e) => e.value.trim());
@@ -352,6 +368,20 @@ export function UrlForm({ onSubmit }: UrlFormProps) {
               >
                 ⌘ + Enter · No account needed · ~90 seconds
               </motion.p>
+            )}
+
+            {/* Demo pre-fill — only visible in demo mode */}
+            {isDemoActive && !isValid && (
+              <motion.button
+                type="button"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+                onClick={handleDemoFill}
+                className="mt-4 w-full text-center text-xs text-warm hover:text-warm/80 transition-colors"
+              >
+                ▶ Load demo example
+              </motion.button>
             )}
           </motion.div>
         </motion.form>

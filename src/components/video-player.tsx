@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { ShareNuncio } from "@/components/share-nuncio";
 
 interface VideoPlayerProps {
@@ -14,6 +14,106 @@ interface Caption {
   text: string;
   startTime: number;
   endTime: number;
+}
+
+const LANGUAGES = [
+  { code: "es", label: "Spanish" },
+  { code: "fr", label: "French" },
+  { code: "de", label: "German" },
+  { code: "pt", label: "Portuguese" },
+  { code: "ja", label: "Japanese" },
+  { code: "zh", label: "Chinese" },
+  { code: "ar", label: "Arabic" },
+  { code: "hi", label: "Hindi" },
+];
+
+function TranslateButton({ videoUrl }: { videoUrl: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [translating, setTranslating] = useState<string | null>(null);
+  const [translated, setTranslated] = useState<string | null>(null);
+
+  async function handleTranslate(langCode: string) {
+    setTranslating(langCode);
+    setIsOpen(false);
+
+    try {
+      // Extract video ID from URL if possible, otherwise use the URL itself
+      const videoId = videoUrl.split("/").pop()?.split(".")[0] || videoUrl;
+
+      const res = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoId, targetLanguage: langCode }),
+      });
+
+      if (res.ok) {
+        setTranslated(langCode);
+      }
+    } catch {
+      // Non-critical
+    }
+    setTranslating(null);
+  }
+
+  return (
+    <div className="relative">
+      {translating ? (
+        <span className="text-xs text-accent flex items-center gap-2">
+          <motion.span className="flex gap-1">
+            {[0, 1, 2].map((dot) => (
+              <motion.span
+                key={dot}
+                className="w-1.5 h-1.5 rounded-full bg-accent"
+                animate={{ opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 1, repeat: Infinity, delay: dot * 0.15 }}
+              />
+            ))}
+          </motion.span>
+          Translating to {LANGUAGES.find((l) => l.code === translating)?.label}...
+        </span>
+      ) : translated ? (
+        <span className="text-xs text-success flex items-center gap-1.5">
+          <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 8.5l3.5 3.5L13 5" />
+          </svg>
+          Translated to {LANGUAGES.find((l) => l.code === translated)?.label}
+        </span>
+      ) : (
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="text-xs text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5"
+        >
+          <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <circle cx="8" cy="8" r="6" />
+            <path d="M2 8h12M8 2a10 10 0 013 6 10 10 0 01-3 6 10 10 0 01-3-6 10 10 0 013-6z" />
+          </svg>
+          Translate video
+        </button>
+      )}
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 8, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="absolute top-full left-0 mt-2 w-48 rounded-xl border border-cream-dark bg-white p-2 shadow-xl shadow-ink/10 z-50"
+          >
+            {LANGUAGES.map((lang) => (
+              <button
+                key={lang.code}
+                onClick={() => handleTranslate(lang.code)}
+                className="w-full text-left px-3 py-2 text-xs text-ink-light hover:bg-cream-dark/50 rounded-lg transition-colors"
+              >
+                {lang.label}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
 
 function Confetti() {
@@ -203,13 +303,17 @@ export function VideoPlayer({ videoUrl, onReset, recipientName }: VideoPlayerPro
           </a>
         </motion.div>
 
-        {/* Captions */}
+        {/* Translation + Captions */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
-          className="mb-6"
+          className="mb-6 flex flex-wrap items-center gap-3"
         >
+          {/* Translation */}
+          <TranslateButton videoUrl={videoUrl} />
+
+          {/* Captions */}
           {!captions && !captionsLoading && (
             <button
               onClick={handleGenerateCaptions}
@@ -219,14 +323,12 @@ export function VideoPlayer({ videoUrl, onReset, recipientName }: VideoPlayerPro
                 <rect x="1" y="3" width="14" height="10" rx="2" />
                 <path d="M4 8h3M9 8h3M4 10.5h5" />
               </svg>
-              Generate captions with Speechmatics
+              Generate captions
             </button>
           )}
           {captionsLoading && (
             <span className="text-xs text-accent flex items-center gap-2">
-              <motion.span
-                className="flex gap-1"
-              >
+              <motion.span className="flex gap-1">
                 {[0, 1, 2].map((dot) => (
                   <motion.span
                     key={dot}
@@ -239,24 +341,30 @@ export function VideoPlayer({ videoUrl, onReset, recipientName }: VideoPlayerPro
               Generating captions...
             </span>
           )}
-          {captions && (
-            <div className="rounded-xl border border-cream-dark bg-white p-4 max-h-32 overflow-y-auto">
-              <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-2">
-                Captions ({captions.length} segments)
-              </p>
-              <div className="space-y-1">
-                {captions.map((cap, i) => (
-                  <p key={i} className="text-xs text-ink-light">
-                    <span className="font-[family-name:var(--font-mono)] text-ink-faint mr-2">
-                      {cap.startTime.toFixed(1)}s
-                    </span>
-                    {cap.text}
-                  </p>
-                ))}
-              </div>
-            </div>
-          )}
         </motion.div>
+
+        {/* Captions display */}
+        {captions && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 rounded-xl border border-cream-dark bg-white p-4 max-h-32 overflow-y-auto"
+          >
+            <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-2">
+              Captions ({captions.length} segments)
+            </p>
+            <div className="space-y-1">
+              {captions.map((cap, i) => (
+                <p key={i} className="text-xs text-ink-light">
+                  <span className="font-[family-name:var(--font-mono)] text-ink-faint mr-2">
+                    {cap.startTime.toFixed(1)}s
+                  </span>
+                  {cap.text}
+                </p>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* Share + Generate another */}
         <motion.div
