@@ -1,63 +1,124 @@
+"use client";
+
+import { useState } from "react";
+import { UrlForm } from "@/components/url-form";
+import { ProgressStepper } from "@/components/progress-stepper";
+import { ScriptReview } from "@/components/script-review";
+import { VideoPlayer } from "@/components/video-player";
+import { generateVideo } from "@/lib/pipeline";
+import type { PipelineState } from "@/lib/pipeline";
+
 export default function Home() {
-  return (
-    <main className="flex-1 flex items-center justify-center px-4">
-      <div className="w-full max-w-[600px] space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-2xl font-medium tracking-tight">nuncio</h1>
-          <p className="text-sm text-neutral-500">
-            Drop a name or any social URL. Get a personalised video in 60
-            seconds.
-          </p>
-        </div>
+  const [state, setState] = useState<PipelineState>({
+    stage: "input",
+    steps: [],
+  });
 
-        <form className="space-y-4">
-          <div className="space-y-3">
-            <label htmlFor="linkedin" className="block text-sm font-medium">
-              LinkedIn URL
-            </label>
-            <input
-              id="linkedin"
-              name="linkedin"
-              type="url"
-              placeholder="https://linkedin.com/in/username"
-              className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-            />
+  async function handleSubmit(urls: string[]) {
+    await generateVideo(urls, setState);
+  }
 
-            <label htmlFor="twitter" className="block text-sm font-medium">
-              Twitter / X
-            </label>
-            <input
-              id="twitter"
-              name="twitter"
-              type="url"
-              placeholder="https://x.com/username"
-              className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-            />
+  function handleReset() {
+    setState({ stage: "input", steps: [] });
+  }
 
-            <label htmlFor="other" className="block text-sm font-medium">
-              Other URL
-            </label>
-            <input
-              id="other"
-              name="other"
-              type="url"
-              placeholder="https://..."
-              className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-            />
-          </div>
+  function handleEditScript(script: string) {
+    setState((prev) => ({ ...prev, script }));
+  }
 
-          <p className="text-xs text-neutral-400">
-            At least one URL required.
-          </p>
+  async function handleRenderAfterEdit() {
+    if (!state.script || !state.assetUrls) return;
 
+    setState((prev) => ({
+      ...prev,
+      stage: "progress",
+      steps: prev.steps.map((s) =>
+        s.id === "video"
+          ? { ...s, status: "active", elapsed: undefined }
+          : s
+      ),
+    }));
+
+    try {
+      const videoRes = await fetch("/api/video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          script: state.script,
+          assetUrls: state.assetUrls,
+        }),
+      });
+      const { videoId } = await videoRes.json();
+
+      // Poll for completion
+      let videoUrl: string | undefined;
+      while (!videoUrl) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const statusRes = await fetch(`/api/video/${videoId}`);
+        const status = await statusRes.json();
+        if (status.status === "completed") {
+          videoUrl = status.videoUrl;
+        } else if (status.status === "failed") {
+          throw new Error("Video generation failed");
+        }
+      }
+
+      setState((prev) => ({
+        ...prev,
+        stage: "done",
+        videoUrl,
+        steps: prev.steps.map((s) =>
+          s.id === "video" ? { ...s, status: "complete", elapsed: 0 } : s
+        ),
+      }));
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        stage: "error",
+        error: error instanceof Error ? error.message : "Video render failed",
+      }));
+    }
+  }
+
+  if (state.stage === "input") {
+    return <UrlForm onSubmit={handleSubmit} />;
+  }
+
+  if (state.stage === "progress") {
+    return <ProgressStepper steps={state.steps} />;
+  }
+
+  if (state.stage === "review" && state.script && state.profile) {
+    return (
+      <ScriptReview
+        script={state.script}
+        profile={state.profile}
+        sources={state.sources}
+        onEdit={handleEditScript}
+        onRender={handleRenderAfterEdit}
+      />
+    );
+  }
+
+  if (state.stage === "done" && state.videoUrl) {
+    return <VideoPlayer videoUrl={state.videoUrl} onReset={handleReset} />;
+  }
+
+  if (state.stage === "error") {
+    return (
+      <main className="flex-1 flex items-center justify-center px-4">
+        <div className="w-full max-w-[600px] space-y-4 text-center">
+          <p className="text-sm text-red-600">{state.error}</p>
           <button
-            type="submit"
-            className="w-full rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleReset}
+            className="text-sm text-neutral-500 hover:text-neutral-900"
           >
-            Generate video →
+            Start over →
           </button>
-        </form>
-      </div>
-    </main>
-  );
+        </div>
+      </main>
+    );
+  }
+
+  return null;
 }
