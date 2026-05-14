@@ -124,44 +124,42 @@ Claude receives the structured profile plus a brief about the sender (who you ar
 
 **Purpose:** Render the final avatar video using the script, voice clone, and Melius-generated visual assets.
 
-**Sequence:**
+**Primary: Video Agent API** (`POST /v1/video_agent/generate`)
 
-1. Upload Melius background asset to HeyGen: `POST /v1/asset` → `asset_id`
-2. Create video: `POST /v3/videos`
-3. Poll status: `GET /v3/videos/{video_id}` every 5 seconds
-4. On `status === "completed"`, return `video_url`
-5. Optional: `POST /v1/video_translate` for multilingual delivery
+The Video Agent is HeyGen's high-level endpoint for agentic workflows. We send a structured scene prompt following HeyGen Skills guidelines, and the agent handles avatar selection, scene composition, and rendering.
 
-**Create video payload:**
-```json
-{
-  "type": "avatar",
-  "avatar_id": "<your_avatar_id>",
-  "script": "<generated_script>",
-  "voice_id": "<cloned_voice_id>",
-  "background": {
-    "type": "asset",
-    "asset_id": "<melius_background_asset_id>"
-  },
-  "resolution": "1080p",
-  "aspect_ratio": "16:9",
-  "expressiveness": "high",
-  "callback_url": "<optional_webhook>"
-}
+**Prompt structure (built by `buildVideoAgentPrompt()`):**
+```
+Scene 1 — INTRO (3s): Avatar looks at camera, begins naturally
+Scene 2 — MAIN MESSAGE (variable): Delivers the personalised script
+Scene 3 — CLOSE (3s): Natural ending, smile
+
+Global style: warm, conversational, high expressiveness, 1080p 16:9
 ```
 
-**Avatar:** Avatar V (launched May 18 2026) — use `model_list` on the HeyGen API to confirm the Avatar V `avatar_id`.
+**Fallback: Direct API** (`POST /v3/videos`)
 
-**Voice:** Pre-clone the sender's voice once via `POST /v1/voice_clone`. Store the `voice_id` as an environment variable. All generated videos use this voice.
+If the Video Agent is unavailable (rate limit, downtime), the system falls back to the direct video creation endpoint with manual avatar_id, voice_id, and background configuration.
 
-**Async handling:** HeyGen generation takes 60–180 seconds. In production use the `callback_url` webhook. For the hackathon demo, client-side polling every 5 seconds with a progress indicator is sufficient.
+**Sequence:**
 
-**Translation (optional, post-MVP):**
+1. Build structured Video Agent prompt from script + recipient name
+2. Call `POST /v1/video_agent/generate` with prompt and config
+3. If Video Agent fails → fall back to `POST /v3/videos` with manual params
+4. Poll status: `GET /v1/video_status.get?video_id={id}` every 5 seconds
+5. On `status === "completed"`, return `video_url`
+6. Optional: `POST /v1/video_translate` for multilingual delivery (8 languages)
+
+**Avatar:** Avatar V (launched May 18 2026). Avatar ID stored as env var.
+
+**Voice:** Pre-clone the sender's voice once via `POST /v1/voice_clone`. Store the `voice_id` as an environment variable.
+
+**Translation:**
 ```
 POST /v1/video_translate
 {
   "video_id": "<generated_video_id>",
-  "target_language": "es"  // or any supported language
+  "target_language": "es"  // es, fr, de, pt, ja, zh, ar, hi
 }
 ```
 
@@ -173,9 +171,14 @@ POST /v1/video_translate
 |---|---|---|
 | `/api/enrich` | POST | Accepts `{ urls: string[] }`, returns enriched markdown per URL |
 | `/api/script` | POST | Accepts `{ enrichment: string[], senderBrief: string }`, returns `{ profile, script }` |
-| `/api/canvas` | POST | Accepts `{ profile, script }`, creates Melius canvas, returns `{ canvasId, assetUrls }` |
-| `/api/video` | POST | Accepts `{ script, assetUrls }`, triggers HeyGen, returns `{ videoId }` |
+| `/api/canvas` | POST | Accepts `{ profile, script }`, creates creative session, returns `{ canvasId, assetUrls }` |
+| `/api/video` | POST | Accepts `{ script, assetUrls, recipientName }`, triggers HeyGen Video Agent, returns `{ videoId }` |
 | `/api/video/[id]` | GET | Polls HeyGen for video status, returns `{ status, videoUrl? }` |
+| `/api/translate` | POST | Accepts `{ videoId, targetLanguage }`, triggers HeyGen Video Translate |
+| `/api/transcribe` | POST | Accepts audio file (multipart), returns `{ transcript, confidence, words }` via Speechmatics |
+| `/api/transcribe/token` | GET | Returns short-lived JWT for browser-side Speechmatics WebSocket |
+| `/api/captions` | POST | Accepts `{ videoUrl }`, transcribes video and returns timed caption segments |
+| `/api/voice-check` | POST | Accepts audio file, returns voice clone quality assessment |
 
 ---
 
@@ -215,8 +218,11 @@ HEYGEN_API_KEY=
 HEYGEN_AVATAR_ID=
 HEYGEN_VOICE_ID=
 
-# Melius
+# Melius (optional — local fallback if not set)
 MELIUS_API_KEY=
+
+# Speechmatics
+SPEECHMATICS_API_KEY=
 
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -228,8 +234,33 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 | Stage | Failure mode | Recovery |
 |---|---|---|
-| TinyFish | Login wall / 403 on profile | Skip that URL, continue with remaining profiles |
+| TinyFish | Login wall / 403 on profile | Skip that URL, continue with remaining profiles. Show warning in UI. |
 | Claude | Rate limit | Retry with exponential backoff (max 3 attempts) |
-| Melius | Canvas creation fails | Log and continue — Melius is an enhancement, not a blocker |
+| Melius | Canvas creation fails | Fall through to local provider — pipeline continues without Melius |
+| HeyGen Video Agent | API unavailable | Automatic fallback to direct `/v3/videos` API |
 | HeyGen | Video generation timeout (>5 min) | Surface error to user, preserve script for retry |
 | HeyGen | Invalid avatar/voice ID | Validate IDs on startup, fail fast with clear error message |
+| Speechmatics | Transcription fails | Non-blocking — voice input degrades gracefully to text-only |
+
+---
+
+## Cross-cutting concerns
+
+### Retry logic (`src/lib/retry.ts`)
+
+All external API calls use `fetchWithRetry()` — exponential backoff with configurable max attempts, initial delay, and retryable status codes (429, 500, 502, 503, 504).
+
+### Creative provider abstraction (`src/lib/creative/`)
+
+The Melius integration is behind a `CreativeProvider` interface:
+- `MeliusProvider` — full MCP integration (project, canvas, nodes, generation, export)
+- `LocalProvider` — zero-dependency fallback (no external service needed)
+
+Factory auto-selects based on whether `MELIUS_API_KEY` is configured. No vendor lock-in.
+
+### Speechmatics integration (`src/lib/speechmatics.ts`)
+
+- **Voice input** — sender brief via microphone recording → batch transcription
+- **Video captions** — transcribe rendered video → timed subtitle segments
+- **Voice clone quality check** — assess audio sample confidence, detect noise/silence issues
+- **Realtime token** — JWT generation for browser-side WebSocket connections
