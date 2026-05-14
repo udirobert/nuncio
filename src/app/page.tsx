@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { UrlForm } from "@/components/url-form";
 import { ProgressStepper } from "@/components/progress-stepper";
 import { ScriptReview } from "@/components/script-review";
 import { VideoPlayer } from "@/components/video-player";
-import { generateVideo } from "@/lib/pipeline";
+import { generateVideo, renderVideo } from "@/lib/pipeline";
 import type { PipelineState } from "@/lib/pipeline";
 
 export default function Home() {
@@ -26,99 +27,96 @@ export default function Home() {
     setState((prev) => ({ ...prev, script }));
   }
 
-  async function handleRenderAfterEdit() {
-    if (!state.script || !state.assetUrls) return;
-
-    setState((prev) => ({
-      ...prev,
-      stage: "progress",
-      steps: prev.steps.map((s) =>
-        s.id === "video"
-          ? { ...s, status: "active", elapsed: undefined }
-          : s
-      ),
-    }));
-
-    try {
-      const videoRes = await fetch("/api/video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          script: state.script,
-          assetUrls: state.assetUrls,
-        }),
-      });
-      const { videoId } = await videoRes.json();
-
-      // Poll for completion
-      let videoUrl: string | undefined;
-      while (!videoUrl) {
-        await new Promise((r) => setTimeout(r, 5000));
-        const statusRes = await fetch(`/api/video/${videoId}`);
-        const status = await statusRes.json();
-        if (status.status === "completed") {
-          videoUrl = status.videoUrl;
-        } else if (status.status === "failed") {
-          throw new Error("Video generation failed");
-        }
-      }
-
-      setState((prev) => ({
-        ...prev,
-        stage: "done",
-        videoUrl,
-        steps: prev.steps.map((s) =>
-          s.id === "video" ? { ...s, status: "complete", elapsed: 0 } : s
-        ),
-      }));
-    } catch (error) {
-      setState((prev) => ({
-        ...prev,
-        stage: "error",
-        error: error instanceof Error ? error.message : "Video render failed",
-      }));
-    }
+  async function handleRender() {
+    if (!state.script) return;
+    await renderVideo(state.script, state.assetUrls || [], setState);
   }
 
-  if (state.stage === "input") {
-    return <UrlForm onSubmit={handleSubmit} />;
-  }
+  return (
+    <AnimatePresence mode="wait">
+      {state.stage === "input" && (
+        <motion.div
+          key="input"
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.3 }}
+          className="flex-1 flex flex-col"
+        >
+          <UrlForm onSubmit={handleSubmit} />
+        </motion.div>
+      )}
 
-  if (state.stage === "progress") {
-    return <ProgressStepper steps={state.steps} />;
-  }
+      {state.stage === "progress" && (
+        <motion.div
+          key="progress"
+          initial={{ opacity: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.3 }}
+          className="flex-1 flex flex-col"
+        >
+          <ProgressStepper steps={state.steps} />
+        </motion.div>
+      )}
 
-  if (state.stage === "review" && state.script && state.profile) {
-    return (
-      <ScriptReview
-        script={state.script}
-        profile={state.profile}
-        sources={state.sources}
-        onEdit={handleEditScript}
-        onRender={handleRenderAfterEdit}
-      />
-    );
-  }
+      {state.stage === "review" && state.script && state.profile && (
+        <motion.div
+          key="review"
+          initial={{ opacity: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.3 }}
+          className="flex-1 flex flex-col"
+        >
+          <ScriptReview
+            script={state.script}
+            profile={state.profile}
+            sources={state.sources}
+            onEdit={handleEditScript}
+            onRender={handleRender}
+          />
+        </motion.div>
+      )}
 
-  if (state.stage === "done" && state.videoUrl) {
-    return <VideoPlayer videoUrl={state.videoUrl} onReset={handleReset} />;
-  }
+      {state.stage === "done" && state.videoUrl && (
+        <motion.div
+          key="done"
+          initial={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="flex-1 flex flex-col"
+        >
+          <VideoPlayer videoUrl={state.videoUrl} onReset={handleReset} />
+        </motion.div>
+      )}
 
-  if (state.stage === "error") {
-    return (
-      <main className="flex-1 flex items-center justify-center px-4">
-        <div className="w-full max-w-[600px] space-y-4 text-center">
-          <p className="text-sm text-red-600">{state.error}</p>
-          <button
-            onClick={handleReset}
-            className="text-sm text-neutral-500 hover:text-neutral-900"
-          >
-            Start over →
-          </button>
-        </div>
-      </main>
-    );
-  }
-
-  return null;
+      {state.stage === "error" && (
+        <motion.div
+          key="error"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.4 }}
+          className="flex-1 flex items-center justify-center px-6"
+        >
+          <div className="w-full max-w-[540px] text-center space-y-6">
+            <div className="w-12 h-12 rounded-full bg-error-soft flex items-center justify-center mx-auto">
+              <svg viewBox="0 0 16 16" className="w-5 h-5 text-error" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <circle cx="8" cy="8" r="6" />
+                <path d="M8 5v3.5M8 10.5v.5" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm text-ink-light mb-1">{state.error}</p>
+              <p className="text-xs text-ink-faint">
+                This can happen with rate limits or inaccessible profiles.
+              </p>
+            </div>
+            <button
+              onClick={handleReset}
+              className="btn-press inline-flex items-center gap-2 rounded-xl border border-cream-dark px-5 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+            >
+              Try again
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 }
