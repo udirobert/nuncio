@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function ResultPage() {
   return (
     <main className="flex-1 flex items-center justify-center px-4">
@@ -21,12 +23,12 @@ export default function ResultPage() {
           </button>
         </div>
 
-        <a
+        <Link
           href="/"
           className="block text-center text-sm text-neutral-500 hover:text-neutral-900"
         >
           Generate another →
-        </a>
+        </Link>
       </div>
     </main>
   );

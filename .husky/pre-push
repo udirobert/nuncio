@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# Full build check before pushing
+pnpm build

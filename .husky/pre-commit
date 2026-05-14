@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Check for secrets first
+./scripts/check-secrets.sh || exit 1
+
+# Run lint-staged (ESLint + type check on staged files)
+pnpm exec lint-staged
