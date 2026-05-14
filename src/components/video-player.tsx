@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
+import { ShareNuncio } from "@/components/share-nuncio";
 
 interface VideoPlayerProps {
   videoUrl: string;
@@ -75,7 +76,9 @@ export function VideoPlayer({ videoUrl, onReset, recipientName }: VideoPlayerPro
   }, []);
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(videoUrl);
+    // Copy the branded landing page URL, not the raw video URL
+    const shareableUrl = `${window.location.origin}/v/${encodeURIComponent(videoUrl)}`;
+    await navigator.clipboard.writeText(shareableUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -255,12 +258,12 @@ export function VideoPlayer({ videoUrl, onReset, recipientName }: VideoPlayerPro
           )}
         </motion.div>
 
-        {/* Generate another */}
+        {/* Share + Generate another */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.7 }}
-          className="text-center"
+          className="flex flex-col items-center gap-4"
         >
           <button
             onClick={onReset}
@@ -271,6 +274,10 @@ export function VideoPlayer({ videoUrl, onReset, recipientName }: VideoPlayerPro
               <path d="M3 8h10M9 4l4 4-4 4" />
             </svg>
           </button>
+
+          <div className="pt-2">
+            <ShareNuncio videoUrl={videoUrl} recipientName={recipientName} />
+          </div>
         </motion.div>
       </motion.div>
     </main>
