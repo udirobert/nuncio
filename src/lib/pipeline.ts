@@ -222,7 +222,8 @@ export async function generateVideo(
 export async function renderVideo(
   script: string,
   assetUrls: string[],
-  setState: SetState
+  setState: SetState,
+  recipientName?: string
 ) {
   const demo = isDemoMode();
 
@@ -245,7 +246,7 @@ export async function renderVideo(
     const videoRes = await fetch("/api/video", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ script, assetUrls }),
+      body: JSON.stringify({ script, assetUrls, recipientName }),
     });
 
     if (!videoRes.ok) {

@@ -30,7 +30,12 @@ export default function Home() {
 
   async function handleRender() {
     if (!state.script) return;
-    await renderVideo(state.script, state.assetUrls || [], setState);
+    await renderVideo(
+      state.script,
+      state.assetUrls || [],
+      setState,
+      state.profile?.name
+    );
   }
 
   return (

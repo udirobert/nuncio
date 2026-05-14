@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createVideo } from "@/lib/heygen";
 
 export async function POST(request: NextRequest) {
-  const { script, assetUrls } = await request.json();
+  const { script, assetUrls, recipientName } = await request.json();
 
   if (!script) {
     return NextResponse.json(
@@ -11,6 +11,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const result = await createVideo(script, assetUrls);
+  const result = await createVideo(script, assetUrls, recipientName);
   return NextResponse.json(result);
 }
