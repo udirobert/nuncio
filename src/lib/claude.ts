@@ -1,3 +1,5 @@
+import { fetchWithRetry } from "@/lib/retry";
+
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = "claude-sonnet-4-5-20250514";
 
@@ -19,7 +21,7 @@ export async function synthesise(enrichment: string[]): Promise<Profile> {
     throw new Error("ANTHROPIC_API_KEY is not configured");
   }
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetchWithRetry("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -60,7 +62,7 @@ export async function generateScript(
     throw new Error("ANTHROPIC_API_KEY is not configured");
   }
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetchWithRetry("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

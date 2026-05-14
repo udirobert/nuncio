@@ -1,40 +1,82 @@
-const MELIUS_API_KEY = process.env.MELIUS_API_KEY;
-const MELIUS_MCP_URL = "https://api.melius.com/mcp";
+import { getCreativeProvider } from "@/lib/creative";
+import type { CreativeSession } from "@/lib/creative";
 
 export interface CanvasResult {
   canvasId: string;
   assetUrls: string[];
+  canvasUrl?: string;
+  exportUrl?: string;
+  provider: string;
 }
 
 /**
- * Create a Melius canvas with the generated profile and script.
- * Organises creative assets for the video render.
+ * Create a creative session with assets for the video.
+ * Uses whichever creative provider is configured (Melius or local).
+ *
+ * This is the public API the canvas route calls.
+ * It doesn't know or care whether Melius is behind it.
  */
 export async function createCanvas(
   profile: { name: string; [key: string]: unknown },
   script: string
 ): Promise<CanvasResult> {
-  if (!MELIUS_API_KEY) {
-    throw new Error("MELIUS_API_KEY is not configured");
-  }
+  const provider = getCreativeProvider();
 
-  // TODO: Implement full MCP agent flow:
-  // 1. project_create
-  // 2. canvas_create
-  // 3. canvas_plan_layout
-  // 4. bulk_create_nodes
-  // 5. bulk_run_start
-  // 6. bulk_run_wait
-  // 7. bulk_run_download
-  // 8. creative_download
+  // 1. Create session
+  const session: CreativeSession = await provider.createSession(profile.name);
 
-  console.log(`[melius] Creating canvas for ${profile.name}`);
-  console.log(`[melius] MCP URL: ${MELIUS_MCP_URL}`);
-  console.log(`[melius] Script length: ${script.length} chars`);
+  // 2. Store the script and profile as text nodes
+  await provider.storeText(session, "Script", script);
+  await provider.storeText(
+    session,
+    "Profile Summary",
+    JSON.stringify(profile, null, 2)
+  );
 
-  // Placeholder — return empty until MCP integration is wired
+  // 3. Generate background image
+  const backgroundPrompt = buildBackgroundPrompt(profile);
+  await provider.generateBackground(session, backgroundPrompt);
+
+  // 4. Generate thumbnail
+  const thumbnailPrompt = `Professional video thumbnail for a personalised outreach video to ${profile.name}. Clean, minimal, modern.`;
+  await provider.generateThumbnail(session, thumbnailPrompt);
+
+  // 5. Finalise (wait for any pending generations)
+  const finalised = await provider.finalise(session);
+
+  // 6. Export (optional — may return null for local provider)
+  const exportUrl = await provider.export(finalised);
+
+  // Collect asset URLs (filter out empty strings from local provider)
+  const assetUrls = finalised.assets
+    .map((a) => a.url)
+    .filter((url) => url !== "");
+
   return {
-    canvasId: "placeholder",
-    assetUrls: [],
+    canvasId: finalised.id,
+    assetUrls,
+    canvasUrl: finalised.canvasUrl,
+    exportUrl: exportUrl || undefined,
+    provider: provider.name,
   };
+}
+
+/**
+ * Build a contextual background image prompt based on the target's profile.
+ */
+function buildBackgroundPrompt(profile: {
+  name: string;
+  [key: string]: unknown;
+}): string {
+  const company = (profile.company as string) || "";
+  const interests = (profile.interests as string[]) || [];
+
+  const context = [
+    company && `related to ${company}`,
+    interests.length > 0 && `themes: ${interests.slice(0, 2).join(", ")}`,
+  ]
+    .filter(Boolean)
+    .join(". ");
+
+  return `Abstract, professional background for a personalised video. Subtle, modern, clean. ${context}. No text, no faces. 16:9 aspect ratio.`;
 }

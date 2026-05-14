@@ -3,8 +3,44 @@
 import { motion, AnimatePresence } from "motion/react";
 import type { StepState } from "@/lib/pipeline";
 
+import type { EnrichmentWarning } from "@/lib/pipeline";
+
 interface ProgressStepperProps {
   steps: StepState[];
+  warnings?: EnrichmentWarning[];
+}
+
+function EnrichmentWarnings({ warnings }: { warnings?: EnrichmentWarning[] }) {
+  if (!warnings || warnings.length === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.4, duration: 0.4 }}
+      className="mt-6 space-y-2"
+    >
+      {warnings.map((w, i) => {
+        let hostname = w.url;
+        try { hostname = new URL(w.url).hostname.replace("www.", ""); } catch { /* noop */ }
+        return (
+          <div
+            key={i}
+            className="flex items-start gap-2.5 rounded-xl bg-warm-soft/60 border border-warm/15 px-4 py-3"
+          >
+            <svg viewBox="0 0 16 16" className="w-4 h-4 text-warm flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M8 4v4M8 10.5v.5" />
+              <circle cx="8" cy="8" r="6" />
+            </svg>
+            <p className="text-xs text-ink-muted leading-relaxed">
+              <span className="font-medium text-ink-light">{hostname}</span>{" "}
+              — {w.reason}
+            </p>
+          </div>
+        );
+      })}
+    </motion.div>
+  );
 }
 
 const STEP_META: Record<string, { description: string; icon: React.ReactNode }> = {
@@ -44,7 +80,7 @@ const STEP_META: Record<string, { description: string; icon: React.ReactNode }> 
   },
 };
 
-export function ProgressStepper({ steps }: ProgressStepperProps) {
+export function ProgressStepper({ steps, warnings }: ProgressStepperProps) {
   const activeStep = steps.find((s) => s.status === "active");
   const completedCount = steps.filter((s) => s.status === "complete").length;
   const progress = (completedCount / steps.length) * 100;
@@ -204,6 +240,9 @@ export function ProgressStepper({ steps }: ProgressStepperProps) {
             </motion.div>
           ))}
         </div>
+
+        {/* Enrichment warnings */}
+        <EnrichmentWarnings warnings={warnings} />
 
         {/* Footer */}
         <motion.p

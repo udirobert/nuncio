@@ -1,3 +1,5 @@
+import { fetchWithRetry } from "@/lib/retry";
+
 const TINYFISH_API_KEY = process.env.TINYFISH_API_KEY;
 const TINYFISH_URL = "https://api.fetch.tinyfish.ai";
 
@@ -16,7 +18,7 @@ export async function enrich(urls: string[]): Promise<EnrichmentResult[]> {
     throw new Error("TINYFISH_API_KEY is not configured");
   }
 
-  const response = await fetch(TINYFISH_URL, {
+  const response = await fetchWithRetry(TINYFISH_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

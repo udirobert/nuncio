@@ -14,12 +14,18 @@ export interface StepState {
   elapsed?: number;
 }
 
+export interface EnrichmentWarning {
+  url: string;
+  reason: string;
+}
+
 export interface PipelineState {
   stage: "input" | "progress" | "review" | "done" | "error";
   steps: StepState[];
   profile?: Profile;
   script?: string;
   sources?: string[];
+  warnings?: EnrichmentWarning[];
   assetUrls?: string[];
   videoUrl?: string;
   error?: string;
@@ -134,6 +140,13 @@ export async function generateVideo(
       .filter((r: { success: boolean }) => r.success)
       .map((r: { url: string }) => r.url);
 
+    const warnings: EnrichmentWarning[] = enrichment
+      .filter((r: { success: boolean }) => !r.success)
+      .map((r: { url: string }) => ({
+        url: r.url,
+        reason: "Couldn't access this profile — continuing without it",
+      }));
+
     updateStep(setState, "enrich", {
       status: "complete",
       elapsed: (Date.now() - enrichStart) / 1000,
@@ -187,6 +200,7 @@ export async function generateVideo(
       profile,
       script,
       sources,
+      warnings,
       assetUrls,
     }));
   } catch (error) {
