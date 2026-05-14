@@ -11,26 +11,49 @@ export interface EnrichmentResult {
 
 /**
  * Fetch and clean social profile URLs via TinyFish.
- * Returns clean markdown for each URL that was successfully fetched.
+ * Fetches each URL individually so a single failure doesn't take down
+ * the batch — callers can show per-URL warnings and continue with
+ * whatever profiles succeeded.
  */
 export async function enrich(urls: string[]): Promise<EnrichmentResult[]> {
   if (!TINYFISH_API_KEY) {
     throw new Error("TINYFISH_API_KEY is not configured");
   }
 
-  const response = await fetchWithRetry(TINYFISH_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-Key": TINYFISH_API_KEY,
-    },
-    body: JSON.stringify({ urls }),
-  });
+  const results = await Promise.all(
+    urls.map(async (url): Promise<EnrichmentResult> => {
+      try {
+        const response = await fetchWithRetry(
+          TINYFISH_URL,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-API-Key": TINYFISH_API_KEY,
+            },
+            body: JSON.stringify({ urls: [url] }),
+          },
+          { maxAttempts: 2 } // lighter retry for per-URL calls
+        );
 
-  if (!response.ok) {
-    throw new Error(`TinyFish API error: ${response.status}`);
-  }
+        if (!response.ok) {
+          return { url, markdown: "", success: false };
+        }
 
-  const data = await response.json();
-  return data;
+        const data = await response.json();
+        // TinyFish returns an array — grab the first item
+        const item = Array.isArray(data) ? data[0] : data;
+
+        if (item && item.markdown && item.markdown.trim().length > 0) {
+          return { url, markdown: item.markdown, success: true };
+        }
+
+        return { url, markdown: "", success: false };
+      } catch {
+        return { url, markdown: "", success: false };
+      }
+    })
+  );
+
+  return results;
 }

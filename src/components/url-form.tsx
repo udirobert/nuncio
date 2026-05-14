@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { VoiceInput } from "@/components/voice-input";
 
 interface UrlFormProps {
   onSubmit: (urls: string[], senderBrief?: string) => void;
@@ -306,6 +307,14 @@ export function UrlForm({ onSubmit }: UrlFormProps) {
                 <p className="text-[11px] text-ink-faint mt-1.5">
                   This helps the AI write a more relevant script. Optional but recommended.
                 </p>
+                <div className="mt-3">
+                  <VoiceInput
+                    onTranscript={(text) =>
+                      setSenderBrief((prev) => (prev ? `${prev} ${text}` : text))
+                    }
+                    placeholder="Or record a voice note"
+                  />
+                </div>
               </motion.div>
             )}
           </motion.div>

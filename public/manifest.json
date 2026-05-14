@@ -1,0 +1,16 @@
+{
+  "name": "nuncio",
+  "short_name": "nuncio",
+  "description": "Drop a name or any social URL. Get a personalised video in 60 seconds.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF9F6",
+  "theme_color": "#1A1A1A",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

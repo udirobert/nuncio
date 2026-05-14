@@ -1,3 +1,5 @@
+import { fetchWithRetry } from "@/lib/retry";
+
 const HEYGEN_API_KEY = process.env.HEYGEN_API_KEY;
 const HEYGEN_AVATAR_ID = process.env.HEYGEN_AVATAR_ID;
 const HEYGEN_VOICE_ID = process.env.HEYGEN_VOICE_ID;
@@ -45,7 +47,7 @@ export async function createVideo(
     };
   }
 
-  const response = await fetch(`${HEYGEN_BASE_URL}/v3/videos`, {
+  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/videos`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -71,7 +73,7 @@ export async function getVideoStatus(videoId: string): Promise<VideoStatus> {
     throw new Error("HEYGEN_API_KEY is not configured");
   }
 
-  const response = await fetch(`${HEYGEN_BASE_URL}/v3/videos/${videoId}`, {
+  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/videos/${videoId}`, {
     headers: {
       Authorization: `Bearer ${HEYGEN_API_KEY}`,
     },

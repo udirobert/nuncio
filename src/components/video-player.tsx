@@ -9,6 +9,12 @@ interface VideoPlayerProps {
   recipientName?: string;
 }
 
+interface Caption {
+  text: string;
+  startTime: number;
+  endTime: number;
+}
+
 function Confetti() {
   const [particles] = useState(() =>
     Array.from({ length: 24 }, (_, i) => ({
@@ -60,6 +66,8 @@ function Confetti() {
 export function VideoPlayer({ videoUrl, onReset, recipientName }: VideoPlayerProps) {
   const [copied, setCopied] = useState(false);
   const [showConfetti, setShowConfetti] = useState(true);
+  const [captions, setCaptions] = useState<Caption[] | null>(null);
+  const [captionsLoading, setCaptionsLoading] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowConfetti(false), 3000);
@@ -70,6 +78,24 @@ export function VideoPlayer({ videoUrl, onReset, recipientName }: VideoPlayerPro
     await navigator.clipboard.writeText(videoUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleGenerateCaptions() {
+    setCaptionsLoading(true);
+    try {
+      const res = await fetch("/api/captions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoUrl }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCaptions(data.captions);
+      }
+    } catch (error) {
+      console.error("[captions] Failed:", error);
+    }
+    setCaptionsLoading(false);
   }
 
   return (
@@ -172,6 +198,61 @@ export function VideoPlayer({ videoUrl, onReset, recipientName }: VideoPlayerPro
             </svg>
             Download
           </a>
+        </motion.div>
+
+        {/* Captions */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          className="mb-6"
+        >
+          {!captions && !captionsLoading && (
+            <button
+              onClick={handleGenerateCaptions}
+              className="text-xs text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5"
+            >
+              <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="1" y="3" width="14" height="10" rx="2" />
+                <path d="M4 8h3M9 8h3M4 10.5h5" />
+              </svg>
+              Generate captions with Speechmatics
+            </button>
+          )}
+          {captionsLoading && (
+            <span className="text-xs text-accent flex items-center gap-2">
+              <motion.span
+                className="flex gap-1"
+              >
+                {[0, 1, 2].map((dot) => (
+                  <motion.span
+                    key={dot}
+                    className="w-1.5 h-1.5 rounded-full bg-accent"
+                    animate={{ opacity: [0.3, 1, 0.3] }}
+                    transition={{ duration: 1, repeat: Infinity, delay: dot * 0.15 }}
+                  />
+                ))}
+              </motion.span>
+              Generating captions...
+            </span>
+          )}
+          {captions && (
+            <div className="rounded-xl border border-cream-dark bg-white p-4 max-h-32 overflow-y-auto">
+              <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-2">
+                Captions ({captions.length} segments)
+              </p>
+              <div className="space-y-1">
+                {captions.map((cap, i) => (
+                  <p key={i} className="text-xs text-ink-light">
+                    <span className="font-[family-name:var(--font-mono)] text-ink-faint mr-2">
+                      {cap.startTime.toFixed(1)}s
+                    </span>
+                    {cap.text}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
         </motion.div>
 
         {/* Generate another */}
