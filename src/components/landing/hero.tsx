@@ -26,7 +26,7 @@ export function Hero({ children }: HeroProps) {
   const { left, right } = splitShowcase(SHOWCASE_RECIPIENTS);
 
   return (
-    <section className="relative min-h-[calc(100vh-64px)] flex items-stretch">
+    <section className="relative flex items-stretch">
       {/* Cream wash radial spotlight behind the form */}
       <div
         aria-hidden
@@ -50,7 +50,7 @@ export function Hero({ children }: HeroProps) {
 
         {/* Centre stage — the form. Anchored toward the top so the URL
             input stays above the fold on shorter viewports. */}
-        <div className="relative flex items-start justify-center pt-16 lg:pt-20 pb-12 min-h-[calc(100vh-64px)]">
+        <div className="relative flex items-start justify-center pt-16 lg:pt-20 pb-8">
           {children}
         </div>
 

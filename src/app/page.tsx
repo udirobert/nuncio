@@ -10,6 +10,7 @@ import { VideoPlayer } from "@/components/video-player";
 import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { ShowcaseStrip } from "@/components/landing/showcase-strip";
+import { VideoProof } from "@/components/landing/video-proof";
 import { generateVideo, renderVideo, continueAfterCoach, isDemoMode } from "@/lib/pipeline";
 import { SHOWCASE_RECIPIENTS } from "@/lib/showcase";
 import type { PipelineState } from "@/lib/pipeline";
@@ -69,6 +70,7 @@ export default function Home() {
             <Hero>
               <UrlForm onSubmit={handleSubmit} />
             </Hero>
+            <VideoProof />
             <ShowcaseStrip items={SHOWCASE_RECIPIENTS} />
             <HowItWorks />
           </motion.div>
