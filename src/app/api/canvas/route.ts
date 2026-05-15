@@ -3,7 +3,7 @@ import { createCanvas } from "@/lib/melius";
 
 export async function POST(request: NextRequest) {
   try {
-    const { profile, script } = await request.json();
+    const { profile, script, senderBrief } = await request.json();
 
     if (!profile || !script) {
       return NextResponse.json(
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await createCanvas(profile, script);
+    const result = await createCanvas(profile, script, senderBrief);
     return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(
