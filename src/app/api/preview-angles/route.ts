@@ -72,7 +72,10 @@ Rules:
       maxTokens: 512,
     });
 
-    const result: PreviewAnglesResponse = JSON.parse(text);
+    const result = parseAnglesJson(text);
+    if (!result) {
+      throw new Error("LLM did not return parseable JSON");
+    }
 
     // Validate structure
     if (!result.angles || !Array.isArray(result.angles) || result.angles.length === 0) {
@@ -86,4 +89,41 @@ Rules:
       { status: 500 }
     );
   }
+}
+
+/**
+ * Defensively parse JSON from an LLM response. Handles markdown-fenced
+ * blocks (```json … ```), leading/trailing prose, and extracts the first
+ * top-level object as a fallback. Mirrors the pattern used by
+ * parseProfileJson() in src/lib/claude.ts.
+ */
+function parseAnglesJson(text: string): PreviewAnglesResponse | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+
+  // Some providers (notably DeepSeek via Featherless) return the object
+  // body without the outer braces — e.g.  "angles": [...]  …  } — so
+  // wrapping the trimmed payload is one of our recovery candidates.
+  const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/)?.[1];
+  const bracedMatch = trimmed.match(/\{[\s\S]*\}/)?.[0];
+
+  const candidates = [
+    trimmed,
+    fencedMatch,
+    bracedMatch,
+    `{${trimmed.replace(/^\{?/, "").replace(/\}?$/, "")}}`,
+  ].filter(Boolean) as string[];
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && Array.isArray(parsed.angles)) {
+        return parsed as PreviewAnglesResponse;
+      }
+    } catch {
+      // Try next candidate.
+    }
+  }
+
+  return null;
 }
