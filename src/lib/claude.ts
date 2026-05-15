@@ -104,11 +104,12 @@ function fallbackProfile(enrichment: string[]): Profile {
   const text = enrichment.join("\n");
   const lines = text
     .split("\n")
-    .map((line) => line.replace(/^#+\s*/, "").trim())
-    .filter(Boolean);
-  const name = lines[0]?.slice(0, 80) || "there";
+    .map(cleanProfileLine)
+    .filter(isUsefulProfileLine);
+  const name = inferName(lines) || "there";
   const hooks = lines
     .filter((line) => line.length > 20 && line.length < 140)
+    .filter((line) => line !== name)
     .slice(0, 4);
 
   return {
@@ -120,6 +121,42 @@ function fallbackProfile(enrichment: string[]): Profile {
     tone: "conversational",
     personalization_hooks: hooks,
   };
+}
+
+function cleanProfileLine(line: string): string {
+  return line
+    .replace(/^#+\s*/, "")
+    .replace(/[*_`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isUsefulProfileLine(line: string): boolean {
+  if (!line) return false;
+  const lower = line.toLowerCase();
+  const noisy = [
+    "block or report",
+    "contact github support",
+    "this user’s behavior",
+    "this user's behavior",
+    "skip to content",
+    "sign in",
+    "sign up",
+    "sponsor",
+    "followers",
+    "following",
+  ];
+  return !noisy.some((phrase) => lower.includes(phrase));
+}
+
+function inferName(lines: string[]): string | null {
+  const properName = lines.find((line) => /^[A-Z][a-z]+\s+[A-Z][a-z]+/.test(line));
+  if (properName) {
+    return properName.split(/\s+/).slice(0, 2).join(" ");
+  }
+
+  const handleLine = lines.find((line) => /^[a-zA-Z0-9_.-]{2,32}$/.test(line));
+  return handleLine || null;
 }
 
 function fallbackScript(profile: Profile, senderBrief?: string): string {
