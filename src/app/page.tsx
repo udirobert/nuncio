@@ -193,7 +193,7 @@ export default function Home() {
               <div>
                 <p className="text-sm text-ink-light mb-1">{state.error}</p>
                 <p className="text-xs text-ink-faint">
-                  This can happen with rate limits or inaccessible profiles.
+                  This can happen with profile access issues, provider limits, or a dropped connection while rendering.
                 </p>
               </div>
               <button

@@ -390,7 +390,14 @@ export async function renderVideo(
     });
 
     if (!videoRes.ok) {
-      throw new Error("Failed to start video render");
+      let message = "Failed to start video render";
+      try {
+        const data = await videoRes.json();
+        if (data?.error) message = data.error;
+      } catch {
+        // Fall back to generic message below.
+      }
+      throw new Error(message);
     }
 
     const { videoId } = await videoRes.json();
@@ -399,13 +406,35 @@ export async function renderVideo(
     let videoUrl: string | undefined;
     while (!videoUrl) {
       await new Promise((r) => setTimeout(r, 5000));
-      const statusRes = await fetch(`/api/video/${videoId}`);
-      const status = await statusRes.json();
+
+      let statusRes: Response;
+      try {
+        statusRes = await fetch(`/api/video/${videoId}`);
+      } catch {
+        throw new Error("Lost connection while checking video status. Your render may still be running — try again in a moment.");
+      }
+
+      let status: {
+        status?: string;
+        videoUrl?: string;
+        failureMessage?: string;
+        error?: string;
+      };
+
+      try {
+        status = await statusRes.json();
+      } catch {
+        throw new Error("Received an invalid response while checking video status.");
+      }
+
+      if (!statusRes.ok) {
+        throw new Error(status.error || "Failed to check video status.");
+      }
 
       if (status.status === "completed") {
         videoUrl = status.videoUrl;
       } else if (status.status === "failed") {
-        throw new Error("Video generation failed");
+        throw new Error(status.failureMessage || status.error || "Video generation failed");
       }
     }
 

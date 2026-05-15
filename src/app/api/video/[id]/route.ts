@@ -5,7 +5,17 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const result = await getVideoStatus(id);
-  return NextResponse.json(result);
+  try {
+    const { id } = await params;
+    const result = await getVideoStatus(id);
+    return NextResponse.json(result);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        status: "failed",
+        error: error instanceof Error ? error.message : "Failed to fetch video status",
+      },
+      { status: 502 }
+    );
+  }
 }
