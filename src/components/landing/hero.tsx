@@ -50,7 +50,7 @@ export function Hero({ children }: HeroProps) {
 
         {/* Centre stage — the form. Anchored toward the top so the URL
             input stays above the fold on shorter viewports. */}
-        <div className="relative flex items-start justify-center pt-16 lg:pt-20 pb-8">
+        <div className="relative flex items-start justify-center pt-16 lg:pt-20 pb-2">
           {children}
         </div>
 

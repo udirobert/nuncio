@@ -11,6 +11,7 @@ interface VideoPlayerProps {
   shareId?: string;
   canvas?: CanvasProof;
   trace?: AgentTraceItem[];
+  captions?: Caption[];
   onReset: () => void;
   recipientName?: string;
 }
@@ -174,13 +175,42 @@ export function VideoPlayer({
   shareId,
   canvas,
   trace,
+  captions: propCaptions,
   onReset,
   recipientName,
 }: VideoPlayerProps) {
   const [copied, setCopied] = useState(false);
   const [showConfetti, setShowConfetti] = useState(true);
-  const [captions, setCaptions] = useState<Caption[] | null>(null);
+  const [localCaptions, setLocalCaptions] = useState<Caption[] | null>(null);
   const [captionsLoading, setCaptionsLoading] = useState(false);
+  const [vttUrl, setVttUrl] = useState<string | null>(null);
+
+  // Merge prop captions with locally-generated ones
+  const captions = propCaptions || localCaptions;
+
+  // Generate VTT blob URL when captions are available
+  useEffect(() => {
+    let isActive = true;
+
+    if (!captions || captions.length === 0) {
+      queueMicrotask(() => {
+        if (isActive) setVttUrl(null);
+      });
+      return () => {
+        isActive = false;
+      };
+    }
+
+    import("@/lib/vtt").then(({ createVttBlobUrl }) => {
+      if (!isActive) return;
+      const url = createVttBlobUrl(captions);
+      setVttUrl(url ?? null);
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [captions]);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowConfetti(false), 3000);
@@ -207,13 +237,14 @@ export function VideoPlayer({
       });
       if (res.ok) {
         const data = await res.json();
-        setCaptions(data.captions);
+        setLocalCaptions(data.captions);
       }
     } catch (error) {
       console.error("[captions] Failed:", error);
     }
     setCaptionsLoading(false);
   }
+
 
   return (
     <main className="flex-1 flex items-center justify-center px-6 py-16 relative">
@@ -267,6 +298,15 @@ export function VideoPlayer({
             className="w-full h-full object-contain"
           >
             <track kind="captions" />
+            {vttUrl && (
+              <track
+                kind="subtitles"
+                src={vttUrl}
+                srcLang="en"
+                label="English (Speechmatics)"
+                default
+              />
+            )}
           </video>
         </motion.div>
 

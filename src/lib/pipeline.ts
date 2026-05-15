@@ -38,6 +38,7 @@ export interface PipelineState {
   trace?: AgentTraceItem[];
   videoUrl?: string;
   videoId?: string;
+  captions?: { text: string; startTime: number; endTime: number }[];
   share?: ShareRecord;
   error?: string;
   isDemo?: boolean;
@@ -468,6 +469,23 @@ export async function renderVideo(
       share,
       trace,
     }));
+
+    // Auto-generate captions via Speechmatics (non-blocking, updates state when ready)
+    try {
+      const captionsRes = await fetch("/api/captions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoUrl: permanentVideoUrl }),
+      });
+      if (captionsRes.ok) {
+        const { captions } = await captionsRes.json();
+        if (captions && captions.length > 0) {
+          setState((prev) => ({ ...prev, captions }));
+        }
+      }
+    } catch {
+      // Captions are non-critical
+    }
   } catch (error) {
     setState((prev) => ({
       ...prev,

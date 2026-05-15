@@ -156,6 +156,7 @@ export default function Home() {
               shareId={state.share?.id}
               canvas={state.canvas}
               trace={state.trace}
+              captions={state.captions}
               onReset={handleReset}
               recipientName={state.profile?.name}
             />

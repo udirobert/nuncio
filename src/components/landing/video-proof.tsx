@@ -20,7 +20,7 @@ export function VideoProof() {
   const [isPlaying, setIsPlaying] = useState(false);
 
   return (
-    <section className="px-6 py-6 max-w-[720px] mx-auto">
+    <section className="px-6 pt-1 pb-6 max-w-[720px] mx-auto">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         whileInView={{ opacity: 1, y: 0 }}

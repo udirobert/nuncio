@@ -404,7 +404,7 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="mb-8"
+            className="mb-5"
           >
             <div className="flex items-center justify-between mb-2">
               <label className="block text-xs uppercase tracking-widest text-ink-faint font-medium">
