@@ -12,9 +12,9 @@ import Link from "next/link";
  * hackathon: proof that the pipeline actually produces real output.
  */
 
-const GOLDEN_VIDEO_ID = "05c00abc3ef742948bb058f1be33f4f3";
 const GOLDEN_SHARE_PAGE = "/v/2184dcb4-567";
-const GOLDEN_VIDEO_URL = `https://files2.heygen.ai/video/translate/v3/${GOLDEN_VIDEO_ID}/output.mp4`;
+// Video downloaded from HeyGen and hosted statically — signed URLs expire after ~7 days.
+const GOLDEN_VIDEO_URL = "/onee-yekeh-demo.mp4";
 
 export function VideoProof() {
   const [isPlaying, setIsPlaying] = useState(false);
