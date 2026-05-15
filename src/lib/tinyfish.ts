@@ -41,11 +41,11 @@ export async function enrich(urls: string[]): Promise<EnrichmentResult[]> {
         }
 
         const data = await response.json();
-        // TinyFish returns an array — grab the first item
-        const item = Array.isArray(data) ? data[0] : data;
+        const item = normaliseTinyFishItem(data);
+        const markdown = item?.markdown || item?.text || item?.content || "";
 
-        if (item && item.markdown && item.markdown.trim().length > 0) {
-          return { url, markdown: item.markdown, success: true };
+        if (markdown.trim().length > 0) {
+          return { url, markdown, success: true };
         }
 
         return { url, markdown: "", success: false };
@@ -56,4 +56,29 @@ export async function enrich(urls: string[]): Promise<EnrichmentResult[]> {
   );
 
   return results;
+}
+
+function normaliseTinyFishItem(data: unknown):
+  | { markdown?: string; text?: string; content?: string }
+  | null {
+  if (Array.isArray(data)) {
+    return normaliseTinyFishItem(data[0]);
+  }
+
+  if (data && typeof data === "object") {
+    const objectData = data as {
+      markdown?: string;
+      text?: string;
+      content?: string;
+      results?: unknown[];
+    };
+
+    if (Array.isArray(objectData.results)) {
+      return normaliseTinyFishItem(objectData.results[0]);
+    }
+
+    return objectData;
+  }
+
+  return null;
 }
