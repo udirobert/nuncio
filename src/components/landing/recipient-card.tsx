@@ -46,10 +46,15 @@ export function RecipientCard({ item, size = "lg" }: RecipientCardProps) {
   const isLg = size === "lg";
   const hasVideo = !!item.videoUrl;
 
-  // Cards link to /v/[id] only if the id corresponds to a real share record
-  // (the Sarah Chen one in the seeded data). Showcase-only cards open the
-  // home page in demo mode so the visitor can experience the pipeline.
-  const href = hasVideo ? `/v/${item.id}` : "/?demo=true";
+  // Card destination, in priority order:
+  // 1. /v/[id] — when there's a real video to play (matches a share record)
+  // 2. /playbook#entry — when there's a teardown for this recipient
+  // 3. /?demo=true — fallback so the visitor can still experience the pipeline
+  const href = hasVideo
+    ? `/v/${item.id}`
+    : item.playbookId
+      ? `/playbook#${item.playbookId}`
+      : "/?demo=true";
 
   return (
     <Link

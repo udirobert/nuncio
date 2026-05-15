@@ -222,6 +222,12 @@ export default function VideoLandingPage({
               <p className="text-[11px] text-ink-faint">
                 Free · No account needed · 90 seconds
               </p>
+              <Link
+                href="/playbook"
+                className="text-[11px] text-ink-faint hover:text-accent transition-colors underline-offset-2 hover:underline"
+              >
+                See how nuncio crafts these videos →
+              </Link>
             </div>
           </motion.div>
         </div>

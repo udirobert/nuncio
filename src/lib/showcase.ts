@@ -27,6 +27,12 @@ export interface ShowcaseRecipient {
   hue: string;
   /** Optional preview clip (muted, autoplay on hover). */
   videoUrl?: string;
+  /**
+   * If this recipient has a matching teardown in the playbook, link to it
+   * (e.g. "product-feedback" for the Onee Yekeh entry). Without it, the card
+   * falls back to the demo flow on the home page.
+   */
+  playbookId?: string;
 }
 
 export const SHOWCASE_RECIPIENTS: ShowcaseRecipient[] = [
@@ -46,6 +52,7 @@ export const SHOWCASE_RECIPIENTS: ShowcaseRecipient[] = [
     platform: "linkedin",
     angle: "Opened on her recent post about developer-facing video agents, skipped the company pitch.",
     hue: "#FDF0EB",
+    playbookId: "product-feedback",
   },
   {
     id: "showcase-tim-glaser",
@@ -54,6 +61,7 @@ export const SHOWCASE_RECIPIENTS: ShowcaseRecipient[] = [
     platform: "twitter",
     angle: "Referenced his thread on session-replay sampling rather than the obvious 'congrats on the round'.",
     hue: "#E6F4EC",
+    playbookId: "founder-growth",
   },
   {
     id: "showcase-gorkem",
@@ -62,6 +70,7 @@ export const SHOWCASE_RECIPIENTS: ShowcaseRecipient[] = [
     platform: "twitter",
     angle: "Led with the FLUX latency benchmark he shared last week, framed the ask as a swap of notes.",
     hue: "#FFF4E0",
+    playbookId: "creative-infra",
   },
   {
     id: "showcase-anjney",

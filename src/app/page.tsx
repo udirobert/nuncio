@@ -10,9 +10,10 @@ import { VideoPlayer } from "@/components/video-player";
 import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { ShowcaseStrip } from "@/components/landing/showcase-strip";
-import { generateVideo, renderVideo, isDemoMode } from "@/lib/pipeline";
+import { generateVideo, renderVideo, continueAfterCoach, isDemoMode } from "@/lib/pipeline";
 import { SHOWCASE_RECIPIENTS } from "@/lib/showcase";
 import type { PipelineState } from "@/lib/pipeline";
+import { AnglePicker } from "@/components/angle-picker";
 import type { IntentId } from "@/components/intent-chips";
 
 export default function Home() {
@@ -83,6 +84,33 @@ export default function Home() {
             className="flex-1 flex flex-col"
           >
             <ProgressStepper steps={state.steps} warnings={state.warnings} urls={state.urls} />
+          </motion.div>
+        )}
+
+        {state.stage === "coach" && state.profile && (
+          <motion.div
+            key="coach"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="flex-1 flex flex-col"
+          >
+            <AnglePicker
+              profile={state.profile}
+              onConfirm={(selectedAngles) => {
+                continueAfterCoach(
+                  setState,
+                  state.enrichedMarkdown,
+                  undefined, // senderBrief already baked into enrichment
+                  undefined, // intent
+                  selectedAngles
+                );
+              }}
+              onSkip={() => {
+                continueAfterCoach(setState, state.enrichedMarkdown);
+              }}
+            />
           </motion.div>
         )}
 

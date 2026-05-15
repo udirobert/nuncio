@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { enrichment, senderBrief, intent, forceFallback } = await request.json();
+  const { enrichment, senderBrief, intent, forceFallback, profileOnly } = await request.json();
 
   if (!enrichment || !Array.isArray(enrichment) || enrichment.length === 0) {
     return NextResponse.json(
@@ -26,6 +26,12 @@ export async function POST(request: NextRequest) {
   }
 
   const profile = await synthesise(enrichment, { forceFallback });
+
+  // If profileOnly, return just the profile (for coach mode angle preview)
+  if (profileOnly) {
+    return NextResponse.json({ profile, script: null });
+  }
+
   const script = await generateScript(profile, senderBrief, { forceFallback, intent });
 
   return NextResponse.json({ profile, script });

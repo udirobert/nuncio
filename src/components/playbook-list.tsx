@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import type { PlaybookEntry } from "@/lib/playbook";
+import { trackPlaybookViewed } from "@/lib/analytics";
 
 interface PlaybookListProps {
   entries: PlaybookEntry[];
@@ -11,6 +12,28 @@ interface PlaybookListProps {
 
 export function PlaybookList({ entries }: PlaybookListProps) {
   const [expandedId, setExpandedId] = useState<string | null>(entries[0]?.id || null);
+
+  // Honour URL hash on mount and on hash changes — recipient-wall cards
+  // deep-link as /playbook#entry-id; this opens that entry and scrolls to it.
+  useEffect(() => {
+    function applyHash() {
+      const hash = window.location.hash.replace(/^#/, "");
+      if (!hash) return;
+      const match = entries.find((e) => e.id === hash);
+      if (!match) return;
+      setExpandedId(match.id);
+      trackPlaybookViewed({ entryId: match.id });
+      // Defer scroll until after the entry has had a frame to expand
+      requestAnimationFrame(() => {
+        document
+          .getElementById(`playbook-entry-${match.id}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+    return () => window.removeEventListener("hashchange", applyHash);
+  }, [entries]);
 
   return (
     <div className="space-y-3">
@@ -45,7 +68,10 @@ function PlaybookCard({
   const tryUrl = `/?url=${encodeURIComponent(entry.recipient.url)}&brief=${encodeURIComponent(entry.brief)}${entry.intent ? `&intent=${entry.intent}` : ""}`;
 
   return (
-    <article className="rounded-2xl border border-cream-dark bg-white overflow-hidden">
+    <article
+      id={`playbook-entry-${entry.id}`}
+      className="rounded-2xl border border-cream-dark bg-white overflow-hidden scroll-mt-6"
+    >
       {/* Header — always visible */}
       <button
         onClick={onToggle}

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import { VoiceInput } from "@/components/voice-input";
 import { IntentChips, type IntentId } from "@/components/intent-chips";
+import { trackExampleClicked } from "@/lib/analytics";
 
 interface UrlFormProps {
   onSubmit: (urls: string[], senderBrief?: string, intent?: IntentId) => void;
@@ -27,7 +28,16 @@ const PLATFORM_CONFIG: Record<Platform, { label: string; color: string }> = {
   other: { label: "Profile", color: "text-ink-muted" },
 };
 
-const EXAMPLES = [
+interface Example {
+  label: string;
+  name: string;
+  description: string;
+  urls: string[];
+  brief: string;
+  intent: IntentId;
+}
+
+const EXAMPLES: Example[] = [
   {
     label: "HeyGen PM",
     name: "Onee Yekeh",
@@ -35,6 +45,7 @@ const EXAMPLES = [
     urls: ["https://ca.linkedin.com/in/yekeh"],
     brief:
       "I'm building nuncio, an agentic video personalization pipeline that uses HeyGen to turn public profile context into a short, tailored outreach video. I'd love feedback from a HeyGen product perspective on making developer-facing video agents feel genuinely useful and not like generic automation.",
+    intent: "warm_intro",
   },
   {
     label: "PostHog founder",
@@ -43,6 +54,7 @@ const EXAMPLES = [
     urls: ["https://x.com/timgl"],
     brief:
       "I'm building nuncio, a personalized video outreach agent for founders and growth teams. I'd love feedback from a PostHog perspective on using product context and behavioral signals to make outreach feel more useful, measurable, and less spammy.",
+    intent: "founder_to_founder",
   },
   {
     label: "Fal founder",
@@ -51,6 +63,7 @@ const EXAMPLES = [
     urls: ["https://x.com/gorkem"],
     brief:
       "I'm building nuncio, an agentic video pipeline that can use generative media assets to make personalized business videos feel more cinematic. I'd love feedback from a Fal perspective on fast, scalable creative generation inside developer workflows.",
+    intent: "founder_to_founder",
   },
 ];
 
@@ -153,7 +166,7 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
     applyExample(EXAMPLES[0]);
   }
 
-  function applyExample(example: (typeof EXAMPLES)[number]) {
+  function applyExample(example: Example) {
     setEntries([
       ...example.urls.map((url, index) => ({
         id: String(index + 1),
@@ -163,6 +176,8 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
       { id: String(example.urls.length + 1), value: "", platform: null },
     ]);
     setSenderBrief(example.brief);
+    setIntent(example.intent);
+    trackExampleClicked({ exampleName: example.name, source: "home" });
   }
 
   const validUrls = entries

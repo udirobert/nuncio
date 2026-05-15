@@ -22,13 +22,15 @@ export interface EnrichmentWarning {
 }
 
 export interface PipelineState {
-  stage: "input" | "progress" | "review" | "done" | "error";
+  stage: "input" | "progress" | "coach" | "review" | "done" | "error";
   steps: StepState[];
   urls?: string[];
   profile?: Profile;
   script?: string;
   sources?: string[];
   warnings?: EnrichmentWarning[];
+  selectedAngles?: { label: string; evidence: string; why_chosen: string }[];
+  enrichedMarkdown?: string[];
   assetUrls?: string[];
   canvas?: CanvasProof;
   trace?: AgentTraceItem[];
@@ -186,14 +188,65 @@ export async function generateVideo(
       status: "complete",
       elapsed: (Date.now() - enrichStart) / 1000,
     });
-    updateStep(setState, "script", { status: "active" });
+
+    // Synthesise profile for coach mode (quick pass)
+    const profileRes = await fetch("/api/script", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enrichment: enrichedMarkdown, senderBrief, intent, profileOnly: true }),
+    });
+
+    let profile: Profile | undefined;
+    if (profileRes.ok) {
+      const data = await profileRes.json();
+      profile = data.profile;
+    }
+
+    // Pause at coach mode — let user pick angles
+    setState((prev) => ({
+      ...prev,
+      stage: "coach",
+      profile,
+      sources,
+      warnings,
+      enrichedMarkdown,
+    }));
+  } catch (error) {
+    setState((prev) => ({
+      ...prev,
+      stage: "error",
+      error:
+        error instanceof Error ? error.message : "Something went wrong",
+    }));
+  }
+}
+
+/**
+ * Continue the pipeline after coach mode.
+ * Called when the user picks angles (or auto-skips).
+ */
+export async function continueAfterCoach(
+  setState: SetState,
+  enrichedMarkdown: string[] | undefined,
+  senderBrief?: string,
+  intent?: string,
+  selectedAngles?: { label: string; evidence: string; why_chosen: string }[]
+) {
+  updateStep(setState, "script", { status: "active" });
+  setState((prev) => ({ ...prev, stage: "progress", selectedAngles }));
+
+  try {
+    // Build enhanced brief with selected angles
+    const enhancedBrief = selectedAngles && selectedAngles.length > 0
+      ? `${senderBrief || ""}\n\nFocus on these angles:\n${selectedAngles.map((a) => `- ${a.label}: ${a.evidence}`).join("\n")}`
+      : senderBrief;
 
     // Stage 2: Script generation
     const scriptStart = Date.now();
     const scriptRes = await fetch("/api/script", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enrichment: enrichedMarkdown, senderBrief, intent }),
+      body: JSON.stringify({ enrichment: enrichedMarkdown, senderBrief: enhancedBrief, intent }),
     });
 
     if (!scriptRes.ok) {
@@ -242,11 +295,9 @@ export async function generateVideo(
       stage: "review",
       profile,
       script,
-      sources,
-      warnings,
       assetUrls,
       canvas,
-      trace: buildAgentTrace({ profile, sources, senderBrief, canvas }),
+      trace: buildAgentTrace({ profile, sources: prev.sources, senderBrief: enhancedBrief, canvas }),
     }));
   } catch (error) {
     setState((prev) => ({
