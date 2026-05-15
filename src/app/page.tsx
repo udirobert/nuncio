@@ -85,7 +85,13 @@ export default function Home() {
             transition={{ duration: 0.3 }}
             className="flex-1 flex flex-col"
           >
-            <ProgressStepper steps={state.steps} warnings={state.warnings} urls={state.urls} />
+            <ProgressStepper
+              steps={state.steps}
+              warnings={state.warnings}
+              urls={state.urls}
+              script={state.script}
+              recipientName={state.profile?.name}
+            />
           </motion.div>
         )}
 

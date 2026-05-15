@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "motion/react";
+import { useState, useEffect } from "react";
 import type { StepState } from "@/lib/pipeline";
 
 import type { EnrichmentWarning } from "@/lib/pipeline";
@@ -9,6 +10,8 @@ interface ProgressStepperProps {
   steps: StepState[];
   warnings?: EnrichmentWarning[];
   urls?: string[];
+  script?: string;
+  recipientName?: string;
 }
 
 function EnrichmentWarnings({ warnings }: { warnings?: EnrichmentWarning[] }) {
@@ -81,10 +84,22 @@ const STEP_META: Record<string, { description: string; icon: React.ReactNode }> 
   },
 };
 
-export function ProgressStepper({ steps, warnings, urls }: ProgressStepperProps) {
+export function ProgressStepper({ steps, warnings, urls, script, recipientName }: ProgressStepperProps) {
   const activeStep = steps.find((s) => s.status === "active");
   const completedCount = steps.filter((s) => s.status === "complete").length;
   const progress = (completedCount / steps.length) * 100;
+  const isRendering = activeStep?.id === "video";
+
+  // Elapsed timer for the rendering step
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!isRendering) return;
+    const start = Date.now();
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - start) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isRendering]);
 
   // Extract a readable target from the first URL
   let targetHint = "";
@@ -265,6 +280,46 @@ export function ProgressStepper({ steps, warnings, urls }: ProgressStepperProps)
         {/* Enrichment warnings */}
         <EnrichmentWarnings warnings={warnings} />
 
+        {/* Rendering wait state — show script + elapsed timer */}
+        {isRendering && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mt-8 space-y-4"
+          >
+            {/* Elapsed timer */}
+            <div className="flex items-center justify-center gap-3 rounded-xl bg-white border border-cream-dark px-5 py-3">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent" />
+              </span>
+              <span className="text-sm text-ink-light">
+                Rendering{recipientName ? ` for ${recipientName}` : ""}...
+              </span>
+              <span className="font-[family-name:var(--font-mono)] text-sm text-ink-faint tabular-nums ml-auto">
+                {Math.floor(elapsed / 60)}:{(elapsed % 60).toString().padStart(2, "0")}
+              </span>
+            </div>
+
+            {/* Script preview during wait */}
+            {script && (
+              <div className="rounded-xl bg-cream-dark/40 border border-cream-dark p-4">
+                <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-2">
+                  Your script (rendering now)
+                </p>
+                <p className="text-xs text-ink-muted leading-relaxed line-clamp-4">
+                  &ldquo;{script.slice(0, 200)}{script.length > 200 ? "..." : ""}&rdquo;
+                </p>
+              </div>
+            )}
+
+            <p className="text-center text-[11px] text-ink-faint">
+              HeyGen renders take 3–5 minutes. You can leave this page open — it&apos;ll update when ready.
+            </p>
+          </motion.div>
+        )}
+
         {/* Footer */}
         <motion.p
           initial={{ opacity: 0 }}
@@ -272,7 +327,7 @@ export function ProgressStepper({ steps, warnings, urls }: ProgressStepperProps)
           transition={{ delay: 0.6 }}
           className="text-center text-xs text-ink-faint mt-12"
         >
-          This usually takes about 90 seconds
+          Enrichment takes ~15 seconds · Video rendering takes 3–5 minutes
         </motion.p>
       </motion.div>
     </main>
