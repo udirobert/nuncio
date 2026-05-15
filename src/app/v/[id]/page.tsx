@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
+import type { ShareRecord } from "@/lib/artifacts";
 
 /**
  * Branded video landing page — /v/[id]
@@ -16,34 +17,49 @@ import Link from "next/link";
  * scales up from a card into full view on load.
  */
 
-interface VideoData {
-  videoUrl: string;
-  recipientName?: string;
-  senderName?: string;
-}
-
 export default function VideoLandingPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const [videoData, setVideoData] = useState<VideoData | null>(null);
+  const [videoData, setVideoData] = useState<ShareRecord | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     async function load() {
       const { id } = await params;
-      // In production, fetch from API. For now, use demo data.
-      // TODO: GET /api/video/[id]/meta → { videoUrl, recipientName, senderName }
-      setVideoData({
-        videoUrl: `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4`,
-        recipientName: "there",
-        senderName: undefined,
-      });
-      void id; // suppress unused warning
+      const response = await fetch(`/api/share/${encodeURIComponent(id)}`);
+      if (!response.ok) {
+        setNotFound(true);
+        return;
+      }
+      setVideoData(await response.json());
     }
     load();
   }, [params]);
+
+  if (notFound) {
+    return (
+      <div className="min-h-screen bg-cream flex items-center justify-center px-6">
+        <div className="max-w-sm text-center space-y-4">
+          <Link href="/" className="font-[family-name:var(--font-display)] text-lg tracking-tight text-ink">
+            nuncio
+          </Link>
+          <h1 className="font-[family-name:var(--font-display)] text-4xl tracking-tight">Video link expired</h1>
+          <p className="text-sm text-ink-muted leading-relaxed">
+            This prototype keeps share records in the running app process. Generate a fresh video to create a new branded page.
+          </p>
+          <Link
+            href="/"
+            className="btn-press inline-flex rounded-xl bg-ink text-cream px-5 py-3 text-sm font-medium"
+          >
+            Make your own →
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (!videoData) {
     return (
@@ -153,6 +169,36 @@ export default function VideoLandingPage({
           </motion.div>
 
           {/* CTA section — the growth mechanic */}
+          {(videoData.trace?.length || videoData.canvas) && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              className="mt-8 rounded-2xl border border-cream-dark bg-white/70 p-4"
+            >
+              <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-3">
+                How this was made
+              </p>
+              <div className="space-y-2">
+                {videoData.trace?.slice(0, 4).map((item, index) => (
+                  <p key={`${item.label}-${index}`} className="text-xs text-ink-muted leading-relaxed">
+                    <span className="font-medium text-ink">{item.label}:</span> {item.detail}
+                  </p>
+                ))}
+              </div>
+              {videoData.canvas?.canvasUrl && (
+                <a
+                  href={videoData.canvas.canvasUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex text-xs text-accent hover:text-accent/80 transition-colors"
+                >
+                  View creative canvas →
+                </a>
+              )}
+            </motion.div>
+          )}
+
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}

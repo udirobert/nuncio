@@ -1,4 +1,6 @@
 import type { Profile } from "@/lib/claude";
+import type { AgentTraceItem, CanvasProof, ShareRecord } from "@/lib/artifacts";
+import { buildAgentTrace } from "@/lib/artifacts";
 import {
   DEMO_PROFILE,
   DEMO_SCRIPT,
@@ -28,7 +30,11 @@ export interface PipelineState {
   sources?: string[];
   warnings?: EnrichmentWarning[];
   assetUrls?: string[];
+  canvas?: CanvasProof;
+  trace?: AgentTraceItem[];
   videoUrl?: string;
+  videoId?: string;
+  share?: ShareRecord;
   error?: string;
   isDemo?: boolean;
 }
@@ -111,6 +117,17 @@ export async function generateVideo(
         script: DEMO_SCRIPT,
         sources: DEMO_SOURCES,
         assetUrls: [],
+        canvas: {
+          canvasId: "demo-canvas",
+          provider: "demo",
+          assetCount: 0,
+        },
+        trace: buildAgentTrace({
+          profile: DEMO_PROFILE,
+          sources: DEMO_SOURCES,
+          senderBrief,
+          canvas: { canvasId: "demo-canvas", provider: "demo", assetCount: 0 },
+        }),
       }));
       return;
     }
@@ -184,9 +201,17 @@ export async function generateVideo(
     });
 
     let assetUrls: string[] = [];
+    let canvas: CanvasProof | undefined;
     if (canvasRes.ok) {
       const canvasData = await canvasRes.json();
       assetUrls = canvasData.assetUrls || [];
+      canvas = {
+        canvasId: canvasData.canvasId,
+        provider: canvasData.provider,
+        assetCount: canvasData.assetCount ?? assetUrls.length,
+        canvasUrl: canvasData.canvasUrl,
+        exportUrl: canvasData.exportUrl,
+      };
     }
     // Canvas is non-blocking — continue even if it fails
 
@@ -204,6 +229,8 @@ export async function generateVideo(
       sources,
       warnings,
       assetUrls,
+      canvas,
+      trace: buildAgentTrace({ profile, sources, senderBrief, canvas }),
     }));
   } catch (error) {
     setState((prev) => ({
@@ -223,7 +250,13 @@ export async function renderVideo(
   script: string,
   assetUrls: string[],
   setState: SetState,
-  recipientName?: string
+  recipientName?: string,
+  context?: {
+    profile?: Profile;
+    sources?: string[];
+    canvas?: CanvasProof;
+    trace?: AgentTraceItem[];
+  }
 ) {
   const demo = isDemoMode();
 
@@ -234,10 +267,45 @@ export async function renderVideo(
     if (demo) {
       await demoDelay(3000);
       updateStep(setState, "video", { status: "complete", elapsed: 3.0 });
+
+      const trace = buildAgentTrace({
+        profile: context?.profile,
+        sources: context?.sources,
+        canvas: context?.canvas,
+        videoId: "demo-video",
+      });
+
+      let share: ShareRecord | undefined;
+      try {
+        const shareRes = await fetch("/api/share", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            videoUrl: DEMO_VIDEO_URL,
+            videoId: "demo-video",
+            recipientName,
+            profile: context?.profile,
+            sources: context?.sources,
+            canvas: context?.canvas,
+            trace,
+          }),
+        });
+
+        if (shareRes.ok) {
+          const shareData = await shareRes.json();
+          share = shareData.record;
+        }
+      } catch {
+        // Keep demo resilient even if the local share endpoint is unavailable.
+      }
+
       setState((prev) => ({
         ...prev,
         stage: "done",
         videoUrl: DEMO_VIDEO_URL,
+        videoId: "demo-video",
+        share,
+        trace,
       }));
       return;
     }
@@ -274,10 +342,44 @@ export async function renderVideo(
       elapsed: (Date.now() - videoStart) / 1000,
     });
 
+    const trace = buildAgentTrace({
+      profile: context?.profile,
+      sources: context?.sources,
+      canvas: context?.canvas,
+      videoId,
+    });
+
+    let share: ShareRecord | undefined;
+    try {
+      const shareRes = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoUrl,
+          videoId,
+          recipientName,
+          profile: context?.profile,
+          sources: context?.sources,
+          canvas: context?.canvas,
+          trace,
+        }),
+      });
+
+      if (shareRes.ok) {
+        const shareData = await shareRes.json();
+        share = shareData.record;
+      }
+    } catch {
+      // Sharing is non-critical; keep the completed video visible.
+    }
+
     setState((prev) => ({
       ...prev,
       stage: "done",
       videoUrl,
+      videoId,
+      share,
+      trace,
     }));
   } catch (error) {
     setState((prev) => ({

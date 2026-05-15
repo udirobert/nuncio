@@ -3,11 +3,14 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import type { Profile } from "@/lib/claude";
+import type { AgentTraceItem, CanvasProof } from "@/lib/artifacts";
 
 interface ScriptReviewProps {
   script: string;
   profile: Profile;
   sources?: string[];
+  canvas?: CanvasProof;
+  trace?: AgentTraceItem[];
   onEdit: (script: string) => void;
   onRender: () => void;
 }
@@ -42,6 +45,8 @@ export function ScriptReview({
   script,
   profile,
   sources,
+  canvas,
+  trace,
   onEdit,
   onRender,
 }: ScriptReviewProps) {
@@ -226,6 +231,60 @@ export function ScriptReview({
             )}
           </div>
         </motion.div>
+
+        {/* Agent trace + creative proof */}
+        {(trace?.length || canvas) && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+            className="rounded-2xl border border-cream-dark bg-cream-dark/25 p-4 mb-6"
+          >
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+                Agent trace
+              </p>
+              {canvas && (
+                <span className="rounded-full bg-white px-2.5 py-1 text-[10px] text-ink-faint border border-cream-dark">
+                  {canvas.provider === "melius" ? "Melius MCP" : `${canvas.provider} provider`}
+                  {` · ${canvas.assetCount} asset${canvas.assetCount === 1 ? "" : "s"}`}
+                </span>
+              )}
+            </div>
+
+            {trace && trace.length > 0 && (
+              <div className="space-y-2">
+                {trace.slice(0, 5).map((item, index) => (
+                  <div key={`${item.label}-${index}`} className="flex gap-2.5">
+                    <span
+                      className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
+                        item.status === "warning" ? "bg-warm" : "bg-success"
+                      }`}
+                    />
+                    <div>
+                      <p className="text-xs font-medium text-ink">{item.label}</p>
+                      <p className="text-xs text-ink-muted leading-relaxed">{item.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {canvas?.canvasUrl && (
+              <a
+                href={canvas.canvasUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex items-center gap-1.5 text-xs text-accent hover:text-accent/80 transition-colors"
+              >
+                Open creative canvas
+                <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M6 3H3.5A1.5 1.5 0 002 4.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V10M9 2h5v5M8 8l6-6" />
+                </svg>
+              </a>
+            )}
+          </motion.div>
+        )}
 
         {/* Actions */}
         <motion.div

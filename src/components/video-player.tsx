@@ -3,9 +3,13 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ShareNuncio } from "@/components/share-nuncio";
+import type { AgentTraceItem, CanvasProof } from "@/lib/artifacts";
 
 interface VideoPlayerProps {
   videoUrl: string;
+  shareId?: string;
+  canvas?: CanvasProof;
+  trace?: AgentTraceItem[];
   onReset: () => void;
   recipientName?: string;
 }
@@ -164,7 +168,14 @@ function Confetti() {
   );
 }
 
-export function VideoPlayer({ videoUrl, onReset, recipientName }: VideoPlayerProps) {
+export function VideoPlayer({
+  videoUrl,
+  shareId,
+  canvas,
+  trace,
+  onReset,
+  recipientName,
+}: VideoPlayerProps) {
   const [copied, setCopied] = useState(false);
   const [showConfetti, setShowConfetti] = useState(true);
   const [captions, setCaptions] = useState<Caption[] | null>(null);
@@ -176,8 +187,10 @@ export function VideoPlayer({ videoUrl, onReset, recipientName }: VideoPlayerPro
   }, []);
 
   async function handleCopy() {
-    // Copy the branded landing page URL, not the raw video URL
-    const shareableUrl = `${window.location.origin}/v/${encodeURIComponent(videoUrl)}`;
+    // Copy the branded landing page URL when a persisted share record exists.
+    const shareableUrl = shareId
+      ? `${window.location.origin}/v/${shareId}`
+      : videoUrl;
     await navigator.clipboard.writeText(shareableUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -343,6 +356,51 @@ export function VideoPlayer({ videoUrl, onReset, recipientName }: VideoPlayerPro
           )}
         </motion.div>
 
+        {/* Proof strip */}
+        {(shareId || canvas || trace?.length) && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.65 }}
+            className="mb-6 rounded-2xl border border-cream-dark bg-white/80 p-4"
+          >
+            <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-3">
+              Demo receipts
+            </p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {shareId && (
+                <span className="rounded-full bg-success-soft px-2.5 py-1 text-[10px] text-success border border-success/10">
+                  Share page /v/{shareId}
+                </span>
+              )}
+              {canvas && (
+                <span className="rounded-full bg-cream-dark px-2.5 py-1 text-[10px] text-ink-faint border border-cream-dark">
+                  {canvas.provider === "melius" ? "Melius MCP" : canvas.provider} · {canvas.assetCount} assets
+                </span>
+              )}
+              {canvas?.canvasUrl && (
+                <a
+                  href={canvas.canvasUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full bg-accent-soft px-2.5 py-1 text-[10px] text-accent border border-accent/10 hover:bg-accent-soft/70 transition-colors"
+                >
+                  Open canvas →
+                </a>
+              )}
+            </div>
+            {trace && trace.length > 0 && (
+              <div className="space-y-1.5">
+                {trace.slice(-3).map((item, index) => (
+                  <p key={`${item.label}-${index}`} className="text-xs text-ink-muted">
+                    <span className="text-ink font-medium">{item.label}:</span> {item.detail}
+                  </p>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+
         {/* Captions display */}
         {captions && (
           <motion.div
@@ -384,7 +442,7 @@ export function VideoPlayer({ videoUrl, onReset, recipientName }: VideoPlayerPro
           </button>
 
           <div className="pt-2">
-            <ShareNuncio videoUrl={videoUrl} recipientName={recipientName} />
+            <ShareNuncio shareId={shareId} videoUrl={videoUrl} recipientName={recipientName} />
           </div>
         </motion.div>
       </motion.div>

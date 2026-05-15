@@ -6,15 +6,14 @@ import type {
 
 /**
  * Local creative provider — works without any external creative service.
- * Generates assets via direct API calls (future: Replicate, DALL-E, Stability)
- * and stores metadata in memory for the session.
+ * Records creative prompts and stores metadata in memory for the session.
  *
  * This is the zero-dependency fallback. No vendor lock-in.
  */
 export class LocalProvider implements CreativeProvider {
   readonly name = "local";
 
-  async createSession(_targetName: string): Promise<CreativeSession> {
+  async createSession(): Promise<CreativeSession> {
     return {
       id: `local-${Date.now()}`,
       provider: this.name,
@@ -26,8 +25,8 @@ export class LocalProvider implements CreativeProvider {
     session: CreativeSession,
     prompt: string
   ): Promise<GeneratedAsset> {
-    // TODO: Wire to a direct image generation API (Replicate, DALL-E, etc.)
-    // For now, return empty — HeyGen can render without a custom background
+    // Local fallback records the prompt but does not generate media assets.
+    // HeyGen can still render without a custom background.
     const asset: GeneratedAsset = {
       type: "background",
       url: "",
@@ -43,7 +42,7 @@ export class LocalProvider implements CreativeProvider {
     session: CreativeSession,
     prompt: string
   ): Promise<GeneratedAsset> {
-    // TODO: Wire to a direct image generation API
+    // Local fallback records the prompt but does not generate media assets.
     const asset: GeneratedAsset = {
       type: "thumbnail",
       url: "",
@@ -55,11 +54,7 @@ export class LocalProvider implements CreativeProvider {
     return asset;
   }
 
-  async storeText(
-    _session: CreativeSession,
-    _label: string,
-    _content: string
-  ): Promise<void> {
+  async storeText(): Promise<void> {
     // No-op for local provider — text is already in the pipeline state
   }
 
@@ -67,7 +62,7 @@ export class LocalProvider implements CreativeProvider {
     return session;
   }
 
-  async export(_session: CreativeSession): Promise<string | null> {
+  async export(): Promise<string | null> {
     // No export capability without an external service
     return null;
   }

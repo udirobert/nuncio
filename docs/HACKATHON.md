@@ -32,10 +32,11 @@ This is the primary submission. Lead with the technology stack — every major H
 ### Demo script (2 minutes)
 1. Ask an audience member for their Twitter/X handle and LinkedIn URL
 2. Paste into VidCard, hit generate
-3. While it processes (~90s), explain the pipeline on screen
-4. Video plays — it references their actual work
-5. Show the Melius canvas with all creative assets organised
-6. Show the translation option — switch to Spanish in one click
+3. While it processes (~90s), show the agent trace: sources fetched, hooks chosen, tone selected, Melius canvas created
+4. Review the script with highlighted personalization hooks
+5. Render or open the completed HeyGen video — it references their actual work
+6. Show the branded `/v/[id]` share page and Melius canvas proof
+7. Show the translation option — switch to Spanish in one click if API credits allow
 
 ### Pitch one-liner
 > "Drop any social profile. Get a personalised video in 60 seconds. Built on every HeyGen tool in the stack."
@@ -159,6 +160,15 @@ Position VidCard as a native Melius use case — an agent that drives Melius aut
 - [ ] Pitch deck / write-up tailored to judging criteria
 - [ ] GitHub repo link (MIT licensed, open source)
 - [ ] Team details
+
+### Current implementation receipts
+- [x] Demo mode (`?demo=true`) runs the full UI flow without external API keys
+- [x] Agent trace is visible in script review and final video states
+- [x] Canvas proof shows provider, asset count, and Melius canvas URL when available
+- [x] Generated videos can create branded `/v/[id]` share pages via an in-memory MVP store
+- [x] HeyGen wrapper tries Video Agent first and falls back to direct `/v3/videos`
+- [ ] Share metadata persistence is process-local; replace with durable storage before production use
+- [ ] One real golden-path HeyGen + Melius render should be recorded before each submission
 
 ### Demo video script (shared across all submissions)
 1. **0:00–0:20** — Problem: cold outreach has a <5% reply rate. Personalisation helps but doesn't scale.

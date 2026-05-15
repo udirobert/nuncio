@@ -4,24 +4,26 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface ShareNuncioProps {
+  shareId?: string;
   videoUrl?: string;
   recipientName?: string;
 }
 
-export function ShareNuncio({ videoUrl, recipientName }: ShareNuncioProps) {
+export function ShareNuncio({ shareId, videoUrl, recipientName }: ShareNuncioProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const shareText = recipientName
     ? `Just sent a personalised video to ${recipientName} using @naboranuncio — AI researched them, wrote a script, and rendered a video in 90 seconds. Wild.`
     : `Just discovered nuncio — paste someone's LinkedIn, get a personalised video in 90 seconds. The AI researches them and writes a script that actually references their work.`;
 
-  const shareUrl = "https://nuncio.app";
+  const appUrl = typeof window !== "undefined" ? window.location.origin : "https://nuncio.app";
+  const shareUrl = shareId ? `${appUrl}/v/${shareId}` : appUrl;
 
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
   const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
 
   async function handleCopyReferral() {
-    const referralText = `${shareText}\n\nTry it: ${shareUrl}`;
+    const referralText = `${shareText}\n\n${shareId ? "See the video" : "Try it"}: ${shareUrl}${!shareId && videoUrl ? `\nExample video: ${videoUrl}` : ""}`;
     await navigator.clipboard.writeText(referralText);
   }
 

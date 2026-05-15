@@ -10,14 +10,16 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 
 **Goal:** Working end-to-end pipeline that can demo live on stage.
 
-- [ ] TinyFish enrichment for LinkedIn + Twitter/X
-- [ ] Claude two-pass synthesis (profile JSON + script)
-- [ ] HeyGen video creation via `/v3/videos`
+- [x] TinyFish enrichment for LinkedIn + Twitter/X, plus GitHub/Farcaster/Facebook/personal URL validation
+- [x] Claude/LLM two-pass synthesis (profile JSON + script) with Featherless fallback
+- [x] HeyGen video creation via Video Agent with `/v3/videos` fallback
 - [ ] Avatar V integration (launches May 18 — use Avatar IV as fallback for May 14–15 demo)
 - [ ] Voice clone setup (pre-cloned, stored as env var)
-- [ ] Melius canvas creation + asset storage via MCP
-- [ ] Polling endpoint for video status
-- [ ] Minimal frontend: URL input → loading state → video player
+- [x] Melius canvas creation + asset storage via MCP, with local provider fallback
+- [x] Polling endpoint for video status
+- [x] Minimal frontend: URL input → loading state → script review → video player
+- [x] Branded share page metadata for generated videos (in-memory MVP store)
+- [x] Agent trace and canvas proof surfaced in the demo UI
 - [ ] Live demo: audience member gives Twitter handle → video plays in ~60s
 
 **Out of scope for MVP:**
@@ -35,13 +37,13 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 
 - [ ] Farcaster enrichment via TinyFish
 - [ ] Facebook profile enrichment via TinyFish
-- [ ] Proper error handling and user-facing error states
+- [x] Basic user-facing error states and non-blocking canvas/share fallback
 - [ ] Webhook support for HeyGen callbacks (replace polling)
 - [ ] Avatar V once available (May 18)
 - [ ] Rate limiting on API routes
-- [ ] Basic input validation (URL format check per platform)
-- [ ] Loading state with step-by-step progress (not just a spinner)
-- [ ] Copy-to-clipboard for video link
+- [x] Basic input validation (URL format check per platform)
+- [x] Loading state with step-by-step progress (not just a spinner)
+- [x] Copy-to-clipboard for branded share link when available
 - [ ] Basic analytics (how many videos generated, average completion time)
 
 ---

@@ -34,7 +34,13 @@ export default function Home() {
       state.script,
       state.assetUrls || [],
       setState,
-      state.profile?.name
+      state.profile?.name,
+      {
+        profile: state.profile,
+        sources: state.sources,
+        canvas: state.canvas,
+        trace: state.trace,
+      }
     );
   }
 
@@ -80,6 +86,8 @@ export default function Home() {
               script={state.script}
               profile={state.profile}
               sources={state.sources}
+              canvas={state.canvas}
+              trace={state.trace}
               onEdit={handleEditScript}
               onRender={handleRender}
             />
@@ -96,6 +104,9 @@ export default function Home() {
           >
             <VideoPlayer
               videoUrl={state.videoUrl}
+              shareId={state.share?.id}
+              canvas={state.canvas}
+              trace={state.trace}
               onReset={handleReset}
               recipientName={state.profile?.name}
             />

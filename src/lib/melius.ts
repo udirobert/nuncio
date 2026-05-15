@@ -1,12 +1,14 @@
 import { getCreativeProvider } from "@/lib/creative";
 import type { CreativeSession } from "@/lib/creative";
+import type { CanvasProof } from "@/lib/artifacts";
 
-export interface CanvasResult {
+export interface CanvasResult extends CanvasProof {
   canvasId: string;
   assetUrls: string[];
   canvasUrl?: string;
   exportUrl?: string;
   provider: string;
+  assetCount: number;
 }
 
 /**
@@ -55,6 +57,7 @@ export async function createCanvas(
   return {
     canvasId: finalised.id,
     assetUrls,
+    assetCount: assetUrls.length,
     canvasUrl: finalised.canvasUrl,
     exportUrl: exportUrl || undefined,
     provider: provider.name,

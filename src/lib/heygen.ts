@@ -5,6 +5,14 @@ const HEYGEN_AVATAR_ID = process.env.HEYGEN_AVATAR_ID;
 const HEYGEN_VOICE_ID = process.env.HEYGEN_VOICE_ID;
 const HEYGEN_BASE_URL = "https://api.heygen.com";
 
+function heygenHeaders(extra?: HeadersInit): HeadersInit {
+  return {
+    "x-api-key": HEYGEN_API_KEY || "",
+    Authorization: `Bearer ${HEYGEN_API_KEY}`,
+    ...extra,
+  };
+}
+
 export interface VideoResult {
   videoId: string;
 }
@@ -55,10 +63,9 @@ async function createVideoViaAgent(
 
   const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v1/video_agent/generate`, {
     method: "POST",
-    headers: {
+    headers: heygenHeaders({
       "Content-Type": "application/json",
-      Authorization: `Bearer ${HEYGEN_API_KEY}`,
-    },
+    }),
     body: JSON.stringify({
       prompt: agentPrompt,
       config: {
@@ -90,6 +97,41 @@ async function createVideoDirect(
   }
 
   const payload: Record<string, unknown> = {
+    video_inputs: [
+      {
+        character: {
+          type: "avatar",
+          avatar_id: HEYGEN_AVATAR_ID,
+          avatar_style: "normal",
+        },
+        voice: {
+          type: "text",
+          input_text: script,
+          voice_id: HEYGEN_VOICE_ID,
+        },
+      },
+    ],
+    dimension: {
+      width: 1920,
+      height: 1080,
+    },
+  };
+
+  // If Melius provided a background asset, use it
+  if (assetUrls && assetUrls.length > 0) {
+    payload.video_inputs = [
+      {
+        ...((payload.video_inputs as Record<string, unknown>[])[0]),
+        background: {
+          type: "image",
+          url: assetUrls[0],
+        },
+      },
+    ];
+  }
+
+  // Compatibility fallback for accounts still expecting the older flat shape.
+  const legacyPayload: Record<string, unknown> = {
     type: "avatar",
     avatar_id: HEYGEN_AVATAR_ID,
     script,
@@ -99,22 +141,30 @@ async function createVideoDirect(
     expressiveness: "high",
   };
 
-  // If Melius provided a background asset, use it
   if (assetUrls && assetUrls.length > 0) {
-    payload.background = {
+    legacyPayload.background = {
       type: "asset",
       asset_id: assetUrls[0],
     };
   }
 
-  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/videos`, {
+  let response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/videos`, {
     method: "POST",
-    headers: {
+    headers: heygenHeaders({
       "Content-Type": "application/json",
-      Authorization: `Bearer ${HEYGEN_API_KEY}`,
-    },
+    }),
     body: JSON.stringify(payload),
   });
+
+  if (!response.ok && response.status === 400) {
+    response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/videos`, {
+      method: "POST",
+      headers: heygenHeaders({
+        "Content-Type": "application/json",
+      }),
+      body: JSON.stringify(legacyPayload),
+    });
+  }
 
   if (!response.ok) {
     const error = await response.text();
@@ -122,7 +172,7 @@ async function createVideoDirect(
   }
 
   const data = await response.json();
-  return { videoId: data.data.video_id };
+  return { videoId: data.data?.video_id || data.video_id };
 }
 
 /**
@@ -177,7 +227,7 @@ export async function getVideoStatus(videoId: string): Promise<VideoStatus> {
     `${HEYGEN_BASE_URL}/v1/video_status.get?video_id=${videoId}`,
     {
       headers: {
-        Authorization: `Bearer ${HEYGEN_API_KEY}`,
+        ...heygenHeaders(),
       },
     }
   );
@@ -188,7 +238,7 @@ export async function getVideoStatus(videoId: string): Promise<VideoStatus> {
       `${HEYGEN_BASE_URL}/v3/videos/${videoId}`,
       {
         headers: {
-          Authorization: `Bearer ${HEYGEN_API_KEY}`,
+          ...heygenHeaders(),
         },
       }
     );
@@ -199,16 +249,29 @@ export async function getVideoStatus(videoId: string): Promise<VideoStatus> {
 
     const v3Data = await v3Response.json();
     return {
-      status: v3Data.data.status,
+      status: normaliseStatus(v3Data.data?.status),
       videoUrl: v3Data.data.video_url || undefined,
     };
   }
 
   const data = await response.json();
   return {
-    status: data.data?.status || "pending",
+    status: normaliseStatus(data.data?.status),
     videoUrl: data.data?.video_url || undefined,
   };
+}
+
+function normaliseStatus(status: unknown): VideoStatus["status"] {
+  if (status === "completed" || status === "done" || status === "success") {
+    return "completed";
+  }
+  if (status === "failed" || status === "error") {
+    return "failed";
+  }
+  if (status === "processing" || status === "in_progress" || status === "running") {
+    return "processing";
+  }
+  return "pending";
 }
 
 /**
@@ -224,10 +287,9 @@ export async function translateVideo(
 
   const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v1/video_translate`, {
     method: "POST",
-    headers: {
+    headers: heygenHeaders({
       "Content-Type": "application/json",
-      Authorization: `Bearer ${HEYGEN_API_KEY}`,
-    },
+    }),
     body: JSON.stringify({
       video_id: videoId,
       target_language: targetLanguage,
