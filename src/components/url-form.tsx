@@ -103,11 +103,24 @@ function PlatformIcon({ platform }: { platform: Platform }) {
 }
 
 export function UrlForm({ onSubmit }: UrlFormProps) {
-  const [entries, setEntries] = useState<UrlEntry[]>([
-    { id: "1", value: "", platform: null },
-  ]);
-  const [senderBrief, setSenderBrief] = useState("");
-  const [intent, setIntent] = useState<IntentId | null>(null);
+  // Read query params for pre-fill (from playbook "Try this example" links)
+  const initialParams = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search)
+    : null;
+  const prefillUrl = initialParams?.get("url") || "";
+  const prefillBrief = initialParams?.get("brief") || "";
+  const prefillIntent = (initialParams?.get("intent") as IntentId | null) || null;
+
+  const [entries, setEntries] = useState<UrlEntry[]>(
+    prefillUrl
+      ? [
+          { id: "1", value: prefillUrl, platform: detectPlatform(prefillUrl) },
+          { id: "2", value: "", platform: null },
+        ]
+      : [{ id: "1", value: "", platform: null }]
+  );
+  const [senderBrief, setSenderBrief] = useState(prefillBrief);
+  const [intent, setIntent] = useState<IntentId | null>(prefillIntent);
   const [justPasted, setJustPasted] = useState<string | null>(null);
 
   function handleIntentChange(next: IntentId | null, stem: string) {

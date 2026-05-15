@@ -32,6 +32,17 @@ export function Header({ stage, isDemo }: HeaderProps) {
       </motion.a>
 
       <div className="pointer-events-auto flex items-center gap-3">
+        {stage === "input" && (
+          <motion.a
+            href="/playbook"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6, duration: 0.5 }}
+            className="text-xs text-ink-faint hover:text-ink-muted transition-colors"
+          >
+            Playbook
+          </motion.a>
+        )}
         {isDemo && (
           <span className="text-[10px] uppercase tracking-widest font-medium text-warm bg-warm-soft px-2 py-0.5 rounded-full">
             Demo
