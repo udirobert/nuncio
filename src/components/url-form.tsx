@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useSearchParams } from "next/navigation";
 import { VoiceInput } from "@/components/voice-input";
 import { IntentChips, type IntentId } from "@/components/intent-chips";
 
@@ -103,25 +104,39 @@ function PlatformIcon({ platform }: { platform: Platform }) {
 }
 
 export function UrlForm({ onSubmit }: UrlFormProps) {
-  // Read query params for pre-fill (from playbook "Try this example" links)
-  const initialParams = typeof window !== "undefined"
-    ? new URLSearchParams(window.location.search)
-    : null;
-  const prefillUrl = initialParams?.get("url") || "";
-  const prefillBrief = initialParams?.get("brief") || "";
-  const prefillIntent = (initialParams?.get("intent") as IntentId | null) || null;
-
-  const [entries, setEntries] = useState<UrlEntry[]>(
-    prefillUrl
-      ? [
-          { id: "1", value: prefillUrl, platform: detectPlatform(prefillUrl) },
-          { id: "2", value: "", platform: null },
-        ]
-      : [{ id: "1", value: "", platform: null }]
+  return (
+    <Suspense fallback={null}>
+      <UrlFormInner onSubmit={onSubmit} />
+    </Suspense>
   );
-  const [senderBrief, setSenderBrief] = useState(prefillBrief);
-  const [intent, setIntent] = useState<IntentId | null>(prefillIntent);
+}
+
+function UrlFormInner({ onSubmit }: UrlFormProps) {
+  // SSR + first client render: always empty (no hydration mismatch)
+  const [entries, setEntries] = useState<UrlEntry[]>([
+    { id: "1", value: "", platform: null },
+  ]);
+  const [senderBrief, setSenderBrief] = useState("");
+  const [intent, setIntent] = useState<IntentId | null>(null);
   const [justPasted, setJustPasted] = useState<string | null>(null);
+
+  // Pre-fill from query params AFTER mount (works for both hard nav and soft nav)
+  const params = useSearchParams();
+  useEffect(() => {
+    const url = params.get("url");
+    const brief = params.get("brief");
+    const i = params.get("intent") as IntentId | null;
+
+    if (url) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing from URL params (external source)
+      setEntries([
+        { id: "1", value: url, platform: detectPlatform(url) },
+        { id: "2", value: "", platform: null },
+      ]);
+    }
+    if (brief) setSenderBrief(brief);
+    if (i) setIntent(i);
+  }, [params]);
 
   function handleIntentChange(next: IntentId | null, stem: string) {
     setIntent(next);
@@ -132,9 +147,7 @@ export function UrlForm({ onSubmit }: UrlFormProps) {
   }
 
   // Demo mode detection
-  const isDemoActive =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("demo") === "true";
+  const isDemoActive = params.get("demo") === "true";
 
   function handleDemoFill() {
     applyExample(EXAMPLES[0]);
