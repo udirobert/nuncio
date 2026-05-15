@@ -17,7 +17,11 @@ interface LLMConfig {
   model: string;
   baseUrl: string;
   apiKey: string;
+  timeoutMs: number;
 }
+
+const DEFAULT_FEATHERLESS_MODEL = "deepseek-ai/DeepSeek-V4-Flash";
+const DEFAULT_LLM_TIMEOUT_MS = 15000;
 
 function getConfig(): LLMConfig {
   // Prefer Anthropic if available
@@ -27,6 +31,7 @@ function getConfig(): LLMConfig {
       model: "claude-sonnet-4-5-20250514",
       baseUrl: "https://api.anthropic.com",
       apiKey: process.env.ANTHROPIC_API_KEY,
+      timeoutMs: Number(process.env.ANTHROPIC_TIMEOUT_MS || DEFAULT_LLM_TIMEOUT_MS),
     };
   }
 
@@ -34,9 +39,10 @@ function getConfig(): LLMConfig {
   if (process.env.FEATHERLESS_API_KEY) {
     return {
       provider: "featherless",
-      model: "Qwen/Qwen3-32B", // Strong reasoning, good at structured output
+      model: process.env.FEATHERLESS_MODEL || DEFAULT_FEATHERLESS_MODEL,
       baseUrl: "https://api.featherless.ai/v1",
       apiKey: process.env.FEATHERLESS_API_KEY,
+      timeoutMs: Number(process.env.FEATHERLESS_TIMEOUT_MS || DEFAULT_LLM_TIMEOUT_MS),
     };
   }
 
@@ -89,7 +95,7 @@ async function callAnthropic(
         messages: [{ role: "user", content: userMessage }],
       }),
     },
-    { timeoutMs: 8000, maxAttempts: 1 }
+    { timeoutMs: config.timeoutMs, maxAttempts: 1 }
   );
 
   if (!response.ok) {
@@ -128,7 +134,7 @@ async function callOpenAICompatible(
         temperature: 0.7,
       }),
     },
-    { timeoutMs: 8000, maxAttempts: 1 }
+    { timeoutMs: config.timeoutMs, maxAttempts: 1 }
   );
 
   if (!response.ok) {

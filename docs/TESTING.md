@@ -42,6 +42,15 @@ SMOKE_LLM=1 pnpm smoke
 
 Adds one live LLM script-generation request. Use this to measure the real wait time for the configured provider. Keep it separate from the default smoke test so the demo has a deterministic fallback baseline.
 
+With Featherless Premium, prefer setting a warm, instruction-following model before running this test:
+
+```bash
+FEATHERLESS_MODEL=deepseek-ai/DeepSeek-V4-Flash
+FEATHERLESS_TIMEOUT_MS=15000
+```
+
+Premium concurrency budget reminder: a ≥70B / DeepSeek / Kimi class model can consume the full concurrency budget for one request. Keep this test single-flight.
+
 ## HeyGen start-only check
 
 ```bash

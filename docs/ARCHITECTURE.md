@@ -213,6 +213,11 @@ TINYFISH_API_KEY=
 # Anthropic
 ANTHROPIC_API_KEY=
 
+# Featherless fallback / premium model selection
+FEATHERLESS_API_KEY=
+FEATHERLESS_MODEL=deepseek-ai/DeepSeek-V4-Flash
+FEATHERLESS_TIMEOUT_MS=15000
+
 # HeyGen
 HEYGEN_API_KEY=
 HEYGEN_AVATAR_ID=
