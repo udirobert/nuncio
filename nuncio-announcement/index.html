@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #FAF9F6; overflow: hidden; }
+
+    #root {
+      width: 1920px;
+      height: 1080px;
+      position: relative;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #FAF9F6;
+    }
+
+    /* Brand wordmark */
+    .wordmark {
+      position: absolute;
+      top: 80px;
+      left: 120px;
+      font-family: 'Georgia', serif;
+      font-size: 42px;
+      color: #1A1A1A;
+      opacity: 0;
+    }
+
+    /* Main headline */
+    .headline {
+      position: absolute;
+      top: 280px;
+      left: 120px;
+      font-family: 'Georgia', serif;
+      font-size: 96px;
+      line-height: 0.95;
+      color: #1A1A1A;
+      max-width: 900px;
+      opacity: 0;
+    }
+
+    .headline em {
+      font-style: italic;
+      color: #4A3AFF;
+    }
+
+    /* Subline */
+    .subline {
+      position: absolute;
+      top: 560px;
+      left: 120px;
+      font-size: 28px;
+      color: #6B6B6B;
+      max-width: 700px;
+      line-height: 1.5;
+      opacity: 0;
+    }
+
+    /* Pipeline steps */
+    .pipeline {
+      position: absolute;
+      bottom: 160px;
+      left: 120px;
+      display: flex;
+      gap: 24px;
+      opacity: 0;
+    }
+
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: white;
+      border: 1px solid #F0EDE8;
+      border-radius: 12px;
+      padding: 14px 20px;
+      font-size: 18px;
+      color: #3D3D3D;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .step-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #4A3AFF;
+    }
+
+    .step-arrow {
+      font-size: 20px;
+      color: #A3A3A3;
+    }
+
+    /* URL bar */
+    .url-bar {
+      position: absolute;
+      bottom: 80px;
+      left: 120px;
+      font-size: 20px;
+      color: #A3A3A3;
+      opacity: 0;
+    }
+
+    .url-bar span {
+      color: #1A1A1A;
+      font-weight: 500;
+    }
+
+    /* Timing badge */
+    .timing {
+      position: absolute;
+      top: 80px;
+      right: 120px;
+      background: #1A1A1A;
+      color: #FAF9F6;
+      padding: 12px 24px;
+      border-radius: 100px;
+      font-size: 18px;
+      font-weight: 500;
+      opacity: 0;
+    }
+
+    /* Right side — video preview mockup */
+    .video-preview {
+      position: absolute;
+      top: 200px;
+      right: 120px;
+      width: 520px;
+      height: 340px;
+      background: #1A1A1A;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 24px 48px rgba(0,0,0,0.15);
+      opacity: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .play-icon {
+      width: 64px;
+      height: 64px;
+      background: rgba(255,255,255,0.9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .play-icon svg {
+      width: 24px;
+      height: 24px;
+      margin-left: 3px;
+    }
+
+    /* Sponsor logos text */
+    .sponsors {
+      position: absolute;
+      bottom: 80px;
+      right: 120px;
+      font-size: 14px;
+      color: #A3A3A3;
+      text-align: right;
+      opacity: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="root" data-composition-id="nuncio-announcement"
+       data-start="0" data-width="1920" data-height="1080">
+
+    <!-- Scene 1: Brand + Headline (0-5s) -->
+    <div id="wordmark" class="clip wordmark"
+         data-start="0" data-duration="15" data-track-index="0">
+      nuncio
+    </div>
+
+    <div id="headline" class="clip headline"
+         data-start="0.3" data-duration="14.7" data-track-index="1">
+      Send a video<br>they'll <em>actually</em> watch
+    </div>
+
+    <div id="subline" class="clip subline"
+         data-start="1" data-duration="14" data-track-index="2">
+      Paste a profile. The agent researches them, picks the strongest angles, writes a personalised script, and renders a video in your voice.
+    </div>
+
+    <!-- Scene 2: Pipeline steps (3-12s) -->
+    <div id="pipeline" class="clip pipeline"
+         data-start="3" data-duration="12" data-track-index="3">
+      <div class="step"><span class="step-dot"></span>Enrich</div>
+      <span class="step-arrow">→</span>
+      <div class="step"><span class="step-dot"></span>Coach</div>
+      <span class="step-arrow">→</span>
+      <div class="step"><span class="step-dot"></span>Script</div>
+      <span class="step-arrow">→</span>
+      <div class="step"><span class="step-dot"></span>Render</div>
+    </div>
+
+    <!-- Video preview mockup (2-15s) -->
+    <div id="video-preview" class="clip video-preview"
+         data-start="2" data-duration="13" data-track-index="4">
+      <div class="play-icon">
+        <svg viewBox="0 0 24 24" fill="#1A1A1A">
+          <polygon points="5 3 19 12 5 21 5 3" />
+        </svg>
+      </div>
+    </div>
+
+    <!-- Timing badge (4-15s) -->
+    <div id="timing" class="clip timing"
+         data-start="4" data-duration="11" data-track-index="5">
+      ~90 seconds
+    </div>
+
+    <!-- URL (5-15s) -->
+    <div id="url-bar" class="clip url-bar"
+         data-start="5" data-duration="10" data-track-index="6">
+      Try it → <span>nuncio.persidian.com</span>
+    </div>
+
+    <!-- Sponsors (6-15s) -->
+    <div id="sponsors" class="clip sponsors"
+         data-start="6" data-duration="9" data-track-index="7">
+      Built with HeyGen · TinyFish · Speechmatics<br>
+      Featherless · Melius · Vultr
+    </div>
+
+    <!-- GSAP animations -->
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      // Wordmark fade in
+      tl.to("#wordmark", { opacity: 1, duration: 0.6, ease: "power2.out" }, 0);
+
+      // Headline reveal
+      tl.to("#headline", { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }, 0.3);
+
+      // Subline
+      tl.to("#subline", { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, 1);
+
+      // Video preview scales in
+      tl.fromTo("#video-preview",
+        { opacity: 0, scale: 0.9 },
+        { opacity: 1, scale: 1, duration: 0.8, ease: "back.out(1.2)" }, 2);
+
+      // Pipeline steps stagger in
+      tl.to("#pipeline", { opacity: 1, duration: 0.5 }, 3);
+      tl.from(".step", {
+        opacity: 0, x: -20, stagger: 0.15, duration: 0.5, ease: "power2.out"
+      }, 3.2);
+
+      // Timing badge
+      tl.to("#timing", { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.5)" }, 4);
+
+      // URL
+      tl.to("#url-bar", { opacity: 1, duration: 0.5 }, 5);
+
+      // Sponsors
+      tl.to("#sponsors", { opacity: 1, duration: 0.5 }, 6);
+
+      // Register timeline
+      window.__timelines = window.__timelines || {};
+      window.__timelines["nuncio-announcement"] = tl;
+    </script>
+  </div>
+</body>
+</html>

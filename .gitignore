@@ -46,3 +46,9 @@ Thumbs.db
 .blackboxcli/
 .data/
 artifacts/test-runs/
+.junie
+
+
+# HyperFrames rendered output
+*.mp4
+nuncio-announcement/node_modules/
