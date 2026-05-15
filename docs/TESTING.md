@@ -59,6 +59,25 @@ SMOKE_VIDEO=1 pnpm smoke
 
 This starts one short HeyGen render job but does not poll for completion. Use sparingly because it can consume video credits.
 
+## Golden-path artifact
+
+```bash
+GOLDEN_PROFILE_URL=https://github.com/vercel/next.js pnpm golden
+```
+
+Runs the real pipeline and saves a reusable submission artifact under `artifacts/test-runs/golden/`.
+
+Useful flags:
+
+```bash
+GOLDEN_SKIP_CANVAS=1      # skip Melius/Fal creative stage
+GOLDEN_SKIP_VIDEO=1       # skip HeyGen render and use sample video for share-page proof
+GOLDEN_VIDEO_TIMEOUT_MS=600000
+GOLDEN_SENDER_BRIEF="..."
+```
+
+HeyGen tracking follows the current v3 flow: create a Video Agent session, poll the session until a `video_id` exists, then poll `/v3/videos/{video_id}` until `completed` with `video_url`.
+
 ## Browser/Playwright checks
 
 Use Playwright for credit-free UX checks, especially `/?demo=true`:

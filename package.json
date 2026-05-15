@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "smoke": "node scripts/smoke.mjs",
+    "golden": "node scripts/golden-path.mjs",
     "prepare": "husky"
   },
   "dependencies": {

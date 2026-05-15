@@ -15,11 +15,15 @@ function heygenHeaders(extra?: HeadersInit): HeadersInit {
 
 export interface VideoResult {
   videoId: string;
+  sessionId?: string;
 }
 
 export interface VideoStatus {
   status: "pending" | "processing" | "completed" | "failed";
   videoUrl?: string;
+  videoId?: string;
+  sessionId?: string;
+  failureMessage?: string;
 }
 
 /**
@@ -61,17 +65,15 @@ async function createVideoViaAgent(
   // Build a structured Video Agent prompt following HeyGen Skills best practices
   const agentPrompt = buildVideoAgentPrompt(script, recipientName);
 
-  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v1/video_agent/generate`, {
+  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/video-agents`, {
     method: "POST",
     headers: heygenHeaders({
       "Content-Type": "application/json",
     }),
     body: JSON.stringify({
       prompt: agentPrompt,
-      config: {
-        duration_sec: Math.min(Math.ceil(script.split(/\s+/).length / 2.5), 90),
-        orientation: "landscape",
-      },
+      mode: "generate",
+      incognito_mode: true,
     }),
   });
 
@@ -81,7 +83,9 @@ async function createVideoViaAgent(
   }
 
   const data = await response.json();
-  return { videoId: data.data?.video_id || data.video_id };
+  const sessionId = data.data?.session_id || data.session_id;
+  const videoId = data.data?.video_id || data.video_id || sessionId;
+  return { videoId, sessionId };
 }
 
 /**
@@ -222,42 +226,54 @@ export async function getVideoStatus(videoId: string): Promise<VideoStatus> {
     throw new Error("HEYGEN_API_KEY is not configured");
   }
 
-  // Try the video status endpoint (works for both APIs)
-  const response = await fetchWithRetry(
-    `${HEYGEN_BASE_URL}/v1/video_status.get?video_id=${videoId}`,
-    {
-      headers: {
-        ...heygenHeaders(),
-      },
-    }
-  );
+  const videoStatus = await getDirectVideoStatus(videoId);
+  if (videoStatus) return videoStatus;
 
-  if (!response.ok) {
-    // Fallback to v3 endpoint
-    const v3Response = await fetchWithRetry(
-      `${HEYGEN_BASE_URL}/v3/videos/${videoId}`,
-      {
-        headers: {
-          ...heygenHeaders(),
-        },
+  const sessionStatus = await getVideoAgentSessionStatus(videoId);
+  if (sessionStatus) {
+    if (sessionStatus.videoId && sessionStatus.videoId !== videoId) {
+      const resolvedVideo = await getDirectVideoStatus(sessionStatus.videoId);
+      if (resolvedVideo) {
+        return { ...resolvedVideo, sessionId: videoId, videoId: sessionStatus.videoId };
       }
-    );
-
-    if (!v3Response.ok) {
-      throw new Error(`HeyGen API error: ${v3Response.status}`);
     }
-
-    const v3Data = await v3Response.json();
-    return {
-      status: normaliseStatus(v3Data.data?.status),
-      videoUrl: v3Data.data.video_url || undefined,
-    };
+    return sessionStatus;
   }
 
+  throw new Error(`HeyGen API error: could not find video or session ${videoId}`);
+}
+
+async function getDirectVideoStatus(videoId: string): Promise<VideoStatus | null> {
+  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/videos/${videoId}`, {
+    headers: heygenHeaders(),
+  });
+
+  if (!response.ok) return null;
+
   const data = await response.json();
+  const payload = data.data || data;
   return {
-    status: normaliseStatus(data.data?.status),
-    videoUrl: data.data?.video_url || undefined,
+    status: normaliseStatus(payload.status),
+    videoUrl: payload.video_url || payload.videoUrl || undefined,
+    videoId,
+    failureMessage: payload.failure_message || payload.failureMessage || undefined,
+  };
+}
+
+async function getVideoAgentSessionStatus(sessionId: string): Promise<VideoStatus | null> {
+  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/video-agents/${sessionId}`, {
+    headers: heygenHeaders(),
+  });
+
+  if (!response.ok) return null;
+
+  const data = await response.json();
+  const payload = data.data || data;
+  return {
+    status: normaliseStatus(payload.status),
+    videoId: payload.video_id || payload.videoId || undefined,
+    sessionId,
+    failureMessage: payload.failure_message || payload.failureMessage || undefined,
   };
 }
 
