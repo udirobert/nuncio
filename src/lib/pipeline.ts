@@ -420,13 +420,29 @@ export async function renderVideo(
       videoId,
     });
 
+    // Persist video to Grove for permanent URL (non-blocking on failure)
+    let permanentVideoUrl = videoUrl;
+    try {
+      const persistRes = await fetch("/api/persist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoUrl }),
+      });
+      if (persistRes.ok) {
+        const { permanentUrl } = await persistRes.json();
+        if (permanentUrl) permanentVideoUrl = permanentUrl;
+      }
+    } catch {
+      // Grove persistence is non-critical — fall back to HeyGen URL
+    }
+
     let share: ShareRecord | undefined;
     try {
       const shareRes = await fetch("/api/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          videoUrl,
+          videoUrl: permanentVideoUrl,
           videoId,
           recipientName,
           profile: context?.profile,
@@ -447,7 +463,7 @@ export async function renderVideo(
     setState((prev) => ({
       ...prev,
       stage: "done",
-      videoUrl,
+      videoUrl: permanentVideoUrl,
       videoId,
       share,
       trace,
