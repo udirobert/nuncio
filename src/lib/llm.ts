@@ -73,20 +73,24 @@ async function callAnthropic(
   userMessage: string,
   maxTokens: number
 ): Promise<string> {
-  const response = await fetchWithRetry(`${config.baseUrl}/v1/messages`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": config.apiKey,
-      "anthropic-version": "2023-06-01",
+  const response = await fetchWithRetry(
+    `${config.baseUrl}/v1/messages`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": config.apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: config.model,
+        max_tokens: maxTokens,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userMessage }],
+      }),
     },
-    body: JSON.stringify({
-      model: config.model,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
-    }),
-  });
+    { timeoutMs: 20000, maxAttempts: 1 }
+  );
 
   if (!response.ok) {
     throw new Error(`Anthropic API error: ${response.status}`);
@@ -106,22 +110,26 @@ async function callOpenAICompatible(
   userMessage: string,
   maxTokens: number
 ): Promise<string> {
-  const response = await fetchWithRetry(`${config.baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.apiKey}`,
+  const response = await fetchWithRetry(
+    `${config.baseUrl}/chat/completions`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
+        ],
+        max_tokens: maxTokens,
+        temperature: 0.7,
+      }),
     },
-    body: JSON.stringify({
-      model: config.model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
-      ],
-      max_tokens: maxTokens,
-      temperature: 0.7,
-    }),
-  });
+    { timeoutMs: 20000, maxAttempts: 1 }
+  );
 
   if (!response.ok) {
     const error = await response.text();
