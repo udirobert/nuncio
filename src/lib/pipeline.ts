@@ -31,6 +31,8 @@ export interface PipelineState {
   warnings?: EnrichmentWarning[];
   selectedAngles?: { label: string; evidence: string; why_chosen: string }[];
   enrichedMarkdown?: string[];
+  senderBrief?: string;
+  intent?: string;
   assetUrls?: string[];
   canvas?: CanvasProof;
   trace?: AgentTraceItem[];
@@ -210,6 +212,8 @@ export async function generateVideo(
       sources,
       warnings,
       enrichedMarkdown,
+      senderBrief,
+      intent,
     }));
   } catch (error) {
     setState((prev) => ({

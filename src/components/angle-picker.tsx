@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import type { Profile } from "@/lib/claude";
 
@@ -28,6 +28,7 @@ export function AnglePicker({ profile, onConfirm, onSkip }: AnglePickerProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [autoSkipTimer, setAutoSkipTimer] = useState(10);
+  const autoSkipRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch angles from the API
   useEffect(() => {
@@ -55,14 +56,14 @@ export function AnglePicker({ profile, onConfirm, onSkip }: AnglePickerProps) {
     fetchAngles();
   }, [profile]);
 
-  // Auto-skip countdown (if user doesn't interact, proceed with all angles after 10s)
+  // Auto-skip countdown (if user doesn't interact, proceed with selected angles after 10s)
   useEffect(() => {
     if (loading || error) return;
 
-    const interval = setInterval(() => {
+    autoSkipRef.current = setInterval(() => {
       setAutoSkipTimer((prev) => {
         if (prev <= 1) {
-          clearInterval(interval);
+          if (autoSkipRef.current) clearInterval(autoSkipRef.current);
           // Auto-confirm with selected angles
           const selectedAngles = angles.filter((_, i) => selected.has(i));
           onConfirm(selectedAngles.length > 0 ? selectedAngles : angles);
@@ -72,12 +73,19 @@ export function AnglePicker({ profile, onConfirm, onSkip }: AnglePickerProps) {
       });
     }, 1000);
 
-    return () => clearInterval(interval);
+    return () => {
+      if (autoSkipRef.current) clearInterval(autoSkipRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, error]);
 
   function toggleAngle(index: number) {
-    setAutoSkipTimer(999); // Stop auto-skip on interaction
+    // Stop auto-skip on user interaction
+    if (autoSkipRef.current) {
+      clearInterval(autoSkipRef.current);
+      autoSkipRef.current = null;
+    }
+    setAutoSkipTimer(0);
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(index)) {

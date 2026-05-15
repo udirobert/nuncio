@@ -102,13 +102,18 @@ export default function Home() {
                 continueAfterCoach(
                   setState,
                   state.enrichedMarkdown,
-                  undefined, // senderBrief already baked into enrichment
-                  undefined, // intent
+                  state.senderBrief,
+                  state.intent,
                   selectedAngles
                 );
               }}
               onSkip={() => {
-                continueAfterCoach(setState, state.enrichedMarkdown);
+                continueAfterCoach(
+                  setState,
+                  state.enrichedMarkdown,
+                  state.senderBrief,
+                  state.intent
+                );
               }}
             />
           </motion.div>
