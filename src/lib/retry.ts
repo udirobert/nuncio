@@ -46,11 +46,15 @@ export async function fetchWithRetry(
       const timeout = controller
         ? setTimeout(() => controller.abort(), opts.timeoutMs)
         : null;
-      const response = await fetch(url, {
-        ...init,
-        signal: controller?.signal || init?.signal,
-      });
-      if (timeout) clearTimeout(timeout);
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          ...init,
+          signal: controller?.signal || init?.signal,
+        });
+      } finally {
+        if (timeout) clearTimeout(timeout);
+      }
 
       // If response is OK or not retryable, return immediately
       if (response.ok || !opts.retryableStatuses.includes(response.status)) {

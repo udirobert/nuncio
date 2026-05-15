@@ -89,7 +89,7 @@ async function callAnthropic(
         messages: [{ role: "user", content: userMessage }],
       }),
     },
-    { timeoutMs: 20000, maxAttempts: 1 }
+    { timeoutMs: 8000, maxAttempts: 1 }
   );
 
   if (!response.ok) {
@@ -128,7 +128,7 @@ async function callOpenAICompatible(
         temperature: 0.7,
       }),
     },
-    { timeoutMs: 20000, maxAttempts: 1 }
+    { timeoutMs: 8000, maxAttempts: 1 }
   );
 
   if (!response.ok) {

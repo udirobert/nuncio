@@ -45,3 +45,4 @@ next-env.d.ts
 Thumbs.db
 .blackboxcli/
 .data/
+artifacts/test-runs/
