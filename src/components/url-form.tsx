@@ -25,6 +25,33 @@ const PLATFORM_CONFIG: Record<Platform, { label: string; color: string }> = {
   other: { label: "Profile", color: "text-ink-muted" },
 };
 
+const EXAMPLES = [
+  {
+    label: "HeyGen PM",
+    name: "Onee Yekeh",
+    description: "Ask for feedback on developer-facing video agents.",
+    urls: ["https://ca.linkedin.com/in/yekeh"],
+    brief:
+      "I'm building nuncio, an agentic video personalization pipeline that uses HeyGen to turn public profile context into a short, tailored outreach video. I'd love feedback from a HeyGen product perspective on making developer-facing video agents feel genuinely useful and not like generic automation.",
+  },
+  {
+    label: "PostHog founder",
+    name: "Tim Glaser",
+    description: "Pitch an analytics-aware outreach workflow.",
+    urls: ["https://x.com/timgl"],
+    brief:
+      "I'm building nuncio, a personalized video outreach agent for founders and growth teams. I'd love feedback from a PostHog perspective on using product context and behavioral signals to make outreach feel more useful, measurable, and less spammy.",
+  },
+  {
+    label: "Fal founder",
+    name: "Gorkem Yurtseven",
+    description: "Explore generative media as creative infrastructure.",
+    urls: ["https://x.com/gorkem"],
+    brief:
+      "I'm building nuncio, an agentic video pipeline that can use generative media assets to make personalized business videos feel more cinematic. I'd love feedback from a Fal perspective on fast, scalable creative generation inside developer workflows.",
+  },
+];
+
 function detectPlatform(url: string): Platform | null {
   if (!url.trim()) return null;
   const lower = url.toLowerCase();
@@ -87,14 +114,19 @@ export function UrlForm({ onSubmit }: UrlFormProps) {
     new URLSearchParams(window.location.search).get("demo") === "true";
 
   function handleDemoFill() {
+    applyExample(EXAMPLES[0]);
+  }
+
+  function applyExample(example: (typeof EXAMPLES)[number]) {
     setEntries([
-      { id: "1", value: "https://linkedin.com/in/sarahchen", platform: "linkedin" },
-      { id: "2", value: "https://x.com/sarahchen_pay", platform: "twitter" },
-      { id: "3", value: "", platform: null },
+      ...example.urls.map((url, index) => ({
+        id: String(index + 1),
+        value: url,
+        platform: detectPlatform(url),
+      })),
+      { id: String(example.urls.length + 1), value: "", platform: null },
     ]);
-    setSenderBrief(
-      "I'm building a payments infrastructure API and want to connect about their experience scaling cross-border payments at Stripe."
-    );
+    setSenderBrief(example.brief);
   }
 
   const validUrls = entries
@@ -189,6 +221,38 @@ export function UrlForm({ onSubmit }: UrlFormProps) {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.5 }}
         >
+          {/* Example starts */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.25, duration: 0.5 }}
+            className="mb-6"
+          >
+            <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-2">
+              Start with an example
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {EXAMPLES.map((example) => (
+                <button
+                  key={example.name}
+                  type="button"
+                  onClick={() => applyExample(example)}
+                  className="group rounded-xl border border-cream-dark bg-white/70 px-3 py-3 text-left hover:border-accent/30 hover:bg-white hover:shadow-sm transition-all"
+                >
+                  <span className="block text-[10px] uppercase tracking-wider text-accent font-medium mb-1">
+                    {example.label}
+                  </span>
+                  <span className="block text-xs font-medium text-ink mb-1">
+                    {example.name}
+                  </span>
+                  <span className="block text-[11px] leading-snug text-ink-faint group-hover:text-ink-muted transition-colors">
+                    {example.description}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+
           {/* URL inputs */}
           <div className="space-y-2 mb-6">
             <AnimatePresence mode="popLayout">
