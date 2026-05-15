@@ -402,6 +402,13 @@ export async function renderVideo(
 
     const { videoId } = await videoRes.json();
 
+    // Push videoId to URL so user can resume if they refresh
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("rendering", videoId);
+      window.history.replaceState({}, "", url.toString());
+    }
+
     // Poll for completion
     let videoUrl: string | undefined;
     while (!videoUrl) {

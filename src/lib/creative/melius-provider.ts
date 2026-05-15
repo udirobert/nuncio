@@ -313,7 +313,7 @@ export class MeliusProvider implements CreativeProvider {
   ): Promise<void> {
     if (!this.canvasId) throw new Error("No active canvas");
 
-    const nodes = await mcpCall<{ nodes: MeliusNode[] }>("bulk_create_nodes", {
+    const response = await mcpCall<{ nodes?: MeliusNode[] } | undefined>("bulk_create_nodes", {
       canvasId: this.canvasId,
       nodes: [
         {
@@ -325,8 +325,17 @@ export class MeliusProvider implements CreativeProvider {
       ],
     });
 
-    const nodeId = nodes.nodes[0].id || nodes.nodes[0].nodeId;
-    if (!nodeId) throw new Error(`Melius bulk_create_nodes did not return a node id for ${label}`);
+    const nodes = response?.nodes;
+    if (!nodes || nodes.length === 0) {
+      console.warn(`[melius] bulk_create_nodes returned no nodes for ${label}, skipping text storage`);
+      return;
+    }
+
+    const nodeId = nodes[0].id || nodes[0].nodeId;
+    if (!nodeId) {
+      console.warn(`[melius] bulk_create_nodes did not return a node id for ${label}, skipping text storage`);
+      return;
+    }
 
     // Set the text content
     await mcpCall<void>("node_set_text", {
