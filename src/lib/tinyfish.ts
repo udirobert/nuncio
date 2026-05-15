@@ -2,11 +2,14 @@ import { fetchWithRetry } from "@/lib/retry";
 
 const TINYFISH_API_KEY = process.env.TINYFISH_API_KEY;
 const TINYFISH_URL = "https://api.fetch.tinyfish.ai";
+const TINYFISH_SEARCH_URL = "https://api.search.tinyfish.ai";
 
 export interface EnrichmentResult {
   url: string;
   markdown: string;
   success: boolean;
+  source?: "fetch" | "fetch+search" | "search";
+  warning?: string;
 }
 
 /**
@@ -44,8 +47,22 @@ export async function enrich(urls: string[]): Promise<EnrichmentResult[]> {
         const item = normaliseTinyFishItem(data);
         const markdown = item?.markdown || item?.text || item?.content || "";
 
-        if (markdown.trim().length > 0) {
-          return { url, markdown, success: true };
+        if (markdown.trim().length > 0 && !isLowQualityFetch(markdown)) {
+          return { url, markdown, success: true, source: "fetch" };
+        }
+
+        const searchMarkdown = await searchProfileContext(url);
+        if (searchMarkdown) {
+          const combined = markdown.trim().length > 0
+            ? `${markdown}\n\n---\n\nSearch context:\n${searchMarkdown}`
+            : searchMarkdown;
+          return {
+            url,
+            markdown: combined,
+            success: true,
+            source: markdown.trim().length > 0 ? "fetch+search" : "search",
+            warning: "Fetch returned low-quality profile content; augmented with TinyFish Search.",
+          };
         }
 
         return { url, markdown: "", success: false };
@@ -56,6 +73,65 @@ export async function enrich(urls: string[]): Promise<EnrichmentResult[]> {
   );
 
   return results;
+}
+
+function isLowQualityFetch(markdown: string): boolean {
+  const text = markdown.toLowerCase();
+  const boilerplate = [
+    "javascript is disabled",
+    "please enable javascript",
+    "supported browser",
+    "cookie policy imprint ads info",
+  ];
+  return markdown.trim().length < 500 || boilerplate.some((phrase) => text.includes(phrase));
+}
+
+async function searchProfileContext(url: string): Promise<string | null> {
+  const query = buildSearchQuery(url);
+  if (!query) return null;
+
+  const response = await fetchWithRetry(
+    `${TINYFISH_SEARCH_URL}?${new URLSearchParams({ query }).toString()}`,
+    {
+      headers: {
+        "X-API-Key": TINYFISH_API_KEY || "",
+      },
+    },
+    { maxAttempts: 1, timeoutMs: 10000 }
+  );
+
+  if (!response.ok) return null;
+  const data = await response.json();
+  const results = Array.isArray(data.results) ? data.results.slice(0, 5) : [];
+  if (results.length === 0) return null;
+
+  return results
+    .map((result: { title?: string; snippet?: string; url?: string }, index: number) => {
+      return `${index + 1}. ${result.title || "Untitled"}\n${result.snippet || ""}\n${result.url || ""}`;
+    })
+    .join("\n\n");
+}
+
+function buildSearchQuery(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "");
+    const handle = parsed.pathname.split("/").filter(Boolean)[0];
+    if (!handle) return null;
+
+    if (host.includes("x.com") || host.includes("twitter.com")) {
+      return `${handle} cofounder founder LinkedIn GitHub company profile`;
+    }
+    if (host.includes("linkedin.com")) {
+      return `${handle} LinkedIn profile product manager company`;
+    }
+    if (host.includes("github.com")) {
+      return `${handle} GitHub profile founder company`;
+    }
+    return `${handle} ${host} profile`;
+  } catch {
+    return null;
+  }
 }
 
 function normaliseTinyFishItem(data: unknown):
