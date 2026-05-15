@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { enrichment, senderBrief, forceFallback } = await request.json();
+  const { enrichment, senderBrief, intent, forceFallback } = await request.json();
 
   if (!enrichment || !Array.isArray(enrichment) || enrichment.length === 0) {
     return NextResponse.json(
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   }
 
   const profile = await synthesise(enrichment, { forceFallback });
-  const script = await generateScript(profile, senderBrief, { forceFallback });
+  const script = await generateScript(profile, senderBrief, { forceFallback, intent });
 
   return NextResponse.json({ profile, script });
 }

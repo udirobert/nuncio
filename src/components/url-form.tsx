@@ -3,9 +3,10 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { VoiceInput } from "@/components/voice-input";
+import { IntentChips, type IntentId } from "@/components/intent-chips";
 
 interface UrlFormProps {
-  onSubmit: (urls: string[], senderBrief?: string) => void;
+  onSubmit: (urls: string[], senderBrief?: string, intent?: IntentId) => void;
 }
 
 interface UrlEntry {
@@ -106,7 +107,16 @@ export function UrlForm({ onSubmit }: UrlFormProps) {
     { id: "1", value: "", platform: null },
   ]);
   const [senderBrief, setSenderBrief] = useState("");
+  const [intent, setIntent] = useState<IntentId | null>(null);
   const [justPasted, setJustPasted] = useState<string | null>(null);
+
+  function handleIntentChange(next: IntentId | null, stem: string) {
+    setIntent(next);
+    // Only seed the textarea when it's empty — never clobber what the user typed.
+    if (next && stem && !senderBrief.trim()) {
+      setSenderBrief(stem);
+    }
+  }
 
   // Demo mode detection
   const isDemoActive =
@@ -171,19 +181,19 @@ export function UrlForm({ onSubmit }: UrlFormProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (isValid) {
-      onSubmit(validUrls, senderBrief.trim() || undefined);
+      onSubmit(validUrls, senderBrief.trim() || undefined, intent ?? undefined);
     }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && isValid) {
       e.preventDefault();
-      onSubmit(validUrls, senderBrief.trim() || undefined);
+      onSubmit(validUrls, senderBrief.trim() || undefined, intent ?? undefined);
     }
   }
 
   return (
-    <main className="flex-1 flex items-center justify-center px-6 py-16">
+    <div className="w-full px-6 flex justify-center">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -192,12 +202,12 @@ export function UrlForm({ onSubmit }: UrlFormProps) {
         onKeyDown={handleKeyDown}
       >
         {/* Brand header */}
-        <div className="mb-14">
+        <div className="mb-8 lg:mb-10">
           <motion.h1
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="font-[family-name:var(--font-display)] text-5xl md:text-7xl tracking-tight leading-[0.9] mb-5"
+            className="font-[family-name:var(--font-display)] text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[0.95] mb-3"
           >
             Send a video
             <br />
@@ -207,7 +217,7 @@ export function UrlForm({ onSubmit }: UrlFormProps) {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="text-ink-muted text-[15px] leading-relaxed max-w-[400px]"
+            className="text-ink-muted text-[14px] leading-relaxed max-w-[380px]"
           >
             Paste their profile. We&apos;ll research them, write a personalised
             script, and render a video in your voice — in about 90 seconds.
@@ -221,40 +231,8 @@ export function UrlForm({ onSubmit }: UrlFormProps) {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.5 }}
         >
-          {/* Example starts */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.25, duration: 0.5 }}
-            className="mb-6"
-          >
-            <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-2">
-              Start with an example
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {EXAMPLES.map((example) => (
-                <button
-                  key={example.name}
-                  type="button"
-                  onClick={() => applyExample(example)}
-                  className="group rounded-xl border border-cream-dark bg-white/70 px-3 py-3 text-left hover:border-accent/30 hover:bg-white hover:shadow-sm transition-all"
-                >
-                  <span className="block text-[10px] uppercase tracking-wider text-accent font-medium mb-1">
-                    {example.label}
-                  </span>
-                  <span className="block text-xs font-medium text-ink mb-1">
-                    {example.name}
-                  </span>
-                  <span className="block text-[11px] leading-snug text-ink-faint group-hover:text-ink-muted transition-colors">
-                    {example.description}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </motion.div>
-
           {/* URL inputs */}
-          <div className="space-y-2 mb-6">
+          <div className="space-y-2 mb-3">
             <AnimatePresence mode="popLayout">
               {entries.map((entry, i) => (
                 <motion.div
@@ -347,6 +325,38 @@ export function UrlForm({ onSubmit }: UrlFormProps) {
               ))}
             </AnimatePresence>
           </div>
+
+          {/* Inline example loaders — small text links, not big cards */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.32, duration: 0.4 }}
+            className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-ink-faint"
+          >
+            <span>or try</span>
+            {EXAMPLES.map((example, i) => (
+              <span key={example.name} className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => applyExample(example)}
+                  className="text-accent hover:text-accent/80 hover:underline underline-offset-2 transition-colors"
+                  title={example.description}
+                >
+                  {example.name}
+                </button>
+                {i < EXAMPLES.length - 1 && <span className="text-ink-faint/40">·</span>}
+              </span>
+            ))}
+          </motion.div>
+
+          {/* Intent chips — pick a genre, get a sharper script */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.35 }}
+          >
+            <IntentChips value={intent} onChange={handleIntentChange} />
+          </motion.div>
 
           {/* Sender brief — always visible, lightweight */}
           <motion.div
@@ -450,6 +460,6 @@ export function UrlForm({ onSubmit }: UrlFormProps) {
           </motion.div>
         </motion.form>
       </motion.div>
-    </main>
+    </div>
   );
 }

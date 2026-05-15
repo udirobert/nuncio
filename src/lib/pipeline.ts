@@ -82,7 +82,8 @@ export function isDemoMode(): boolean {
 export async function generateVideo(
   urls: string[],
   setState: SetState,
-  senderBrief?: string
+  senderBrief?: string,
+  intent?: string
 ) {
   const demo = isDemoMode();
 
@@ -177,7 +178,7 @@ export async function generateVideo(
     const scriptRes = await fetch("/api/script", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enrichment: enrichedMarkdown, senderBrief }),
+      body: JSON.stringify({ enrichment: enrichedMarkdown, senderBrief, intent }),
     });
 
     if (!scriptRes.ok) {

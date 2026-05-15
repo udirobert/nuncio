@@ -7,8 +7,13 @@ import { UrlForm } from "@/components/url-form";
 import { ProgressStepper } from "@/components/progress-stepper";
 import { ScriptReview } from "@/components/script-review";
 import { VideoPlayer } from "@/components/video-player";
+import { Hero } from "@/components/landing/hero";
+import { HowItWorks } from "@/components/landing/how-it-works";
+import { ShowcaseStrip } from "@/components/landing/showcase-strip";
 import { generateVideo, renderVideo, isDemoMode } from "@/lib/pipeline";
+import { SHOWCASE_RECIPIENTS } from "@/lib/showcase";
 import type { PipelineState } from "@/lib/pipeline";
+import type { IntentId } from "@/components/intent-chips";
 
 export default function Home() {
   const [state, setState] = useState<PipelineState>({
@@ -16,8 +21,12 @@ export default function Home() {
     steps: [],
   });
 
-  async function handleSubmit(urls: string[], senderBrief?: string) {
-    await generateVideo(urls, setState, senderBrief);
+  async function handleSubmit(
+    urls: string[],
+    senderBrief?: string,
+    intent?: IntentId,
+  ) {
+    await generateVideo(urls, setState, senderBrief, intent);
   }
 
   function handleReset() {
@@ -56,7 +65,11 @@ export default function Home() {
             transition={{ duration: 0.3 }}
             className="flex-1 flex flex-col"
           >
-            <UrlForm onSubmit={handleSubmit} />
+            <Hero>
+              <UrlForm onSubmit={handleSubmit} />
+            </Hero>
+            <ShowcaseStrip items={SHOWCASE_RECIPIENTS} />
+            <HowItWorks />
           </motion.div>
         )}
 

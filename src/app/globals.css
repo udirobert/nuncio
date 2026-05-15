@@ -140,3 +140,26 @@ input:focus-visible {
 .btn-press:active {
   transform: scale(0.97);
 }
+
+/* Card-wall infinite drift (used by landing/card-wall.tsx) */
+@keyframes drift-up {
+  from { transform: translateY(0); }
+  to { transform: translateY(-50%); }
+}
+@keyframes drift-down {
+  from { transform: translateY(-50%); }
+  to { transform: translateY(0); }
+}
+.card-wall-track {
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.card-wall:hover .card-wall-track,
+.card-wall:focus-within .card-wall-track {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-wall-track {
+    animation: none !important;
+  }
+}

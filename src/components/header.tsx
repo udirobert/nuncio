@@ -26,7 +26,7 @@ export function Header({ stage, isDemo }: HeaderProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5, duration: 0.6 }}
-        className="pointer-events-auto font-[family-name:var(--font-display)] text-lg tracking-tight text-ink hover:text-ink-light transition-colors"
+        className="pointer-events-auto font-[family-name:var(--font-display)] text-xl font-medium tracking-tight text-ink hover:text-ink-light transition-colors"
       >
         nuncio
       </motion.a>

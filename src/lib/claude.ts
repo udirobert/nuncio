@@ -39,16 +39,41 @@ export async function synthesise(
 /**
  * Pass 2: Generate a personalised video script from the profile and sender brief.
  */
+export type IntentId =
+  | "warm_intro"
+  | "investor_pitch"
+  | "hiring"
+  | "conference_followup"
+  | "reengage"
+  | "founder_to_founder";
+
+const INTENT_RUBRICS: Record<IntentId, string> = {
+  warm_intro:
+    "Intent: warm introduction. Open with curiosity, not a pitch. Acknowledge a specific recent piece of their work before saying anything about yourself. End with a low-friction ask (a question, a 15-min chat, or simply 'reply if curious').",
+  investor_pitch:
+    "Intent: investor outreach. Lead with one concrete signal of momentum (users, revenue, partnership, technical breakthrough). Reference the recipient's stated thesis or a recent investment that maps to your space. Be specific about the ask — meeting, intro, or feedback — and include why now.",
+  hiring:
+    "Intent: hiring reach-out. Open by referencing a specific project, talk, or repo of theirs — not their job title. Explain in one sentence what makes this role unusual or hard, and why you think they specifically would find it interesting. Avoid generic recruiter language entirely.",
+  conference_followup:
+    "Intent: post-conference follow-up. Reference the specific event, talk, or conversation. Recall a concrete moment if possible. Keep it short and pick up where the in-person conversation left off — don't restart it.",
+  reengage:
+    "Intent: re-engaging a cold contact. Acknowledge the gap honestly. Lead with what's changed on your side — new product, new role, new context — that makes reaching out now genuinely different. Don't pretend the silence didn't happen.",
+  founder_to_founder:
+    "Intent: founder-to-founder. Speak peer-to-peer, not buyer-to-vendor. Reference a hard problem they've publicly written or talked about that overlaps with yours. Offer something concrete (a tool, an intro, a learning) before asking for anything in return.",
+};
+
 export async function generateScript(
   profile: Profile,
   senderBrief?: string,
-  options?: { forceFallback?: boolean }
+  options?: { forceFallback?: boolean; intent?: IntentId }
 ): Promise<string> {
   if (options?.forceFallback) {
     return fallbackScript(profile, senderBrief);
   }
 
-  const systemPrompt = `You are a video script writer. Given a structured profile and an optional sender brief, write a personalised 45-90 second video script (under 200 words). The script must reference at least 2 specific details from the profile. Write in first person as the sender. Be conversational and genuine — not salesy or generic. Respond with ONLY the script text, no JSON wrapping, no markdown, no labels.`;
+  const intentRubric = options?.intent ? INTENT_RUBRICS[options.intent] : null;
+
+  const systemPrompt = `You are a video script writer. Given a structured profile and an optional sender brief, write a personalised 45-90 second video script (under 200 words). The script must reference at least 2 specific details from the profile. Write in first person as the sender. Be conversational and genuine — not salesy or generic. Respond with ONLY the script text, no JSON wrapping, no markdown, no labels.${intentRubric ? `\n\n${intentRubric}` : ""}`;
 
   const userMessage = `Profile:\n${JSON.stringify(profile, null, 2)}\n\n${senderBrief ? `Sender brief: ${senderBrief}` : "Write a general introduction/outreach script."}`;
 
