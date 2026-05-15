@@ -28,6 +28,7 @@ Total time from input to video: ~90 seconds.
 | Intelligence | [Anthropic Claude](https://anthropic.com) (claude-sonnet-4-5) |
 | Speech | [Speechmatics](https://speechmatics.com) — voice input, captions, quality check |
 | Creative canvas | [Melius](https://melius.com) MCP server (with local fallback) |
+| Image fallback | [Fal](https://fal.ai) FLUX — optional creative assets when Melius is not configured |
 | Video generation | [HeyGen](https://heygen.com) Video Agent API, Avatar V |
 | Voice | HeyGen Voice Clone |
 | Translation | HeyGen Video Translate + Lipsync |
@@ -58,8 +59,11 @@ HEYGEN_API_KEY=
 HEYGEN_AVATAR_ID=
 HEYGEN_VOICE_ID=
 MELIUS_API_KEY=
+FAL_KEY=
+FAL_IMAGE_MODEL=fal-ai/flux/schnell
 SPEECHMATICS_API_KEY=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+NUNCIO_DATA_DIR=.data
 ```
 
 ---

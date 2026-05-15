@@ -104,6 +104,7 @@ export default function Home() {
           >
             <VideoPlayer
               videoUrl={state.videoUrl}
+              videoId={state.videoId}
               shareId={state.share?.id}
               canvas={state.canvas}
               trace={state.trace}

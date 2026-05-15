@@ -15,10 +15,10 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 - [x] HeyGen video creation via Video Agent with `/v3/videos` fallback
 - [ ] Avatar V integration (launches May 18 — use Avatar IV as fallback for May 14–15 demo)
 - [ ] Voice clone setup (pre-cloned, stored as env var)
-- [x] Melius canvas creation + asset storage via MCP, with local provider fallback
+- [x] Melius canvas creation + asset storage via MCP, with optional Fal image generation fallback
 - [x] Polling endpoint for video status
 - [x] Minimal frontend: URL input → loading state → script review → video player
-- [x] Branded share page metadata for generated videos (in-memory MVP store)
+- [x] Branded share page metadata for generated videos (file-backed MVP store)
 - [x] Agent trace and canvas proof surfaced in the demo UI
 - [ ] Live demo: audience member gives Twitter handle → video plays in ~60s
 

@@ -3,7 +3,7 @@
  *
  * Selects the appropriate provider based on configuration:
  * - If MELIUS_API_KEY is set → MeliusProvider (full canvas + generation)
- * - Otherwise → LocalProvider (no external dependency)
+ * - Otherwise → LocalProvider (optionally generates images via Fal if FAL_KEY is set)
  *
  * This abstraction prevents vendor lock-in. The pipeline calls
  * provider methods without knowing which backend is active.

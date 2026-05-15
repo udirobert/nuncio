@@ -24,10 +24,12 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV NUNCIO_DATA_DIR=/app/.data
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
+RUN mkdir -p /app/.data && chown nextjs:nodejs /app/.data
 
 # Copy built assets
 COPY --from=builder /app/public ./public

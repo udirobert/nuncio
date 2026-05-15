@@ -165,9 +165,10 @@ Position VidCard as a native Melius use case — an agent that drives Melius aut
 - [x] Demo mode (`?demo=true`) runs the full UI flow without external API keys
 - [x] Agent trace is visible in script review and final video states
 - [x] Canvas proof shows provider, asset count, and Melius canvas URL when available
-- [x] Generated videos can create branded `/v/[id]` share pages via an in-memory MVP store
+- [x] Generated videos can create branded `/v/[id]` share pages via a file-backed MVP store
 - [x] HeyGen wrapper tries Video Agent first and falls back to direct `/v3/videos`
-- [ ] Share metadata persistence is process-local; replace with durable storage before production use
+- [x] Optional Fal image generation fallback is available when Melius is not configured
+- [ ] Share metadata persistence is file-backed for demos; replace with database/KV before production use
 - [ ] One real golden-path HeyGen + Melius render should be recorded before each submission
 
 ### Demo video script (shared across all submissions)

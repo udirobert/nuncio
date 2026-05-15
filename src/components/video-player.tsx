@@ -7,6 +7,7 @@ import type { AgentTraceItem, CanvasProof } from "@/lib/artifacts";
 
 interface VideoPlayerProps {
   videoUrl: string;
+  videoId?: string;
   shareId?: string;
   canvas?: CanvasProof;
   trace?: AgentTraceItem[];
@@ -31,7 +32,7 @@ const LANGUAGES = [
   { code: "hi", label: "Hindi" },
 ];
 
-function TranslateButton({ videoUrl }: { videoUrl: string }) {
+function TranslateButton({ videoUrl, videoId }: { videoUrl: string; videoId?: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const [translating, setTranslating] = useState<string | null>(null);
   const [translated, setTranslated] = useState<string | null>(null);
@@ -41,13 +42,12 @@ function TranslateButton({ videoUrl }: { videoUrl: string }) {
     setIsOpen(false);
 
     try {
-      // Extract video ID from URL if possible, otherwise use the URL itself
-      const videoId = videoUrl.split("/").pop()?.split(".")[0] || videoUrl;
+      const idForTranslation = videoId || videoUrl.split("/").pop()?.split(".")[0] || videoUrl;
 
       const res = await fetch("/api/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoId, targetLanguage: langCode }),
+        body: JSON.stringify({ videoId: idForTranslation, targetLanguage: langCode }),
       });
 
       if (res.ok) {
@@ -170,6 +170,7 @@ function Confetti() {
 
 export function VideoPlayer({
   videoUrl,
+  videoId,
   shareId,
   canvas,
   trace,
@@ -324,7 +325,7 @@ export function VideoPlayer({
           className="mb-6 flex flex-wrap items-center gap-3"
         >
           {/* Translation */}
-          <TranslateButton videoUrl={videoUrl} />
+          <TranslateButton videoUrl={videoUrl} videoId={videoId} />
 
           {/* Captions */}
           {!captions && !captionsLoading && (

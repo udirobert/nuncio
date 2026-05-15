@@ -75,10 +75,16 @@ export function buildAgentTrace(input: {
   }
 
   if (canvas) {
+    const generatedAssets = canvas.assetCount > 0;
     trace.push({
-      label: canvas.provider === "melius" ? "Created Melius creative canvas" : "Created local creative session",
+      label:
+        canvas.provider === "melius"
+          ? "Created Melius creative canvas"
+          : canvas.provider === "fal"
+            ? "Generated Fal creative assets"
+            : "Created local creative session",
       detail: `${canvas.assetCount} generated asset${canvas.assetCount === 1 ? "" : "s"}${canvas.canvasUrl ? " with persistent canvas URL" : ""}`,
-      status: canvas.provider === "melius" ? "complete" : "warning",
+      status: canvas.provider === "melius" || generatedAssets ? "complete" : "warning",
     });
   }
 

@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const record = getShareRecord(id);
+  const record = await getShareRecord(id);
 
   if (!record) {
     return NextResponse.json({ error: "Share not found" }, { status: 404 });

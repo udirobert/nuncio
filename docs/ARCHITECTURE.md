@@ -221,11 +221,16 @@ HEYGEN_VOICE_ID=
 # Melius (optional — local fallback if not set)
 MELIUS_API_KEY=
 
+# Fal (optional — image generation fallback when Melius is not set)
+FAL_KEY=
+FAL_IMAGE_MODEL=fal-ai/flux/schnell
+
 # Speechmatics
 SPEECHMATICS_API_KEY=
 
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+NUNCIO_DATA_DIR=.data
 ```
 
 ---
@@ -254,7 +259,7 @@ All external API calls use `fetchWithRetry()` — exponential backoff with confi
 
 The Melius integration is behind a `CreativeProvider` interface:
 - `MeliusProvider` — full MCP integration (project, canvas, nodes, generation, export)
-- `LocalProvider` — zero-dependency fallback (no external service needed)
+- `LocalProvider` — metadata fallback, optionally generating images through Fal when `FAL_KEY` is set
 
 Factory auto-selects based on whether `MELIUS_API_KEY` is configured. No vendor lock-in.
 

@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "videoUrl is required" }, { status: 400 });
   }
 
-  const record = createShareRecord({
+  const record = await createShareRecord({
     videoUrl,
     videoId,
     recipientName,
