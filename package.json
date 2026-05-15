@@ -15,6 +15,7 @@
   "dependencies": {
     "@gsap/react": "2.1.2",
     "@libsql/client": "0.17.3",
+    "@posthog/react": "1.9.0",
     "@speechmatics/auth": "0.1.0",
     "@speechmatics/batch-client": "5.2.0",
     "framer-motion": "12.38.0",
@@ -22,6 +23,7 @@
     "lenis": "1.3.23",
     "motion": "12.38.0",
     "next": "16.2.6",
+    "posthog-js": "1.373.4",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },

@@ -87,6 +87,21 @@ export async function generateVideo(
 ) {
   const demo = isDemoMode();
 
+  // Track funnel start
+  if (typeof window !== "undefined") {
+    import("@/lib/analytics").then(({ trackFormSubmitted }) => {
+      trackFormSubmitted({
+        urlCount: urls.length,
+        platforms: urls.map((u) => {
+          try { return new URL(u).hostname; } catch { return "unknown"; }
+        }),
+        hasBrief: !!senderBrief,
+        intent: intent || null,
+        isDemo: demo,
+      });
+    });
+  }
+
   setState({
     stage: "progress",
     urls,
