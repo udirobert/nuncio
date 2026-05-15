@@ -27,14 +27,14 @@ const TILES = [
 
 export function HowItWorks() {
   return (
-    <section className="px-6 py-20 md:py-28 border-t border-cream-dark/60">
+    <section className="px-6 py-10 md:py-14 border-t border-cream-dark/60">
       <div className="max-w-6xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="mb-12 md:mb-16 max-w-2xl"
+          className="mb-8 md:mb-10 max-w-2xl"
         >
           <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-3">
             How nuncio works

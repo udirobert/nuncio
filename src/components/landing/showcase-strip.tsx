@@ -35,7 +35,7 @@ export function ShowcaseStrip({ items }: ShowcaseStripProps) {
   }, []);
 
   return (
-    <section className="md:hidden border-t border-cream-dark/60 py-10">
+    <section className="md:hidden border-t border-cream-dark/60 py-6">
       <div className="px-6 mb-4 flex items-baseline justify-between">
         <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
           Recent nuncios
