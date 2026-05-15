@@ -18,8 +18,15 @@ export async function synthesise(enrichment: string[]): Promise<Profile> {
 
   const userMessage = `Synthesise the following enriched profile data into a structured profile:\n\n${enrichment.join("\n\n---\n\n")}`;
 
-  const text = await chatCompletion(systemPrompt, userMessage);
-  return JSON.parse(text);
+  try {
+    const text = await chatCompletion(systemPrompt, userMessage);
+    const parsed = parseProfileJson(text);
+    if (parsed) return parsed;
+  } catch (error) {
+    console.warn("[script] Profile synthesis failed, using heuristic fallback:", error);
+  }
+
+  return fallbackProfile(enrichment);
 }
 
 /**
@@ -33,6 +40,84 @@ export async function generateScript(
 
   const userMessage = `Profile:\n${JSON.stringify(profile, null, 2)}\n\n${senderBrief ? `Sender brief: ${senderBrief}` : "Write a general introduction/outreach script."}`;
 
-  const text = await chatCompletion(systemPrompt, userMessage);
-  return text;
+  try {
+    const text = await chatCompletion(systemPrompt, userMessage);
+    if (text.trim().length > 20) return text.trim();
+  } catch (error) {
+    console.warn("[script] Script generation failed, using heuristic fallback:", error);
+  }
+
+  return fallbackScript(profile, senderBrief);
+}
+
+function parseProfileJson(text: string): Profile | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+
+  const candidates = [
+    trimmed,
+    trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/)?.[1],
+    trimmed.match(/\{[\s\S]*\}/)?.[0],
+  ].filter(Boolean) as string[];
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate) as Partial<Profile>;
+      if (parsed.name) {
+        return normaliseProfile(parsed);
+      }
+    } catch {
+      // Try next candidate.
+    }
+  }
+
+  return null;
+}
+
+function normaliseProfile(profile: Partial<Profile>): Profile {
+  return {
+    name: profile.name || "there",
+    current_role: profile.current_role || "",
+    company: profile.company || "",
+    notable_work: Array.isArray(profile.notable_work) ? profile.notable_work : [],
+    interests: Array.isArray(profile.interests) ? profile.interests : [],
+    tone: profile.tone === "formal" || profile.tone === "technical" ? profile.tone : "conversational",
+    personalization_hooks: Array.isArray(profile.personalization_hooks)
+      ? profile.personalization_hooks
+      : [],
+  };
+}
+
+function fallbackProfile(enrichment: string[]): Profile {
+  const text = enrichment.join("\n");
+  const lines = text
+    .split("\n")
+    .map((line) => line.replace(/^#+\s*/, "").trim())
+    .filter(Boolean);
+  const name = lines[0]?.slice(0, 80) || "there";
+  const hooks = lines
+    .filter((line) => line.length > 20 && line.length < 140)
+    .slice(0, 4);
+
+  return {
+    name,
+    current_role: "",
+    company: "",
+    notable_work: hooks.slice(0, 2),
+    interests: hooks.slice(2, 4),
+    tone: "conversational",
+    personalization_hooks: hooks,
+  };
+}
+
+function fallbackScript(profile: Profile, senderBrief?: string): string {
+  const hooks = profile.personalization_hooks.filter(Boolean).slice(0, 2);
+  const hookSentence = hooks.length
+    ? `I noticed ${hooks.join(" and ").replace(/\.$/, "")}, which stood out as especially relevant.`
+    : `I came across your work and wanted to reach out with a specific note.`;
+  const briefSentence = senderBrief
+    ? `I am reaching out because ${senderBrief.replace(/\.$/, "")}.`
+    : `I am reaching out because I think there may be a useful conversation here.`;
+
+  return `Hey ${profile.name} — ${hookSentence} ${briefSentence} I would love to share what I am building and get your perspective. If you are open to it, would you be willing to take a quick look or find 15 minutes next week?`;
 }
