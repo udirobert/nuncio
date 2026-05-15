@@ -10,11 +10,12 @@ No templates. No mail merge. A video that sounds like you wrote it for them spec
 
 ## How it works
 
-1. **Enrich** — TinyFish fetches and cleans each social profile in parallel, returning structured context across all platforms simultaneously.
-2. **Synthesise** — Claude merges the enriched data into a rich profile and writes a personalised video script. Optionally accepts a voice-recorded sender brief via Speechmatics transcription.
-3. **Compose** — The creative provider (Melius MCP or local fallback) generates supporting visuals and organises all assets.
-4. **Render** — HeyGen's Video Agent composes a structured 3-scene video with Avatar V and a cloned voice, following HeyGen Skills prompt guidelines.
-5. **Deliver** — The finished video is served on a branded landing page (`/v/[id]`) with sharing mechanics and optional translation to 8+ languages.
+1. **Enrich** — TinyFish fetches and cleans each social profile in parallel, with search augmentation for JS-disabled pages.
+2. **Coach** — The agent surfaces 4 candidate personalisation angles from the profile, shows what it skipped and why, and lets the user pick 1–2 to focus the script.
+3. **Synthesise** — The LLM (Claude or Featherless/Qwen3) merges the enriched data + selected angles + sender brief into a personalised video script.
+4. **Compose** — The creative provider (Melius MCP or Fal fallback) generates supporting visuals and organises all assets in a persistent canvas.
+5. **Render** — HeyGen's Video Agent composes a structured 3-scene video with Avatar V and a cloned voice, following HeyGen Skills prompt guidelines.
+6. **Deliver** — The finished video is served on a branded landing page (`/v/[id]`) with sharing mechanics, captions via Speechmatics, and optional translation to 8+ languages.
 
 Total time from input to video: ~90 seconds.
 
@@ -24,17 +25,18 @@ Total time from input to video: ~90 seconds.
 
 | Layer | Technology |
 |---|---|
-| Enrichment | [TinyFish](https://tinyfish.ai) Fetch API |
-| Intelligence | [Anthropic Claude](https://anthropic.com) (claude-sonnet-4-5) |
+| Enrichment | [TinyFish](https://tinyfish.ai) Fetch + Search API |
+| Intelligence | [Featherless AI](https://featherless.ai) (Qwen3/DeepSeek) or [Anthropic Claude](https://anthropic.com) |
 | Speech | [Speechmatics](https://speechmatics.com) — voice input, captions, quality check |
 | Creative canvas | [Melius](https://melius.com) MCP server (with local fallback) |
-| Image fallback | [Fal](https://fal.ai) FLUX — optional creative assets when Melius is not configured |
-| Metadata storage | File fallback, [Turso](https://turso.tech) for durable share records, Grove for optional proof bundles |
+| Image generation | [Fal](https://fal.ai) FLUX — creative assets when Melius is not configured |
 | Video generation | [HeyGen](https://heygen.com) Video Agent API, Avatar V |
 | Voice | HeyGen Voice Clone |
 | Translation | HeyGen Video Translate + Lipsync |
+| Analytics | [PostHog](https://posthog.com) — funnel, engagement, quality events |
+| Storage | [Turso](https://turso.tech) (share records) + file fallback |
 | Frontend | Next.js 16, TypeScript, Tailwind CSS, Motion |
-| Deployment | Docker, Vultr + Coolify |
+| Deployment | Docker, [Vultr](https://vultr.com) + Coolify |
 
 ---
 
@@ -55,21 +57,17 @@ Visit `http://localhost:3000?demo=true` to see the full flow with cached data (n
 
 ```env
 TINYFISH_API_KEY=
-ANTHROPIC_API_KEY=
+ANTHROPIC_API_KEY=          # optional if FEATHERLESS_API_KEY is set
+FEATHERLESS_API_KEY=        # open-weight LLM fallback (Qwen3, DeepSeek)
 HEYGEN_API_KEY=
 HEYGEN_AVATAR_ID=
 HEYGEN_VOICE_ID=
 MELIUS_API_KEY=
 FAL_KEY=
-FAL_IMAGE_MODEL=fal-ai/flux/schnell
 SPEECHMATICS_API_KEY=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-NUNCIO_DATA_DIR=.data
-TURSO_DATABASE_URL=
-TURSO_AUTH_TOKEN=
-GROVE_ENABLED=false
-GROVE_API_URL=https://api.grove.storage
-GROVE_CHAIN_ID=37111
+NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=
+NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 ```
 
 ---
@@ -86,14 +84,19 @@ GROVE_CHAIN_ID=37111
 
 ## Key features
 
+- **Coach Mode** — after enrichment, surfaces 4 personalisation angles with reasoning, lets you pick 1–2 to focus the script. Shows what was skipped and why.
+- **Intent chips** — pick a genre (warm intro, investor pitch, hiring, conference follow-up) to get a sharper, more opinionated script
 - **Platform auto-detection** — paste any URL, nuncio identifies LinkedIn, Twitter/X, GitHub, Farcaster, Facebook
 - **Voice input** — record a sender brief via microphone, transcribed by Speechmatics
 - **Script review** — personalisation hooks highlighted inline before rendering
+- **Playbook** — 6 worked examples with teardowns of what made each one land (`/playbook`)
 - **Video translation** — one-click translation to 8 languages via HeyGen Lipsync
 - **Auto-captions** — generate timed subtitles via Speechmatics batch transcription
 - **Voice clone quality check** — assess audio samples before cloning
 - **Branded sharing** — every video link (`/v/[id]`) is a marketing surface with "Make your own" CTA
+- **Credit protection** — URL validation, word count cap, rate limiting, enrichment cache
 - **Demo mode** — `?demo=true` runs the full pipeline with cached data for live presentations
+- **LLM fallback** — auto-selects Featherless (Qwen3) or Anthropic based on available keys
 
 ---
 
@@ -117,9 +120,11 @@ nuncio/
 ├── src/
 │   ├── app/
 │   │   ├── page.tsx              # Main pipeline UI (state machine)
+│   │   ├── playbook/page.tsx     # Worked examples with teardowns
 │   │   ├── v/[id]/page.tsx       # Branded video landing page
 │   │   └── api/
 │   │       ├── enrich/route.ts
+│   │       ├── preview-angles/route.ts
 │   │       ├── script/route.ts
 │   │       ├── canvas/route.ts
 │   │       ├── video/route.ts
@@ -128,27 +133,37 @@ nuncio/
 │   │       ├── transcribe/route.ts
 │   │       ├── transcribe/token/route.ts
 │   │       ├── captions/route.ts
-│   │       └── voice-check/route.ts
+│   │       ├── voice-check/route.ts
+│   │       └── share/route.ts
 │   ├── components/
-│   │   ├── url-form.tsx
+│   │   ├── url-form.tsx          # URL input with auto-detect + intent chips
+│   │   ├── angle-picker.tsx      # Coach mode — angle selection
 │   │   ├── progress-stepper.tsx
-│   │   ├── script-review.tsx
-│   │   ├── video-player.tsx
-│   │   ├── voice-input.tsx
-│   │   ├── share-nuncio.tsx
+│   │   ├── script-review.tsx     # Inline personalisation highlighting
+│   │   ├── video-player.tsx      # Translation, captions, share
+│   │   ├── voice-input.tsx       # Microphone recording + Speechmatics
+│   │   ├── intent-chips.tsx      # Genre selection
+│   │   ├── playbook-list.tsx     # Expandable playbook cards
+│   │   ├── share-nuncio.tsx      # Social share popover
 │   │   └── header.tsx
 │   └── lib/
-│       ├── tinyfish.ts
-│       ├── claude.ts
-│       ├── heygen.ts
-│       ├── speechmatics.ts
-│       ├── pipeline.ts
-│       ├── demo.ts
-│       ├── retry.ts
-│       ├── melius.ts
+│       ├── llm.ts                # LLM provider abstraction (Anthropic/Featherless)
+│       ├── tinyfish.ts           # Enrichment with search fallback
+│       ├── claude.ts             # Profile synthesis + script generation
+│       ├── heygen.ts             # Video Agent + direct API fallback
+│       ├── speechmatics.ts       # Transcription, captions, quality check
+│       ├── pipeline.ts           # Pipeline orchestration + state machine
+│       ├── analytics.ts          # PostHog event tracking
+│       ├── playbook.ts           # Worked example data
+│       ├── validation.ts         # URL + script validation
+│       ├── cache.ts              # In-memory TTL cache
+│       ├── rate-limit.ts         # Per-IP sliding window
+│       ├── retry.ts              # Exponential backoff
+│       ├── demo.ts               # Cached demo data
+│       ├── melius.ts             # Creative session orchestration
 │       └── creative/
-│           ├── types.ts
-│           ├── index.ts
+│           ├── types.ts          # Provider interface
+│           ├── index.ts          # Factory (auto-selects provider)
 │           ├── melius-provider.ts
 │           └── local-provider.ts
 ├── docs/
