@@ -29,6 +29,7 @@ Total time from input to video: ~90 seconds.
 | Speech | [Speechmatics](https://speechmatics.com) — voice input, captions, quality check |
 | Creative canvas | [Melius](https://melius.com) MCP server (with local fallback) |
 | Image fallback | [Fal](https://fal.ai) FLUX — optional creative assets when Melius is not configured |
+| Metadata storage | File fallback, [Turso](https://turso.tech) for durable share records, Grove for optional proof bundles |
 | Video generation | [HeyGen](https://heygen.com) Video Agent API, Avatar V |
 | Voice | HeyGen Voice Clone |
 | Translation | HeyGen Video Translate + Lipsync |
@@ -64,6 +65,11 @@ FAL_IMAGE_MODEL=fal-ai/flux/schnell
 SPEECHMATICS_API_KEY=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NUNCIO_DATA_DIR=.data
+TURSO_DATABASE_URL=
+TURSO_AUTH_TOKEN=
+GROVE_ENABLED=false
+GROVE_API_URL=https://api.grove.storage
+GROVE_CHAIN_ID=37111
 ```
 
 ---

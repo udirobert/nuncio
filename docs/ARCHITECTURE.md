@@ -231,6 +231,15 @@ SPEECHMATICS_API_KEY=
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NUNCIO_DATA_DIR=.data
+
+# Durable share metadata (optional; file storage is fallback)
+TURSO_DATABASE_URL=
+TURSO_AUTH_TOKEN=
+
+# Grove public proof publishing (optional, redacted proof bundles only)
+GROVE_ENABLED=false
+GROVE_API_URL=https://api.grove.storage
+GROVE_CHAIN_ID=37111
 ```
 
 ---
@@ -269,3 +278,13 @@ Factory auto-selects based on whether `MELIUS_API_KEY` is configured. No vendor 
 - **Video captions** — transcribe rendered video → timed subtitle segments
 - **Voice clone quality check** — assess audio sample confidence, detect noise/silence issues
 - **Realtime token** — JWT generation for browser-side WebSocket connections
+
+### Storage providers (`src/lib/storage/`)
+
+Share metadata and proof publishing are separate concerns:
+
+- `FileShareStorageProvider` — default local/Vultr fallback using `NUNCIO_DATA_DIR/share-records.json`.
+- `TursoShareStorageProvider` — production metadata store when `TURSO_DATABASE_URL` is set.
+- `GroveProofStorageProvider` — optional public, redacted proof-bundle publishing when `GROVE_ENABLED=true`.
+
+Full share records stay in the share metadata store. Grove proof bundles intentionally omit private script/profile detail and publish only redacted workflow evidence.

@@ -19,6 +19,7 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 - [x] Polling endpoint for video status
 - [x] Minimal frontend: URL input → loading state → script review → video player
 - [x] Branded share page metadata for generated videos (file-backed MVP store)
+- [x] Storage provider abstraction with Turso share metadata and Grove proof-publishing hooks
 - [x] Agent trace and canvas proof surfaced in the demo UI
 - [ ] Live demo: audience member gives Twitter handle → video plays in ~60s
 

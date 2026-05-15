@@ -25,6 +25,12 @@ export interface ShareRecord {
   sources?: string[];
   canvas?: CanvasProof;
   trace?: AgentTraceItem[];
+  proof?: {
+    provider: string;
+    uri?: string;
+    gatewayUrl?: string;
+    storageKey?: string;
+  } | null;
 }
 
 export function buildAgentTrace(input: {

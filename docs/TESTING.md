@@ -15,6 +15,13 @@ Runs local, low/no-credit checks:
 
 Results are saved to `artifacts/test-runs/*.json` and ignored by git.
 
+By default this exercises the active share metadata provider:
+
+- `file` if `TURSO_DATABASE_URL` is unset
+- `turso` if `TURSO_DATABASE_URL` is set
+
+Grove proof publishing is skipped unless `GROVE_ENABLED=true`.
+
 ## Single external enrichment timing
 
 ```bash

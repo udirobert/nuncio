@@ -166,9 +166,10 @@ Position VidCard as a native Melius use case — an agent that drives Melius aut
 - [x] Agent trace is visible in script review and final video states
 - [x] Canvas proof shows provider, asset count, and Melius canvas URL when available
 - [x] Generated videos can create branded `/v/[id]` share pages via a file-backed MVP store
+- [x] Storage abstraction supports Turso for durable share metadata and Grove for public redacted proof bundles
 - [x] HeyGen wrapper tries Video Agent first and falls back to direct `/v3/videos`
 - [x] Optional Fal image generation fallback is available when Melius is not configured
-- [ ] Share metadata persistence is file-backed for demos; replace with database/KV before production use
+- [ ] Configure Turso credentials before Vultr deployment for production-like share durability
 - [ ] One real golden-path HeyGen + Melius render should be recorded before each submission
 
 ### Demo video script (shared across all submissions)
