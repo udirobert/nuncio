@@ -47,6 +47,97 @@ function EnrichmentWarnings({ warnings }: { warnings?: EnrichmentWarning[] }) {
   );
 }
 
+// ─── Render wait sub-components ──────────────────────────────────────────────
+
+const RENDER_MILESTONES = [
+  { at: 0, label: "Preparing scene layout..." },
+  { at: 15, label: "Generating avatar expressions..." },
+  { at: 40, label: "Syncing voice to script..." },
+  { at: 90, label: "Compositing video layers..." },
+  { at: 150, label: "Encoding final video..." },
+  { at: 220, label: "Almost there — finalising..." },
+];
+
+function RenderMilestones({ elapsed }: { elapsed: number }) {
+  const current = [...RENDER_MILESTONES]
+    .reverse()
+    .find((m) => elapsed >= m.at);
+
+  if (!current) return null;
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.p
+        key={current.label}
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -4 }}
+        transition={{ duration: 0.3 }}
+        className="text-center text-xs text-ink-muted"
+      >
+        {current.label}
+      </motion.p>
+    </AnimatePresence>
+  );
+}
+
+function TypingScript({ script }: { script: string }) {
+  const [charCount, setCharCount] = useState(0);
+
+  useEffect(() => {
+    if (charCount >= script.length) return;
+    const speed = 30 + Math.random() * 40;
+    const timer = setTimeout(() => setCharCount((c) => c + 1), speed);
+    return () => clearTimeout(timer);
+  }, [charCount, script.length]);
+
+  const visible = script.slice(0, charCount);
+  const showCursor = charCount < script.length;
+
+  return (
+    <div className="rounded-xl bg-cream-dark/40 border border-cream-dark p-4 max-h-36 overflow-y-auto">
+      <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-2">
+        Your script
+      </p>
+      <p className="text-xs text-ink-muted leading-relaxed whitespace-pre-wrap">
+        &ldquo;{visible}
+        {showCursor && <span className="inline-block w-[2px] h-3 bg-accent animate-pulse ml-0.5" />}
+        {!showCursor && "&rdquo;"}
+      </p>
+    </div>
+  );
+}
+
+const TIPS = [
+  "Videos referencing a specific recent project get 3× more replies than generic intros.",
+  "The best outreach mentions something from the last 30 days — recency signals effort.",
+  "Mentioning a shared connection increases reply rate by 40%.",
+  "Scripts under 60 seconds have higher completion rates than longer ones.",
+  "Personalised video outreach converts 5× better than text-only cold email.",
+  "The strongest angle is usually not their job title — it's their most recent public work.",
+];
+
+function RotatingTips({ elapsed }: { elapsed: number }) {
+  const tipIndex = Math.floor(elapsed / 20) % TIPS.length;
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={tipIndex}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -6 }}
+        transition={{ duration: 0.4 }}
+        className="mt-4 rounded-lg bg-warm-soft/30 border border-warm/10 px-3 py-2"
+      >
+        <p className="text-[10px] text-ink-faint">
+          <span className="text-warm font-medium">Tip:</span> {TIPS[tipIndex]}
+        </p>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 const STEP_META: Record<string, { description: string; icon: React.ReactNode }> = {
   enrich: {
     description: "Gathering intelligence from their public profiles",
@@ -328,99 +419,5 @@ export function ProgressStepper({ steps, warnings, urls, script, recipientName }
         </motion.p>
       </motion.div>
     </main>
-  );
-}
-
-// ─── Render wait sub-components ──────────────────────────────────────────────
-
-const RENDER_MILESTONES = [
-  { at: 0, label: "Preparing scene layout..." },
-  { at: 15, label: "Generating avatar expressions..." },
-  { at: 40, label: "Syncing voice to script..." },
-  { at: 90, label: "Compositing video layers..." },
-  { at: 150, label: "Encoding final video..." },
-  { at: 220, label: "Almost there — finalising..." },
-];
-
-function RenderMilestones({ elapsed }: { elapsed: number }) {
-  const current = [...RENDER_MILESTONES]
-    .reverse()
-    .find((m) => elapsed >= m.at);
-
-  if (!current) return null;
-
-  return (
-    <AnimatePresence mode="wait">
-      <motion.p
-        key={current.label}
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -4 }}
-        transition={{ duration: 0.3 }}
-        className="text-center text-xs text-ink-muted"
-      >
-        {current.label}
-      </motion.p>
-    </AnimatePresence>
-  );
-}
-
-function TypingScript({ script }: { script: string }) {
-  const [charCount, setCharCount] = useState(0);
-
-  useEffect(() => {
-    if (charCount >= script.length) return;
-    const speed = 30 + Math.random() * 40; // 30-70ms per char — natural typing feel
-    const timer = setTimeout(() => setCharCount((c) => c + 1), speed);
-    return () => clearTimeout(timer);
-  }, [charCount, script.length]);
-
-  const visible = script.slice(0, charCount);
-  const showCursor = charCount < script.length;
-
-  return (
-    <div className="rounded-xl bg-cream-dark/40 border border-cream-dark p-4 max-h-36 overflow-y-auto">
-      <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-2">
-        Your script
-      </p>
-      <p className="text-xs text-ink-muted leading-relaxed whitespace-pre-wrap">
-        &ldquo;{visible}
-        {showCursor && <span className="inline-block w-[2px] h-3 bg-accent animate-pulse ml-0.5" />}
-        {!showCursor && "&rdquo;"}
-      </p>
-    </div>
-  );
-}
-
-const TIPS = [
-  "Videos referencing a specific recent project get 3× more replies than generic intros.",
-  "The best outreach mentions something from the last 30 days — recency signals effort.",
-  "Mentioning a shared connection increases reply rate by 40%.",
-  "Scripts under 60 seconds have higher completion rates than longer ones.",
-  "Personalised video outreach converts 5× better than text-only cold email.",
-  "The strongest angle is usually not their job title — it's their most recent public work.",
-];
-
-function RotatingTips({ elapsed }: { elapsed: number }) {
-  const tipIndex = Math.floor(elapsed / 20) % TIPS.length;
-
-  return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={tipIndex}
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -6 }}
-        transition={{ duration: 0.4 }}
-        className="rounded-xl bg-accent-soft/30 border border-accent/10 px-4 py-3"
-      >
-        <p className="text-[10px] uppercase tracking-widest text-accent font-medium mb-1">
-          Did you know?
-        </p>
-        <p className="text-xs text-ink-muted leading-relaxed">
-          {TIPS[tipIndex]}
-        </p>
-      </motion.div>
-    </AnimatePresence>
   );
 }

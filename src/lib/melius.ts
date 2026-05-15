@@ -1,5 +1,6 @@
 import { getCreativeProvider } from "@/lib/creative";
-import type { CreativeSession } from "@/lib/creative";
+import { LocalProvider } from "@/lib/creative/local-provider";
+import type { CreativeProvider, CreativeSession } from "@/lib/creative";
 
 export interface CanvasResult {
   canvasId: string;
@@ -30,6 +31,24 @@ export async function createCanvas(
 ): Promise<CanvasResult> {
   const provider = getCreativeProvider();
 
+  try {
+    return await runCanvasFlow(provider, profile, script, senderBrief);
+  } catch (error) {
+    if (provider.name !== "melius") {
+      throw error;
+    }
+
+    console.warn("[creative] Melius provider failed, falling back to local provider:", error);
+    return await runCanvasFlow(new LocalProvider(), profile, script, senderBrief);
+  }
+}
+
+async function runCanvasFlow(
+  provider: CreativeProvider,
+  profile: { name: string; [key: string]: unknown },
+  script: string,
+  senderBrief?: string
+): Promise<CanvasResult> {
   // 1. Create session
   const session: CreativeSession = await provider.createSession(profile.name);
   let textNodesCreated = 0;
@@ -39,14 +58,14 @@ export async function createCanvas(
     await provider.storeText(session, "Profile Summary", formatProfileSummary(profile));
     textNodesCreated++;
   } catch (e) {
-    console.warn("[melius] Failed to store profile summary:", e);
+    console.warn(`[creative:${provider.name}] Failed to store profile summary:`, e);
   }
 
   try {
     await provider.storeText(session, "Script", script);
     textNodesCreated++;
   } catch (e) {
-    console.warn("[melius] Failed to store script:", e);
+    console.warn(`[creative:${provider.name}] Failed to store script:`, e);
   }
 
   try {
@@ -57,7 +76,7 @@ export async function createCanvas(
     );
     textNodesCreated++;
   } catch (e) {
-    console.warn("[melius] Failed to store objective:", e);
+    console.warn(`[creative:${provider.name}] Failed to store objective:`, e);
   }
 
   try {
@@ -65,7 +84,7 @@ export async function createCanvas(
     await provider.storeText(session, "Visual Direction", visualDirection);
     textNodesCreated++;
   } catch (e) {
-    console.warn("[melius] Failed to store visual direction:", e);
+    console.warn(`[creative:${provider.name}] Failed to store visual direction:`, e);
   }
 
   // 3. MEDIA: Attempt image generation (non-blocking on failure)
@@ -73,14 +92,14 @@ export async function createCanvas(
   try {
     await provider.generateBackground(session, backgroundPrompt);
   } catch (e) {
-    console.warn("[melius] Background generation failed (non-blocking):", e);
+    console.warn(`[creative:${provider.name}] Background generation failed (non-blocking):`, e);
   }
 
   try {
     const thumbnailPrompt = buildThumbnailPrompt(profile);
     await provider.generateThumbnail(session, thumbnailPrompt);
   } catch (e) {
-    console.warn("[melius] Thumbnail generation failed (non-blocking):", e);
+    console.warn(`[creative:${provider.name}] Thumbnail generation failed (non-blocking):`, e);
   }
 
   // 4. Finalise with audit comment
