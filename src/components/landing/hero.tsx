@@ -26,7 +26,7 @@ export function Hero({ children }: HeroProps) {
   const { left, right } = splitShowcase(SHOWCASE_RECIPIENTS);
 
   return (
-    <section className="relative flex items-stretch">
+    <section className="relative">
       {/* Cream wash radial spotlight behind the form */}
       <div
         aria-hidden
@@ -37,33 +37,37 @@ export function Hero({ children }: HeroProps) {
         }}
       />
 
-      <div className="relative w-full grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(540px,640px)_minmax(0,1fr)] gap-0">
-        {/* Left card wall — desktop only */}
-        <motion.aside
-          initial={{ opacity: 0, x: -16 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.4, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          className="hidden lg:block px-4 py-12"
-        >
-          <CardWall items={left} direction="up" durationSec={75} />
-        </motion.aside>
-
-        {/* Centre stage — the form. Anchored toward the top so the URL
-            input stays above the fold on shorter viewports. */}
-        <div className="relative flex items-start justify-center pt-16 lg:pt-20 pb-2">
-          {children}
-        </div>
-
-        {/* Right card wall — desktop only, opposite direction & slightly faster */}
-        <motion.aside
-          initial={{ opacity: 0, x: 16 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.4, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          className="hidden lg:block px-4 py-12"
-        >
-          <CardWall items={right} direction="down" durationSec={65} />
-        </motion.aside>
+      {/* Centre stage — the form. This is the only flow element, so it
+          determines the hero's height. The card walls below are pinned
+          absolutely to either side and clipped to the same height, which
+          prevents their (intentionally tall) duplicated track from
+          inflating the section and creating a void below the form. */}
+      <div className="relative mx-auto flex w-full max-w-[640px] items-start justify-center pt-16 lg:pt-20 pb-12 lg:pb-16">
+        {children}
       </div>
+
+      {/* Left card wall — desktop only. Pinned to the leftover space
+          on the left of the form column. */}
+      <motion.aside
+        initial={{ opacity: 0, x: -16 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.4, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        className="hidden lg:block absolute inset-y-0 left-0 px-4 py-12 overflow-hidden"
+        style={{ width: "calc((100% - 640px) / 2)" }}
+      >
+        <CardWall items={left} direction="up" durationSec={75} />
+      </motion.aside>
+
+      {/* Right card wall — desktop only, opposite direction & slightly faster */}
+      <motion.aside
+        initial={{ opacity: 0, x: 16 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.4, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        className="hidden lg:block absolute inset-y-0 right-0 px-4 py-12 overflow-hidden"
+        style={{ width: "calc((100% - 640px) / 2)" }}
+      >
+        <CardWall items={right} direction="down" durationSec={65} />
+      </motion.aside>
     </section>
   );
 }
