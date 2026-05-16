@@ -31,6 +31,10 @@ export interface ShareRecord {
     gatewayUrl?: string;
     storageKey?: string;
   } | null;
+  privacy?: "public" | "private";
+  plan?: "free" | "pro";
+  industry?: string;
+  videoStyle?: string;
 }
 
 export function buildAgentTrace(input: {

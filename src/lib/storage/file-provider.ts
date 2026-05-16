@@ -35,6 +35,24 @@ export class FileShareStorageProvider implements ShareStorageProvider {
     await this.persist();
   }
 
+  async list(options?: { limit?: number; industry?: string; privacy?: string }): Promise<ShareRecord[]> {
+    await this.load();
+    const limit = options?.limit || 50;
+    const privacy = options?.privacy;
+    const industry = options?.industry;
+
+    const records = Array.from(this.records.values())
+      .filter((r) => {
+        if (privacy && r.privacy !== privacy) return false;
+        if (industry && r.industry !== industry) return false;
+        return true;
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit);
+
+    return records;
+  }
+
   private async load(): Promise<void> {
     if (this.loaded) return;
     this.loaded = true;

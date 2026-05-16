@@ -14,6 +14,9 @@ export async function POST(request: NextRequest) {
     sources,
     canvas,
     trace,
+    privacy,
+    industry,
+    videoStyle,
   }: {
     videoUrl?: string;
     videoId?: string;
@@ -23,14 +26,19 @@ export async function POST(request: NextRequest) {
     sources?: string[];
     canvas?: CanvasProof;
     trace?: AgentTraceItem[];
+    privacy?: "public" | "private";
+    industry?: string;
+    videoStyle?: string;
   } = body;
 
-  if (!videoUrl) {
+  // Allow empty videoUrl for early-share (before video renders)
+  // but require it for final share record
+  if (videoUrl === undefined) {
     return NextResponse.json({ error: "videoUrl is required" }, { status: 400 });
   }
 
   const record = await createShareRecord({
-    videoUrl,
+    videoUrl: videoUrl || "",
     videoId,
     recipientName,
     senderName,
@@ -38,6 +46,9 @@ export async function POST(request: NextRequest) {
     sources,
     canvas,
     trace,
+    privacy: privacy || "public",
+    industry,
+    videoStyle,
   });
 
   return NextResponse.json({ record, shareUrl: `/v/${record.id}` });

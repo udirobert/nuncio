@@ -33,7 +33,20 @@ export interface ShowcaseRecipient {
    * falls back to the demo flow on the home page.
    */
   playbookId?: string;
+  /** Industry category for gallery filtering */
+  industry?: string;
 }
+
+export const INDUSTRIES = [
+  { id: "tech", label: "Tech & SaaS" },
+  { id: "finance", label: "Finance" },
+  { id: "food", label: "Food & Hospitality" },
+  { id: "fitness", label: "Fitness & Wellness" },
+  { id: "construction", label: "Construction & Trades" },
+  { id: "sales", label: "Sales & BD" },
+  { id: "marketing", label: "Marketing & Creative" },
+  { id: "general", label: "General" },
+];
 
 export const SHOWCASE_RECIPIENTS: ShowcaseRecipient[] = [
   {

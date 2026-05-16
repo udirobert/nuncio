@@ -56,6 +56,29 @@ export class TursoShareStorageProvider implements ShareStorageProvider {
     });
   }
 
+  async list(options?: { limit?: number; industry?: string; privacy?: string }): Promise<ShareRecord[]> {
+    await this.ensureSchema();
+    const limit = options?.limit || 50;
+    let sql = `SELECT record_json FROM share_records WHERE 1=1`;
+    const args: (string | number)[] = [];
+
+    if (options?.privacy) {
+      sql += ` AND json_extract(record_json, '$.privacy') = ?`;
+      args.push(options.privacy);
+    }
+
+    if (options?.industry) {
+      sql += ` AND json_extract(record_json, '$.industry') = ?`;
+      args.push(options.industry);
+    }
+
+    sql += ` ORDER BY created_at DESC LIMIT ?`;
+    args.push(limit);
+
+    const result = await this.client.execute({ sql, args });
+    return result.rows.map((row) => JSON.parse(String(row.record_json)) as ShareRecord);
+  }
+
   private async ensureSchema(): Promise<void> {
     if (!this.ready) {
       this.ready = this.client.execute(`

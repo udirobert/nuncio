@@ -298,17 +298,20 @@ export async function continueAfterCoach(
     const trace = buildAgentTrace({ profile, senderBrief: enhancedBrief, canvas });
 
     // Create share record early (before video renders) so user can view it during render
+    // Default to public (free tier), pro users can toggle to private
     let earlyShare: ShareRecord | undefined;
     try {
       const shareRes = await fetch("/api/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          videoUrl: "", // Empty initially - will update when video completes
+          videoUrl: "",
           recipientName: profile?.name,
           profile,
           canvas,
           trace,
+          privacy: "public",
+          industry: detectIndustry(profile),
         }),
       });
       if (shareRes.ok) {
@@ -586,4 +589,39 @@ export async function renderVideo(
         error instanceof Error ? error.message : "Video render failed",
     }));
   }
+}
+
+/**
+ * Detect industry from profile to help differentiate video styles.
+ */
+function detectIndustry(profile?: Profile): string {
+  if (!profile) return "general";
+
+  const text = [
+    profile.current_role || "",
+    profile.company || "",
+    ...(profile.interests || []),
+    ...(profile.notable_work || []),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  const patterns: [string, RegExp][] = [
+    ["food", /food|restaurant|chef|catering|bakery|culinary|menu|dining|foodtech|meal/],
+    ["fitness", /fitness|gym|personal trainer|athlete|sports|wellness|health|training|movement|performance/],
+    ["construction", /construction|builder|landscape|contractor|renovation|architecture|design|real estate|property|develop/],
+    ["tech", /software|developer|engineer|ai|ml|data|startup|tech|saas|product|engineering|cto|vp engineering/],
+    ["finance", /finance|bank|investment|accounting|fintech|wealth|cfo|controller|financial/],
+    ["healthcare", /doctor|medical|health|nurse|hospital|pharma|biotech|clinical|healthcare|therapist/],
+    ["education", /teacher|professor|school|university|education|training|learning|coach|mentor/],
+    ["marketing", /marketing|brand|content|social media|creative|agency|growth|seo|communications|pr/],
+    ["sales", /sales|business development|account executive|revenue|partnerships|bd|saas sales|account manager/],
+    ["retail", /retail|store|shop|ecommerce|merchandise|buyer|brand manager|wholesale/],
+  ];
+
+  for (const [industry, regex] of patterns) {
+    if (regex.test(text)) return industry;
+  }
+
+  return "general";
 }
