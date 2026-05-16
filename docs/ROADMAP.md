@@ -107,6 +107,7 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 - **Avatar V availability:** Launches May 18. Hackathon demo on May 14–15 uses Avatar IV as fallback. Switch to V in Phase 1.
 - **Voice clone quality:** HeyGen voice cloning requires a clean 30-second audio sample. Background noise or music degrades quality significantly. Document this clearly for users.
 - **Melius MCP egress:** Uploading images to Melius requires network egress enabled in Claude organisation settings. Document in setup guide.
+- **Stripe integration:** Infrastructure added (`/api/checkout`, `/api/webhook`), awaiting configuration. Free users get `privacy: "public"` videos; pro users get private videos + future features.
 
 ---
 

@@ -293,3 +293,16 @@ Share metadata and proof publishing are separate concerns:
 - `GroveProofStorageProvider` — optional public, redacted proof-bundle publishing when `GROVE_ENABLED=true`.
 
 Full share records stay in the share metadata store. Grove proof bundles intentionally omit private script/profile detail and publish only redacted workflow evidence.
+
+---
+
+## Stripe integration (`/api/checkout`, `/api/webhook`)
+
+For future monetization:
+- `/api/checkout` — creates Stripe Checkout sessions for subscriptions
+- `/api/webhook` — handles `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.deleted`
+- Share records track `plan` (`"free"` | `"pro"`), `stripeCustomerId`, `stripeSubscriptionId`
+- Privacy defaults to `"public"` for free users, `"private"` for pro (pending config)
+
+Required env vars (not yet configured):
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_MONTHLY_PRICE_ID`, `NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID`
