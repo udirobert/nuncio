@@ -51,6 +51,7 @@ export default function Home() {
         sources: state.sources,
         canvas: state.canvas,
         trace: state.trace,
+        share: state.share,
       }
     );
   }

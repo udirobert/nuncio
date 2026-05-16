@@ -25,3 +25,13 @@ export async function createShareRecord(input: ShareRecordInput): Promise<ShareR
 export async function getShareRecord(id: string): Promise<ShareRecord | null> {
   return getShareStorageProvider().get(id);
 }
+
+export async function updateShareRecord(id: string, updates: Partial<Pick<ShareRecord, "videoUrl" | "videoId" | "trace">>): Promise<ShareRecord | null> {
+  const shareProvider = getShareStorageProvider();
+  const existing = await shareProvider.get(id);
+  if (!existing) return null;
+
+  const updated = { ...existing, ...updates };
+  await shareProvider.update(updated);
+  return updated;
+}

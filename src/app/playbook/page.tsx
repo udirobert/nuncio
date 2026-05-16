@@ -65,7 +65,7 @@ export default function PlaybookPage() {
             Ready to send yours?
           </h2>
           <p className="text-sm text-ink-muted mb-5">
-            Paste a profile URL. Get a personalised video in 90 seconds.
+            Paste a profile URL. Get a personalised video in ~5 minutes.
           </p>
           <Link
             href="/"

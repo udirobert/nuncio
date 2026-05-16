@@ -40,7 +40,7 @@ export function HowItWorks() {
             How nuncio works
           </p>
           <h2 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl tracking-tight leading-[1] mb-4">
-            Four agents, <span className="italic">ninety seconds</span>, one video
+            Four agents, fully automated, one video
             that sounds like you wrote it.
           </h2>
           <p className="text-ink-muted text-[15px] leading-relaxed">

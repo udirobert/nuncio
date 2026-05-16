@@ -295,6 +295,30 @@ export async function continueAfterCoach(
     });
 
     // Pause at script review before rendering video
+    const trace = buildAgentTrace({ profile, senderBrief: enhancedBrief, canvas });
+
+    // Create share record early (before video renders) so user can view it during render
+    let earlyShare: ShareRecord | undefined;
+    try {
+      const shareRes = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoUrl: "", // Empty initially - will update when video completes
+          recipientName: profile?.name,
+          profile,
+          canvas,
+          trace,
+        }),
+      });
+      if (shareRes.ok) {
+        const shareData = await shareRes.json();
+        earlyShare = shareData.record;
+      }
+    } catch {
+      // Sharing is non-critical - continue without share
+    }
+
     setState((prev) => ({
       ...prev,
       stage: "review",
@@ -302,7 +326,8 @@ export async function continueAfterCoach(
       script,
       assetUrls,
       canvas,
-      trace: buildAgentTrace({ profile, sources: prev.sources, senderBrief: enhancedBrief, canvas }),
+      trace,
+      share: earlyShare,
     }));
   } catch (error) {
     setState((prev) => ({
@@ -328,6 +353,7 @@ export async function renderVideo(
     sources?: string[];
     canvas?: CanvasProof;
     trace?: AgentTraceItem[];
+    share?: ShareRecord;
   }
 ) {
   const demo = isDemoMode();
@@ -349,23 +375,38 @@ export async function renderVideo(
 
       let share: ShareRecord | undefined;
       try {
-        const shareRes = await fetch("/api/share", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            videoUrl: DEMO_VIDEO_URL,
-            videoId: "demo-video",
-            recipientName,
-            profile: context?.profile,
-            sources: context?.sources,
-            canvas: context?.canvas,
-            trace,
-          }),
-        });
-
-        if (shareRes.ok) {
-          const shareData = await shareRes.json();
-          share = shareData.record;
+        // If we already have a share from early creation, update it; otherwise create new
+        if (context?.share?.id) {
+          const updateRes = await fetch(`/api/share/${context.share.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              videoUrl: DEMO_VIDEO_URL,
+              videoId: "demo-video",
+              trace,
+            }),
+          });
+          if (updateRes.ok) {
+            share = await updateRes.json();
+          }
+        } else {
+          const shareRes = await fetch("/api/share", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              videoUrl: DEMO_VIDEO_URL,
+              videoId: "demo-video",
+              recipientName,
+              profile: context?.profile,
+              sources: context?.sources,
+              canvas: context?.canvas,
+              trace,
+            }),
+          });
+          if (shareRes.ok) {
+            const shareData = await shareRes.json();
+            share = shareData.record;
+          }
         }
       } catch {
         // Keep demo resilient even if the local share endpoint is unavailable.
@@ -475,23 +516,38 @@ export async function renderVideo(
 
     let share: ShareRecord | undefined;
     try {
-      const shareRes = await fetch("/api/share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          videoUrl: permanentVideoUrl,
-          videoId,
-          recipientName,
-          profile: context?.profile,
-          sources: context?.sources,
-          canvas: context?.canvas,
-          trace,
-        }),
-      });
-
-      if (shareRes.ok) {
-        const shareData = await shareRes.json();
-        share = shareData.record;
+      // If we already have a share from early creation, update it; otherwise create new
+      if (context?.share?.id) {
+        const updateRes = await fetch(`/api/share/${context.share.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            videoUrl: permanentVideoUrl,
+            videoId,
+            trace,
+          }),
+        });
+        if (updateRes.ok) {
+          share = await updateRes.json();
+        }
+      } else {
+        const shareRes = await fetch("/api/share", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            videoUrl: permanentVideoUrl,
+            videoId,
+            recipientName,
+            profile: context?.profile,
+            sources: context?.sources,
+            canvas: context?.canvas,
+            trace,
+          }),
+        });
+        if (shareRes.ok) {
+          const shareData = await shareRes.json();
+          share = shareData.record;
+        }
       }
     } catch {
       // Sharing is non-critical; keep the completed video visible.

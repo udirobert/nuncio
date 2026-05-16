@@ -49,35 +49,16 @@ function EnrichmentWarnings({ warnings }: { warnings?: EnrichmentWarning[] }) {
 
 // ─── Render wait sub-components ──────────────────────────────────────────────
 
-const RENDER_MILESTONES = [
-  { at: 0, label: "Preparing scene layout..." },
-  { at: 15, label: "Generating avatar expressions..." },
-  { at: 40, label: "Syncing voice to script..." },
-  { at: 90, label: "Compositing video layers..." },
-  { at: 150, label: "Encoding final video..." },
-  { at: 220, label: "Almost there — finalising..." },
-];
-
-function RenderMilestones({ elapsed }: { elapsed: number }) {
-  const current = [...RENDER_MILESTONES]
-    .reverse()
-    .find((m) => elapsed >= m.at);
-
-  if (!current) return null;
-
+function RenderMilestones() {
   return (
-    <AnimatePresence mode="wait">
-      <motion.p
-        key={current.label}
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -4 }}
-        transition={{ duration: 0.3 }}
-        className="text-center text-xs text-ink-muted"
-      >
-        {current.label}
-      </motion.p>
-    </AnimatePresence>
+    <motion.p
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="text-center text-xs text-ink-muted"
+    >
+      Your video is being rendered — this typically takes 3–5 minutes.
+    </motion.p>
   );
 }
 
@@ -393,8 +374,8 @@ export function ProgressStepper({ steps, warnings, urls, script, recipientName }
               </span>
             </div>
 
-            {/* Progress milestones — simulated sub-steps */}
-            <RenderMilestones elapsed={elapsed} />
+            {/* Honest render wait messaging */}
+            <RenderMilestones />
 
             {/* Script with typing reveal */}
             {script && <TypingScript script={script} />}

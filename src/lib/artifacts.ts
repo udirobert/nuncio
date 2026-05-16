@@ -16,7 +16,7 @@ export interface CanvasProof {
 
 export interface ShareRecord {
   id: string;
-  videoUrl: string;
+  videoUrl?: string;
   videoId?: string;
   recipientName?: string;
   senderName?: string;

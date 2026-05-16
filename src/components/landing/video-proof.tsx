@@ -30,7 +30,7 @@ export function VideoProof() {
         {/* Label */}
         <div className="flex items-center justify-between mb-4">
           <p className="text-xs uppercase tracking-widest text-ink-faint font-medium">
-            Real output — generated in 90 seconds
+            Real output — generated automatically
           </p>
           <Link
             href={GOLDEN_SHARE_PAGE}

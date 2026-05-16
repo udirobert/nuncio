@@ -261,7 +261,7 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
             className="text-ink-muted text-[14px] leading-relaxed max-w-[380px]"
           >
             Paste their profile. We&apos;ll research them, write a personalised
-            script, and render a video in your voice — in about 90 seconds.
+            script, and render a video in your voice — in ~5 minutes.
           </motion.p>
         </div>
 
@@ -481,7 +481,7 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
                 animate={{ opacity: 1 }}
                 className="text-center text-[11px] text-ink-faint mt-3"
               >
-                ⌘ + Enter · No account needed · ~90 seconds
+                ⌘ + Enter · No account needed · ~5 minutes
               </motion.p>
             )}
 

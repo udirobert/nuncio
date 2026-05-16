@@ -13,8 +13,8 @@ export function ShareNuncio({ shareId, videoUrl, recipientName }: ShareNuncioPro
   const [isOpen, setIsOpen] = useState(false);
 
   const shareText = recipientName
-    ? `Just sent a personalised video to ${recipientName} using @naboranuncio — AI researched them, wrote a script, and rendered a video in 90 seconds. Wild.`
-    : `Just discovered nuncio — paste someone's LinkedIn, get a personalised video in 90 seconds. The AI researches them and writes a script that actually references their work.`;
+    ? `Just sent a personalised video to ${recipientName} using @naboranuncio — AI researched them, wrote a script, and rendered the video automatically. Wild.`
+    : `Just discovered nuncio — paste someone's LinkedIn, get a personalised video in ~5 minutes. The AI researches them and writes a script that actually references their work.`;
 
   const appUrl = typeof window !== "undefined" ? window.location.origin : "https://nuncio.app";
   const shareUrl = shareId ? `${appUrl}/v/${shareId}` : appUrl;

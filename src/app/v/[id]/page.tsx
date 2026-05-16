@@ -37,7 +37,26 @@ export default function VideoLandingPage({
       setVideoData(await response.json());
     }
     load();
-  }, [params]);
+
+    // Poll for video completion if videoUrl is not yet available
+    const interval = setInterval(async () => {
+      if (videoData && !videoData.videoUrl) {
+        const { id } = await params;
+        const response = await fetch(`/api/share/${encodeURIComponent(id)}`);
+        if (response.ok) {
+          const updated = await response.json();
+          setVideoData(updated);
+          if (updated.videoUrl) {
+            clearInterval(interval);
+          }
+        }
+      } else {
+        clearInterval(interval);
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [params, videoData?.videoUrl]);
 
   if (notFound) {
     return (
@@ -129,7 +148,14 @@ export default function VideoLandingPage({
             <div className="absolute -inset-1.5 rounded-3xl bg-cream-dark -z-5 transform -rotate-0.5" />
 
             <div className="aspect-video w-full rounded-2xl overflow-hidden bg-ink shadow-2xl shadow-ink/20 ring-1 ring-ink/5">
-              {!isPlaying ? (
+              {!videoData.videoUrl ? (
+                /* Video processing state */
+                <div className="w-full h-full flex flex-col items-center justify-center bg-ink/90 text-cream">
+                  <div className="w-12 h-12 rounded-full border-2 border-cream/30 border-t-cream animate-spin mb-4" />
+                  <p className="text-sm text-cream/70 mb-2">Video is being rendered</p>
+                  <p className="text-xs text-cream/50">This typically takes 3–5 minutes</p>
+                </div>
+              ) : !isPlaying ? (
                 <button
                   onClick={() => setIsPlaying(true)}
                   className="w-full h-full relative group cursor-pointer"
