@@ -15,6 +15,7 @@ export interface ShareStorageProvider {
   get(id: string): Promise<ShareRecord | null>;
   update(record: ShareRecord): Promise<void>;
   list(options?: { limit?: number; industry?: string; privacy?: string }): Promise<ShareRecord[]>;
+  findByCustomerId(customerId: string): Promise<ShareRecord | null>;
 }
 
 export interface ProofStorageProvider {

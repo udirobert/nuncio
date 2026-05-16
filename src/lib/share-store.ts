@@ -39,3 +39,16 @@ export async function updateShareRecord(id: string, updates: Partial<Pick<ShareR
 export async function listShares(options?: { limit?: number; industry?: string; privacy?: string }): Promise<ShareRecord[]> {
   return getShareStorageProvider().list(options);
 }
+
+export async function updateShareRecordByCustomerId(
+  customerId: string,
+  updates: Partial<Pick<ShareRecord, "plan" | "stripeCustomerId" | "stripeSubscriptionId">>
+): Promise<ShareRecord | null> {
+  const shareProvider = getShareStorageProvider();
+  const existing = await shareProvider.findByCustomerId(customerId);
+  if (!existing) return null;
+
+  const updated = { ...existing, ...updates };
+  await shareProvider.update(updated);
+  return updated;
+}

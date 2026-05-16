@@ -53,6 +53,16 @@ export class FileShareStorageProvider implements ShareStorageProvider {
     return records;
   }
 
+  async findByCustomerId(customerId: string): Promise<ShareRecord | null> {
+    await this.load();
+    for (const record of this.records.values()) {
+      if (record.stripeCustomerId === customerId) {
+        return record;
+      }
+    }
+    return null;
+  }
+
   private async load(): Promise<void> {
     if (this.loaded) return;
     this.loaded = true;

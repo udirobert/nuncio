@@ -35,6 +35,8 @@ export interface ShareRecord {
   plan?: "free" | "pro";
   industry?: string;
   videoStyle?: string;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
 }
 
 export function buildAgentTrace(input: {
