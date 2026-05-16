@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
+import { useState } from "react";
 import type { PipelineState } from "@/lib/pipeline";
 
 interface HeaderProps {
@@ -17,8 +18,29 @@ const STAGE_LABELS: Record<PipelineState["stage"], string> = {
   error: "",
 };
 
+async function handleUpgrade() {
+  const priceId = process.env.NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID;
+  if (!priceId) {
+    alert("Stripe not configured. Add STRIPE_PRO_MONTHLY_PRICE_ID to env.");
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ priceId, planType: "pro" }),
+    });
+    const { url } = await res.json();
+    if (url) window.location.href = url;
+  } catch (e) {
+    console.error("Checkout failed:", e);
+  }
+}
+
 export function Header({ stage, isDemo }: HeaderProps) {
   const showStage = stage !== "input" && stage !== "error";
+  const [loading, setLoading] = useState(false);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between pointer-events-none">
@@ -34,15 +56,27 @@ export function Header({ stage, isDemo }: HeaderProps) {
 
       <div className="pointer-events-auto flex items-center gap-3">
         {stage === "input" && (
-          <motion.a
-            href="/playbook"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6, duration: 0.5 }}
-            className="text-xs text-ink-muted hover:text-ink transition-colors"
-          >
-            Playbook
-          </motion.a>
+          <>
+            <motion.button
+              onClick={async () => { setLoading(true); await handleUpgrade(); }}
+              disabled={loading}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6, duration: 0.5 }}
+              className="text-xs text-ink-muted hover:text-ink transition-colors disabled:opacity-50"
+            >
+              {loading ? "Loading..." : "Upgrade"}
+            </motion.button>
+            <motion.a
+              href="/playbook"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6, duration: 0.5 }}
+              className="text-xs text-ink-muted hover:text-ink transition-colors"
+            >
+              Playbook
+            </motion.a>
+          </>
         )}
         {isDemo && (
           <span className="text-[10px] uppercase tracking-widest font-medium text-warm bg-warm-soft px-2 py-0.5 rounded-full">
