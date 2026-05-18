@@ -100,6 +100,21 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 
 ---
 
+## Phase 6 — Melius Studio (Melius hackathon submission)
+
+**Goal:** A standalone `/studio` page where Melius is the visible, interactive star — not a backend step.
+
+- [ ] `/studio` page with agentic canvas builder (paste profile → watches canvas build live)
+- [ ] Embedded Melius canvas preview via share-link iframe
+- [ ] Iterate mode: editable prompt fields per node, calls `node_update` + `run_start` via MCP
+- [ ] Edge wiring between text nodes → image nodes for prompt context
+- [ ] Multi-node-type showcase: `custom_text`, `image`, `group`, and `video`/`audio` nodes
+- [ ] Presence claiming via `show_presence` / `release_presence` for multiplayer safety
+- [ ] Canvas-as-deliverable: position the canvas as a forkable template, HeyGen rendering optional
+- [ ] Full Melius submission packet: canvas screenshot, process write-up, video walkthrough
+
+---
+
 ## Known constraints
 
 - **HeyGen generation time:** 60–180 seconds per video. Cannot be made faster — it is an upstream rendering constraint. UX must be designed around async delivery.

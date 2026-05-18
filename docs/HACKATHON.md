@@ -109,34 +109,71 @@ Frame VidCard as a B2B sales acceleration tool. The enterprise buyer is a VP of 
 **Submission:** via `#meliuschallenge` topic
 
 ### What Melius is
-Melius is an AI creative canvas with a full MCP server. It exposes tools for creating projects, canvases, and nodes; generating images and videos; and downloading all outputs as ZIP. VidCard uses the Melius MCP as its creative persistence and asset management layer.
+Melius is an AI creative canvas with a full MCP server. It exposes tools for creating projects, canvases, and nodes; generating images and videos; and downloading all outputs as ZIP. nuncio uses the Melius MCP as its creative persistence and asset management layer.
 
-### Angle
-Position VidCard as a native Melius use case — an agent that drives Melius autonomously to produce a complete creative deliverable. The pitch is: "this is what Melius is for."
+### Current integration
+The existing pipeline calls Melius programmatically in a headless step (see `src/lib/creative/melius-provider.ts`). It creates a project per target, drops text + image nodes, runs generations, and downloads assets for HeyGen. The canvas is invisible to the end user.
 
-### Melius MCP tools used in VidCard
+This is insufficient for the Melius hackathon on its own — the canvas needs to be a visible, interactive surface.
+
+### Verified technical capabilities (from Melius docs)
+All of the following are confirmed available via the Melius MCP:
+
+| Capability | Confirmed |
+|---|---|
+| Embedded canvas previews (iframe, live state) | ✅ docs.melius.com/collaboration/sharing |
+| `node_update` + `run_start` for iteration | ✅ docs.melius.com/mcp/tools |
+| Canvas multiplayer presence | ✅ `show_presence` / `release_presence` tools |
+| Edge wiring between nodes | ✅ `edge_create` / `bulk_create_edges` |
+| 7 node types (text, image, video, audio, file, custom_text, group) | ✅ docs.melius.com/canvas/nodes |
+| `canvas_content` to read back live state | ✅ docs.melius.com/mcp/tools |
+| `display_canvas` inline preview | ✅ docs.melius.com/mcp/tools |
+
+### Proposed `/studio` page
+
+A standalone page at `/studio` where Melius is the star:
+
+1. **Agent builds the canvas live** — paste a profile URL, watch nodes appear one by one (profile → script → visual direction → background → thumbnail). Each node tooltip shows the agent's reasoning.
+
+2. **Embedded canvas preview** — the Melius canvas renders in an iframe via their share-link embed. User sees the live canvas state as the agent builds it.
+
+3. **Iterate mode** — after the initial build, surface editable prompt fields for each image node. "Regenerate background warmer." Calls `node_update` + `run_start` via MCP, creates a new version.
+
+4. **Edge wiring** — wire text nodes → image nodes so the image prompt includes the profile summary as context. Demonstrates data flow.
+
+5. **Multi-node-type showcase** — use `custom_text` (script, profile), `image` (background, thumbnail), `group` (section container), and optionally `video` or `audio` nodes. Hits the ">1 node type" requirement.
+
+6. **Canvas-as-deliverable** — the canvas itself IS the output. Position it as a repeatable creative template the user can fork and adapt for different prospects. HeyGen rendering is optional.
+
+### Melius MCP tools used (expanded)
 
 | Tool | Usage |
 |---|---|
+| `get_guide("getting-started")` | Mandatory first call — initialise agent context |
 | `project_create` | New project per target person |
 | `canvas_create` | Session canvas |
 | `canvas_plan_layout` | Auto-layout nodes without overlaps |
-| `bulk_create_nodes` | Script, profile summary, background prompt, thumbnail prompt |
-| `bulk_run_start` | Trigger image/video generation on all nodes simultaneously |
-| `bulk_run_wait` | Poll until all assets are ready |
-| `bulk_run_download` | Pull generated assets for HeyGen |
+| `bulk_create_nodes` | Script, profile summary, visual direction, background prompt, thumbnail prompt |
+| `bulk_create_edges` | Wire text nodes → image nodes for prompt context |
+| `node_update` | Edit image prompts during iterate mode |
+| `run_start` | Single-node re-generation after prompt edits |
+| `bulk_run_start` | Initial generation run on all image nodes |
+| `bulk_run_wait` | Poll until all runs complete |
+| `bulk_run_download` | Pull generated assets |
+| `display_canvas` | Inline preview in the MCP agent chat (bonus demo moment) |
+| `show_presence` / `release_presence` | Claim canvas region before mutations |
+| `comment_create` | Log pipeline decisions as audit trail |
 | `creative_download` | Export full canvas as ZIP |
-| `get_guide("ugc-ads")` | Inform node structure for short-form video creative |
-| `comment_create` | Log pipeline metadata as canvas comments (audit trail) |
 
 ### Emphasis for this submission
-- The MCP integration is first-class, not an afterthought
-- Every creative asset is stored and organised in Melius — nothing is ephemeral
-- The Melius canvas is itself a deliverable (client can iterate on assets directly)
-- Demonstrate `display_canvas` in the demo to show the live canvas state
+- Melius is visible and interactive, not a backend step
+- The agent's decision-making is surfaced at every node
+- Multiple node types are used and wired together
+- The canvas is a reusable, forkable template — not ephemeral
+- Iteration loop: user edits a prompt → agent re-runs → new version appears
 
 ### Pitch one-liner
-> "VidCard uses the Melius MCP to autonomously create, generate, and organise every creative asset in a persistent canvas — from background visuals to the final video."
+> "nuncio's agent builds a complete Melius canvas from a single social profile URL — text nodes, image generation, wired edges, all visible and iterable. The canvas IS the deliverable."
 
 ---
 
