@@ -206,45 +206,30 @@ POST /v1/video_translate
 
 ## Environment variables
 
+See [`.env.example`](../.env.example) for the complete list with documentation. Key groups:
+
 ```env
-# TinyFish
+# Required
 TINYFISH_API_KEY=
-
-# Anthropic
-ANTHROPIC_API_KEY=
-
-# Featherless fallback / premium model selection
-FEATHERLESS_API_KEY=
-FEATHERLESS_MODEL=deepseek-ai/DeepSeek-V4-Flash
-FEATHERLESS_TIMEOUT_MS=15000
-
-# HeyGen
 HEYGEN_API_KEY=
 HEYGEN_AVATAR_ID=
 HEYGEN_VOICE_ID=
 
-# Melius (optional — local fallback if not set)
+# LLM (at least one required)
+ANTHROPIC_API_KEY=
+# or
+FEATHERLESS_API_KEY=
+
+# Optional but recommended
 MELIUS_API_KEY=
-
-# Fal (optional — image generation fallback when Melius is not set)
-FAL_KEY=
-FAL_IMAGE_MODEL=fal-ai/flux/schnell
-
-# Speechmatics
 SPEECHMATICS_API_KEY=
-
-# App
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-NUNCIO_DATA_DIR=.data
-
-# Durable share metadata (optional; file storage is fallback)
 TURSO_DATABASE_URL=
 TURSO_AUTH_TOKEN=
 
-# Grove public proof publishing (optional, redacted proof bundles only)
+# Optional
+FAL_KEY=
 GROVE_ENABLED=false
-GROVE_API_URL=https://api.grove.storage
-GROVE_CHAIN_ID=37111
+STRIPE_SECRET_KEY=
 ```
 
 ---
