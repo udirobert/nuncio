@@ -346,8 +346,8 @@ export class MeliusProvider implements CreativeProvider {
     });
   }
 
-  async releasePresence(): Promise<void> {
-    await mcpCall<void>("release_presence", {});
+  async releasePresence(canvasId?: string): Promise<void> {
+    await mcpCall<void>("release_presence", canvasId ? { canvasId } : {});
   }
 
   async createCustomTextNode(canvasId: string, title: string, text: string, geometry: { x: number; y: number; w: number; h: number }): Promise<string> {

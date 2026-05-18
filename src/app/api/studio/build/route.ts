@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     await melius.addComment(canvasId, `nuncio studio session for ${profile.name}. Built automatically from profile URL.`, 0, -80);
 
     // Release presence
-    await melius.releasePresence();
+    await melius.releasePresence(canvasId);
 
     // Start image generation
     const bgRunId = await melius.startRun(bgNodeId);

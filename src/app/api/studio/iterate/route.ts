@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (canvasId) {
-      await melius.releasePresence();
+      await melius.releasePresence(canvasId);
     }
 
     return NextResponse.json({
