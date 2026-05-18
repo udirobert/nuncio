@@ -50,13 +50,30 @@ export async function POST(request: NextRequest) {
 
     await melius.claimPresence(canvasId, { x: 0, y: 0, w: 880, h: 600 });
 
+    const role = profile.current_role ? `${profile.current_role}${profile.company ? ` at ${profile.company}` : ""}` : "a professional";
+    const bgPrompt = `Professional video background for a personalised outreach to ${profile.name}${profile.company ? ` at ${profile.company}` : ""}. Clean, warm, ${profile.tone} tone. No text, no faces. 16:9.`;
+    const thumbPrompt = `Video thumbnail for a personalised message to ${profile.name}. Professional, clean, inviting. 16:9.`;
+    const objectiveText = senderBrief || `Personalised video outreach to ${profile.name}`;
+    const visualDirection = `Tone: ${profile.tone}, warm, genuine\nStyle: Clean, professional background. Warm lighting.\nTarget: ${profile.name} — ${role}`;
+    const profileSummary = `${profile.name} — ${profile.current_role}${profile.company ? ` at ${profile.company}` : ""}\n\nNotable: ${profile.notable_work.join(", ")}\nInterests: ${profile.interests.join(", ")}`;
+
+    // Generate temporary IDs upfront so planLayout can use them
+    const NODE_IDS = {
+      profileSummary: crypto.randomUUID(),
+      script: crypto.randomUUID(),
+      visualDirection: crypto.randomUUID(),
+      objective: crypto.randomUUID(),
+      background: crypto.randomUUID(),
+      thumbnail: crypto.randomUUID(),
+    };
+
     const layoutNodes = [
-      NODE_GEOMETRY.profileSummary,
-      NODE_GEOMETRY.script,
-      NODE_GEOMETRY.visualDirection,
-      NODE_GEOMETRY.objective,
-      NODE_GEOMETRY.background,
-      NODE_GEOMETRY.thumbnail,
+      { id: NODE_IDS.profileSummary, nodeType: "custom_text", ...NODE_GEOMETRY.profileSummary },
+      { id: NODE_IDS.script, nodeType: "custom_text", ...NODE_GEOMETRY.script },
+      { id: NODE_IDS.visualDirection, nodeType: "custom_text", ...NODE_GEOMETRY.visualDirection },
+      { id: NODE_IDS.objective, nodeType: "custom_text", ...NODE_GEOMETRY.objective },
+      { id: NODE_IDS.background, nodeType: "image", ...NODE_GEOMETRY.background },
+      { id: NODE_IDS.thumbnail, nodeType: "image", ...NODE_GEOMETRY.thumbnail },
     ];
 
     const positions = await melius.planLayout(canvasId, layoutNodes);
@@ -73,54 +90,37 @@ export async function POST(request: NextRequest) {
 
     // Text: Profile Summary
     const profileNodeId = await melius.createCustomTextNode(
-      canvasId, "Profile Summary",
-      `${profile.name} — ${profile.current_role}${profile.company ? ` at ${profile.company}` : ""}\n\nNotable: ${profile.notable_work.join(", ")}\nInterests: ${profile.interests.join(", ")}`,
-      pos("profileSummary")
+      canvasId, "Profile Summary", profileSummary, pos("profileSummary")
     );
     studioNodes.push({ id: profileNodeId, label: "Profile Summary", type: "custom_text", status: "complete" });
 
     // Text: Script
     const scriptNodeId = await melius.createCustomTextNode(
-      canvasId, "Script",
-      script,
-      pos("script")
+      canvasId, "Script", script, pos("script")
     );
     studioNodes.push({ id: scriptNodeId, label: "Script", type: "custom_text", status: "complete" });
 
     // Text: Visual Direction
-    const role = profile.current_role ? `${profile.current_role}${profile.company ? ` at ${profile.company}` : ""}` : "a professional";
-    const visualDirection = `Tone: ${profile.tone}, warm, genuine\nStyle: Clean, professional background. Warm lighting.\nTarget: ${profile.name} — ${role}`;
     const visualDirNodeId = await melius.createCustomTextNode(
-      canvasId, "Visual Direction",
-      visualDirection,
-      pos("visualDirection")
+      canvasId, "Visual Direction", visualDirection, pos("visualDirection")
     );
     studioNodes.push({ id: visualDirNodeId, label: "Visual Direction", type: "custom_text", status: "complete" });
 
     // Text: Outreach Objective
-    const objectiveText = senderBrief || `Personalised video outreach to ${profile.name}`;
     const objectiveNodeId = await melius.createCustomTextNode(
-      canvasId, "Outreach Objective",
-      objectiveText,
-      pos("objective")
+      canvasId, "Outreach Objective", objectiveText, pos("objective")
     );
     studioNodes.push({ id: objectiveNodeId, label: "Outreach Objective", type: "custom_text", status: "complete" });
 
     // Image: Background
-    const bgPrompt = `Professional video background for a personalised outreach to ${profile.name}${profile.company ? ` at ${profile.company}` : ""}. Clean, warm, ${profile.tone} tone. No text, no faces. 16:9.`;
     const bgNodeId = await melius.createImageNode(
-      canvasId, "Video Background",
-      bgPrompt,
-      pos("background")
+      canvasId, "Video Background", bgPrompt, pos("background")
     );
     studioNodes.push({ id: bgNodeId, label: "Video Background", type: "image", status: "pending", prompt: bgPrompt });
 
     // Image: Thumbnail
-    const thumbPrompt = `Video thumbnail for a personalised message to ${profile.name}. Professional, clean, inviting. 16:9.`;
     const thumbNodeId = await melius.createImageNode(
-      canvasId, "Video Thumbnail",
-      thumbPrompt,
-      pos("thumbnail")
+      canvasId, "Video Thumbnail", thumbPrompt, pos("thumbnail")
     );
     studioNodes.push({ id: thumbNodeId, label: "Video Thumbnail", type: "image", status: "pending", prompt: thumbPrompt });
 

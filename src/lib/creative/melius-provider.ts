@@ -436,7 +436,7 @@ export class MeliusProvider implements CreativeProvider {
     return { nodes };
   }
 
-  async planLayout(canvasId: string, nodes: { w: number; h: number }[]): Promise<{ x: number; y: number }[]> {
+  async planLayout(canvasId: string, nodes: { id: string; nodeType: string; w: number; h: number }[]): Promise<{ x: number; y: number }[]> {
     const result = await mcpCall<{ positions: { x: number; y: number }[] }>("canvas_plan_layout", {
       canvasId,
       nodes,
