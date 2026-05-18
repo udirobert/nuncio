@@ -395,9 +395,9 @@ export class MeliusProvider implements CreativeProvider {
     await mcpCall<void>("bulk_create_edges", {
       canvasId,
       edges: edges.map((e) => ({
-        source_node_id: e.sourceNodeId,
-        target_node_id: e.targetNodeId,
-        type: e.type || "text",
+        srcNodeId: e.sourceNodeId,
+        dstNodeId: e.targetNodeId,
+        edgeType: e.type || "text",
       })),
     });
   }
