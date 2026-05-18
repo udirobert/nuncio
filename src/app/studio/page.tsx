@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Header } from "@/components/header";
 import type { StudioBuildResult, StudioNode } from "@/lib/creative/melius-provider";
@@ -88,6 +88,45 @@ export default function StudioPage() {
     }
   }
 
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const isReady = stage === "ready";
+  const canvasId = buildResult?.canvasId;
+
+  useEffect(() => {
+    if (!isReady || !canvasId) return;
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/studio/canvas/${canvasId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        setBuildResult((prev) => {
+          if (!prev) return prev;
+          const merged = prev.nodes.map((n) => {
+            const updated = data.nodes.find((u: { id: string }) => u.id === n.id);
+            return updated ? { ...n, status: updated.status, outputUrl: updated.outputUrl } : n;
+          });
+          const done = merged.every((n) => n.status === "complete" || n.status === "failed");
+          if (done && pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+          return { ...prev, nodes: merged };
+        });
+      } catch {
+        // ignore poll errors
+      }
+    }, 5000);
+
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [isReady, canvasId]);
+
   return (
     <>
       <Header stage={stage === "ready" ? "review" : stage === "building" ? "progress" : "input"} />
@@ -123,6 +162,20 @@ export default function StudioPage() {
                     className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
                     onKeyDown={(e) => e.key === "Enter" && handleBuild()}
                   />
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {[
+                      { label: "LinkedIn", url: "https://linkedin.com/in/sundarpichai" },
+                      { label: "X / Twitter", url: "https://x.com/sundarpichai" },
+                    ].map((example) => (
+                      <button
+                        key={example.label}
+                        onClick={() => { setUrl(example.url); }}
+                        className="text-[11px] text-ink-faint hover:text-accent transition-colors px-2 py-1 rounded-md border border-cream-dark/50 hover:border-accent/30"
+                      >
+                        Try {example.label} →
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div>
