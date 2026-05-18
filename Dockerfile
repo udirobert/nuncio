@@ -12,9 +12,19 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Set build-time env vars (Next.js needs NEXT_PUBLIC_* at build time)
+# NEXT_PUBLIC_* vars are inlined into the client bundle at build time.
+# Coolify auto-injects ARG declarations for any env var flagged as build-time,
+# but we declare them here too so local `docker build` works without Coolify.
 ARG NEXT_PUBLIC_APP_URL
-ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+ARG NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID
+ARG NEXT_PUBLIC_STRIPE_PRO_ANNUAL_PRICE_ID
+ARG NEXT_PUBLIC_POSTHOG_HOST
+ARG NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL} \
+    NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID=${NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID} \
+    NEXT_PUBLIC_STRIPE_PRO_ANNUAL_PRICE_ID=${NEXT_PUBLIC_STRIPE_PRO_ANNUAL_PRICE_ID} \
+    NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST} \
+    NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=${NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN}
 
 RUN pnpm build
 
