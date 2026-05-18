@@ -2,11 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { updateShareRecordByCustomerId } from "@/lib/share-store";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
-
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
-
 export async function POST(request: NextRequest) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
   const body = await request.text();
   const sig = request.headers.get("stripe-signature") || "";
 
