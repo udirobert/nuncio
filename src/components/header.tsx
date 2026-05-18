@@ -76,6 +76,15 @@ export function Header({ stage, isDemo }: HeaderProps) {
             >
               Playbook
             </motion.a>
+            <motion.a
+              href="/studio"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6, duration: 0.5 }}
+              className="text-xs text-ink-muted hover:text-ink transition-colors"
+            >
+              Studio
+            </motion.a>
           </>
         )}
         {isDemo && (
