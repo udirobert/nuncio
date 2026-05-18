@@ -21,10 +21,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Update the node's prompt
-    await melius.updateNodePrompt(nodeId, prompt);
+    await melius.updateNodePrompt(nodeId, prompt, canvasId);
 
     // Re-run generation
-    const runId = await melius.startRun(nodeId);
+    const runId = await melius.startRun(nodeId, canvasId);
 
     // Poll for completion (up to 30s)
     let status = "running";
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     while (status === "running" && Date.now() - pollStart < 30000) {
       await new Promise((r) => setTimeout(r, 2000));
-      const runStatus = await melius.getRunStatus(runId);
+      const runStatus = await melius.getRunStatus(runId, canvasId);
       status = runStatus.status;
       if (runStatus.outputUrl) {
         outputUrl = runStatus.outputUrl;

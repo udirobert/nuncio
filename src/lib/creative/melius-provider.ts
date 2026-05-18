@@ -402,17 +402,23 @@ export class MeliusProvider implements CreativeProvider {
     });
   }
 
-  async updateNodePrompt(nodeId: string, prompt: string): Promise<void> {
-    await mcpCall<void>("node_update", { nodeId, prompt });
+  async updateNodePrompt(nodeId: string, prompt: string, canvasId?: string): Promise<void> {
+    const params: Record<string, string> = { nodeId, prompt };
+    if (canvasId) params.canvasId = canvasId;
+    await mcpCall<void>("node_update", params);
   }
 
-  async startRun(nodeId: string): Promise<string> {
-    const result = await mcpCall<{ id: string; runId?: string; status: string }>("run_start", { nodeId });
+  async startRun(nodeId: string, canvasId?: string): Promise<string> {
+    const params: Record<string, string> = { nodeId };
+    if (canvasId) params.canvasId = canvasId;
+    const result = await mcpCall<{ id: string; runId?: string; status: string }>("run_start", params);
     return result.id || result.runId || "";
   }
 
-  async getRunStatus(runId: string): Promise<{ status: string; outputUrl?: string }> {
-    const result = await mcpCall<{ status: string; outputs?: { url: string }[]; error?: string }>("run_get", { runId });
+  async getRunStatus(runId: string, canvasId?: string): Promise<{ status: string; outputUrl?: string }> {
+    const params: Record<string, string> = { runId };
+    if (canvasId) params.canvasId = canvasId;
+    const result = await mcpCall<{ status: string; outputs?: { url: string }[]; error?: string }>("run_get", params);
     return {
       status: result.status,
       outputUrl: result.outputs?.[0]?.url,

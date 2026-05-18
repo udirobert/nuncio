@@ -143,8 +143,8 @@ export async function POST(request: NextRequest) {
     await melius.releasePresence(canvasId);
 
     // Start image generation
-    const bgRunId = await melius.startRun(bgNodeId);
-    const thumbRunId = await melius.startRun(thumbNodeId);
+    const bgRunId = await melius.startRun(bgNodeId, canvasId);
+    const thumbRunId = await melius.startRun(thumbNodeId, canvasId);
 
     // Update node statuses
     studioNodes.forEach((n) => {
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Poll for completion (non-blocking — return early, let client poll canvas endpoint)
-    melius.getRunStatus(bgRunId).then((result) => {
+    melius.getRunStatus(bgRunId, canvasId).then((result) => {
       const node = studioNodes.find((n) => n.id === bgNodeId);
       if (node) {
         node.status = result.outputUrl ? "complete" : "failed";
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
       }
     }).catch(() => {});
 
-    melius.getRunStatus(thumbRunId).then((result) => {
+    melius.getRunStatus(thumbRunId, canvasId).then((result) => {
       const node = studioNodes.find((n) => n.id === thumbNodeId);
       if (node) {
         node.status = result.outputUrl ? "complete" : "failed";
