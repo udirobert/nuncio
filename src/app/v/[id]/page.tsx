@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import type { ShareRecord } from "@/lib/artifacts";
@@ -25,6 +25,7 @@ export default function VideoLandingPage({
   const [videoData, setVideoData] = useState<ShareRecord | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const hasVideoRef = useRef(false);
 
   useEffect(() => {
     async function load() {
@@ -34,29 +35,31 @@ export default function VideoLandingPage({
         setNotFound(true);
         return;
       }
-      setVideoData(await response.json());
+      const data = await response.json();
+      setVideoData(data);
+      if (data.videoUrl) hasVideoRef.current = true;
     }
     load();
 
-    // Poll for video completion if videoUrl is not yet available
     const interval = setInterval(async () => {
-      if (videoData && !videoData.videoUrl) {
-        const { id } = await params;
-        const response = await fetch(`/api/share/${encodeURIComponent(id)}`);
-        if (response.ok) {
-          const updated = await response.json();
-          setVideoData(updated);
-          if (updated.videoUrl) {
-            clearInterval(interval);
-          }
-        }
-      } else {
+      if (hasVideoRef.current) {
         clearInterval(interval);
+        return;
+      }
+      const { id } = await params;
+      const response = await fetch(`/api/share/${encodeURIComponent(id)}`);
+      if (response.ok) {
+        const updated = await response.json();
+        setVideoData(updated);
+        if (updated.videoUrl) {
+          hasVideoRef.current = true;
+          clearInterval(interval);
+        }
       }
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [params, videoData?.videoUrl]);
+  }, [params]);
 
   if (notFound) {
     return (

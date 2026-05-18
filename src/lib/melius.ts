@@ -1,6 +1,5 @@
 import { getCreativeProvider } from "@/lib/creative";
-import { LocalProvider } from "@/lib/creative/local-provider";
-import type { CreativeProvider, CreativeSession } from "@/lib/creative";
+import type { CreativeSession } from "@/lib/creative";
 
 export interface CanvasResult {
   canvasId: string;
@@ -83,88 +82,6 @@ export async function createCanvas(
     await provider.generateThumbnail(session, thumbnailPrompt);
   } catch (e) {
     console.warn("[melius] Thumbnail generation failed (non-blocking):", e);
-  }
-
-  // 4. Finalise with audit comment
-  const finalised = await provider.finalise(session);
-
-  // 5. Export (optional)
-  const exportUrl = await provider.export(finalised);
-
-  // Collect asset URLs (filter out empty strings)
-  const assetUrls = finalised.assets
-    .map((a) => a.url)
-    .filter((url) => url !== "");
-
-  return {
-    canvasId: finalised.id,
-    assetUrls,
-    assetCount: assetUrls.length,
-    canvasUrl: finalised.canvasUrl,
-    exportUrl: exportUrl || undefined,
-    provider: provider.name,
-    textNodesCreated,
-  };
-}
-
-async function runCanvasFlow(
-  provider: CreativeProvider,
-  profile: { name: string; [key: string]: unknown },
-  script: string,
-  senderBrief?: string,
-  industry?: string
-): Promise<CanvasResult> {
-  // 1. Create session
-  const session: CreativeSession = await provider.createSession(profile.name);
-  let textNodesCreated = 0;
-
-  // 2. TEXT-FIRST: Create all text nodes (these are fast and always succeed)
-  try {
-    await provider.storeText(session, "Profile Summary", formatProfileSummary(profile));
-    textNodesCreated++;
-  } catch (e) {
-    console.warn(`[creative:${provider.name}] Failed to store profile summary:`, e);
-  }
-
-  try {
-    await provider.storeText(session, "Script", script);
-    textNodesCreated++;
-  } catch (e) {
-    console.warn(`[creative:${provider.name}] Failed to store script:`, e);
-  }
-
-  try {
-    await provider.storeText(
-      session,
-      "Outreach Objective",
-      senderBrief || `Personalised video outreach to ${profile.name}`
-    );
-    textNodesCreated++;
-  } catch (e) {
-    console.warn(`[creative:${provider.name}] Failed to store objective:`, e);
-  }
-
-  try {
-    const visualDirection = buildVisualDirection(profile, industry);
-    await provider.storeText(session, "Visual Direction", visualDirection);
-    textNodesCreated++;
-  } catch (e) {
-    console.warn(`[creative:${provider.name}] Failed to store visual direction:`, e);
-  }
-
-  // 3. MEDIA: Attempt image generation (non-blocking on failure)
-  const backgroundPrompt = buildBackgroundPrompt(profile, industry);
-  try {
-    await provider.generateBackground(session, backgroundPrompt);
-  } catch (e) {
-    console.warn(`[creative:${provider.name}] Background generation failed (non-blocking):`, e);
-  }
-
-  try {
-    const thumbnailPrompt = buildThumbnailPrompt(profile, industry);
-    await provider.generateThumbnail(session, thumbnailPrompt);
-  } catch (e) {
-    console.warn(`[creative:${provider.name}] Thumbnail generation failed (non-blocking):`, e);
   }
 
   // 4. Finalise with audit comment
@@ -275,7 +192,6 @@ function buildVisualDirection(profile: { name: string; [key: string]: unknown },
   };
 
   const industryStyle = industryStyles[industry || "tech"];
-  const defaultStyle = industryStyles.tech;
 
   return `# Visual Direction
 
