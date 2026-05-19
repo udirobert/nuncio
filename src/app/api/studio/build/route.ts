@@ -114,41 +114,59 @@ export async function POST(request: NextRequest) {
 
     const studioNodes: StudioNode[] = [];
 
-    // Text: Profile Summary
+    // Text: Profile Summary — why this node exists
     const profileNodeId = await melius.createCustomTextNode(
       canvasId, "Profile Summary", profileSummary, pos("profileSummary")
     );
-    studioNodes.push({ id: profileNodeId, label: "Profile Summary", type: "custom_text", status: "complete" });
+    studioNodes.push({
+      id: profileNodeId, label: "Profile Summary", type: "custom_text", status: "complete",
+      reasoning: "Distilling the enriched profile into key facts — role, company, notable work, interests — to seed the script and image prompts with real context.",
+    });
 
     // Text: Script
     const scriptNodeId = await melius.createCustomTextNode(
       canvasId, "Script", script, pos("script")
     );
-    studioNodes.push({ id: scriptNodeId, label: "Script", type: "custom_text", status: "complete" });
+    studioNodes.push({
+      id: scriptNodeId, label: "Script", type: "custom_text", status: "complete",
+      reasoning: "Drafting a personalised outreach script that references specific details from the enriched profile to make the message feel researched, not templated.",
+    });
 
     // Text: Visual Direction
     const visualDirNodeId = await melius.createCustomTextNode(
       canvasId, "Visual Direction", visualDirection, pos("visualDirection")
     );
-    studioNodes.push({ id: visualDirNodeId, label: "Visual Direction", type: "custom_text", status: "complete" });
+    studioNodes.push({
+      id: visualDirNodeId, label: "Visual Direction", type: "custom_text", status: "complete",
+      reasoning: "Setting the visual tone, palette, and style constraints so image nodes generate on-brand, coherent outputs that match the recipient's context.",
+    });
 
     // Text: Outreach Objective
     const objectiveNodeId = await melius.createCustomTextNode(
       canvasId, "Outreach Objective", objectiveText, pos("objective")
     );
-    studioNodes.push({ id: objectiveNodeId, label: "Outreach Objective", type: "custom_text", status: "complete" });
+    studioNodes.push({
+      id: objectiveNodeId, label: "Outreach Objective", type: "custom_text", status: "complete",
+      reasoning: "Capturing the sender's intent and call-to-action so every creative decision ties back to the campaign goal rather than drifting into generic content.",
+    });
 
     // Image: Background
     const bgNodeId = await melius.createImageNode(
       canvasId, "Video Background", bgPrompt, pos("background")
     );
-    studioNodes.push({ id: bgNodeId, label: "Video Background", type: "image", status: "pending", prompt: bgPrompt });
+    studioNodes.push({
+      id: bgNodeId, label: "Video Background", type: "image", status: "pending", prompt: bgPrompt,
+      reasoning: "Seeding a cinematic 16:9 background prompt that reflects the recipient's professional context — no faces, no logos, no readable text — so the video backdrop feels intentional.",
+    });
 
     // Image: Thumbnail
     const thumbNodeId = await melius.createImageNode(
       canvasId, "Video Thumbnail", thumbPrompt, pos("thumbnail")
     );
-    studioNodes.push({ id: thumbNodeId, label: "Video Thumbnail", type: "image", status: "pending", prompt: thumbPrompt });
+    studioNodes.push({
+      id: thumbNodeId, label: "Video Thumbnail", type: "image", status: "pending", prompt: thumbPrompt,
+      reasoning: "Generating a clean, inviting thumbnail prompt — the first visual the recipient sees when the message lands, so it needs to earn the click.",
+    });
 
     // Hook Engine: concept + cinematic video node
     const hookConceptText = [
@@ -165,7 +183,10 @@ export async function POST(request: NextRequest) {
     const hookConceptNodeId = await melius.createCustomTextNode(
       canvasId, "Hook Concept", hookConceptText, pos("hookConcept")
     );
-    studioNodes.push({ id: hookConceptNodeId, label: "Hook Concept", type: "custom_text", status: "complete", prompt: hookConceptText });
+    studioNodes.push({
+      id: hookConceptNodeId, label: "Hook Concept", type: "custom_text", status: "complete", prompt: hookConceptText,
+      reasoning: "Documenting the Hook Engine's archetype selection, format decision, and reasoning so the creative strategy is traceable and editable in the canvas.",
+    });
 
     let hookVideoNodeId: string | null = null;
     try {
@@ -183,6 +204,7 @@ export async function POST(request: NextRequest) {
         status: hookGeneration.outputUrl ? "complete" : hookGeneration.status === "failed" ? "failed" : "pending",
         prompt: hookChoice.prompt,
         outputUrl: hookGeneration.outputUrl,
+        reasoning: "Placing a short cinematic video hook tailored to the recipient's archetype — the attention-grabber that stops the scroll before the main message plays.",
       });
     } catch (error) {
       console.warn("[studio/build] Hook video node creation failed:", error);

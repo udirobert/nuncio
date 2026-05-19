@@ -161,6 +161,7 @@ export interface StudioNode {
   status: "pending" | "generating" | "complete" | "failed";
   prompt?: string;
   outputUrl?: string;
+  reasoning?: string;
 }
 
 export interface StudioBuildResult {
@@ -508,5 +509,14 @@ export class MeliusProvider implements CreativeProvider {
 
   async getCanvasEmbedUrl(canvasId: string): Promise<string> {
     return `https://app.melius.com/canvas/${canvasId}/embed`;
+  }
+
+  async exportCanvas(canvasId: string): Promise<string | null> {
+    try {
+      const result = await mcpCall<{ url: string }>("creative_download", { canvasId });
+      return result.url;
+    } catch {
+      return null;
+    }
   }
 }

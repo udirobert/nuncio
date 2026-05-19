@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, Suspense, useMemo } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import { Header } from "@/components/header";
@@ -9,7 +9,60 @@ import type { StudioBuildResult, StudioNode } from "@/lib/creative/melius-provid
 
 type StudioStage = "input" | "building" | "ready" | "error";
 type ArchetypeSelection = "auto" | "mirror" | "origin" | "future_cast" | "inside_joke" | "day_in_the_life";
-type CaptureIntent = "reroll" | "share" | "download";
+type CaptureIntent = "reroll" | "share" | "download" | "render";
+
+const INTENT_META: Record<CaptureIntent, {
+  icon: ReactNode;
+  label: string;
+  chipClass: string;
+  iconClass: string;
+}> = {
+  render: {
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor">
+        <path d="M8 5v14l11-7z" />
+      </svg>
+    ),
+    label: "Render video",
+    chipClass: "bg-accent-soft border-accent/20 text-accent",
+    iconClass: "bg-accent text-white",
+  },
+  download: {
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="7 10 12 15 17 10" />
+        <line x1="12" y1="15" x2="12" y2="3" />
+      </svg>
+    ),
+    label: "Download canvas",
+    chipClass: "bg-warm-soft border-warm/20 text-warm",
+    iconClass: "bg-warm text-white",
+  },
+  share: {
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+        <polyline points="16 6 12 2 8 6" />
+        <line x1="12" y1="2" x2="12" y2="15" />
+      </svg>
+    ),
+    label: "Share campaign",
+    chipClass: "bg-success-soft border-success/20 text-success",
+    iconClass: "bg-success text-white",
+  },
+  reroll: {
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+        <polyline points="23 4 23 10 17 10" />
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+      </svg>
+    ),
+    label: "Unlock hooks",
+    chipClass: "bg-accent-soft border-accent/20 text-accent",
+    iconClass: "bg-accent text-white",
+  },
+};
 
 const ARCHETYPE_OPTIONS: { id: ArchetypeSelection; label: string }[] = [
   { id: "auto", label: "Let agent pick" },
@@ -324,6 +377,9 @@ function StudioContent() {
   const [captureLoading, setCaptureLoading] = useState(false);
   const [hookRegenerating, setHookRegenerating] = useState(false);
   const [showHookReasoning, setShowHookReasoning] = useState(false);
+  const [showOverflow, setShowOverflow] = useState(false);
+  const [videoRendering, setVideoRendering] = useState<"idle" | "rendering" | "done" | "failed">("idle");
+  const [videoRenderResult, setVideoRenderResult] = useState<{ videoUrl: string; videoId: string } | null>(null);
 
   // Building stage state — script-driven cinematic narration
   const [logIndex, setLogIndex] = useState(0);
@@ -337,6 +393,18 @@ function StudioContent() {
     if (searchParams.get("demo") === "true") {
       setBuildResult(DEMO_BUILD_RESULT); // eslint-disable-line react-hooks/set-state-in-effect
       setStage("ready");
+    }
+    // Check for pipeline bridge data (set by ScriptReview "Build in Studio" button)
+    try {
+      const stored = sessionStorage.getItem("nuncio_studio_bridge");
+      if (stored) {
+        const data = JSON.parse(stored);
+        if (data.url) setUrl(data.url);
+        if (data.brief) setSenderBrief(data.brief);
+        sessionStorage.removeItem("nuncio_studio_bridge");
+      }
+    } catch {
+      // ignore parse errors
     }
   }, [searchParams]);
 
@@ -455,6 +523,8 @@ function StudioContent() {
         await copyShareUrl(data.shareUrl);
       } else if (captureIntent === "download") {
         openDownloadTarget();
+      } else if (captureIntent === "render") {
+        await handleRenderVideo(data.email);
       }
     } catch (err) {
       setCaptureError(err instanceof Error ? err.message : "Something went wrong");
@@ -472,12 +542,117 @@ function StudioContent() {
     await copyShareUrl(shareUrl);
   }
 
-  function handleDownloadClick() {
+  async function handleDownloadClick() {
+    if (!buildResult) return;
     if (!capturedEmail) {
       openCapture("download");
       return;
     }
+
+    // Try to export the canvas as ZIP via Melius creative_download
+    try {
+      const res = await fetch("/api/studio/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ canvasId: buildResult.canvasId }),
+      });
+      const data = await res.json();
+      if (res.ok && data.downloadUrl) {
+        window.open(data.downloadUrl, "_blank", "noopener,noreferrer");
+        return;
+      }
+    } catch {
+      // fall through to fallback
+    }
+
+    // Fallback: open hook video or canvas URL
     openDownloadTarget();
+  }
+
+  async function handleRenderVideo(email = capturedEmail) {
+    if (!buildResult || videoRendering === "rendering") return;
+    if (!email) {
+      openCapture("render");
+      return;
+    }
+
+    // Demo mode — simulate
+    if (buildResult.canvasId === DEMO_CANVAS_ID) {
+      setVideoRendering("rendering");
+      setCaptureIntent(null);
+      await new Promise((r) => setTimeout(r, 3000));
+      setVideoRenderResult({ videoUrl: "/onee-yekeh-demo.mp4", videoId: "demo-video" });
+      setVideoRendering("done");
+      return;
+    }
+
+    // Extract script text from the Script node
+    const scriptNode = buildResult.nodes.find((n) => n.label === "Script" && n.type === "custom_text");
+    if (!scriptNode?.prompt) {
+      setVideoRendering("failed");
+      setCaptureError("No script found in this build — try building again.");
+      return;
+    }
+
+    // Extract recipient name from Profile Summary node
+    const profileNode = buildResult.nodes.find((n) => n.label === "Profile Summary" && n.type === "custom_text");
+    const recipientName = profileNode?.prompt?.split("—")[0]?.trim() || undefined;
+
+    // Collect asset URLs from completed image/video nodes
+    const assetUrls = buildResult.nodes
+      .filter((n) => n.outputUrl && (n.type === "image" || n.type === "video"))
+      .map((n) => n.outputUrl!)
+      .filter(Boolean);
+
+    setVideoRendering("rendering");
+    setCaptureIntent(null);
+
+    try {
+      const res = await fetch("/api/video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          script: scriptNode.prompt,
+          assetUrls,
+          recipientName,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to start video render");
+      }
+
+      const { videoId } = await res.json();
+
+      // Poll for completion (max 60 attempts = ~5 minutes)
+      let videoUrl: string | undefined;
+      let attempts = 0;
+      const MAX_ATTEMPTS = 60;
+      while (!videoUrl && attempts < MAX_ATTEMPTS) {
+        attempts++;
+        await new Promise((r) => setTimeout(r, 5000));
+
+        const statusRes = await fetch(`/api/video/${videoId}`);
+        if (!statusRes.ok) continue;
+
+        const status = await statusRes.json();
+        if (status.status === "completed") {
+          videoUrl = status.videoUrl;
+        } else if (status.status === "failed") {
+          throw new Error(status.failureMessage || "Video generation failed");
+        }
+      }
+      if (!videoUrl) {
+        throw new Error("Video render timed out after 5 minutes — the render may still be running, check your dashboard.");
+      }
+
+      setVideoRenderResult({ videoUrl, videoId });
+      setVideoRendering("done");
+    } catch (err) {
+      setVideoRendering("failed");
+      setCaptureError(err instanceof Error ? err.message : "Video render failed");
+    }
   }
 
   async function handleHookReroll(email = capturedEmail, availableRerolls = hookRerollsRemaining) {
@@ -960,71 +1135,72 @@ function StudioContent() {
               className="px-6 pt-24 pb-12 max-w-7xl mx-auto space-y-6"
             >
               {/* Recap */}
-              <div className="rounded-2xl border border-cream-dark bg-gradient-to-br from-white via-white to-accent-soft/30 p-5 flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-success-soft border border-success/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                  <span className="text-[10px] uppercase tracking-widest font-medium text-success">
-                    Agent done
-                  </span>
-                </div>
-                <p className="text-sm text-ink">
-                  Built <span className="font-medium">{nodeStats.total} nodes</span> ({nodeStats.text} text · {nodeStats.image} image · {nodeStats.video} video), wired 6 edges, kicked off 2 image runs.
-                  {canvasId === DEMO_CANVAS_ID && (
-                    <span className="text-accent ml-1">· demo</span>
-                  )}
-                </p>
-                {buildResult.hook && (
-                  <div className="flex flex-wrap items-center gap-2 text-[10px] font-medium">
-                    <span className="rounded-full border border-accent/20 bg-white px-2.5 py-1 text-accent">
-                      {buildResult.hook.tier.toUpperCase()} · {buildResult.hook.model}
+              <div className="rounded-2xl border border-cream-dark bg-gradient-to-br from-white via-white to-accent-soft/30 p-5 space-y-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-success-soft border border-success/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                    <span className="text-[10px] uppercase tracking-widest font-medium text-success">
+                      Agent done
                     </span>
-                    <span className="rounded-full border border-cream-dark bg-white px-2.5 py-1 text-ink-muted">
-                      {buildResult.hook.archetype} · {buildResult.hook.status}
-                    </span>
-                    {buildResult.hook.format && (
-                      <span className="rounded-full border border-cream-dark bg-white px-2.5 py-1 text-ink-muted">
-                        {buildResult.hook.format}
-                      </span>
-                    )}
-                    <button
-                      onClick={() => setShowHookReasoning((value) => !value)}
-                      className="rounded-full border border-accent/20 bg-white px-2.5 py-1 text-accent hover:bg-accent-soft transition-colors"
-                    >
-                      why?
-                    </button>
-                    {buildResult.hook.remainingFree === 0 && (
-                      <span className="rounded-full border border-warm/20 bg-warm-soft px-2.5 py-1 text-warm">
-                        unlock more ↑
-                      </span>
-                    )}
                   </div>
-                )}
-                <div className="ml-auto flex items-center gap-2">
+                  <p className="text-sm text-ink">
+                    Built <span className="font-medium">{nodeStats.total} nodes</span> ({nodeStats.text} text · {nodeStats.image} image · {nodeStats.video} video), wired 6 edges.
+                    {canvasId === DEMO_CANVAS_ID && (
+                      <span className="text-accent ml-1">· demo</span>
+                    )}
+                  </p>
+                  {buildResult.hook && (
+                    <div className="flex flex-wrap items-center gap-2 text-[10px] font-medium">
+                      <span className="rounded-full border border-accent/20 bg-white px-2.5 py-1 text-accent">
+                        {buildResult.hook.tier.toUpperCase()} · {buildResult.hook.model}
+                      </span>
+                      <span className="rounded-full border border-cream-dark bg-white px-2.5 py-1 text-ink-muted">
+                        {buildResult.hook.archetype} · {buildResult.hook.status}
+                      </span>
+                      {buildResult.hook.format && (
+                        <span className="rounded-full border border-cream-dark bg-white px-2.5 py-1 text-ink-muted">
+                          {buildResult.hook.format}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => setShowHookReasoning((value) => !value)}
+                        className="rounded-full border border-accent/20 bg-white px-2.5 py-1 text-accent hover:bg-accent-soft transition-colors"
+                      >
+                        why?
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 border-t border-cream-dark/50 pt-3">
+                  {/* Render video — primary CTA */}
                   <button
-                    onClick={() => handleHookReroll()}
-                    disabled={hookRegenerating}
-                    className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-1.5 text-xs font-medium text-ink hover:bg-cream-dark/50 transition-colors disabled:opacity-40"
+                    onClick={() => {
+                      if (!capturedEmail) {
+                        openCapture("render");
+                      } else {
+                        handleRenderVideo();
+                      }
+                    }}
+                    disabled={videoRendering === "rendering"}
+                    className="btn-press inline-flex items-center gap-1.5 rounded-lg bg-accent text-white px-4 py-2 text-xs font-medium hover:bg-accent/90 transition-colors disabled:opacity-40 shadow-sm"
                   >
-                    {hookRegenerating ? "Re-rolling..." : "Re-roll hook"}
+                    {videoRendering === "rendering" ? (
+                      <>Rendering video…</>
+                    ) : videoRendering === "done" ? (
+                      <>Video ready ✓</>
+                    ) : (
+                      <>Render HeyGen video</>
+                    )}
                   </button>
-                  <button
-                    onClick={handleShareClick}
-                    className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-1.5 text-xs font-medium text-ink hover:bg-cream-dark/50 transition-colors"
-                  >
-                    Share link
-                  </button>
-                  <button
-                    onClick={handleDownloadClick}
-                    className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-1.5 text-xs font-medium text-ink hover:bg-cream-dark/50 transition-colors"
-                  >
-                    Download
-                  </button>
+
+                  {/* Open in Melius */}
                   {canvasId !== DEMO_CANVAS_ID && (
                     <a
                       href={buildResult.canvasUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-1.5 text-xs font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+                      className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-2 text-xs font-medium text-ink hover:bg-cream-dark/50 transition-colors"
                     >
                       Open in Melius
                       <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -1032,6 +1208,52 @@ function StudioContent() {
                       </svg>
                     </a>
                   )}
+
+                  {/* Download */}
+                  <button
+                    onClick={handleDownloadClick}
+                    className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-2 text-xs font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+                  >
+                    Download
+                  </button>
+
+                  {/* Overflow menu */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowOverflow(!showOverflow)}
+                      className="btn-press inline-flex items-center justify-center rounded-lg border border-cream-dark px-2.5 py-2 text-xs text-ink-muted hover:bg-cream-dark/50 transition-colors"
+                    >
+                      ···
+                    </button>
+                    <AnimatePresence>
+                      {showOverflow && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 4, scale: 0.96 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                          className="absolute right-0 top-full mt-1 w-44 rounded-xl border border-cream-dark bg-white p-1.5 shadow-xl shadow-ink/10 z-50"
+                        >
+                          <button
+                            onClick={() => { setShowOverflow(false); handleShareClick(); }}
+                            className="w-full text-left px-3 py-2 text-xs text-ink-light hover:bg-cream-dark/50 rounded-lg transition-colors"
+                          >
+                            Share link
+                          </button>
+                          <button
+                            onClick={() => { setShowOverflow(false); handleHookReroll(); }}
+                            disabled={hookRegenerating}
+                            className="w-full text-left px-3 py-2 text-xs text-ink-light hover:bg-cream-dark/50 rounded-lg transition-colors disabled:opacity-40"
+                          >
+                            {hookRegenerating ? "Re-rolling..." : "Re-roll hook"}
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  <div className="flex-1" />
+
+                  {/* Brief another */}
                   <button
                     onClick={() => {
                       setStage("input");
@@ -1042,8 +1264,10 @@ function StudioContent() {
                       setShareUrl("");
                       setHookRerollsRemaining(0);
                       setShowHookReasoning(false);
+                      setVideoRendering("idle");
+                      setVideoRenderResult(null);
                     }}
-                    className="btn-press rounded-lg bg-ink text-cream px-3 py-1.5 text-xs font-medium hover:bg-ink-light transition-colors"
+                    className="btn-press rounded-lg bg-ink text-cream px-3 py-2 text-xs font-medium hover:bg-ink-light transition-colors"
                   >
                     Brief another →
                   </button>
@@ -1070,14 +1294,17 @@ function StudioContent() {
                 {/* Canvas hero */}
                 <div className="rounded-2xl border border-cream-dark bg-white overflow-hidden relative min-h-[480px] shadow-[0_2px_40px_-16px_rgba(74,58,255,0.25)]">
                   {!iframeLoaded && canvasId !== DEMO_CANVAS_ID && (
-                    <div className="absolute inset-0 bg-cream/80 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-2xl">
-                      <div className="flex flex-col items-center gap-3">
+                    <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl">
+                      <div className="absolute inset-0 blur-sm opacity-20 scale-[0.55] origin-top-left pointer-events-none">
+                        <AgentCanvas appearedCount={8} edgeCount={6} />
+                      </div>
+                      <div className="flex flex-col items-center gap-3 relative z-20">
                         <div className="w-8 h-8 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
                         <p className="text-xs text-ink-faint">Loading canvas…</p>
                       </div>
                     </div>
                   )}
-                  {canvasId === DEMO_CANVAS_ID ? (
+                  {buildResult.canvasId === DEMO_CANVAS_ID ? (
                     <div className="w-full aspect-[4/3]">
                       <AgentCanvas appearedCount={8} edgeCount={6} />
                     </div>
@@ -1085,7 +1312,7 @@ function StudioContent() {
                     <iframe
                       src={buildResult.embedUrl}
                       className="w-full aspect-[4/3]"
-                      allow="clipboard-read; clipboard-write"
+                      allow="clipboard-read; clipboard-write; microphone"
                       title="Melius Canvas"
                       onLoad={() => setIframeLoaded(true)}
                     />
@@ -1140,6 +1367,10 @@ function StudioContent() {
                   </p>
                 </div>
               </div>
+
+              {videoRenderResult && videoRendering === "done" && (
+                <VideoResultSection videoUrl={videoRenderResult.videoUrl} />
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -1161,13 +1392,32 @@ function StudioContent() {
               className="w-full max-w-md rounded-2xl border border-cream-dark bg-white p-6 shadow-2xl shadow-ink/15"
             >
               <div className="flex items-start justify-between gap-4 mb-5">
-                <div>
-                  <span className="text-[10px] uppercase tracking-widest font-semibold text-accent">
-                    Unlock this campaign
-                  </span>
-                  <h2 className="font-[family-name:var(--font-display)] text-3xl tracking-tight mt-2">
-                    Get the video
-                  </h2>
+                <div className="space-y-3">
+                  {/* Intent chip with icon */}
+                  {captureIntent && (() => {
+                    const meta = INTENT_META[captureIntent];
+                    return (
+                      <motion.span
+                        initial={{ opacity: 0, scale: 0.85 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ type: "spring", stiffness: 350, damping: 20, mass: 0.8 }}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-widest ${meta.chipClass}`}
+                      >
+                        <span className={`w-4 h-4 rounded-full flex items-center justify-center ${meta.iconClass}`}>
+                          {meta.icon}
+                        </span>
+                        {meta.label}
+                      </motion.span>
+                    );
+                  })()}
+                  <motion.h2
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    className="font-[family-name:var(--font-display)] text-3xl tracking-tight"
+                  >
+                    {captureIntent === "reroll" ? "Unlock 2 more hooks" : captureIntent === "download" ? "Download ZIP" : captureIntent === "share" ? "Get share link" : "Render HeyGen video"}
+                  </motion.h2>
                 </div>
                 <button
                   onClick={() => setCaptureIntent(null)}
@@ -1177,11 +1427,25 @@ function StudioContent() {
                 </button>
               </div>
 
-              <p className="text-sm text-ink-muted leading-relaxed mb-5">
-                Drop your email to unlock 2 more free hook generations and get a campaign link for this recipient.
-              </p>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.18, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                className="text-sm text-ink-muted leading-relaxed mb-5"
+              >
+                {captureIntent === "reroll" && "Drop your email to unlock 2 more free hook generations and get a campaign link for this recipient."}
+                {captureIntent === "download" && "Drop your email to download this canvas as a ZIP file from Melius — use it as a forkable template."}
+                {captureIntent === "share" && "Drop your email to get a shareable link for this campaign to send to your team."}
+                {captureIntent === "render" && "Drop your email to render a HeyGen video from this canvas script and assets."}
+              </motion.p>
 
-              <form onSubmit={handleEmailCapture} className="space-y-3">
+              <motion.form
+                onSubmit={handleEmailCapture}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.26, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                className="space-y-3"
+              >
                 <input
                   value={captureHoneypot}
                   onChange={(e) => setCaptureHoneypot(e.target.value)}
@@ -1213,9 +1477,8 @@ function StudioContent() {
                   disabled={captureLoading || !captureEmail.trim()}
                   className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors"
                 >
-                  {captureLoading ? "Unlocking..." : "Unlock 2 more hooks"}
-                </button>
-              </form>
+                  {captureLoading ? "Unlocking..." : captureIntent === "reroll" ? "Unlock 2 more hooks" : captureIntent === "download" ? "Download canvas" : captureIntent === "share" ? "Get share link" : "Render HeyGen video"}
+                </button>                </motion.form>
             </motion.div>
           </motion.div>
         )}
@@ -1294,6 +1557,15 @@ function NodeCard({
         <p className="text-xs text-ink-muted leading-relaxed line-clamp-2">{node.prompt}</p>
       )}
 
+      {node.reasoning && !editing && (
+        <div className="pt-1 border-t border-cream-dark/50 mt-2">
+          <span className="text-[9px] uppercase tracking-widest font-semibold text-accent block mb-0.5">
+            Agent reasoning
+          </span>
+          <p className="text-xs text-ink-muted leading-relaxed">{node.reasoning}</p>
+        </div>
+      )}
+
       {editing && (
         <div className="space-y-2">
           <textarea
@@ -1327,4 +1599,69 @@ function statusIcon(status: StudioNode["status"]) {
     case "failed": return <span className="text-error">✗</span>;
     default: return <span className="text-ink-faint">○</span>;
   }
+}
+
+function VideoResultSection({ videoUrl }: { videoUrl: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    await navigator.clipboard?.writeText(videoUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl border border-cream-dark bg-gradient-to-br from-white via-white to-success-soft/30 p-5 space-y-4"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-success-soft flex items-center justify-center">
+            <svg viewBox="0 0 16 16" className="w-4 h-4 text-success" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M3 8.5l3.5 3.5L13 5" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-ink">HeyGen video ready</h3>
+            <p className="text-xs text-ink-muted">Rendered from your Melius canvas script and assets</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCopy}
+            className={`btn-press inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-all ${
+              copied
+                ? "border-success/20 bg-success-soft text-success"
+                : "border-cream-dark text-ink hover:bg-cream-dark/50"
+            }`}
+          >
+            {copied ? "Copied!" : "Copy link"}
+          </button>
+          <a
+            href={videoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-press inline-flex items-center gap-1.5 rounded-lg bg-ink text-cream px-3 py-2 text-xs font-medium hover:bg-ink-light transition-colors"
+          >
+            Open video
+            <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 8h10M9 4l4 4-4 4" />
+            </svg>
+          </a>
+        </div>
+      </div>
+      <div className="aspect-video w-full rounded-xl overflow-hidden bg-ink shadow-md">
+        <video
+          src={videoUrl}
+          controls
+          autoPlay
+          muted
+          playsInline
+          className="w-full h-full object-contain"
+        />
+      </div>
+    </motion.div>
+  );
 }

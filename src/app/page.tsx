@@ -176,6 +176,8 @@ export default function Home() {
               sources={state.sources}
               canvas={state.canvas}
               trace={state.trace}
+              urls={state.urls}
+              senderBrief={state.senderBrief}
               onEdit={handleEditScript}
               onRender={handleRender}
             />

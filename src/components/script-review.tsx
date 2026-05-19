@@ -11,6 +11,8 @@ interface ScriptReviewProps {
   sources?: string[];
   canvas?: CanvasProof;
   trace?: AgentTraceItem[];
+  urls?: string[];
+  senderBrief?: string;
   onEdit: (script: string) => void;
   onRender: () => void;
 }
@@ -47,6 +49,8 @@ export function ScriptReview({
   sources,
   canvas,
   trace,
+  urls,
+  senderBrief,
   onEdit,
   onRender,
 }: ScriptReviewProps) {
@@ -313,6 +317,23 @@ export function ScriptReview({
               </span>
             </button>
           )}
+          <button
+            onClick={() => {
+              sessionStorage.setItem(
+                "nuncio_studio_bridge",
+                JSON.stringify({ url: urls?.[0] || "", brief: senderBrief || "" })
+              );
+              window.location.href = "/studio";
+            }}
+            className="btn-press rounded-2xl border border-cream-dark px-5 py-4 text-sm font-medium text-ink-muted hover:text-ink hover:bg-cream-dark/50 transition-colors"
+          >
+            <span className="flex items-center justify-center gap-2">
+              <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M3 2h10a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1zM11.5 8.5l-3-3-3 3M8.5 5.5v8" />
+              </svg>
+              Build in Studio
+            </span>
+          </button>
           <button
             onClick={handleRender}
             disabled={wordCount > 200}
