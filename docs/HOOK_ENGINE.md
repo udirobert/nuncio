@@ -281,12 +281,12 @@ Expected uplift: **~14 weighted points → strong contender for Best Use of Plat
 ## Implementation plan (build-then-polish)
 
 ### Cut 1 — minimum demonstrable Hook Engine (~3h)
-- [ ] `src/lib/hooks/archetypes.ts` — data definitions for all 5 archetypes
-- [ ] `src/lib/hooks/select.ts` — deterministic archetype selector
-- [ ] `src/lib/hooks/generate.ts` — fal video generation for one archetype (Mirror) end-to-end
-- [ ] `MeliusProvider.createVideoNode` — wraps `create_video_node` MCP tool
-- [ ] `build/route.ts` integration — after node creation, generate hook async, attach when ready
-- [ ] `/studio` archetype chips on input + badge on recap
+- [x] `src/lib/hooks/archetypes.ts` — data definitions for all 5 archetypes
+- [x] `src/lib/hooks/select.ts` — deterministic archetype selector
+- [x] `src/lib/hooks/generate.ts` — fal video generation path with demo fallback when the endpoint is not configured
+- [x] `MeliusProvider.createVideoNode` — creates a Melius `video` node and can attach a generated source URL
+- [x] `build/route.ts` integration — agent picks archetype, creates Hook Concept + Hook Cinematic nodes, returns tier/model usage metadata
+- [x] `/studio` archetype chips on input + badge on recap
 
 ### Cut 2 — all five archetypes, format decisioning (~2h)
 - [ ] Wire prompt templates for archetypes 2–5

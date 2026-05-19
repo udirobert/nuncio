@@ -3,6 +3,10 @@ import { enrich } from "@/lib/tinyfish";
 import { synthesise, generateScript } from "@/lib/claude";
 import { MeliusProvider, resetMeliusSession } from "@/lib/creative/melius-provider";
 import type { StudioNode, StudioBuildResult } from "@/lib/creative/melius-provider";
+import { chooseArchetype } from "@/lib/hooks/select";
+import { generateHookVideo } from "@/lib/hooks/generate";
+import { ensureTrialCookie, resolveHookAccess } from "@/lib/hooks/tiers";
+import type { HookArchetypeId } from "@/lib/hooks/archetypes";
 
 const NODE_GEOMETRY = {
   profileSummary: { x: 0, y: 0, w: 420, h: 140 },
@@ -11,11 +15,13 @@ const NODE_GEOMETRY = {
   objective: { x: 0, y: 540, w: 420, h: 100 },
   background: { x: 460, y: 0, w: 420, h: 236 },
   thumbnail: { x: 460, y: 256, w: 420, h: 236 },
+  hookConcept: { x: 920, y: 0, w: 420, h: 160 },
+  hookVideo: { x: 920, y: 180, w: 420, h: 236 },
 };
 
 export async function POST(request: NextRequest) {
   try {
-    const { url, senderBrief, intent } = await request.json();
+    const { url, senderBrief, intent, email, archetype } = await request.json();
 
     if (!url) {
       return NextResponse.json({ error: "url is required" }, { status: 400 });
@@ -35,6 +41,14 @@ export async function POST(request: NextRequest) {
 
     // 3. Generate script
     const script = await generateScript(profile, senderBrief, { intent: intent as Parameters<typeof generateScript>[2] extends { intent: infer I } ? I : undefined });
+    const hookChoice = chooseArchetype(profile, senderBrief, archetype as HookArchetypeId | undefined);
+    const hookAccess = resolveHookAccess(request, typeof email === "string" ? email : null);
+    const hookGeneration = await generateHookVideo({
+      prompt: hookChoice.prompt,
+      modelEndpoint: hookAccess.modelEndpoint,
+      tier: hookAccess.tier,
+      generationAllowed: hookAccess.generationAllowed,
+    });
 
     // 4. Build Melius canvas
     resetMeliusSession();
@@ -65,6 +79,8 @@ export async function POST(request: NextRequest) {
       objective: crypto.randomUUID(),
       background: crypto.randomUUID(),
       thumbnail: crypto.randomUUID(),
+      hookConcept: crypto.randomUUID(),
+      hookVideo: crypto.randomUUID(),
     };
 
     const layoutNodes = [
@@ -74,10 +90,17 @@ export async function POST(request: NextRequest) {
       { id: NODE_IDS.objective, nodeType: "custom_text", ...NODE_GEOMETRY.objective },
       { id: NODE_IDS.background, nodeType: "image", ...NODE_GEOMETRY.background },
       { id: NODE_IDS.thumbnail, nodeType: "image", ...NODE_GEOMETRY.thumbnail },
+      { id: NODE_IDS.hookConcept, nodeType: "custom_text", ...NODE_GEOMETRY.hookConcept },
+      { id: NODE_IDS.hookVideo, nodeType: "video", ...NODE_GEOMETRY.hookVideo },
     ];
 
-    const positions = await melius.planLayout(canvasId, layoutNodes);
-    const geometryKeys = ["profileSummary", "script", "visualDirection", "objective", "background", "thumbnail"] as const;
+    let positions: { x: number; y: number }[] = [];
+    try {
+      positions = await melius.planLayout(canvasId, layoutNodes);
+    } catch (error) {
+      console.warn("[studio/build] Layout planning failed, using static Hook Engine layout:", error);
+    }
+    const geometryKeys = ["profileSummary", "script", "visualDirection", "objective", "background", "thumbnail", "hookConcept", "hookVideo"] as const;
 
     function pos(key: typeof geometryKeys[number]): { x: number; y: number; w: number; h: number } {
       const idx = geometryKeys.indexOf(key);
@@ -124,20 +147,69 @@ export async function POST(request: NextRequest) {
     );
     studioNodes.push({ id: thumbNodeId, label: "Video Thumbnail", type: "image", status: "pending", prompt: thumbPrompt });
 
+    // Hook Engine: concept + cinematic video node
+    const hookConceptText = [
+      hookChoice.concept,
+      "",
+      `Archetype: ${hookChoice.archetype.label}`,
+      `Reasoning: ${hookChoice.reasoning}`,
+      `Model: ${hookAccess.modelLabel}`,
+      hookAccess.reason ? `Mode: ${hookAccess.reason}` : "",
+    ].filter(Boolean).join("\n");
+
+    const hookConceptNodeId = await melius.createCustomTextNode(
+      canvasId, "Hook Concept", hookConceptText, pos("hookConcept")
+    );
+    studioNodes.push({ id: hookConceptNodeId, label: "Hook Concept", type: "custom_text", status: "complete", prompt: hookConceptText });
+
+    let hookVideoNodeId: string | null = null;
+    try {
+      hookVideoNodeId = await melius.createVideoNode(
+        canvasId,
+        "Hook Cinematic",
+        hookChoice.prompt,
+        pos("hookVideo"),
+        hookGeneration.outputUrl
+      );
+      studioNodes.push({
+        id: hookVideoNodeId,
+        label: "Hook Cinematic",
+        type: "video",
+        status: hookGeneration.outputUrl ? "complete" : hookGeneration.status === "failed" ? "failed" : "pending",
+        prompt: hookChoice.prompt,
+        outputUrl: hookGeneration.outputUrl,
+      });
+    } catch (error) {
+      console.warn("[studio/build] Hook video node creation failed:", error);
+      hookVideoNodeId = null;
+    }
+
     // Wire edges: text → images (so image prompts have context)
-    await melius.bulkCreateEdges(canvasId, [
+    const edges = [
       { sourceNodeId: profileNodeId, targetNodeId: bgNodeId, type: "text" },
       { sourceNodeId: visualDirNodeId, targetNodeId: bgNodeId, type: "text" },
       { sourceNodeId: profileNodeId, targetNodeId: thumbNodeId, type: "text" },
       { sourceNodeId: visualDirNodeId, targetNodeId: thumbNodeId, type: "text" },
-    ]);
+    ];
+    if (hookVideoNodeId) {
+      edges.push(
+        { sourceNodeId: hookConceptNodeId, targetNodeId: hookVideoNodeId, type: "text" },
+        { sourceNodeId: visualDirNodeId, targetNodeId: hookVideoNodeId, type: "text" }
+      );
+    }
+    await melius.bulkCreateEdges(canvasId, edges);
 
     // Group all nodes
-    const allNodeIds = [profileNodeId, scriptNodeId, visualDirNodeId, objectiveNodeId, bgNodeId, thumbNodeId];
+    const allNodeIds = [profileNodeId, scriptNodeId, visualDirNodeId, objectiveNodeId, bgNodeId, thumbNodeId, hookConceptNodeId, hookVideoNodeId].filter(Boolean) as string[];
     await melius.createGroupNode(canvasId, `${profile.name} — Video Outreach`, allNodeIds);
 
     // Add audit comment
-    await melius.addComment(canvasId, `nuncio studio session for ${profile.name}. Built automatically from profile URL.`, 0, -80);
+    await melius.addComment(
+      canvasId,
+      `nuncio studio session for ${profile.name}. Hook Engine chose ${hookChoice.archetype.label}: ${hookChoice.reasoning}`,
+      0,
+      -80
+    );
 
     // Release presence
     await melius.releasePresence(canvasId);
@@ -176,9 +248,23 @@ export async function POST(request: NextRequest) {
       canvasUrl: session.canvasUrl || `https://app.melius.com/canvas/${canvasId}`,
       embedUrl: `https://app.melius.com/canvas/${canvasId}/embed`,
       nodes: studioNodes,
+      hook: {
+        archetype: hookChoice.archetype.label,
+        reasoning: hookChoice.reasoning,
+        model: hookAccess.modelLabel,
+        tier: hookAccess.tier,
+        remainingFree: hookAccess.remainingFree,
+        canRegenerate: hookAccess.canRegenerate,
+        watermark: hookAccess.watermark,
+        status: hookGeneration.outputUrl ? "complete" : hookGeneration.status,
+        outputUrl: hookGeneration.outputUrl,
+        warning: hookAccess.reason || hookGeneration.error,
+      },
     };
 
-    return NextResponse.json(result);
+    const response = NextResponse.json(result);
+    ensureTrialCookie(response, request);
+    return response;
   } catch (error) {
     console.error("[studio/build] Error:", error);
     return NextResponse.json(

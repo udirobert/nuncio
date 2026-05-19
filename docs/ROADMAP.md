@@ -121,12 +121,12 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 **Goal:** Lift nuncio from "agent-orchestrated outreach video" to "agent that turns any profile into a scroll-stopping personalised media object." This is what breaks us out of *Melius wrapper* status. Full design: [`docs/HOOK_ENGINE.md`](./HOOK_ENGINE.md).
 
 ### Cut 1 — minimum demonstrable Hook Engine
-- [ ] `src/lib/hooks/archetypes.ts` — data definitions for all 5 archetypes (Mirror / Origin / Future-cast / Inside joke / Day-in-the-life)
-- [ ] `src/lib/hooks/select.ts` — deterministic archetype selector based on profile signals
-- [ ] `src/lib/hooks/generate.ts` — fal video generation for one archetype (Mirror) end-to-end
-- [ ] `MeliusProvider.createVideoNode` — wraps the `create_video_node` MCP tool
-- [ ] `build/route.ts` integration — agent picks archetype, places archetype-specific nodes, kicks off hook generation async
-- [ ] `/studio` archetype chips on the input stage + selection-reasoning badge on recap
+- [x] `src/lib/hooks/archetypes.ts` — data definitions for all 5 archetypes (Mirror / Origin / Future-cast / Inside joke / Day-in-the-life)
+- [x] `src/lib/hooks/select.ts` — deterministic archetype selector based on profile signals
+- [x] `src/lib/hooks/generate.ts` — fal video generation path with demo fallback when the endpoint is not configured
+- [x] `MeliusProvider.createVideoNode` — creates a Melius `video` node and can attach a generated source URL
+- [x] `build/route.ts` integration — agent picks archetype, places Hook Concept + Hook Cinematic nodes, returns tier/model usage metadata
+- [x] `/studio` archetype chips on the input stage + selection-reasoning badge on recap
 
 ### Cut 2 — all five archetypes, format decisioning
 - [ ] Wire prompt templates for archetypes 2–5

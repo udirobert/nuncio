@@ -169,6 +169,18 @@ export interface StudioBuildResult {
   canvasUrl: string;
   embedUrl: string;
   nodes: StudioNode[];
+  hook?: {
+    archetype: string;
+    reasoning: string;
+    model: string;
+    tier: "trial" | "free" | "pro" | "studio";
+    remainingFree: number;
+    canRegenerate: boolean;
+    watermark: boolean;
+    status: "complete" | "demo" | "failed" | "generating";
+    outputUrl?: string;
+    warning?: string;
+  };
 }
 
 export class MeliusProvider implements CreativeProvider {
@@ -369,6 +381,40 @@ export class MeliusProvider implements CreativeProvider {
     const nodeId = result.nodes[0]?.id || result.nodes[0]?.nodeId;
     if (!nodeId) throw new Error(`Failed to create image node: ${title}`);
     return nodeId;
+  }
+
+  async createVideoNode(
+    canvasId: string,
+    title: string,
+    prompt: string,
+    geometry: { x: number; y: number; w: number; h: number },
+    sourceUrl?: string
+  ): Promise<string> {
+    const node: Record<string, unknown> = {
+      nodeType: "video",
+      title,
+      prompt,
+      aspectRatio: "16:9",
+      geometry,
+    };
+    if (sourceUrl) {
+      node.sourceUrl = sourceUrl;
+      node.url = sourceUrl;
+    }
+
+    const result = await mcpCall<{ nodes: MeliusNode[] }>("bulk_create_nodes", {
+      canvasId,
+      nodes: [node],
+    });
+    const nodeId = result.nodes[0]?.id || result.nodes[0]?.nodeId;
+    if (!nodeId) throw new Error(`Failed to create video node: ${title}`);
+    return nodeId;
+  }
+
+  async attachVideoToNode(nodeId: string, sourceUrl: string, canvasId?: string): Promise<void> {
+    const params: Record<string, string> = { nodeId, sourceUrl, url: sourceUrl };
+    if (canvasId) params.canvasId = canvasId;
+    await mcpCall<void>("node_update", params);
   }
 
   async createTextLlmNode(canvasId: string, title: string, prompt: string, geometry: { x: number; y: number; w: number; h: number }): Promise<string> {

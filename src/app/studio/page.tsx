@@ -7,6 +7,16 @@ import { Header } from "@/components/header";
 import type { StudioBuildResult, StudioNode } from "@/lib/creative/melius-provider";
 
 type StudioStage = "input" | "building" | "ready" | "error";
+type ArchetypeSelection = "auto" | "mirror" | "origin" | "future_cast" | "inside_joke" | "day_in_the_life";
+
+const ARCHETYPE_OPTIONS: { id: ArchetypeSelection; label: string }[] = [
+  { id: "auto", label: "Let agent pick" },
+  { id: "mirror", label: "Mirror" },
+  { id: "origin", label: "Origin" },
+  { id: "future_cast", label: "Future-cast" },
+  { id: "inside_joke", label: "Inside joke" },
+  { id: "day_in_the_life", label: "Day-in-life" },
+];
 
 interface IteratingNode {
   nodeId: string;
@@ -32,6 +42,8 @@ const DEMO_NODES: StudioNode[] = [
   { id: "n4", label: "Outreach Objective", type: "custom_text", status: "complete", prompt: "Pitch nuncio as an example of agent-orchestrated Melius workflows. Ask: would Google ship something built this way?" },
   { id: "n5", label: "Video Background", type: "image", status: "complete", prompt: "Cinematic 16:9 background — soft gradient mesh in indigo and warm taupe, faint hex grid, abstract glow suggesting AI infrastructure. No text. No faces." },
   { id: "n6", label: "Video Thumbnail", type: "image", status: "complete", prompt: "16:9 thumbnail — minimal, single warm light source, slight grain. Implies a personalised message ready to play." },
+  { id: "n7", label: "Hook Concept", type: "custom_text", status: "complete", prompt: "Mirror hook for Sundar Pichai: reimagine Google's AI infrastructure as a quiet cinematic product surface coming alive." },
+  { id: "n8", label: "Hook Cinematic", type: "video", status: "pending", prompt: "Generate a 3-second cinematic outreach hook. Mirror archetype. No readable text. No logos. 16:9." },
 ];
 
 const DEMO_BUILD_RESULT: StudioBuildResult = {
@@ -40,12 +52,22 @@ const DEMO_BUILD_RESULT: StudioBuildResult = {
   canvasUrl: "https://app.melius.com/canvas/demo",
   embedUrl: "about:blank",
   nodes: DEMO_NODES,
+  hook: {
+    archetype: "Mirror",
+    reasoning: "The recipient has a visible company and product surface, so mirroring the work creates the most specific opening shot.",
+    model: "fal Wan 2.5",
+    tier: "trial",
+    remainingFree: 0,
+    canRegenerate: false,
+    watermark: true,
+    status: "demo",
+  },
 };
 
 const DEMO_LAYOUT_NODES: {
   x: number; y: number; w: number; h: number;
   label: string;
-  type: "custom_text" | "image";
+  type: "custom_text" | "image" | "video";
   edgesIn?: number[];
 }[] = [
   { x: 20,  y: 20,  w: 360, h: 140, label: "Profile Summary",    type: "custom_text" },
@@ -54,6 +76,8 @@ const DEMO_LAYOUT_NODES: {
   { x: 20,  y: 545, w: 360, h: 100, label: "Outreach Objective", type: "custom_text" },
   { x: 420, y: 20,  w: 360, h: 230, label: "Video Background",   type: "image", edgesIn: [0, 2] },
   { x: 420, y: 265, w: 360, h: 230, label: "Video Thumbnail",    type: "image", edgesIn: [0, 2] },
+  { x: 820, y: 20,  w: 360, h: 150, label: "Hook Concept",       type: "custom_text" },
+  { x: 820, y: 190, w: 360, h: 230, label: "Hook Cinematic",     type: "video", edgesIn: [2, 6] },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -145,19 +169,29 @@ function AgentCanvas({
             <span className="text-[10px] font-medium text-ink ml-auto truncate">{n.label}</span>
           </div>
           <div className="flex-1 flex items-center justify-center px-3 py-2">
-            {n.type === "image" ? (
-              <div className="w-full h-full rounded-lg bg-gradient-to-br from-accent-soft via-cream to-warm-soft flex items-center justify-center relative overflow-hidden">
+            {n.type === "image" || n.type === "video" ? (
+              <div className={`w-full h-full rounded-lg flex items-center justify-center relative overflow-hidden ${
+                n.type === "video"
+                  ? "bg-gradient-to-br from-ink via-accent to-warm"
+                  : "bg-gradient-to-br from-accent-soft via-cream to-warm-soft"
+              }`}>
                 <motion.div
                   className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
                   initial={{ x: "-100%" }}
                   animate={{ x: "100%" }}
                   transition={{ duration: 2.2, repeat: Infinity, ease: "linear", delay: idx * 0.3 }}
                 />
-                <svg viewBox="0 0 24 24" className="w-6 h-6 text-ink-faint/40 relative" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <rect x="2" y="2" width="20" height="20" rx="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <path d="M21 15l-5-5L5 21" />
-                </svg>
+                {n.type === "video" ? (
+                  <svg viewBox="0 0 24 24" className="w-7 h-7 text-white/70 relative" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" className="w-6 h-6 text-ink-faint/40 relative" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="2" y="2" width="20" height="20" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <path d="M21 15l-5-5L5 21" />
+                  </svg>
+                )}
               </div>
             ) : (
               <div className="w-full h-full rounded bg-cream/50 flex items-center justify-center">
@@ -201,13 +235,13 @@ function AgentCanvas({
 function AmbientCanvasLoop() {
   const [tick, setTick] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => (t + 1) % 14), 700);
+    const id = setInterval(() => setTick((t) => (t + 1) % 18), 700);
     return () => clearInterval(id);
   }, []);
 
-  const appearedCount = Math.min(6, Math.max(0, tick));
-  const edgeCount = tick >= 6 ? Math.min(4, tick - 6) : 0;
-  const targetIdx = Math.min(5, tick);
+  const appearedCount = Math.min(8, Math.max(0, tick));
+  const edgeCount = tick >= 8 ? Math.min(6, tick - 8) : 0;
+  const targetIdx = Math.min(7, tick);
   const target = DEMO_LAYOUT_NODES[targetIdx];
   const cursorTarget = { x: target.x + target.w / 2, y: target.y + 20 };
 
@@ -235,17 +269,21 @@ const AGENT_SCRIPT: Omit<AgentLogEntry, "id" | "ts">[] = [
   { phase: "synthesise", tool: "claude.generateScript",      message: "Drafting outreach script",              detail: "Conversational, < 90 seconds, specific" },
   { phase: "canvas",     tool: "melius.createCanvas",        message: "Opening a fresh Melius canvas",         detail: "MCP session initialised" },
   { phase: "canvas",     tool: "melius.claimPresence",       message: "Claiming agent presence",               detail: "(0, 0) — 880 × 600 viewport" },
-  { phase: "canvas",     tool: "melius.planLayout",          message: "Planning node layout",                  detail: "6 nodes · grid-snapped · room for edges" },
+  { phase: "canvas",     tool: "melius.planLayout",          message: "Planning node layout",                  detail: "8 nodes · grid-snapped · room for hook video" },
   { phase: "nodes",      tool: "create_custom_text_node",    message: "Placing Profile Summary",               detail: "node_type: custom_text" },
   { phase: "nodes",      tool: "create_custom_text_node",    message: "Placing Script",                        detail: "node_type: custom_text" },
   { phase: "nodes",      tool: "create_custom_text_node",    message: "Placing Visual Direction",              detail: "node_type: custom_text" },
   { phase: "nodes",      tool: "create_custom_text_node",    message: "Placing Outreach Objective",            detail: "node_type: custom_text" },
   { phase: "nodes",      tool: "create_image_node",          message: "Placing Video Background",              detail: "node_type: image · prompt seeded" },
   { phase: "nodes",      tool: "create_image_node",          message: "Placing Video Thumbnail",               detail: "node_type: image · prompt seeded" },
+  { phase: "nodes",      tool: "create_custom_text_node",    message: "Placing Hook Concept",                  detail: "node_type: custom_text · archetype reasoning" },
+  { phase: "nodes",      tool: "create_video_node",          message: "Placing Hook Cinematic",                detail: "node_type: video · fal hook prompt" },
   { phase: "edges",      tool: "bulk_create_edges",          message: "Wiring Profile → Background",           detail: "edge_type: text" },
   { phase: "edges",      tool: "bulk_create_edges",          message: "Wiring Visual Direction → Background",  detail: "edge_type: text" },
   { phase: "edges",      tool: "bulk_create_edges",          message: "Wiring Profile → Thumbnail",            detail: "edge_type: text" },
   { phase: "edges",      tool: "bulk_create_edges",          message: "Wiring Visual Direction → Thumbnail",   detail: "edge_type: text" },
+  { phase: "edges",      tool: "bulk_create_edges",          message: "Wiring Hook Concept → Hook Cinematic",  detail: "edge_type: text" },
+  { phase: "edges",      tool: "bulk_create_edges",          message: "Wiring Visual Direction → Hook",        detail: "edge_type: text" },
   { phase: "canvas",     tool: "create_group_node",          message: "Grouping nodes into one workspace",     detail: "Single draggable workspace" },
   { phase: "canvas",     tool: "add_comment",                message: "Leaving an audit comment",              detail: "Future humans will know an agent did this" },
   { phase: "generate",   tool: "start_run · seedance_image", message: "Kicking off background image",          detail: "Model: Seedance · poll for completion" },
@@ -270,6 +308,7 @@ function StudioContent() {
   const [error, setError] = useState("");
   const [iterating, setIterating] = useState<IteratingNode | null>(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [archetype, setArchetype] = useState<ArchetypeSelection>("auto");
 
   // Building stage state — script-driven cinematic narration
   const [logIndex, setLogIndex] = useState(0);
@@ -305,12 +344,12 @@ function StudioContent() {
       setLogIndex(i);
       const entry = AGENT_SCRIPT[i - 1];
       if (entry.phase === "nodes") {
-        setAppearedCount((c) => Math.min(6, c + 1));
-        const targetIdx = Math.min(5, appearedCount);
+        setAppearedCount((c) => Math.min(8, c + 1));
+        const targetIdx = Math.min(7, appearedCount);
         const t = DEMO_LAYOUT_NODES[targetIdx];
         setCursorTarget({ x: t.x + t.w / 2, y: t.y + 20 });
       } else if (entry.phase === "edges") {
-        setEdgeCount((c) => Math.min(4, c + 1));
+        setEdgeCount((c) => Math.min(6, c + 1));
       }
     }, 650);
 
@@ -327,7 +366,11 @@ function StudioContent() {
       const res = await fetch("/api/studio/build", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim(), senderBrief: senderBrief.trim() || undefined }),
+        body: JSON.stringify({
+          url: url.trim(),
+          senderBrief: senderBrief.trim() || undefined,
+          archetype: archetype === "auto" ? undefined : archetype,
+        }),
       });
 
       if (!res.ok) {
@@ -430,10 +473,11 @@ function StudioContent() {
   }, [isReady, canvasId]);
 
   const nodeStats = useMemo(() => {
-    if (!buildResult) return { text: 0, image: 0, complete: 0, total: 0 };
+    if (!buildResult) return { text: 0, image: 0, video: 0, complete: 0, total: 0 };
     return {
       text: buildResult.nodes.filter((n) => n.type === "custom_text").length,
       image: buildResult.nodes.filter((n) => n.type === "image").length,
+      video: buildResult.nodes.filter((n) => n.type === "video").length,
       complete: buildResult.nodes.filter((n) => n.status === "complete").length,
       total: buildResult.nodes.length,
     };
@@ -522,6 +566,27 @@ function StudioContent() {
                           rows={2}
                           className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
                         />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                          Hook archetype
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {ARCHETYPE_OPTIONS.map((option) => (
+                            <button
+                              key={option.id}
+                              onClick={() => setArchetype(option.id)}
+                              className={`rounded-md border px-2.5 py-1 text-[11px] transition-colors ${
+                                archetype === option.id
+                                  ? "border-accent bg-accent-soft text-accent"
+                                  : "border-cream-dark/70 bg-white/60 text-ink-muted hover:border-accent/30 hover:text-accent"
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
 
                       <button
@@ -735,11 +800,26 @@ function StudioContent() {
                   </span>
                 </div>
                 <p className="text-sm text-ink">
-                  Built <span className="font-medium">{nodeStats.total} nodes</span> ({nodeStats.text} text · {nodeStats.image} image), wired 4 edges, kicked off 2 image runs.
+                  Built <span className="font-medium">{nodeStats.total} nodes</span> ({nodeStats.text} text · {nodeStats.image} image · {nodeStats.video} video), wired 6 edges, kicked off 2 image runs.
                   {canvasId === DEMO_CANVAS_ID && (
                     <span className="text-accent ml-1">· demo</span>
                   )}
                 </p>
+                {buildResult.hook && (
+                  <div className="flex flex-wrap items-center gap-2 text-[10px] font-medium">
+                    <span className="rounded-full border border-accent/20 bg-white px-2.5 py-1 text-accent">
+                      {buildResult.hook.tier.toUpperCase()} · {buildResult.hook.model}
+                    </span>
+                    <span className="rounded-full border border-cream-dark bg-white px-2.5 py-1 text-ink-muted">
+                      {buildResult.hook.archetype} · {buildResult.hook.status}
+                    </span>
+                    {buildResult.hook.remainingFree === 0 && (
+                      <span className="rounded-full border border-warm/20 bg-warm-soft px-2.5 py-1 text-warm">
+                        unlock more ↑
+                      </span>
+                    )}
+                  </div>
+                )}
                 <div className="ml-auto flex items-center gap-2">
                   {canvasId !== DEMO_CANVAS_ID && (
                     <a
@@ -755,7 +835,7 @@ function StudioContent() {
                     </a>
                   )}
                   <button
-                    onClick={() => { setStage("input"); setBuildResult(null); setUrl(""); setSenderBrief(""); }}
+                    onClick={() => { setStage("input"); setBuildResult(null); setUrl(""); setSenderBrief(""); setArchetype("auto"); }}
                     className="btn-press rounded-lg bg-ink text-cream px-3 py-1.5 text-xs font-medium hover:bg-ink-light transition-colors"
                   >
                     Brief another →
@@ -776,7 +856,7 @@ function StudioContent() {
                   )}
                   {canvasId === DEMO_CANVAS_ID ? (
                     <div className="w-full aspect-[4/3]">
-                      <AgentCanvas appearedCount={6} edgeCount={4} />
+                      <AgentCanvas appearedCount={8} edgeCount={6} />
                     </div>
                   ) : (
                     <iframe
@@ -791,6 +871,26 @@ function StudioContent() {
 
                 {/* Inspector */}
                 <div className="space-y-3">
+                  {buildResult.hook && (
+                    <div className="rounded-xl border border-accent/15 bg-accent-soft/40 p-3">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-[10px] uppercase tracking-widest font-semibold text-accent">
+                          Hook Engine
+                        </span>
+                        <span className="text-[10px] font-mono text-ink-faint">
+                          {buildResult.hook.canRegenerate ? `${buildResult.hook.remainingFree} free left` : "trial"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-ink-muted leading-relaxed">
+                        {buildResult.hook.reasoning}
+                      </p>
+                      {buildResult.hook.warning && (
+                        <p className="text-[10px] text-warm mt-1">
+                          {buildResult.hook.warning}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <h2 className="text-[10px] font-medium text-ink-faint uppercase tracking-widest">
                       Node inspector
@@ -844,7 +944,7 @@ function NodeCard({
   const [editing, setEditing] = useState(false);
   const [editPrompt, setEditPrompt] = useState(node.prompt || "");
 
-  const typeColor = node.type === "image" ? "text-warm" : node.type === "custom_text" ? "text-accent" : "text-ink-muted";
+  const typeColor = node.type === "image" ? "text-warm" : node.type === "video" ? "text-success" : node.type === "custom_text" ? "text-accent" : "text-ink-muted";
 
   return (
     <div className="rounded-xl border border-cream-dark bg-white p-3 space-y-2 hover:border-accent/20 transition-colors">
@@ -865,17 +965,29 @@ function NodeCard({
       </div>
 
       {node.outputUrl && (
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-success font-medium">Generated</span>
-          <a
-            href={node.outputUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] text-accent hover:underline truncate"
-          >
-            View output →
-          </a>
-        </div>
+        <>
+          {node.type === "video" && (
+            <video
+              src={node.outputUrl}
+              className="w-full rounded-lg border border-cream-dark bg-ink aspect-video object-cover"
+              muted
+              loop
+              autoPlay
+              playsInline
+            />
+          )}
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-success font-medium">Generated</span>
+            <a
+              href={node.outputUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-accent hover:underline truncate"
+            >
+              View output →
+            </a>
+          </div>
+        </>
       )}
 
       {node.prompt && !editing && (
