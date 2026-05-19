@@ -289,9 +289,9 @@ Expected uplift: **~14 weighted points → strong contender for Best Use of Plat
 - [x] `/studio` archetype chips on input + badge on recap
 
 ### Cut 2 — all five archetypes, format decisioning (~2h)
-- [ ] Wire prompt templates for archetypes 2–5
-- [ ] `pickFormat(profile)` helper + format badge on recap
-- [ ] Hook preview node renders as autoplay video in inspector
+- [x] Wire prompt templates for archetypes 2–5
+- [x] `pickFormat(profile)` helper + format badge on recap
+- [x] Hook preview node renders as autoplay video in inspector
 
 ### Cut 1.5 — email capture and soft gates
 - [x] Email capture modal appears only on high-intent actions: hook re-roll, share link, download/export
@@ -301,8 +301,8 @@ Expected uplift: **~14 weighted points → strong contender for Best Use of Plat
 
 ### Cut 3 — polish & demo readiness (~1h)
 - [x] "Re-roll hook" button → `/api/studio/hook/regenerate`
-- [ ] Selection reasoning surfaced behind `why?` link
-- [ ] Update demo flow (`?demo=true`) to show a baked Mirror archetype with a real generated hook video
+- [x] Selection reasoning surfaced behind `why?` link
+- [x] Update demo flow (`?demo=true`) to show a baked Mirror archetype with a generated hook video preview
 
 ### Out of scope (post-hackathon)
 - Faceswap of sender face onto hook character (legal review needed first)

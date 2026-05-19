@@ -15,6 +15,8 @@ export async function generateHookVideo(input: {
   modelEndpoint: string;
   tier: UserTier;
   generationAllowed: boolean;
+  aspectRatio?: "16:9" | "9:16" | "1:1";
+  durationSeconds?: number;
 }): Promise<HookGenerationResult> {
   if (!input.generationAllowed) {
     return { status: "demo", error: "Hook generation is not allowed for this session." };
@@ -33,8 +35,8 @@ export async function generateHookVideo(input: {
       },
       body: JSON.stringify({
         prompt: input.prompt,
-        duration: "3",
-        aspect_ratio: "16:9",
+        duration: String(input.durationSeconds || 3),
+        aspect_ratio: input.aspectRatio || "16:9",
       }),
     });
 

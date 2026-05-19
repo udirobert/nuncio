@@ -178,6 +178,8 @@ export interface StudioBuildResult {
     canRegenerate: boolean;
     watermark: boolean;
     status: "complete" | "demo" | "failed" | "generating";
+    format?: string;
+    formatReasoning?: string;
     outputUrl?: string;
     warning?: string;
   };

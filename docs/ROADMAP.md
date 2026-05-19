@@ -41,11 +41,11 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 - [x] Basic user-facing error states and non-blocking canvas/share fallback
 - [ ] Webhook support for HeyGen callbacks (replace polling)
 - [ ] Avatar V once available (May 18)
-- [ ] Rate limiting on API routes
+- [x] Rate limiting on core credit-sensitive API routes (`enrich`, `script`, `preview-angles`, `video`, `translate`, `persist`, Hook Engine trial caps)
 - [x] Basic input validation (URL format check per platform)
 - [x] Loading state with step-by-step progress (not just a spinner)
 - [x] Copy-to-clipboard for branded share link when available
-- [ ] Basic analytics (how many videos generated, average completion time)
+- [x] Basic analytics wiring via PostHog provider + funnel event helpers (production dashboard validation pending)
 
 ---
 
@@ -113,6 +113,7 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 - [x] Canvas-as-deliverable: position the canvas as a forkable template, HeyGen rendering optional
 - [x] Cinematic building-stage UI that narrates each MCP tool call live, with an animated canvas being assembled node by node
 - [ ] Full Melius submission packet: canvas screenshot, process write-up, video walkthrough
+- [ ] Add final production artifact path + HeyGen video ID after prod golden-path testing
 
 ---
 
@@ -129,10 +130,10 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 - [x] `/studio` archetype chips on the input stage + selection-reasoning badge on recap
 
 ### Cut 2 — all five archetypes, format decisioning
-- [ ] Wire prompt templates for archetypes 2–5
-- [ ] `pickFormat(profile)` helper — agent decides 9:16 vs 16:9 vs 1:1, captions on/off, target duration
-- [ ] Format badge on `/studio` recap (`9:16 · 22s · vertical · captions on · Mirror archetype`)
-- [ ] Hook video node renders as autoplay preview in the node inspector
+- [x] Wire prompt templates for archetypes 2–5
+- [x] `pickFormat(profile)` helper — agent decides 9:16 vs 16:9 vs 1:1, captions on/off, target duration
+- [x] Format badge on `/studio` recap (`9:16 · 22s · vertical · captions on · Mirror archetype`)
+- [x] Hook video node renders as autoplay preview in the node inspector
 
 ### Cut 1.5 — email capture and soft gates
 - [x] Email capture modal appears only on high-intent actions: hook re-roll, share link, download/export
@@ -142,8 +143,8 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 
 ### Cut 3 — polish & demo readiness
 - [x] "Re-roll the hook" button → `/api/studio/hook/regenerate` (preserves archetype, fresh take)
-- [ ] `?why=true` link on archetype badge surfaces the agent's 1–2 sentence selection reasoning
-- [ ] Update demo flow (`?demo=true`) to show a baked Mirror archetype with a real generated hook video
+- [x] `why?` reveal on archetype/format badge surfaces the agent's selection and format reasoning
+- [x] Update demo flow (`?demo=true`) to show a baked Mirror archetype with a generated hook video preview
 - [ ] Compose hook + body server-side (ffmpeg spike first, fal compose endpoint as fallback)
 
 ### Out of scope (post-hackathon)

@@ -45,7 +45,7 @@ const DEMO_NODES: StudioNode[] = [
   { id: "n5", label: "Video Background", type: "image", status: "complete", prompt: "Cinematic 16:9 background — soft gradient mesh in indigo and warm taupe, faint hex grid, abstract glow suggesting AI infrastructure. No text. No faces." },
   { id: "n6", label: "Video Thumbnail", type: "image", status: "complete", prompt: "16:9 thumbnail — minimal, single warm light source, slight grain. Implies a personalised message ready to play." },
   { id: "n7", label: "Hook Concept", type: "custom_text", status: "complete", prompt: "Mirror hook for Sundar Pichai: reimagine Google's AI infrastructure as a quiet cinematic product surface coming alive." },
-  { id: "n8", label: "Hook Cinematic", type: "video", status: "pending", prompt: "Generate a 3-second cinematic outreach hook. Mirror archetype. No readable text. No logos. 16:9." },
+  { id: "n8", label: "Hook Cinematic", type: "video", status: "complete", prompt: "Generate a 3-second cinematic outreach hook. Mirror archetype. No readable text. No logos. 16:9.", outputUrl: "/onee-yekeh-demo.mp4" },
 ];
 
 const DEMO_BUILD_RESULT: StudioBuildResult = {
@@ -62,7 +62,10 @@ const DEMO_BUILD_RESULT: StudioBuildResult = {
     remainingFree: 0,
     canRegenerate: false,
     watermark: true,
-    status: "demo",
+    status: "complete",
+    format: "16:9 · 45s · landscape · captions off",
+    formatReasoning: "The demo target reads as an executive/product audience, so a polished landscape format keeps the walkthrough presentation-ready.",
+    outputUrl: "/onee-yekeh-demo.mp4",
   },
 };
 
@@ -320,6 +323,7 @@ function StudioContent() {
   const [captureError, setCaptureError] = useState("");
   const [captureLoading, setCaptureLoading] = useState(false);
   const [hookRegenerating, setHookRegenerating] = useState(false);
+  const [showHookReasoning, setShowHookReasoning] = useState(false);
 
   // Building stage state — script-driven cinematic narration
   const [logIndex, setLogIndex] = useState(0);
@@ -372,6 +376,7 @@ function StudioContent() {
     if (!url.trim()) return;
     setStage("building");
     setError("");
+    setShowHookReasoning(false);
 
     try {
       const res = await fetch("/api/studio/build", {
@@ -520,8 +525,8 @@ function StudioContent() {
           outputUrl: data.outputUrl || prev.hook.outputUrl,
           warning: data.warning,
           tier: data.tier || prev.hook.tier,
-          remainingFree: Math.max(0, hookRerollsRemaining - 1),
-          canRegenerate: Math.max(0, hookRerollsRemaining - 1) > 0,
+          remainingFree: Math.max(0, availableRerolls - 1),
+          canRegenerate: Math.max(0, availableRerolls - 1) > 0,
         } : prev.hook,
         nodes: prev.nodes.map((node) =>
           node.id === hookNode.id
@@ -704,6 +709,7 @@ function StudioContent() {
                               onClick={() => {
                                 if (example.url === "__demo__") {
                                   setBuildResult(DEMO_BUILD_RESULT);
+                                  setShowHookReasoning(false);
                                   setStage("ready");
                                 } else {
                                   setUrl(example.url);
@@ -975,6 +981,17 @@ function StudioContent() {
                     <span className="rounded-full border border-cream-dark bg-white px-2.5 py-1 text-ink-muted">
                       {buildResult.hook.archetype} · {buildResult.hook.status}
                     </span>
+                    {buildResult.hook.format && (
+                      <span className="rounded-full border border-cream-dark bg-white px-2.5 py-1 text-ink-muted">
+                        {buildResult.hook.format}
+                      </span>
+                    )}
+                    <button
+                      onClick={() => setShowHookReasoning((value) => !value)}
+                      className="rounded-full border border-accent/20 bg-white px-2.5 py-1 text-accent hover:bg-accent-soft transition-colors"
+                    >
+                      why?
+                    </button>
                     {buildResult.hook.remainingFree === 0 && (
                       <span className="rounded-full border border-warm/20 bg-warm-soft px-2.5 py-1 text-warm">
                         unlock more ↑
@@ -1024,6 +1041,7 @@ function StudioContent() {
                       setArchetype("auto");
                       setShareUrl("");
                       setHookRerollsRemaining(0);
+                      setShowHookReasoning(false);
                     }}
                     className="btn-press rounded-lg bg-ink text-cream px-3 py-1.5 text-xs font-medium hover:bg-ink-light transition-colors"
                   >
@@ -1031,6 +1049,22 @@ function StudioContent() {
                   </button>
                 </div>
               </div>
+
+              {buildResult.hook && showHookReasoning && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="rounded-xl border border-accent/15 bg-white p-4 text-sm text-ink-muted leading-relaxed"
+                >
+                  <span className="text-[10px] uppercase tracking-widest font-semibold text-accent block mb-1">
+                    Agent reasoning
+                  </span>
+                  <p>{buildResult.hook.reasoning}</p>
+                  {buildResult.hook.formatReasoning && (
+                    <p className="mt-2">{buildResult.hook.formatReasoning}</p>
+                  )}
+                </motion.div>
+              )}
 
               <div className="grid grid-cols-1 lg:grid-cols-[1.6fr,1fr] gap-6">
                 {/* Canvas hero */}
@@ -1071,7 +1105,8 @@ function StudioContent() {
                         </span>
                       </div>
                       <p className="text-xs text-ink-muted leading-relaxed">
-                        {buildResult.hook.reasoning}
+                        {buildResult.hook.archetype}
+                        {buildResult.hook.format ? ` · ${buildResult.hook.format}` : ""}
                       </p>
                       {buildResult.hook.warning && (
                         <p className="text-[10px] text-warm mt-1">

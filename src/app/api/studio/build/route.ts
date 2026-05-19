@@ -6,7 +6,7 @@ import type { StudioNode, StudioBuildResult } from "@/lib/creative/melius-provid
 import { chooseArchetype } from "@/lib/hooks/select";
 import { generateHookVideo } from "@/lib/hooks/generate";
 import { ensureTrialCookie, resolveHookAccess } from "@/lib/hooks/tiers";
-import type { HookArchetypeId } from "@/lib/hooks/archetypes";
+import { pickFormat, type HookArchetypeId } from "@/lib/hooks/archetypes";
 
 const NODE_GEOMETRY = {
   profileSummary: { x: 0, y: 0, w: 420, h: 140 },
@@ -42,12 +42,15 @@ export async function POST(request: NextRequest) {
     // 3. Generate script
     const script = await generateScript(profile, senderBrief, { intent: intent as Parameters<typeof generateScript>[2] extends { intent: infer I } ? I : undefined });
     const hookChoice = chooseArchetype(profile, senderBrief, archetype as HookArchetypeId | undefined);
+    const hookFormat = pickFormat(profile);
     const hookAccess = resolveHookAccess(request, typeof email === "string" ? email : null);
     const hookGeneration = await generateHookVideo({
       prompt: hookChoice.prompt,
       modelEndpoint: hookAccess.modelEndpoint,
       tier: hookAccess.tier,
       generationAllowed: hookAccess.generationAllowed,
+      aspectRatio: hookFormat.aspectRatio,
+      durationSeconds: Math.min(5, hookFormat.durationSeconds),
     });
 
     // 4. Build Melius canvas
@@ -153,6 +156,8 @@ export async function POST(request: NextRequest) {
       "",
       `Archetype: ${hookChoice.archetype.label}`,
       `Reasoning: ${hookChoice.reasoning}`,
+      `Format: ${hookFormat.label}`,
+      `Format reasoning: ${hookFormat.reasoning}`,
       `Model: ${hookAccess.modelLabel}`,
       hookAccess.reason ? `Mode: ${hookAccess.reason}` : "",
     ].filter(Boolean).join("\n");
@@ -257,6 +262,8 @@ export async function POST(request: NextRequest) {
         canRegenerate: hookAccess.canRegenerate,
         watermark: hookAccess.watermark,
         status: hookGeneration.outputUrl ? "complete" : hookGeneration.status,
+        format: hookFormat.label,
+        formatReasoning: hookFormat.reasoning,
         outputUrl: hookGeneration.outputUrl,
         warning: hookAccess.reason || hookGeneration.error,
       },
