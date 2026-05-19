@@ -293,8 +293,14 @@ Expected uplift: **~14 weighted points → strong contender for Best Use of Plat
 - [ ] `pickFormat(profile)` helper + format badge on recap
 - [ ] Hook preview node renders as autoplay video in inspector
 
+### Cut 1.5 — email capture and soft gates
+- [x] Email capture modal appears only on high-intent actions: hook re-roll, share link, download/export
+- [x] Capture uses email + honeypot and stores a private campaign/share record through the existing share store
+- [x] Captured email unlocks 2 additional hook generations for the current Studio session
+- [x] Hook re-roll calls a dedicated endpoint and attaches the new hook video URL back to the Melius video node when available
+
 ### Cut 3 — polish & demo readiness (~1h)
-- [ ] "Re-roll hook" button → `/api/studio/hook/regenerate`
+- [x] "Re-roll hook" button → `/api/studio/hook/regenerate`
 - [ ] Selection reasoning surfaced behind `why?` link
 - [ ] Update demo flow (`?demo=true`) to show a baked Mirror archetype with a real generated hook video
 

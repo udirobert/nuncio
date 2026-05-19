@@ -20,6 +20,7 @@ export interface ShareRecord {
   videoId?: string;
   recipientName?: string;
   senderName?: string;
+  email?: string;
   createdAt: string;
   profile?: Profile;
   sources?: string[];

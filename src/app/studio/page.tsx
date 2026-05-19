@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, Suspense, useMemo } from "react";
+import type { FormEvent } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import { Header } from "@/components/header";
@@ -8,6 +9,7 @@ import type { StudioBuildResult, StudioNode } from "@/lib/creative/melius-provid
 
 type StudioStage = "input" | "building" | "ready" | "error";
 type ArchetypeSelection = "auto" | "mirror" | "origin" | "future_cast" | "inside_joke" | "day_in_the_life";
+type CaptureIntent = "reroll" | "share" | "download";
 
 const ARCHETYPE_OPTIONS: { id: ArchetypeSelection; label: string }[] = [
   { id: "auto", label: "Let agent pick" },
@@ -309,6 +311,15 @@ function StudioContent() {
   const [iterating, setIterating] = useState<IteratingNode | null>(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [archetype, setArchetype] = useState<ArchetypeSelection>("auto");
+  const [capturedEmail, setCapturedEmail] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
+  const [hookRerollsRemaining, setHookRerollsRemaining] = useState(0);
+  const [captureIntent, setCaptureIntent] = useState<CaptureIntent | null>(null);
+  const [captureEmail, setCaptureEmail] = useState("");
+  const [captureHoneypot, setCaptureHoneypot] = useState("");
+  const [captureError, setCaptureError] = useState("");
+  const [captureLoading, setCaptureLoading] = useState(false);
+  const [hookRegenerating, setHookRegenerating] = useState(false);
 
   // Building stage state — script-driven cinematic narration
   const [logIndex, setLogIndex] = useState(0);
@@ -386,12 +397,163 @@ function StudioContent() {
       await new Promise((r) => setTimeout(r, Math.max(0, minWaitMs - 800)));
 
       setBuildResult(result);
+      setShareUrl("");
+      setHookRerollsRemaining(0);
       setIframeLoaded(false);
       setStage("ready");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setStage("error");
     }
+  }
+
+  function openCapture(intent: CaptureIntent) {
+    setCaptureIntent(intent);
+    setCaptureError("");
+    setCaptureEmail(capturedEmail);
+  }
+
+  async function handleEmailCapture(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!buildResult) return;
+
+    setCaptureLoading(true);
+    setCaptureError("");
+    try {
+      const res = await fetch("/api/studio/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: captureEmail,
+          honeypot: captureHoneypot,
+          buildResult: {
+            projectId: buildResult.projectId,
+            canvasId: buildResult.canvasId,
+            canvasUrl: buildResult.canvasUrl,
+            hook: buildResult.hook,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Could not capture email");
+      }
+
+      setCapturedEmail(data.email);
+      setHookRerollsRemaining(data.unlockedRerolls || 2);
+      setShareUrl(data.shareUrl || "");
+      setCaptureIntent(null);
+
+      if (captureIntent === "reroll") {
+        await handleHookReroll(data.email, data.unlockedRerolls || 2);
+      } else if (captureIntent === "share" && data.shareUrl) {
+        await copyShareUrl(data.shareUrl);
+      } else if (captureIntent === "download") {
+        openDownloadTarget();
+      }
+    } catch (err) {
+      setCaptureError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setCaptureLoading(false);
+    }
+  }
+
+  async function handleShareClick() {
+    if (!buildResult) return;
+    if (!capturedEmail || !shareUrl) {
+      openCapture("share");
+      return;
+    }
+    await copyShareUrl(shareUrl);
+  }
+
+  function handleDownloadClick() {
+    if (!capturedEmail) {
+      openCapture("download");
+      return;
+    }
+    openDownloadTarget();
+  }
+
+  async function handleHookReroll(email = capturedEmail, availableRerolls = hookRerollsRemaining) {
+    if (!buildResult || hookRegenerating) return;
+    if (!email || availableRerolls <= 0) {
+      openCapture("reroll");
+      return;
+    }
+
+    const hookNode = buildResult.nodes.find((node) => node.type === "video" && node.label === "Hook Cinematic");
+    if (!hookNode?.prompt) {
+      return;
+    }
+
+    setHookRegenerating(true);
+    try {
+      setBuildResult((prev) => prev ? {
+        ...prev,
+        nodes: prev.nodes.map((node) =>
+          node.id === hookNode.id ? { ...node, status: "generating" } : node
+        ),
+      } : prev);
+
+      const res = await fetch("/api/studio/hook/regenerate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          canvasId: buildResult.canvasId,
+          nodeId: hookNode.id,
+          prompt: hookNode.prompt,
+          email,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Hook regeneration failed");
+      }
+
+      setHookRerollsRemaining((count) => Math.max(0, count - 1));
+      setBuildResult((prev) => prev ? {
+        ...prev,
+        hook: prev.hook ? {
+          ...prev.hook,
+          status: data.outputUrl ? "complete" : data.status,
+          outputUrl: data.outputUrl || prev.hook.outputUrl,
+          warning: data.warning,
+          tier: data.tier || prev.hook.tier,
+          remainingFree: Math.max(0, hookRerollsRemaining - 1),
+          canRegenerate: Math.max(0, hookRerollsRemaining - 1) > 0,
+        } : prev.hook,
+        nodes: prev.nodes.map((node) =>
+          node.id === hookNode.id
+            ? {
+                ...node,
+                status: data.outputUrl ? "complete" : data.status === "failed" ? "failed" : "pending",
+                outputUrl: data.outputUrl || node.outputUrl,
+              }
+            : node
+        ),
+      } : prev);
+    } catch (err) {
+      setCaptureError(err instanceof Error ? err.message : "Hook regeneration failed");
+      setBuildResult((prev) => prev ? {
+        ...prev,
+        nodes: prev.nodes.map((node) =>
+          node.id === hookNode.id ? { ...node, status: node.outputUrl ? "complete" : "failed" } : node
+        ),
+      } : prev);
+    } finally {
+      setHookRegenerating(false);
+    }
+  }
+
+  async function copyShareUrl(path: string) {
+    const absolute = new URL(path, window.location.origin).toString();
+    await navigator.clipboard?.writeText(absolute);
+  }
+
+  function openDownloadTarget() {
+    const hookUrl = buildResult?.hook?.outputUrl;
+    window.open(hookUrl || buildResult?.canvasUrl || "/studio", "_blank", "noopener,noreferrer");
   }
 
   async function handleIterate(nodeId: string, newPrompt: string) {
@@ -821,6 +983,25 @@ function StudioContent() {
                   </div>
                 )}
                 <div className="ml-auto flex items-center gap-2">
+                  <button
+                    onClick={() => handleHookReroll()}
+                    disabled={hookRegenerating}
+                    className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-1.5 text-xs font-medium text-ink hover:bg-cream-dark/50 transition-colors disabled:opacity-40"
+                  >
+                    {hookRegenerating ? "Re-rolling..." : "Re-roll hook"}
+                  </button>
+                  <button
+                    onClick={handleShareClick}
+                    className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-1.5 text-xs font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+                  >
+                    Share link
+                  </button>
+                  <button
+                    onClick={handleDownloadClick}
+                    className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-1.5 text-xs font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+                  >
+                    Download
+                  </button>
                   {canvasId !== DEMO_CANVAS_ID && (
                     <a
                       href={buildResult.canvasUrl}
@@ -835,7 +1016,15 @@ function StudioContent() {
                     </a>
                   )}
                   <button
-                    onClick={() => { setStage("input"); setBuildResult(null); setUrl(""); setSenderBrief(""); setArchetype("auto"); }}
+                    onClick={() => {
+                      setStage("input");
+                      setBuildResult(null);
+                      setUrl("");
+                      setSenderBrief("");
+                      setArchetype("auto");
+                      setShareUrl("");
+                      setHookRerollsRemaining(0);
+                    }}
                     className="btn-press rounded-lg bg-ink text-cream px-3 py-1.5 text-xs font-medium hover:bg-ink-light transition-colors"
                   >
                     Brief another →
@@ -920,6 +1109,82 @@ function StudioContent() {
           )}
         </AnimatePresence>
       </main>
+
+      <AnimatePresence>
+        {captureIntent && (
+          <motion.div
+            key="email-capture"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-ink/30 backdrop-blur-sm flex items-center justify-center px-6"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              className="w-full max-w-md rounded-2xl border border-cream-dark bg-white p-6 shadow-2xl shadow-ink/15"
+            >
+              <div className="flex items-start justify-between gap-4 mb-5">
+                <div>
+                  <span className="text-[10px] uppercase tracking-widest font-semibold text-accent">
+                    Unlock this campaign
+                  </span>
+                  <h2 className="font-[family-name:var(--font-display)] text-3xl tracking-tight mt-2">
+                    Get the video
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setCaptureIntent(null)}
+                  className="rounded-lg border border-cream-dark px-2 py-1 text-xs text-ink-muted hover:text-ink hover:bg-cream/60 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+
+              <p className="text-sm text-ink-muted leading-relaxed mb-5">
+                Drop your email to unlock 2 more free hook generations and get a campaign link for this recipient.
+              </p>
+
+              <form onSubmit={handleEmailCapture} className="space-y-3">
+                <input
+                  value={captureHoneypot}
+                  onChange={(e) => setCaptureHoneypot(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  className="hidden"
+                  aria-hidden="true"
+                />
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={captureEmail}
+                    onChange={(e) => setCaptureEmail(e.target.value)}
+                    placeholder="you@company.com"
+                    className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                    autoFocus
+                  />
+                </div>
+
+                {captureError && (
+                  <p className="text-xs text-error">{captureError}</p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={captureLoading || !captureEmail.trim()}
+                  className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors"
+                >
+                  {captureLoading ? "Unlocking..." : "Unlock 2 more hooks"}
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

@@ -134,8 +134,14 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 - [ ] Format badge on `/studio` recap (`9:16 · 22s · vertical · captions on · Mirror archetype`)
 - [ ] Hook video node renders as autoplay preview in the node inspector
 
+### Cut 1.5 — email capture and soft gates
+- [x] Email capture modal appears only on high-intent actions: hook re-roll, share link, download/export
+- [x] Capture uses email + honeypot and stores a private campaign/share record through the existing share store
+- [x] Captured email unlocks 2 additional hook generations for the current Studio session
+- [x] Hook re-roll calls a dedicated endpoint and attaches the new hook video URL back to the Melius video node when available
+
 ### Cut 3 — polish & demo readiness
-- [ ] "Re-roll the hook" button → `/api/studio/hook/regenerate` (preserves archetype, fresh take)
+- [x] "Re-roll the hook" button → `/api/studio/hook/regenerate` (preserves archetype, fresh take)
 - [ ] `?why=true` link on archetype badge surfaces the agent's 1–2 sentence selection reasoning
 - [ ] Update demo flow (`?demo=true`) to show a baked Mirror archetype with a real generated hook video
 - [ ] Compose hook + body server-side (ffmpeg spike first, fal compose endpoint as fallback)
