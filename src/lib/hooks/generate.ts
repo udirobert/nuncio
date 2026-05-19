@@ -61,6 +61,7 @@ export async function generateHookVideo(input: {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       const status = await fetch(`${FAL_BASE_URL}/${input.modelEndpoint}/requests/${requestId}/status`, {
+        method: "POST",
         headers: { Authorization: `Key ${FAL_KEY}` },
       });
 
@@ -73,6 +74,7 @@ export async function generateHookVideo(input: {
     }
 
     const result = await fetch(`${FAL_BASE_URL}/${input.modelEndpoint}/requests/${requestId}`, {
+      method: "POST",
       headers: { Authorization: `Key ${FAL_KEY}` },
     });
 
