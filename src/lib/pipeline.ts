@@ -22,9 +22,10 @@ export interface EnrichmentWarning {
 }
 
 export interface PipelineState {
-  stage: "input" | "progress" | "coach" | "review" | "done" | "error";
+  stage: "input" | "progress" | "profilePicker" | "coach" | "review" | "done" | "error";
   steps: StepState[];
   urls?: string[];
+  discoveredProfiles?: import("@/lib/tinyfish").DiscoveredProfile[];
   profile?: Profile;
   script?: string;
   sources?: string[];
@@ -153,19 +154,41 @@ export async function generateVideo(
       return;
     }
 
-    // Stage 1: Enrich
-    const enrichStart = Date.now();
-    const enrichRes = await fetch("/api/enrich", {
+    // Stage 1: Discover profiles
+    const discoverStart = Date.now();
+    const discoverRes = await fetch("/api/enrich", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ urls }),
+      body: JSON.stringify({ urls, discoverRelated: true }),
     });
 
-    if (!enrichRes.ok) {
+    if (!discoverRes.ok) {
       throw new Error("Failed to fetch profiles");
     }
 
-    const enrichment = await enrichRes.json();
+    const enrichment = await discoverRes.json();
+    const discoveredProfiles: import("@/lib/tinyfish").DiscoveredProfile[] =
+      enrichment
+        .filter((r: { success: boolean; url?: string }) => r.success && r.url)
+        .filter((r: { url: string }) => r.url !== urls[0])
+        .map((r: { url: string }) => ({
+          url: r.url,
+          platform: detectPlatform(r.url),
+          confidence: 0.8,
+        }));
+
+    // If profiles were discovered, pause for user verification
+    if (discoveredProfiles.length > 0) {
+      setState((prev) => ({
+        ...prev,
+        stage: "profilePicker",
+        discoveredProfiles,
+        urls,
+      }));
+      return;
+    }
+
+    // No discovery or demo mode - proceed directly to coach
     const enrichedMarkdown = enrichment
       .filter((r: { success: boolean }) => r.success)
       .map((r: { markdown: string }) => r.markdown);
@@ -189,7 +212,7 @@ export async function generateVideo(
 
     updateStep(setState, "enrich", {
       status: "complete",
-      elapsed: (Date.now() - enrichStart) / 1000,
+      elapsed: (Date.now() - discoverStart) / 1000,
     });
 
     // Synthesise profile for coach mode (quick pass)
@@ -624,4 +647,102 @@ function detectIndustry(profile?: Profile): string {
   }
 
   return "general";
+}
+
+/**
+ * Continue the pipeline after profile picker verification.
+ * Called when the user confirms which discovered profiles to use.
+ */
+export async function continueAfterProfilePicker(
+  setState: SetState,
+  profilesToEnrich: string[],
+  senderBrief?: string,
+  intent?: string
+) {
+  setState((prev) => ({ ...prev, stage: "progress" }));
+
+  try {
+    // Re-enrich with the verified profiles
+    const enrichStart = Date.now();
+    const enrichRes = await fetch("/api/enrich", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ urls: profilesToEnrich }),
+    });
+
+    if (!enrichRes.ok) {
+      throw new Error("Failed to fetch profiles");
+    }
+
+    const enrichment = await enrichRes.json();
+    const enrichedMarkdown = enrichment
+      .filter((r: { success: boolean }) => r.success)
+      .map((r: { markdown: string }) => r.markdown);
+
+    if (enrichedMarkdown.length === 0) {
+      throw new Error("Could not access any profiles. Try different URLs.");
+    }
+
+    const sources = enrichment
+      .filter((r: { success: boolean }) => r.success)
+      .map((r: { url: string }) => r.url);
+
+    const warnings: EnrichmentWarning[] = enrichment
+      .filter((r: { success: boolean }) => !r.success)
+      .map((r: { url: string }) => ({
+        url: r.url,
+        reason: "Couldn't access this profile — continuing without it",
+      }));
+
+    updateStep(setState, "enrich", {
+      status: "complete",
+      elapsed: (Date.now() - enrichStart) / 1000,
+    });
+
+    // Synthesise profile for coach mode
+    const profileRes = await fetch("/api/script", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enrichment: enrichedMarkdown, senderBrief, intent, profileOnly: true }),
+    });
+
+    let profile: Profile | undefined;
+    if (profileRes.ok) {
+      const data = await profileRes.json();
+      profile = data.profile;
+    }
+
+    // Pause at coach mode
+    setState((prev) => ({
+      ...prev,
+      stage: "coach",
+      profile,
+      sources,
+      warnings,
+      enrichedMarkdown,
+      senderBrief,
+      intent,
+    }));
+  } catch (error) {
+    setState((prev) => ({
+      ...prev,
+      stage: "error",
+      error: error instanceof Error ? error.message : "Something went wrong",
+    }));
+  }
+}
+
+function detectPlatform(url: string): string {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    if (host.includes("linkedin")) return "LinkedIn";
+    if (host.includes("twitter") || host.includes("x.com")) return "Twitter";
+    if (host.includes("github")) return "GitHub";
+    if (host.includes("medium")) return "Medium";
+    if (host.includes("dev.to")) return "Dev.to";
+    if (host.includes("substack")) return "Substack";
+    return "Personal";
+  } catch {
+    return "Unknown";
+  }
 }

@@ -11,10 +11,11 @@ import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { ShowcaseStrip } from "@/components/landing/showcase-strip";
 import { VideoProof } from "@/components/landing/video-proof";
-import { generateVideo, renderVideo, continueAfterCoach, isDemoMode } from "@/lib/pipeline";
+import { generateVideo, continueAfterCoach, continueAfterProfilePicker, renderVideo, isDemoMode } from "@/lib/pipeline";
 import { SHOWCASE_RECIPIENTS } from "@/lib/showcase";
 import type { PipelineState } from "@/lib/pipeline";
 import { AnglePicker } from "@/components/angle-picker";
+import { ProfilePicker } from "@/components/profile-picker";
 import type { IntentId } from "@/components/intent-chips";
 
 export default function Home() {
@@ -96,39 +97,71 @@ export default function Home() {
           </motion.div>
         )}
 
-        {state.stage === "coach" && state.profile && (
-          <motion.div
-            key="coach"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="flex-1 flex flex-col"
-          >
-            <AnglePicker
-              profile={state.profile}
-              onConfirm={(selectedAngles) => {
-                continueAfterCoach(
-                  setState,
-                  state.enrichedMarkdown,
-                  state.senderBrief,
-                  state.intent,
-                  selectedAngles
-                );
-              }}
-              onSkip={() => {
-                continueAfterCoach(
-                  setState,
-                  state.enrichedMarkdown,
-                  state.senderBrief,
-                  state.intent
-                );
-              }}
-            />
-          </motion.div>
-        )}
+{state.stage === "coach" && state.profile && (
+           <motion.div
+             key="coach"
+             initial={{ opacity: 0 }}
+             animate={{ opacity: 1 }}
+             exit={{ opacity: 0, y: -20 }}
+             transition={{ duration: 0.3 }}
+             className="flex-1 flex flex-col"
+           >
+             <AnglePicker
+               profile={state.profile}
+               onConfirm={(selectedAngles) => {
+                 continueAfterCoach(
+                   setState,
+                   state.enrichedMarkdown,
+                   state.senderBrief,
+                   state.intent,
+                   selectedAngles
+                 );
+               }}
+               onSkip={() => {
+                 continueAfterCoach(
+                   setState,
+                   state.enrichedMarkdown,
+                   state.senderBrief,
+                   state.intent
+                 );
+               }}
+             />
+           </motion.div>
+         )}
 
-        {state.stage === "review" && state.script && state.profile && (
+         {state.stage === "profilePicker" && (
+           <motion.div
+             key="profilePicker"
+             initial={{ opacity: 0 }}
+             animate={{ opacity: 1 }}
+             exit={{ opacity: 0, y: -20 }}
+             transition={{ duration: 0.3 }}
+             className="flex-1 flex flex-col"
+           >
+             <ProfilePicker
+               primaryUrl={state.urls?.[0] || ""}
+               discoveredProfiles={state.discoveredProfiles || []}
+               onConfirm={(profilesToEnrich) => {
+                 continueAfterProfilePicker(
+                   setState,
+                   profilesToEnrich,
+                   state.senderBrief,
+                   state.intent
+                 );
+               }}
+               onSkip={() => {
+                 continueAfterProfilePicker(
+                   setState,
+                   state.urls || [],
+                   state.senderBrief,
+                   state.intent
+                 );
+               }}
+             />
+           </motion.div>
+         )}
+
+         {state.stage === "review" && state.script && state.profile && (
           <motion.div
             key="review"
             initial={{ opacity: 0 }}

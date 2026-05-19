@@ -13,6 +13,7 @@ interface HeaderProps {
 const STAGE_LABELS: Record<PipelineState["stage"], string> = {
   input: "",
   progress: "Working",
+  profilePicker: "Profiles",
   coach: "Angles",
   review: "Review",
   done: "Complete",

@@ -43,8 +43,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Check cache
-  const cacheKey = MemoryCache.urlsKey(valid);
+  // Check cache (include discovery flag in key)
+  const cacheKey = discoverRelated
+    ? `${MemoryCache.urlsKey(valid)}:discovered`
+    : MemoryCache.urlsKey(valid);
   const cached = enrichmentCache.get(cacheKey);
   if (cached) {
     console.log(`[enrich] Cache hit for ${valid.length} URLs`);
