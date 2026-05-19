@@ -47,8 +47,11 @@ Thumbs.db
 .data/
 artifacts/test-runs/
 .junie
+.kilo
 
 
 # HyperFrames rendered output
 *.mp4
 nuncio-announcement/node_modules/
+*.local.sh
+scripts/deploy-local.sh
