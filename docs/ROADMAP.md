@@ -21,7 +21,7 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 - [x] Branded share page metadata for generated videos (file-backed MVP store)
 - [x] Storage provider abstraction with Turso share metadata and Grove proof-publishing hooks
 - [x] Agent trace and canvas proof surfaced in the demo UI
-- [ ] Live demo: audience member gives Twitter handle → video plays in ~60s
+- [ ] Live demo: audience member gives Twitter handle → video plays in ~5 mins
 
 **Out of scope for MVP:**
 - User accounts

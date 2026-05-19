@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ShareNuncio } from "@/components/share-nuncio";
@@ -485,6 +486,13 @@ export function VideoPlayer({
           <div className="pt-2">
             <ShareNuncio shareId={shareId} videoUrl={videoUrl} recipientName={recipientName} />
           </div>
+
+          <Link
+            href="/pricing"
+            className="mt-4 text-[11px] font-medium text-ink-faint hover:text-accent transition-colors uppercase tracking-widest"
+          >
+            Want more? View Pro Plans →
+          </Link>
         </motion.div>
       </motion.div>
     </main>

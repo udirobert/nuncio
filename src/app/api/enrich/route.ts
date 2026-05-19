@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { urls } = await request.json();
+  const { urls, discoverRelated } = await request.json();
 
   if (!urls || !Array.isArray(urls) || urls.length === 0) {
     return NextResponse.json(
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Call TinyFish only for valid URLs
-  const result = await enrich(valid);
+  const result = await enrich(valid, { discoverRelated: Boolean(discoverRelated) });
 
   // Add validation errors as failed results
   const fullResult = [

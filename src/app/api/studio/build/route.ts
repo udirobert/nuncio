@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
 
     const urls = [url];
 
-    // 1. Enrich
-    const enrichment = await enrich(urls);
+    // 1. Enrich with profile discovery
+    const enrichment = await enrich(urls, { discoverRelated: true });
     const markdown = enrichment.filter((r) => r.success).map((r) => r.markdown);
     if (markdown.length === 0) {
       return NextResponse.json({ error: "Could not access profile" }, { status: 400 });

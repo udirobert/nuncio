@@ -27,19 +27,19 @@ This is the primary submission. Lead with the technology stack — every major H
 ### Judging emphasis
 - **Creativity:** personalisation using real enriched data, not templates
 - **Technical depth:** full API integration across 5+ HeyGen products
-- **Demo moment:** audience member gives their Twitter handle, video plays in 60 seconds with their name and real context
+- **Demo moment:** audience member gives their Twitter handle, video plays in ~5 minutes with their name and real context
 
-### Demo script (2 minutes)
+### Demo script (5 minutes)
 1. Ask an audience member for their Twitter/X handle and LinkedIn URL
 2. Paste into VidCard, hit generate
-3. While it processes (~90s), show the agent trace: sources fetched, hooks chosen, tone selected, Melius canvas created
+3. While it processes (~4-5 minutes), show the agent trace: sources fetched, hooks chosen, tone selected, Melius canvas created
 4. Review the script with highlighted personalization hooks
 5. Render or open the completed HeyGen video — it references their actual work
 6. Show the branded `/v/[id]` share page and Melius canvas proof
 7. Show the translation option — switch to Spanish in one click if API credits allow
 
 ### Pitch one-liner
-> "Drop any social profile. Get a personalised video in 60 seconds. Built on every HeyGen tool in the stack."
+> "Drop any social profile. Get a personalised video in ~5 minutes. Built on every HeyGen tool in the stack."
 
 ---
 

@@ -10,7 +10,7 @@
 
 import { fetchWithRetry } from "@/lib/retry";
 
-type Provider = "anthropic" | "featherless";
+type Provider = "anthropic" | "google" | "featherless";
 
 interface LLMConfig {
   provider: Provider;
@@ -20,40 +20,66 @@ interface LLMConfig {
   timeoutMs: number;
 }
 
+const DEFAULT_GOOGLE_MODEL = "gemini-3.1-flash";
 const DEFAULT_FEATHERLESS_MODEL = "deepseek-ai/DeepSeek-V4-Flash";
 const DEFAULT_LLM_TIMEOUT_MS = 15000;
 
 function getConfig(): LLMConfig {
-  // Prefer Anthropic if available
-  if (process.env.ANTHROPIC_API_KEY) {
-    return {
-      provider: "anthropic",
-      model: "claude-sonnet-4-5-20250514",
-      baseUrl: "https://api.anthropic.com",
-      apiKey: process.env.ANTHROPIC_API_KEY,
-      timeoutMs: Number(process.env.ANTHROPIC_TIMEOUT_MS || DEFAULT_LLM_TIMEOUT_MS),
-    };
+  const preferred = process.env.PREFERRED_LLM_PROVIDER as Provider | undefined;
+
+  // 1. Check for manual override
+  if (preferred === "google" && process.env.GOOGLE_API_KEY) {
+    return getGoogleConfig();
+  }
+  if (preferred === "anthropic" && process.env.ANTHROPIC_API_KEY) {
+    return getAnthropicConfig();
+  }
+  if (preferred === "featherless" && process.env.FEATHERLESS_API_KEY) {
+    return getFeatherlessConfig();
   }
 
-  // Fallback to Featherless
-  if (process.env.FEATHERLESS_API_KEY) {
-    return {
-      provider: "featherless",
-      model: process.env.FEATHERLESS_MODEL || DEFAULT_FEATHERLESS_MODEL,
-      baseUrl: "https://api.featherless.ai/v1",
-      apiKey: process.env.FEATHERLESS_API_KEY,
-      timeoutMs: Number(process.env.FEATHERLESS_TIMEOUT_MS || DEFAULT_LLM_TIMEOUT_MS),
-    };
-  }
+  // 2. Default Priority: Anthropic -> Google -> Featherless
+  if (process.env.ANTHROPIC_API_KEY) return getAnthropicConfig();
+  if (process.env.GOOGLE_API_KEY) return getGoogleConfig();
+  if (process.env.FEATHERLESS_API_KEY) return getFeatherlessConfig();
 
   throw new Error(
-    "No LLM provider configured. Set ANTHROPIC_API_KEY or FEATHERLESS_API_KEY."
+    "No LLM provider configured. Set ANTHROPIC_API_KEY, GOOGLE_API_KEY, or FEATHERLESS_API_KEY."
   );
+}
+
+function getAnthropicConfig(): LLMConfig {
+  return {
+    provider: "anthropic",
+    model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250514",
+    baseUrl: "https://api.anthropic.com",
+    apiKey: process.env.ANTHROPIC_API_KEY!,
+    timeoutMs: Number(process.env.ANTHROPIC_TIMEOUT_MS || DEFAULT_LLM_TIMEOUT_MS),
+  };
+}
+
+function getGoogleConfig(): LLMConfig {
+  return {
+    provider: "google",
+    model: process.env.GOOGLE_MODEL || DEFAULT_GOOGLE_MODEL,
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta",
+    apiKey: process.env.GOOGLE_API_KEY!,
+    timeoutMs: Number(process.env.GOOGLE_TIMEOUT_MS || DEFAULT_LLM_TIMEOUT_MS),
+  };
+}
+
+function getFeatherlessConfig(): LLMConfig {
+  return {
+    provider: "featherless",
+    model: process.env.FEATHERLESS_MODEL || DEFAULT_FEATHERLESS_MODEL,
+    baseUrl: "https://api.featherless.ai/v1",
+    apiKey: process.env.FEATHERLESS_API_KEY!,
+    timeoutMs: Number(process.env.FEATHERLESS_TIMEOUT_MS || DEFAULT_LLM_TIMEOUT_MS),
+  };
 }
 
 /**
  * Send a chat completion request to the configured LLM provider.
- * Handles the differences between Anthropic and OpenAI-compatible APIs.
  */
 export async function chatCompletion(
   systemPrompt: string,
@@ -67,7 +93,52 @@ export async function chatCompletion(
     return callAnthropic(config, systemPrompt, userMessage, maxTokens);
   }
 
+  if (config.provider === "google") {
+    return callGoogleGemini(config, systemPrompt, userMessage, maxTokens);
+  }
+
   return callOpenAICompatible(config, systemPrompt, userMessage, maxTokens);
+}
+
+/**
+ * Google Gemini REST API
+ */
+async function callGoogleGemini(
+  config: LLMConfig,
+  systemPrompt: string,
+  userMessage: string,
+  maxTokens: number
+): Promise<string> {
+  const response = await fetchWithRetry(
+    `${config.baseUrl}/models/${config.model}:generateContent?key=${config.apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: `System Instructions: ${systemPrompt}\n\nUser Message: ${userMessage}` }],
+          },
+        ],
+        generationConfig: {
+          maxOutputTokens: maxTokens,
+          temperature: 0.7,
+        },
+      }),
+    },
+    { timeoutMs: config.timeoutMs, maxAttempts: 1 }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Google Gemini API error: ${response.status} — ${error}`);
+  }
+
+  const data = await response.json();
+  const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+  return stripCodeBlocks(content);
 }
 
 /**

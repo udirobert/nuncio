@@ -3,6 +3,7 @@ import { fetchWithRetry } from "@/lib/retry";
 const TINYFISH_API_KEY = process.env.TINYFISH_API_KEY;
 const TINYFISH_URL = "https://api.fetch.tinyfish.ai";
 const TINYFISH_SEARCH_URL = "https://api.search.tinyfish.ai";
+const TINYFISH_AGENT_URL = "https://agent.tinyfish.ai/v1/automation/run";
 
 export interface EnrichmentResult {
   url: string;
@@ -12,19 +13,146 @@ export interface EnrichmentResult {
   warning?: string;
 }
 
+export interface DiscoveredProfile {
+  url: string;
+  platform: string;
+  confidence: number;
+}
+
+export interface DiscoveryResult {
+  primaryUrl: string;
+  discoveredProfiles: DiscoveredProfile[];
+}
+
 /**
- * Fetch and clean social profile URLs via TinyFish.
- * Fetches each URL individually so a single failure doesn't take down
- * the batch — callers can show per-URL warnings and continue with
- * whatever profiles succeeded.
+ * Discover additional social profiles from a primary URL using TinyFish Agent API.
+ * Returns links to other profiles like personal websites, Twitter, GitHub, etc.
  */
-export async function enrich(urls: string[]): Promise<EnrichmentResult[]> {
+export async function discoverProfiles(url: string): Promise<DiscoveryResult> {
   if (!TINYFISH_API_KEY) {
     throw new Error("TINYFISH_API_KEY is not configured");
   }
 
+  try {
+    const response = await fetchWithRetry(
+      TINYFISH_AGENT_URL,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": TINYFISH_API_KEY,
+        },
+        body: JSON.stringify({
+          url,
+          goal: "Find all social media profiles, personal websites, blogs, and other online profiles for this person. Look for links in headers, footers, bio sections, and contact/about pages. Return JSON array of discovered URLs with platform names.",
+          output_schema: {
+            type: "object",
+            properties: {
+              profiles: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    url: { type: "string" },
+                    platform: { type: "string" },
+                  },
+                  required: ["url"],
+                },
+              },
+            },
+          },
+          browser_profile: "stealth",
+          proxy_config: { enabled: true, type: "tetra", country_code: "US" },
+        }),
+      },
+      { maxAttempts: 1, timeoutMs: 60000 }
+    );
+
+    if (!response.ok) {
+      return { primaryUrl: url, discoveredProfiles: [] };
+    }
+
+    const data = await response.json();
+    const profiles: DiscoveredProfile[] = Array.isArray(data?.result?.profiles)
+      ? data.result.profiles
+          .filter((p: unknown) => p && typeof p === "object" && "url" in p)
+          .map((p: { url: string; platform?: string }) => ({
+            url: validateProfileUrl(p.url),
+            platform: p.platform || detectPlatform(p.url),
+            confidence: 0.8,
+          }))
+          .filter((p: DiscoveredProfile) => p.url)
+      : [];
+
+    return { primaryUrl: url, discoveredProfiles: profiles };
+  } catch {
+    return { primaryUrl: url, discoveredProfiles: [] };
+  }
+}
+
+function validateProfileUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (!parsed.protocol.startsWith("http")) return null;
+    const validHosts = [
+      "linkedin.com",
+      "twitter.com",
+      "x.com",
+      "github.com",
+      "github.io",
+      "medium.com",
+      "dev.to",
+      "substack.com",
+      "personal",
+      "portfolio",
+    ];
+    const host = parsed.hostname.replace(/^www\./, "");
+    if (validHosts.some((h) => host.includes(h))) return url;
+    if (host.match(/\.(io|ai|me|co)$/) || parsed.pathname.length > 1) {
+      return url;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function detectPlatform(url: string): string {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    if (host.includes("linkedin")) return "LinkedIn";
+    if (host.includes("twitter") || host.includes("x.com")) return "Twitter";
+    if (host.includes("github")) return "GitHub";
+    if (host.includes("medium")) return "Medium";
+    if (host.includes("dev.to")) return "Dev.to";
+    if (host.includes("substack")) return "Substack";
+    return "Personal";
+  } catch {
+    return "Unknown";
+  }
+}
+
+/**
+ * Enrich URLs with optional profile discovery.
+ * When discoverRelated is true, uses Agent API to find additional profiles from the first URL.
+ */
+export async function enrich(
+  urls: string[],
+  options?: { discoverRelated?: boolean }
+): Promise<EnrichmentResult[]> {
+  if (!TINYFISH_API_KEY) {
+    throw new Error("TINYFISH_API_KEY is not configured");
+  }
+
+  let urlsToEnrich = urls;
+  if (options?.discoverRelated && urls.length > 0) {
+    const discovery = await discoverProfiles(urls[0]);
+    const discoveredUrls = discovery.discoveredProfiles.map((p) => p.url);
+    urlsToEnrich = [...urls, ...discoveredUrls];
+  }
+
   const results = await Promise.all(
-    urls.map(async (url): Promise<EnrichmentResult> => {
+    urlsToEnrich.map(async (url): Promise<EnrichmentResult> => {
       try {
         const response = await fetchWithRetry(
           TINYFISH_URL,

@@ -38,7 +38,7 @@ export const PLAYBOOK: PlaybookEntry[] = [
       "I'm building nuncio, an agentic video personalization pipeline that uses HeyGen to turn public profile context into a short, tailored outreach video. I'd love feedback from a HeyGen product perspective on making developer-facing video agents feel genuinely useful and not like generic automation.",
     script: `Hey Onee — I came across your work on the HeyGen developer platform, and your recent push to make the Video Agent API more agent-friendly really resonated with me.
 
-I'm building nuncio — it's a pipeline that takes someone's public profile, researches them, writes a personalised script, and renders a video using HeyGen's Video Agent. The whole thing runs autonomously in about 90 seconds.
+I'm building nuncio — it's a pipeline that takes someone's public profile, researches them, writes a personalised script, and renders a video using HeyGen's Video Agent. The whole thing runs autonomously in about ~5 minutes.
 
 What I'd love your perspective on is this: how do we make developer-facing video agents feel genuinely useful rather than just "AI slop with a face"? Your work on the CLI and the MCP connector suggests you've thought deeply about this.
 
@@ -75,7 +75,7 @@ I have a few specific questions about prompt structure and scene composition tha
       "I'm building nuncio, a personalized video outreach agent for founders and growth teams. I'd love feedback from a PostHog perspective on using product context and behavioral signals to make outreach feel more useful, measurable, and less spammy.",
     script: `Hey Tim — I've been following PostHog's approach to product analytics and your writing on making data actionable for growth teams.
 
-I'm building nuncio — it's an agent that turns someone's public profile into a personalised video in 90 seconds. The thesis is that outreach should feel like a thoughtful message from a peer, not a template with a name swapped in.
+I'm building nuncio — it's an agent that turns someone's public profile into a personalised video in ~5 minutes. The thesis is that outreach should feel like a thoughtful message from a peer, not a template with a name swapped in.
 
 Where I'd love your perspective: PostHog thinks deeply about behavioral signals and what makes product interactions feel useful vs annoying. I'm trying to apply that same lens to outreach — using real context about someone's work to make a video that's actually worth watching.
 
@@ -112,7 +112,7 @@ Specifically, I'm curious how you'd think about measuring whether personalised v
       "I'm building nuncio, an agentic video pipeline that can use generative media assets to make personalized business videos feel more cinematic. I'd love feedback from a Fal perspective on fast, scalable creative generation inside developer workflows.",
     script: `Hey Gorkem — I've been watching what Fal is doing with fast inference for generative media, and your focus on making creative generation feel like a developer primitive rather than a design tool really clicks with what I'm building.
 
-nuncio is an agentic pipeline that turns someone's public profile into a personalised outreach video — research, script, visuals, render, all in about 90 seconds. Right now the visual layer is functional but not cinematic.
+nuncio is an agentic pipeline that turns someone's public profile into a personalised outreach video — research, script, visuals, render, all in about ~5 minutes. Right now the visual layer is functional but not cinematic.
 
 What I'm curious about: how do you think about making generated visuals feel intentional rather than "AI-generated"? Fal's approach to speed + quality suggests you've cracked something about making generative media feel production-ready rather than demo-ready.
 
@@ -149,16 +149,16 @@ I'd love 15 minutes to talk about how fast creative generation could make person
       "I'm raising a seed round for nuncio. Priya led Accel's investment in a video infrastructure company last year. I want to introduce what we're building and why personalised video outreach is a $10B+ market.",
     script: `Hey Priya — I noticed you led Accel's investment in Descript last year, and your thesis on video becoming a developer primitive really aligns with what we're building.
 
-I'm the founder of nuncio. We turn any social profile into a personalised outreach video in 90 seconds — fully autonomous. The agent researches the person, writes a script that references their actual work, and renders it with a cloned voice. No templates, no manual editing.
+I'm the founder of nuncio. We turn any social profile into a personalised outreach video in ~5 minutes — fully autonomous. The agent researches the person, writes a script that references their actual work, and renders it with a cloned voice. No templates, no manual editing.
 
-The market signal is strong: sales teams using personalised video see 3-5x reply rates vs text email, but the production cost makes it impossible at scale. We've collapsed that from 30 minutes per video to 90 seconds.
+The market signal is strong: sales teams using personalised video see 3-5x reply rates vs text email, but the production cost makes it impossible at scale. We've collapsed that from 30 minutes per video to ~5 minutes.
 
 We're raising a seed round and I'd love to share a 2-minute demo. Would a 20-minute call work sometime next week?`,
     teardown: {
       whatWorked: [
         "Opens with her specific investment thesis (video as developer primitive) — not generic 'you invest in AI'",
         "Leads with the market insight (3-5x reply rates) before the product description",
-        "Quantifies the improvement (30 min → 90 seconds) — investors think in multiples",
+        "Quantifies the improvement (30 min → ~5 minutes) — investors think in multiples",
         "Specific ask (20-minute call, 2-minute demo) — respects her time",
       ],
       whyItLands:
@@ -223,7 +223,7 @@ This isn't a recruiter blast — I'm reaching out because your open-source work 
       "Met Maya briefly at SaaStr Annual. She mentioned Gong is exploring video in their outreach sequences. I want to follow up while the conversation is fresh.",
     script: `Hey Maya — great meeting you at SaaStr last week. Your point about Gong's data showing that personalised touchpoints in the first 48 hours have 4x the conversion of generic sequences really stuck with me.
 
-I'm the one who mentioned we're building nuncio — the tool that generates personalised video outreach from someone's public profile in 90 seconds. After our conversation, I think there's a natural fit with what Gong is exploring around video in sequences.
+I'm the one who mentioned we're building nuncio — the tool that generates personalised video outreach from someone's public profile in ~5 minutes. After our conversation, I think there's a natural fit with what Gong is exploring around video in sequences.
 
 Specifically: what if every rep could send a video that references the prospect's actual work, generated in the time it takes to write a subject line? That's what we're shipping.
 

@@ -172,7 +172,7 @@ The happy path is: enter URLs → review script → render video → copy link. 
 For the live demo on May 15, the app should have a demo shortcut:
 
 - A pre-filled example with a public figure's profiles (with permission / public figures only)
-- A "demo mode" flag that skips enrichment and uses a cached profile, reducing wait time to ~60s (just the HeyGen render)
+- A "demo mode" flag that skips enrichment and uses a cached profile, reducing wait time to ~4-5m (just the HeyGen render)
 - Clear visual indicator when in demo mode so judges understand the context
 
 This lets the presenter show the full flow in real time without network surprises.

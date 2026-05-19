@@ -17,7 +17,7 @@ No templates. No mail merge. A video that sounds like you wrote it for them spec
 5. **Render** — HeyGen's Video Agent composes a structured 3-scene video with Avatar V and a cloned voice, following HeyGen Skills prompt guidelines.
 6. **Deliver** — The finished video is served on a branded landing page (`/v/[id]`) with sharing mechanics, captions via Speechmatics, and optional translation to 8+ languages.
 
-Total time from input to video: ~90 seconds.
+Total time from input to video: ~5 minutes.
 
 ---
 
@@ -26,7 +26,8 @@ Total time from input to video: ~90 seconds.
 | Layer | Technology |
 |---|---|
 | Enrichment | [TinyFish](https://tinyfish.ai) Fetch + Search API |
-| Intelligence | [Featherless AI](https://featherless.ai) (Qwen3/DeepSeek) or [Anthropic Claude](https://anthropic.com) |
+| Intelligence | [Anthropic Claude](https://anthropic.com) or [Google Gemini 3.1](https://aistudio.google.com) |
+| Fallback Intelligence | [Featherless AI](https://featherless.ai) (Qwen3/DeepSeek) |
 | Speech | [Speechmatics](https://speechmatics.com) — voice input, captions, quality check |
 | Creative canvas | [Melius](https://melius.com) MCP server (with local fallback) |
 | Image generation | [Fal](https://fal.ai) FLUX — creative assets when Melius is not configured |
@@ -96,7 +97,7 @@ NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 - **Branded sharing** — every video link (`/v/[id]`) is a marketing surface with "Make your own" CTA
 - **Credit protection** — URL validation, word count cap, rate limiting, enrichment cache
 - **Demo mode** — `?demo=true` runs the full pipeline with cached data for live presentations
-- **LLM fallback** — auto-selects Featherless (Qwen3) or Anthropic based on available keys
+- **LLM triple-redundancy** — auto-selects Anthropic, Google Gemini 3.1, or Featherless (Qwen3) based on available keys and preferred provider override.
 
 ---
 
