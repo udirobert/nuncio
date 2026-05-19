@@ -13,6 +13,22 @@ function heygenHeaders(extra?: HeadersInit): HeadersInit {
   };
 }
 
+export interface HeyGenAvatar {
+  avatar_id: string;
+  avatar_name: string;
+  gender: string;
+  preview_image_url: string;
+  preview_video_url?: string;
+}
+
+export interface HeyGenVoice {
+  voice_id: string;
+  name: string;
+  gender: string;
+  language?: string;
+  preview_audio?: string;
+}
+
 export interface VideoResult {
   videoId: string;
   sessionId?: string;
@@ -31,12 +47,13 @@ export interface VideoStatus {
  * The Video Agent handles scene composition, avatar selection, and rendering
  * from a structured prompt — the recommended approach for agentic workflows.
  *
- * Falls back to /v3/videos direct API if Video Agent is unavailable.
+ * Falls back to /v2/video/generate (Avatar V) direct API if Video Agent is unavailable.
  */
 export async function createVideo(
   script: string,
   assetUrls?: string[],
-  recipientName?: string
+  recipientName?: string,
+  customization?: VideoCustomization
 ): Promise<VideoResult> {
   if (!HEYGEN_API_KEY) {
     throw new Error("HEYGEN_API_KEY is not configured");
@@ -47,7 +64,7 @@ export async function createVideo(
     return await createVideoViaAgent(script, recipientName);
   } catch (error) {
     console.warn("[heygen] Video Agent failed, falling back to direct API:", error);
-    return await createVideoDirect(script, assetUrls);
+    return await createVideoDirect(script, assetUrls, customization);
   }
 }
 
@@ -89,14 +106,52 @@ async function createVideoViaAgent(
 }
 
 /**
- * Direct /v3/videos API — manual scene composition.
+ * Fetch available avatars from HeyGen.
+ */
+export async function getAvatars(): Promise<HeyGenAvatar[]> {
+  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v2/avatars`, {
+    headers: heygenHeaders(),
+  });
+  if (!response.ok) throw new Error("Failed to fetch avatars");
+  const data = await response.json();
+  return data.data?.avatars || data.data || [];
+}
+
+/**
+ * Fetch available voices from HeyGen.
+ */
+export async function getVoices(): Promise<HeyGenVoice[]> {
+  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v2/voices`, {
+    headers: heygenHeaders(),
+  });
+  if (!response.ok) throw new Error("Failed to fetch voices");
+  const data = await response.json();
+  return data.data?.voices || data.data || [];
+}
+
+export interface VideoCustomization {
+  avatarId?: string;
+  voiceId?: string;
+  background?: { type: "color"; value: string } | { type: "image"; url: string };
+  width?: number;
+  height?: number;
+}
+
+/**
+ * Direct /v2/video/generate API — Avatar V scene composition.
  * Used as fallback if Video Agent is unavailable.
  */
 async function createVideoDirect(
   script: string,
-  assetUrls?: string[]
+  assetUrls?: string[],
+  customization?: VideoCustomization
 ): Promise<VideoResult> {
-  if (!HEYGEN_AVATAR_ID || !HEYGEN_VOICE_ID) {
+  const avatarId = customization?.avatarId || HEYGEN_AVATAR_ID;
+  const voiceId = customization?.voiceId || HEYGEN_VOICE_ID;
+  const width = customization?.width || 1920;
+  const height = customization?.height || 1080;
+
+  if (!avatarId || !voiceId) {
     throw new Error("HEYGEN_AVATAR_ID and HEYGEN_VOICE_ID must be configured");
   }
 
@@ -105,70 +160,54 @@ async function createVideoDirect(
       {
         character: {
           type: "avatar",
-          avatar_id: HEYGEN_AVATAR_ID,
-          avatar_style: "normal",
+          avatar_id: avatarId,
         },
         voice: {
           type: "text",
           input_text: script,
-          voice_id: HEYGEN_VOICE_ID,
+          voice_id: voiceId,
         },
       },
     ],
     dimension: {
-      width: 1920,
-      height: 1080,
+      width,
+      height,
     },
   };
 
-  // If Melius provided a background asset, use it
-  if (assetUrls && assetUrls.length > 0) {
+  // Apply background from customization or from Melius assets
+  const bgUrl = customization?.background?.type === "image"
+    ? customization.background.url
+    : assetUrls?.[0];
+
+  if (customization?.background?.type === "color") {
+    (payload.video_inputs as Record<string, unknown>[])[0] = {
+      ...((payload.video_inputs as Record<string, unknown>[])[0]),
+      background: {
+        type: "color",
+        value: customization.background.value,
+      },
+    };
+  } else if (bgUrl) {
+    // Covers: user's explicit image background, or Melius assetUrls[0] as fallback
     payload.video_inputs = [
       {
         ...((payload.video_inputs as Record<string, unknown>[])[0]),
         background: {
           type: "image",
-          url: assetUrls[0],
+          url: bgUrl,
         },
       },
     ];
   }
 
-  // Compatibility fallback for accounts still expecting the older flat shape.
-  const legacyPayload: Record<string, unknown> = {
-    type: "avatar",
-    avatar_id: HEYGEN_AVATAR_ID,
-    script,
-    voice_id: HEYGEN_VOICE_ID,
-    resolution: "1080p",
-    aspect_ratio: "16:9",
-    expressiveness: "high",
-  };
-
-  if (assetUrls && assetUrls.length > 0) {
-    legacyPayload.background = {
-      type: "asset",
-      asset_id: assetUrls[0],
-    };
-  }
-
-  let response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/videos`, {
+  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v2/video/generate`, {
     method: "POST",
     headers: heygenHeaders({
       "Content-Type": "application/json",
     }),
     body: JSON.stringify(payload),
   });
-
-  if (!response.ok && response.status === 400) {
-    response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/videos`, {
-      method: "POST",
-      headers: heygenHeaders({
-        "Content-Type": "application/json",
-      }),
-      body: JSON.stringify(legacyPayload),
-    });
-  }
 
   if (!response.ok) {
     const error = await response.text();
@@ -183,7 +222,7 @@ async function createVideoDirect(
  * Build a structured Video Agent prompt following HeyGen Skills guidelines.
  * Scene structure: Intro → Main delivery → CTA
  */
-function buildVideoAgentPrompt(script: string, recipientName?: string): string {
+function buildVideoAgentPrompt(script: string, recipientName?: string, customization?: VideoCustomization): string {
   const wordCount = script.split(/\s+/).length;
   const estimatedDuration = Math.ceil(wordCount / 2.5);
 
@@ -212,9 +251,10 @@ GLOBAL STYLE:
 - Avatar: Professional appearance, direct eye contact
 - Background: Clean, minimal, slightly warm-toned
 - Resolution: 1080p, 16:9 landscape
-- Expressiveness: High — natural gestures and facial expressions
-${HEYGEN_AVATAR_ID ? `- Avatar ID: ${HEYGEN_AVATAR_ID}` : ""}
-${HEYGEN_VOICE_ID ? `- Voice ID: ${HEYGEN_VOICE_ID}` : ""}`;
+- Avatar V engine — natural gestures and facial expressions
+${customization?.avatarId || HEYGEN_AVATAR_ID ? `- Avatar ID: ${customization?.avatarId || HEYGEN_AVATAR_ID}` : ""}
+${customization?.voiceId || HEYGEN_VOICE_ID ? `- Voice ID: ${customization?.voiceId || HEYGEN_VOICE_ID}` : ""}
+${customization?.width && customization?.height ? `- Resolution: ${customization.width}x${customization.height}` : ""}`;
 }
 
 /**
@@ -244,7 +284,7 @@ export async function getVideoStatus(videoId: string): Promise<VideoStatus> {
 }
 
 async function getDirectVideoStatus(videoId: string): Promise<VideoStatus | null> {
-  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/videos/${videoId}`, {
+  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v1/video_status.get?video_id=${videoId}`, {
     headers: heygenHeaders(),
   });
 

@@ -1,5 +1,6 @@
 import type { Profile } from "@/lib/claude";
 import type { AgentTraceItem, CanvasProof, ShareRecord } from "@/lib/artifacts";
+import type { VideoCustomization } from "@/lib/heygen";
 import { buildAgentTrace } from "@/lib/artifacts";
 import {
   DEMO_PROFILE,
@@ -374,6 +375,7 @@ export async function renderVideo(
   assetUrls: string[],
   setState: SetState,
   recipientName?: string,
+  customization?: VideoCustomization,
   context?: {
     profile?: Profile;
     sources?: string[];
@@ -453,7 +455,7 @@ export async function renderVideo(
     const videoRes = await fetch("/api/video", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ script, assetUrls, recipientName }),
+      body: JSON.stringify({ script, assetUrls, recipientName, customization }),
     });
 
     if (!videoRes.ok) {

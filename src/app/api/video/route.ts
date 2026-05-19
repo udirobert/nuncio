@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { script, assetUrls, recipientName } = await request.json();
+  const { script, assetUrls, recipientName, customization } = await request.json();
 
   if (!script) {
     return NextResponse.json(
@@ -35,6 +35,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const result = await createVideo(script, assetUrls, recipientName);
+  const result = await createVideo(script, assetUrls, recipientName, customization);
   return NextResponse.json(result);
 }

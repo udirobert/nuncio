@@ -53,5 +53,8 @@ artifacts/test-runs/
 # HyperFrames rendered output
 *.mp4
 nuncio-announcement/node_modules/
+
+# Composed hook + body videos (generated server-side)
+/public/composed/
 *.local.sh
 scripts/deploy-local.sh

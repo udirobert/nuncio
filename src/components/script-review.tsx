@@ -4,6 +4,8 @@ import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import type { Profile } from "@/lib/claude";
 import type { AgentTraceItem, CanvasProof } from "@/lib/artifacts";
+import type { VideoCustomization, HeyGenAvatar, HeyGenVoice } from "@/lib/heygen";
+import { VideoCustomization as VideoCustomizationComponent } from "@/components/video-customization";
 
 interface ScriptReviewProps {
   script: string;
@@ -13,8 +15,10 @@ interface ScriptReviewProps {
   trace?: AgentTraceItem[];
   urls?: string[];
   senderBrief?: string;
+  initialAvatars?: HeyGenAvatar[];
+  initialVoices?: HeyGenVoice[];
   onEdit: (script: string) => void;
-  onRender: () => void;
+  onRender: (customization?: VideoCustomization) => void;
 }
 
 /**
@@ -51,6 +55,8 @@ export function ScriptReview({
   trace,
   urls,
   senderBrief,
+  initialAvatars,
+  initialVoices,
   onEdit,
   onRender,
 }: ScriptReviewProps) {
@@ -86,8 +92,13 @@ export function ScriptReview({
     if (isEditing) {
       onEdit(editedScript);
     }
-    onRender();
+    onRender(videoCustomization);
   }
+
+  const [videoCustomization, setVideoCustomization] = useState<VideoCustomization | undefined>();
+  const handleCustomize = (c: VideoCustomization) => {
+    setVideoCustomization(c);
+  };
 
   return (
     <main className="flex-1 flex items-center justify-center px-6 py-16">
@@ -290,11 +301,25 @@ export function ScriptReview({
           </motion.div>
         )}
 
+        {/* Customization panel */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
+          className="mb-6"
+        >
+          <VideoCustomizationComponent
+            onCustomize={handleCustomize}
+            initialAvatars={initialAvatars}
+            initialVoices={initialVoices}
+          />
+        </motion.div>
+
         {/* Actions */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.55 }}
           className="flex gap-3"
         >
           {isEditing ? (

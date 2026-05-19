@@ -3,6 +3,7 @@ import { enrich } from "@/lib/tinyfish";
 import { validateUrls } from "@/lib/validation";
 import { MemoryCache } from "@/lib/cache";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
+import { recordHit, recordMiss } from "@/lib/cache-metrics";
 
 // Cache enrichment results for 30 minutes
 const enrichmentCache = new MemoryCache<unknown[]>(30);
@@ -49,8 +50,10 @@ export async function POST(request: NextRequest) {
     : MemoryCache.urlsKey(valid);
   const cached = enrichmentCache.get(cacheKey);
   if (cached) {
-    console.log(`[enrich] Cache hit for ${valid.length} URLs`);
-    return NextResponse.json(cached);
+    recordHit("enrich", `${valid.length} URLs`);
+    return NextResponse.json(cached, {
+      headers: { "X-Cache": "hit" },
+    });
   }
 
   // Call TinyFish only for valid URLs
@@ -69,6 +72,9 @@ export async function POST(request: NextRequest) {
 
   // Cache successful results
   enrichmentCache.set(cacheKey, fullResult);
+  recordMiss("enrich", `${valid.length} URLs`);
 
-  return NextResponse.json(fullResult);
+  return NextResponse.json(fullResult, {
+    headers: { "X-Cache": "miss" },
+  });
 }
