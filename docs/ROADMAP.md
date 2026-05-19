@@ -104,14 +104,46 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 
 **Goal:** A standalone `/studio` page where Melius is the visible, interactive star — not a backend step.
 
-- [ ] `/studio` page with agentic canvas builder (paste profile → watches canvas build live)
-- [ ] Embedded Melius canvas preview via share-link iframe
-- [ ] Iterate mode: editable prompt fields per node, calls `node_update` + `run_start` via MCP
-- [ ] Edge wiring between text nodes → image nodes for prompt context
-- [ ] Multi-node-type showcase: `custom_text`, `image`, `group`, and `video`/`audio` nodes
-- [ ] Presence claiming via `show_presence` / `release_presence` for multiplayer safety
-- [ ] Canvas-as-deliverable: position the canvas as a forkable template, HeyGen rendering optional
+- [x] `/studio` page with agentic canvas builder (paste profile → watches canvas build live)
+- [x] Embedded Melius canvas preview via share-link iframe
+- [x] Iterate mode: editable prompt fields per node, calls `node_update` + `run_start` via MCP
+- [x] Edge wiring between text nodes → image nodes for prompt context
+- [x] Multi-node-type showcase: `custom_text`, `image`, `group` nodes (video added in Phase 7)
+- [x] Presence claiming via `show_presence` / `release_presence` for multiplayer safety
+- [x] Canvas-as-deliverable: position the canvas as a forkable template, HeyGen rendering optional
+- [x] Cinematic building-stage UI that narrates each MCP tool call live, with an animated canvas being assembled node by node
 - [ ] Full Melius submission packet: canvas screenshot, process write-up, video walkthrough
+
+---
+
+## Phase 7 — The Hook Engine (Melius hackathon differentiator)
+
+**Goal:** Lift nuncio from "agent-orchestrated outreach video" to "agent that turns any profile into a scroll-stopping personalised media object." This is what breaks us out of *Melius wrapper* status. Full design: [`docs/HOOK_ENGINE.md`](./HOOK_ENGINE.md).
+
+### Cut 1 — minimum demonstrable Hook Engine
+- [ ] `src/lib/hooks/archetypes.ts` — data definitions for all 5 archetypes (Mirror / Origin / Future-cast / Inside joke / Day-in-the-life)
+- [ ] `src/lib/hooks/select.ts` — deterministic archetype selector based on profile signals
+- [ ] `src/lib/hooks/generate.ts` — fal video generation for one archetype (Mirror) end-to-end
+- [ ] `MeliusProvider.createVideoNode` — wraps the `create_video_node` MCP tool
+- [ ] `build/route.ts` integration — agent picks archetype, places archetype-specific nodes, kicks off hook generation async
+- [ ] `/studio` archetype chips on the input stage + selection-reasoning badge on recap
+
+### Cut 2 — all five archetypes, format decisioning
+- [ ] Wire prompt templates for archetypes 2–5
+- [ ] `pickFormat(profile)` helper — agent decides 9:16 vs 16:9 vs 1:1, captions on/off, target duration
+- [ ] Format badge on `/studio` recap (`9:16 · 22s · vertical · captions on · Mirror archetype`)
+- [ ] Hook video node renders as autoplay preview in the node inspector
+
+### Cut 3 — polish & demo readiness
+- [ ] "Re-roll the hook" button → `/api/studio/hook/regenerate` (preserves archetype, fresh take)
+- [ ] `?why=true` link on archetype badge surfaces the agent's 1–2 sentence selection reasoning
+- [ ] Update demo flow (`?demo=true`) to show a baked Mirror archetype with a real generated hook video
+- [ ] Compose hook + body server-side (ffmpeg spike first, fal compose endpoint as fallback)
+
+### Out of scope (post-hackathon)
+- Faceswap of sender face onto hook character (legal review needed first)
+- Branching narrative hooks (recipient clicks between two variants)
+- A/B reply-rate measurement per archetype, feeding back into the selection rule
 
 ---
 

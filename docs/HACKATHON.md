@@ -172,8 +172,20 @@ A standalone page at `/studio` where Melius is the star:
 - The canvas is a reusable, forkable template — not ephemeral
 - Iteration loop: user edits a prompt → agent re-runs → new version appears
 
+### The differentiator — the Hook Engine
+
+Outreach video as a format is stale, and judges scoring *Creativity & Uniqueness* will see prettier visual outputs from other submissions. To break out of "Melius wrapper" status, we are shipping the **Hook Engine**: the agent picks a *visual hook archetype* per recipient (Mirror / Origin / Future-cast / Inside joke / Day-in-the-life), generates a 3-second cinematic opener with fal or Runway, and composes a different node graph on Melius per archetype.
+
+This:
+- Adds the `video` node type, lifting us from 3 → 5+ node types in use
+- Lets the agent decide the *output format* (9:16 vs 16:9, captions, length) based on recipient signals
+- Makes each canvas visibly different, so the screenshots tell a different story per profile
+- Reframes nuncio from "automation" to "a new media format"
+
+Full design and implementation plan: [`docs/HOOK_ENGINE.md`](./HOOK_ENGINE.md).
+
 ### Pitch one-liner
-> "nuncio's agent builds a complete Melius canvas from a single social profile URL — text nodes, image generation, wired edges, all visible and iterable. The canvas IS the deliverable."
+> "nuncio's agent reads a profile, picks the right visual hook archetype for that person, then composes a Melius canvas where the hook is generated as cinematic video alongside the script — every node, edge, format, and creative decision made autonomously and visibly. The canvas isn't just where the work lives. It's how the agent thinks."
 
 ---
 

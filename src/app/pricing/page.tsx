@@ -8,31 +8,76 @@ import { Header } from "@/components/header";
 const MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID || "";
 const ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRO_ANNUAL_PRICE_ID || "";
 
-const FEATURES = [
-  { label: "Unlimited Narratives", desc: "Generate as many video scripts as you need" },
-  { label: "Premium Profile Intel", desc: "Structured context from LinkedIn & X" },
-  { label: "High-Fidelity Rendering", desc: "Pro-grade HeyGen voice & avatar clones" },
-  { label: "Advanced Canvas Access", desc: "Full control over the Melius creative studio" },
-  { label: "Custom Branded Pages", desc: "Host videos on your own branded share pages" },
-  { label: "Smart Captions", desc: "Multi-language Speechmatics subtitles" },
-  { label: "Priority Rendering", desc: "Dedicated queue for faster processing", annual: true },
-  { label: "Annual Savings", desc: "Get 2 months free when billed yearly", annual: true },
-];
-
-const COMPARISON = [
-  { feature: "Daily video generations", free: "1 video", pro: "Unlimited" },
-  { label: "AI Narratives", free: true, pro: true },
-  { label: "Profile Enrichment", free: "Basic", pro: "Premium" },
-  { label: "HeyGen Clones", free: "Standard", pro: "Pro (High-def)" },
-  { label: "Canvas Studio", free: "View only", pro: "Full Edit" },
-  { label: "Custom Branding", free: false, pro: true },
-];
+const PLAN_TIERS = [
+  {
+    id: "trial",
+    name: "Trial",
+    eyebrow: "Anonymous judges",
+    price: "$0",
+    period: "first canvas",
+    hookModel: "fal Wan 2.5",
+    quality: "Draft cinematic",
+    allowance: "1 hook / IP / 24h",
+    speed: "~12s hook generation",
+    watermark: "Watermarked export",
+    cta: "Start anonymous",
+    note: "No email. Drop a profile URL and watch the agent build.",
+    featured: false,
+  },
+  {
+    id: "free",
+    name: "Free",
+    eyebrow: "Email captured",
+    price: "$0",
+    period: "monthly",
+    hookModel: "fal LTX or Wan",
+    quality: "Draft cinematic",
+    allowance: "3 hooks / month",
+    speed: "~12s hook generation",
+    watermark: "Watermarked export",
+    cta: "Try free",
+    note: "Unlocks extra rerolls and a shareable campaign link.",
+    featured: false,
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    eyebrow: "Recommended",
+    price: "$29",
+    annualPrice: "$290",
+    period: "month",
+    annualPeriod: "year",
+    hookModel: "fal Kling 2.0",
+    quality: "Cinematic",
+    allowance: "50 hooks / month",
+    speed: "~45s hook generation",
+    watermark: "No watermark",
+    cta: "Get Pro",
+    note: "Best for reps and founders sending real social-ready outreach.",
+    featured: true,
+  },
+  {
+    id: "studio",
+    name: "Studio",
+    eyebrow: "Agency / brand",
+    price: "$79+",
+    period: "month",
+    hookModel: "fal Veo3",
+    quality: "Flagship",
+    allowance: "200 hooks / month",
+    speed: "~60s hook generation",
+    watermark: "No watermark",
+    cta: "Talk to us",
+    note: "For teams that want flagship hooks, brand review, and volume.",
+    featured: false,
+  },
+] as const;
 
 const FAQS = [
-  { q: "Is the first video really free?", a: "Yes. You can generate and preview your first video narrative for free. No credit card required." },
+  { q: "Is the first hook really free?", a: "Yes. You can build the canvas and generate the first draft hook without email or a credit card." },
   { q: "Can I cancel anytime?", a: "Absolutely. Cancel through your dashboard in one click. No long-term commitments." },
-  { q: "What is 'Profile Intel'?", a: "nuncio analyzes your recipient's public activity to craft a narrative that resonates with their specific professional context, not just generic scraping." },
-  { q: "Do you offer enterprise plans?", a: "We do. If you need custom API access or volume discounts for teams, contact us at team@nuncio.ai" },
+  { q: "Why do tiers use different hook models?", a: "nuncio routes low-friction trials to fast draft models and upgrades paid campaigns to cinematic models when the stakes justify the cost." },
+  { q: "Do you offer agency plans?", a: "We do. Studio is for teams that need higher monthly volume, flagship video models, and brand-safe review workflows." },
 ];
 
 function PricingContent() {
@@ -44,8 +89,6 @@ function PricingContent() {
   const canceled = searchParams.get("canceled");
 
   const currentPriceId = annual ? ANNUAL_PRICE_ID : MONTHLY_PRICE_ID;
-  const price = annual ? "$290" : "$29";
-  const period = annual ? "/year" : "/month";
 
   async function handleCheckout() {
     if (!currentPriceId) {
@@ -82,7 +125,7 @@ function PricingContent() {
           Scale your impact,<br />not your costs.
         </h1>
         <p className="text-ink-muted text-base max-w-lg mx-auto">
-          One simple plan for power users. Free forever for the curious.
+          Start without friction. Upgrade only when the campaign needs a more cinematic hook model.
         </p>
       </motion.div>
 
@@ -100,7 +143,7 @@ function PricingContent() {
               </svg>
             </div>
             <h3 className="text-lg font-semibold text-ink mb-1">Welcome to the Pro family!</h3>
-            <p className="text-sm text-ink-muted">Your subscription is active. Start generating unlimited narratives now.</p>
+            <p className="text-sm text-ink-muted">Your subscription is active. Kling-powered hook generation is now unlocked.</p>
           </motion.div>
         )}
         {canceled && (
@@ -115,127 +158,125 @@ function PricingContent() {
         )}
       </AnimatePresence>
 
-      <div className="grid md:grid-cols-2 gap-8 items-start max-w-5xl mx-auto">
-        {/* Free Plan (Anchoring) */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1 }}
-          className="rounded-3xl border border-cream-dark bg-white/50 p-8 md:p-10"
-        >
-          <span className="text-[10px] uppercase tracking-widest font-medium text-ink-faint">
-            Getting started
-          </span>
-          <div className="mt-6 flex items-baseline gap-1">
-            <span className="font-[family-name:var(--font-display)] text-6xl tracking-tight text-ink-muted">
-              $0
-            </span>
-            <span className="text-sm text-ink-faint">/forever</span>
-          </div>
-          <p className="text-sm text-ink-muted mt-2 mb-8">
-            Experience the magic of nuncio with no strings attached.
-          </p>
+      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-5 items-stretch max-w-6xl mx-auto">
+        {PLAN_TIERS.map((tier, index) => {
+          const isPro = tier.id === "pro";
+          const displayedPrice = isPro && annual && "annualPrice" in tier ? tier.annualPrice : tier.price;
+          const displayedPeriod = isPro && annual && "annualPeriod" in tier ? tier.annualPeriod : tier.period;
+          const isLoading = loading === "annual" || loading === "monthly";
 
-          <ul className="space-y-4 mb-10">
-            {COMPARISON.map((item, i) => (
-              <li key={i} className="flex items-center justify-between text-sm">
-                <span className="text-ink-muted">{item.label || item.feature}</span>
-                <span className="font-medium text-ink">
-                  {typeof item.free === "boolean" ? (
-                    item.free ? "✓" : "—"
-                  ) : (
-                    item.free
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-
-          <button
-            onClick={() => window.location.assign("/")}
-            className="w-full rounded-xl border border-cream-dark py-3.5 text-sm font-medium text-ink hover:bg-cream-dark/30 transition-colors"
-          >
-            Try for free
-          </button>
-        </motion.div>
-
-        {/* Pro Plan */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
-          className="relative"
-        >
-          <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
-            <span className="text-[10px] uppercase tracking-widest font-bold text-white bg-accent px-4 py-1.5 rounded-full shadow-lg shadow-accent/20">
-              Highly Recommended
-            </span>
-          </div>
-
-          <div className="rounded-3xl border-2 border-accent bg-white p-8 md:p-10 shadow-2xl shadow-accent/5">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-2 bg-cream-dark/50 p-1 rounded-full">
-                <button
-                  onClick={() => setAnnual(false)}
-                  className={`px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all ${!annual ? "bg-white text-ink shadow-sm" : "text-ink-faint"}`}
-                >
-                  Monthly
-                </button>
-                <button
-                  onClick={() => setAnnual(true)}
-                  className={`px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all ${annual ? "bg-accent text-white shadow-sm" : "text-ink-faint"}`}
-                >
-                  Yearly
-                </button>
-              </div>
-              {annual && (
-                <span className="text-[10px] font-bold text-success bg-success-soft px-2 py-1 rounded-md animate-pulse">
-                  -17% OFF
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-baseline gap-1">
-              <span className="font-[family-name:var(--font-display)] text-7xl tracking-tight text-accent">
-                {price}
-              </span>
-              <span className="text-sm text-ink-muted font-medium">{period}</span>
-            </div>
-
-            <p className="text-sm text-ink-muted mt-3 mb-8">
-              Unlock the full power of AI-driven video narratives and personalization.
-            </p>
-
-            <button
-              onClick={handleCheckout}
-              disabled={loading !== null}
-              className="btn-press w-full rounded-xl bg-ink text-cream py-4 text-sm font-bold disabled:opacity-40 hover:bg-ink-light transition-all shadow-xl shadow-ink/10 mb-10"
+          return (
+            <motion.div
+              key={tier.id}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.08 * index }}
+              className={`relative rounded-2xl border bg-white p-5 flex flex-col min-h-[520px] ${
+                tier.featured
+                  ? "border-2 border-accent shadow-2xl shadow-accent/5"
+                  : "border-cream-dark"
+              }`}
             >
-              {loading === "annual" || loading === "monthly" ? "Preparing secure checkout..." : `Get Pro ${annual ? "Annual" : "Monthly"}`}
-            </button>
-
-            <ul className="space-y-4">
-              {FEATURES.filter((f) => annual || !f.annual).map((f) => (
-                <motion.li
-                  key={f.label}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="flex items-start gap-4"
-                >
-                  <span className="mt-0.5 w-5 h-5 rounded-full bg-accent-soft flex items-center justify-center shrink-0">
-                    <svg viewBox="0 0 12 12" className="w-3 h-3 text-accent" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M2.5 6l2.5 2.5 4.5-5" />
-                    </svg>
+              {tier.featured && (
+                <div className="absolute -top-3 left-5">
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-white bg-accent px-3 py-1.5 rounded-full shadow-lg shadow-accent/20">
+                    Recommended
                   </span>
-                  <div>
-                    <span className="text-sm font-semibold text-ink leading-none">{f.label}</span>
-                    <span className="text-[11px] text-ink-muted block mt-0.5">{f.desc}</span>
-                  </div>
-                </motion.li>
-              ))}
-            </ul>
-          </div>
-        </motion.div>
+                </div>
+              )}
+
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="text-[10px] uppercase tracking-widest font-medium text-ink-faint">
+                    {tier.eyebrow}
+                  </span>
+                  <h2 className="font-[family-name:var(--font-display)] text-3xl tracking-tight mt-2">
+                    {tier.name}
+                  </h2>
+                </div>
+                {isPro && (
+                  <span className="text-[10px] font-bold text-success bg-success-soft px-2 py-1 rounded-md">
+                    {annual ? "-17%" : "Monthly"}
+                  </span>
+                )}
+              </div>
+
+              {isPro && (
+                <div className="flex items-center gap-2 bg-cream-dark/50 p-1 rounded-full mt-5">
+                  <button
+                    onClick={() => setAnnual(false)}
+                    className={`flex-1 px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all ${!annual ? "bg-white text-ink shadow-sm" : "text-ink-faint"}`}
+                  >
+                    Monthly
+                  </button>
+                  <button
+                    onClick={() => setAnnual(true)}
+                    className={`flex-1 px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all ${annual ? "bg-accent text-white shadow-sm" : "text-ink-faint"}`}
+                  >
+                    Yearly
+                  </button>
+                </div>
+              )}
+
+              <div className="mt-6 flex items-baseline gap-1">
+                <span className={`font-[family-name:var(--font-display)] text-5xl tracking-tight ${tier.featured ? "text-accent" : "text-ink-muted"}`}>
+                  {displayedPrice}
+                </span>
+                <span className="text-sm text-ink-faint">/{displayedPeriod}</span>
+              </div>
+
+              <p className="text-sm text-ink-muted mt-3 min-h-[58px]">
+                {tier.note}
+              </p>
+
+              <div className="rounded-xl border border-cream-dark bg-cream/40 p-3 mt-5 space-y-2">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-ink-muted">Hook model</span>
+                  <span className="font-semibold text-ink text-right">{tier.hookModel}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-ink-muted">Quality</span>
+                  <span className="font-medium text-ink text-right">{tier.quality}</span>
+                </div>
+              </div>
+
+              <ul className="space-y-3 mt-5 mb-6 text-sm">
+                {[tier.allowance, tier.speed, tier.watermark].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span className="mt-1 w-4 h-4 rounded-full bg-accent-soft flex items-center justify-center shrink-0">
+                      <svg viewBox="0 0 12 12" className="w-2.5 h-2.5 text-accent" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M2.5 6l2.5 2.5 4.5-5" />
+                      </svg>
+                    </span>
+                    <span className="text-ink-muted">{item}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                onClick={() => {
+                  if (isPro) {
+                    handleCheckout();
+                    return;
+                  }
+                  if (tier.id === "studio") {
+                    window.location.assign("mailto:team@nuncio.ai?subject=Studio%20plan");
+                    return;
+                  }
+                  window.location.assign("/studio");
+                }}
+                disabled={isPro && loading !== null}
+                className={`btn-press w-full rounded-xl py-3.5 text-sm font-bold transition-all mt-auto disabled:opacity-40 ${
+                  tier.featured
+                    ? "bg-ink text-cream hover:bg-ink-light shadow-xl shadow-ink/10"
+                    : "border border-cream-dark text-ink hover:bg-cream-dark/30"
+                }`}
+              >
+                {isPro && isLoading ? "Preparing secure checkout..." : `${tier.cta}${isPro ? annual ? " Annual" : " Monthly" : ""}`}
+              </button>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Trust badges */}
