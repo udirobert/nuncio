@@ -202,17 +202,61 @@ export async function POST(request: NextRequest) {
 
         await melius.releasePresence(canvasId);
 
-        // Start all generation runs through Melius
+        // Start all generation runs through Melius and poll for output URLs
         send({ phase: "generate", status: "Starting image generation", detail: "Background + Thumbnail via Melius" });
-        await melius.startRun(bgNodeId, canvasId);
-        await melius.startRun(thumbNodeId, canvasId);
+        const bgRunId = await melius.startRun(bgNodeId, canvasId);
+        const thumbRunId = await melius.startRun(thumbNodeId, canvasId);
 
+        let hookRunId: string | null = null;
         if (hookVideoNodeId && hookAccess.generationAllowed) {
           send({ phase: "generate", status: "Starting hook video generation", detail: "Via Melius video node" });
-          await melius.startRun(hookVideoNodeId, canvasId);
+          hookRunId = await melius.startRun(hookVideoNodeId, canvasId);
         }
 
-        send({ phase: "generate", status: "Handing the canvas to you", detail: "Open in Melius to iterate" });
+        // Poll runs until complete (max 90s for images, 300s for video)
+        send({ phase: "generate", status: "Generating assets…", detail: "Polling for completion" });
+
+        const runs: { runId: string; nodeId: string; label: string; maxWait: number }[] = [
+          { runId: bgRunId, nodeId: bgNodeId, label: "Video Background", maxWait: 90000 },
+          { runId: thumbRunId, nodeId: thumbNodeId, label: "Video Thumbnail", maxWait: 90000 },
+        ];
+        if (hookRunId && hookVideoNodeId) {
+          runs.push({ runId: hookRunId, nodeId: hookVideoNodeId, label: "Hook Cinematic", maxWait: 300000 });
+        }
+
+        const pollResults = await Promise.allSettled(
+          runs.map(async ({ runId, nodeId, label, maxWait }) => {
+            const start = Date.now();
+            while (Date.now() - start < maxWait) {
+              await new Promise((r) => setTimeout(r, 4000));
+              const status = await melius.getRunStatus(runId, canvasId);
+              if (status.outputUrl) {
+                const node = studioNodes.find((n) => n.id === nodeId);
+                if (node) {
+                  node.status = "complete";
+                  node.outputUrl = status.outputUrl;
+                }
+                send({ phase: "generate", node: { id: nodeId, status: "complete", outputUrl: status.outputUrl } });
+                return status.outputUrl;
+              }
+              if (status.status === "failed" || status.status === "error") {
+                const node = studioNodes.find((n) => n.id === nodeId);
+                if (node) node.status = "failed";
+                send({ phase: "generate", node: { id: nodeId, status: "failed" } });
+                throw new Error(`${label} generation failed`);
+              }
+            }
+            send({ phase: "generate", node: { id: nodeId, status: "failed" } });
+            throw new Error(`${label} generation timed out`);
+          })
+        );
+
+        const hookOutputUrl = hookRunId
+          ? (pollResults[2]?.status === "fulfilled" ? pollResults[2].value : undefined)
+          : undefined;
+
+        const allComplete = pollResults.every((r) => r.status === "fulfilled");
+        send({ phase: "generate", status: allComplete ? "All assets generated" : "Some assets failed", detail: `${pollResults.filter(r => r.status === "fulfilled").length}/${runs.length} complete` });
 
         const finalResult: StudioBuildResult = {
           projectId,
@@ -227,10 +271,10 @@ export async function POST(request: NextRequest) {
             remainingFree: hookAccess.remainingFree,
             canRegenerate: hookAccess.canRegenerate,
             watermark: hookAccess.watermark,
-            status: hookAccess.generationAllowed ? "generating" : "demo",
+            status: hookOutputUrl ? "complete" : (hookAccess.generationAllowed ? "failed" : "demo"),
             format: hookFormat.label,
             formatReasoning: hookFormat.reasoning,
-            outputUrl: undefined,
+            outputUrl: hookOutputUrl,
             warning: hookAccess.reason,
           },
         };

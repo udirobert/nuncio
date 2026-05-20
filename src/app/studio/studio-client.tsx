@@ -1121,7 +1121,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
                   <button
                     onClick={handleDownloadClick}
-                    className="btn-press inline-flex items-center gap-1.5 rounded-xl border border-cream-dark px-4 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+                    disabled={nodeStats.complete < nodeStats.total}
+                    title={nodeStats.complete < nodeStats.total ? "Waiting for all assets to finish generating…" : undefined}
+                    className="btn-press inline-flex items-center gap-1.5 rounded-xl border border-cream-dark px-4 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Export ZIP
                   </button>
@@ -1223,6 +1225,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
                 {/* Script */}
                 <ScriptCard nodes={buildResult.nodes} />
+
+                {/* Context nodes */}
+                <ContextNodes nodes={buildResult.nodes} />
               </div>
 
               {/* Video result */}
@@ -1497,6 +1502,50 @@ function ScriptCard({ nodes }: { nodes: StudioNode[] }) {
         )}
       </div>
       <p className="text-sm text-ink leading-relaxed whitespace-pre-wrap">{scriptNode.prompt}</p>
+    </div>
+  );
+}
+
+function ContextNodes({ nodes }: { nodes: StudioNode[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const contextNodes = nodes.filter(
+    (n) => n.type === "custom_text" && n.label !== "Script"
+  );
+  if (contextNodes.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-cream-dark bg-white overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-5 py-3 hover:bg-cream/30 transition-colors"
+      >
+        <span className="text-[10px] uppercase tracking-widest font-medium text-ink-muted">
+          Context nodes ({contextNodes.length})
+        </span>
+        <svg
+          viewBox="0 0 16 16"
+          className={`w-3.5 h-3.5 text-ink-faint transition-transform ${expanded ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path d="M4 6l4 4 4-4" />
+        </svg>
+      </button>
+      {expanded && (
+        <div className="border-t border-cream-dark divide-y divide-cream-dark/50">
+          {contextNodes.map((node) => (
+            <div key={node.id} className="px-5 py-3 space-y-1">
+              <span className="text-[10px] font-medium text-ink-muted uppercase tracking-wide">
+                {node.label}
+              </span>
+              <p className="text-xs text-ink leading-relaxed whitespace-pre-wrap">
+                {node.prompt || "—"}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
