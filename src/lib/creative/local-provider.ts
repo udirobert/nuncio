@@ -106,8 +106,14 @@ async function generateFalImage(
       return submitted.images?.[0]?.url || null;
     }
 
-    for (let attempt = 0; attempt < 20; attempt++) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    let isCompleted = false;
+    let pollInterval = 1000;
+    const maxTime = 60 * 1000; // 60 seconds max wait for image generation
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxTime) {
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      pollInterval = Math.min(pollInterval + 500, 3000); // Progressive backoff (cap at 3s)
 
       const status = await fetch(`${FAL_BASE_URL}/${FAL_MODEL}/requests/${requestId}/status`, {
         headers: { Authorization: `Key ${FAL_KEY}` },
@@ -115,9 +121,14 @@ async function generateFalImage(
 
       if (!status.ok) continue;
       const statusData = await status.json();
-      if (statusData.status === "COMPLETED") break;
+      if (statusData.status === "COMPLETED") {
+        isCompleted = true;
+        break;
+      }
       if (statusData.status === "FAILED") return null;
     }
+
+    if (!isCompleted) return null;
 
     const result = await fetch(`${FAL_BASE_URL}/${FAL_MODEL}/requests/${requestId}`, {
       headers: { Authorization: `Key ${FAL_KEY}` },

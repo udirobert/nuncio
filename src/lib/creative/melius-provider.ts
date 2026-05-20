@@ -189,7 +189,7 @@ export interface StudioBuildResult {
 export class MeliusProvider implements CreativeProvider {
   readonly name = "melius";
 
-  private projectId: string | null = null;
+  public projectId: string | null = null;
   private canvasId: string | null = null;
   private nodeIds: Map<string, string> = new Map();
   private guideLoaded = false;
@@ -206,6 +206,7 @@ export class MeliusProvider implements CreativeProvider {
     const project = await mcpCall<MeliusProject>("project_create", {
       title: `nuncio — ${targetName} — ${Date.now()}`,
       description: "Autonomous nuncio personalised video outreach session",
+      visibility: "public",
     });
     this.projectId = project.id || project.projectId || null;
     if (!this.projectId) throw new Error("Melius project_create did not return an id");
@@ -223,6 +224,13 @@ export class MeliusProvider implements CreativeProvider {
       assets: [],
       canvasUrl: `https://app.melius.com/canvas/${this.canvasId}`,
     };
+  }
+
+  async updateProjectVisibility(projectId: string, visibility: "public" | "private"): Promise<void> {
+    await mcpCall("project_update", {
+      projectId,
+      visibility,
+    });
   }
 
   async generateBackground(session: CreativeSession, prompt: string): Promise<GeneratedAsset> {

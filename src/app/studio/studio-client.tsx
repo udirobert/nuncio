@@ -419,40 +419,11 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     }
   }, [searchParams]);
 
-  // Drive the cinematic narration whenever we're in "building" stage.
-  // The real network call runs in parallel; we wait for whichever finishes
-  // last before flipping to "ready", so the user sees a coherent story.
-  useEffect(() => {
-    if (stage !== "building") return;
-    setLogIndex(0); // eslint-disable-line react-hooks/set-state-in-effect
-    setAppearedCount(0);
-    setEdgeCount(0);
-
-    let i = 0;
-    const id = setInterval(() => {
-      i += 1;
-      if (i > AGENT_SCRIPT.length) {
-        clearInterval(id);
-        return;
-      }
-      setLogIndex(i);
-      const entry = AGENT_SCRIPT[i - 1];
-      if (entry.phase === "nodes") {
-        setAppearedCount((c) => Math.min(8, c + 1));
-        const targetIdx = Math.min(7, appearedCount);
-        const t = DEMO_LAYOUT_NODES[targetIdx];
-        setCursorTarget({ x: t.x + t.w / 2, y: t.y + 20 });
-      } else if (entry.phase === "edges") {
-        setEdgeCount((c) => Math.min(6, c + 1));
-      }
-    }, 650);
-
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage]);
-
   async function handleBuild() {
     if (!url.trim()) return;
+    setLogIndex(0);
+    setAppearedCount(0);
+    setEdgeCount(0);
     setStage("building");
     setError("");
     setShowHookReasoning(false);
@@ -464,6 +435,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         body: JSON.stringify({
           url: url.trim(),
           senderBrief: senderBrief.trim() || undefined,
+          email: capturedEmail || undefined,
           archetype: archetype === "auto" ? undefined : archetype,
         }),
       });
@@ -473,21 +445,83 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         throw new Error(data.error || "Build failed");
       }
 
-      const result: StudioBuildResult = await res.json();
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("Failed to read stream");
 
-      // Wait for the narration to finish (so the user gets a complete story)
-      // before revealing the canvas. Min total = ~14s narration + network.
-      const minWaitMs = AGENT_SCRIPT.length * 650 + 400;
-      await new Promise((r) => setTimeout(r, Math.max(0, minWaitMs - 800)));
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let currentLogIndex = 0;
 
-      setBuildResult(result);
-      setShareUrl("");
-      setHookRerollsRemaining(0);
-      setIframeLoaded(false);
-      setStage("ready");
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.trim() || !line.startsWith("data: ")) continue;
+          try {
+            const data = JSON.parse(line.slice(6));
+
+            if (data.error) throw new Error(data.error);
+
+            if (data.phase) {
+              currentLogIndex++;
+              setLogIndex(currentLogIndex);
+              
+              if (data.phase === "nodes") {
+                setAppearedCount((c) => Math.min(8, c + 1));
+                const targetIdx = Math.min(7, appearedCount);
+                const t = DEMO_LAYOUT_NODES[targetIdx];
+                setCursorTarget({ x: t.x + t.w / 2, y: t.y + 20 });
+              } else if (data.phase === "edges") {
+                setEdgeCount((c) => Math.min(6, c + 1));
+              }
+            }
+
+            if (data.canvas) {
+              setBuildResult((prev) => ({
+                ...prev,
+                ...data.canvas,
+                nodes: prev?.nodes || [],
+              } as StudioBuildResult));
+            }
+
+            if (data.node) {
+              setBuildResult((prev) => {
+                if (!prev) return prev;
+                const exists = prev.nodes.find(n => n.id === data.node.id);
+                if (exists) {
+                  return {
+                    ...prev,
+                    nodes: prev.nodes.map(n => n.id === data.node.id ? { ...n, ...data.node } : n)
+                  };
+                }
+                return {
+                  ...prev,
+                  nodes: [...prev.nodes, data.node]
+                };
+              });
+            }
+
+            if (data.type === "done") {
+              setBuildResult(data.result);
+              setStage("ready");
+              setIframeLoaded(false);
+              return;
+            }
+          } catch (e) {
+            console.error("Stream parse error:", e, line);
+          }
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setStage("error");
+    } finally {
+      setIterating(null);
     }
   }
 
@@ -1070,14 +1104,29 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 {/* Canvas */}
                 <div className="rounded-2xl border border-cream-dark bg-white overflow-hidden shadow-[0_2px_40px_-16px_rgba(74,58,255,0.25)]">
                   <div className="aspect-[4/3] relative">
-                    <div className="w-full h-full origin-top-left" style={{ transform: "scale(0.65)", width: "154%", height: "154%" }}>
-                      <AgentCanvas
-                        appearedCount={appearedCount}
-                        edgeCount={edgeCount}
-                        showCursor
-                        cursorTarget={cursorTarget}
-                      />
-                    </div>
+                    {buildResult?.canvasId ? (
+                      <div className="absolute inset-0">
+                        <iframe
+                          src={buildResult.embedUrl}
+                          className="w-full h-full border-0"
+                          allow="clipboard-read; clipboard-write; microphone"
+                          title="Live Melius Canvas"
+                        />
+                        <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-white/90 backdrop-blur rounded-full px-2.5 py-1 shadow-sm border border-cream-dark z-30 pointer-events-none">
+                          <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                          <span className="text-[10px] font-mono text-ink-faint uppercase">Live build</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-full h-full origin-top-left" style={{ transform: "scale(0.85)", width: "118%", height: "118%" }}>
+                        <AgentCanvas
+                          appearedCount={appearedCount}
+                          edgeCount={edgeCount}
+                          showCursor
+                          cursorTarget={cursorTarget}
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-4 px-4 py-2.5 border-t border-cream-dark text-[11px] font-mono text-ink-faint">
                     <span><span className="text-ink">{appearedCount}</span>/6 nodes</span>
@@ -1364,7 +1413,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 <div className="rounded-2xl border border-cream-dark bg-white overflow-hidden relative min-h-[480px] shadow-[0_2px_40px_-16px_rgba(74,58,255,0.25)]">
                   {!iframeLoaded && canvasId !== DEMO_CANVAS_ID && (
                     <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl">
-                      <div className="absolute inset-0 blur-sm opacity-20 scale-[0.55] origin-top-left pointer-events-none">
+                      <div className="absolute inset-0 blur-sm opacity-20 scale-[0.85] origin-top-left pointer-events-none">
                         <AgentCanvas appearedCount={8} edgeCount={6} />
                       </div>
                       <div className="flex flex-col items-center gap-3 relative z-20">

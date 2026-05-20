@@ -57,11 +57,16 @@ export async function generateHookVideo(input: {
       return { status: "failed", error: "fal did not return a request id or video URL." };
     }
 
-    for (let attempt = 0; attempt < 24; attempt++) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    let isCompleted = false;
+    let pollInterval = 1000;
+    const maxTime = 120 * 1000; // 120 seconds max wait for video generation
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxTime) {
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      pollInterval = Math.min(pollInterval + 1000, 5000); // Progressive backoff (cap at 5s)
 
       const status = await fetch(`${FAL_BASE_URL}/${input.modelEndpoint}/requests/${requestId}/status`, {
-        method: "POST",
         headers: { Authorization: `Key ${FAL_KEY}` },
       });
 
@@ -70,11 +75,17 @@ export async function generateHookVideo(input: {
       if (statusData.status === "FAILED") {
         return { status: "failed", requestId, error: statusData.error || "fal hook generation failed." };
       }
-      if (statusData.status === "COMPLETED") break;
+      if (statusData.status === "COMPLETED") {
+        isCompleted = true;
+        break;
+      }
+    }
+
+    if (!isCompleted) {
+      return { status: "failed", requestId, error: "fal hook generation timed out after 120 seconds." };
     }
 
     const result = await fetch(`${FAL_BASE_URL}/${input.modelEndpoint}/requests/${requestId}`, {
-      method: "POST",
       headers: { Authorization: `Key ${FAL_KEY}` },
     });
 
