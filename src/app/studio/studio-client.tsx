@@ -268,9 +268,22 @@ function AgentCanvas({
 
 function AmbientCanvasLoop() {
   const [tick, setTick] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.38);
+
   useEffect(() => {
     const id = setInterval(() => setTick((t) => (t + 1) % 18), 700);
     return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      const { width } = entries[0].contentRect;
+      setScale(Math.min(width / 1240, 0.55));
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
   }, []);
 
   const appearedCount = Math.min(8, Math.max(0, tick));
@@ -280,11 +293,16 @@ function AmbientCanvasLoop() {
   const cursorTarget = { x: target.x + target.w / 2, y: target.y + 20 };
 
   return (
-    <div className="w-full aspect-[4/3] rounded-2xl border border-cream-dark bg-white overflow-hidden shadow-[0_2px_30px_-12px_rgba(74,58,255,0.18)]">
-      <div className="w-full h-full origin-top-left" style={{ transform: "scale(0.55)", width: "182%", height: "182%" }}>
+    <div
+      ref={containerRef}
+      className="w-full rounded-2xl border border-cream-dark bg-white overflow-hidden shadow-[0_2px_30px_-12px_rgba(74,58,255,0.18)]"
+      style={{ height: 680 * scale + 16 }}
+    >
+      <div className="w-full h-full relative">
         <AgentCanvas
           appearedCount={appearedCount}
           edgeCount={edgeCount}
+          scale={scale}
           showCursor
           cursorTarget={cursorTarget}
         />
@@ -1016,15 +1034,14 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               ) : (
                 <div className="grid lg:grid-cols-[1.4fr,1fr] gap-6">
                   <div className="rounded-2xl border border-cream-dark bg-white overflow-hidden shadow-[0_2px_40px_-16px_rgba(74,58,255,0.25)]">
-                    <div className="aspect-[4/3] relative">
-                      <div className="w-full h-full origin-top-left" style={{ transform: "scale(0.85)", width: "118%", height: "118%" }}>
-                        <AgentCanvas
-                          appearedCount={appearedCount}
-                          edgeCount={edgeCount}
-                          showCursor
-                          cursorTarget={cursorTarget}
-                        />
-                      </div>
+                    <div style={{ height: 680 * 0.52 }} className="relative">
+                      <AgentCanvas
+                        appearedCount={appearedCount}
+                        edgeCount={edgeCount}
+                        scale={0.52}
+                        showCursor
+                        cursorTarget={cursorTarget}
+                      />
                     </div>
                     <div className="flex items-center gap-4 px-4 py-2.5 border-t border-cream-dark text-[11px] font-mono text-ink-faint">
                       <span><span className="text-ink">{appearedCount}</span>/8 nodes</span>
