@@ -205,13 +205,54 @@ export async function enrich(
 
 function isLowQualityFetch(markdown: string): boolean {
   const text = markdown.toLowerCase();
-  const boilerplate = [
+  const trimmed = markdown.trim();
+
+  if (trimmed.length < 500) return true;
+
+  const loginWallPhrases = [
     "javascript is disabled",
     "please enable javascript",
     "supported browser",
-    "cookie policy imprint ads info",
+    "cookie policy",
+    "terms of service",
+    "sign in",
+    "log in to",
+    "create an account",
+    "don't have an account",
+    "forgot password",
+    "privacy policy",
+    "help center",
+    "ads info",
+    "imprint",
+    "sign up",
+    "join now",
+    "this browser is no longer supported",
+    "something went wrong",
+    "try reloading",
+    "rate limit",
   ];
-  return markdown.trim().length < 500 || boilerplate.some((phrase) => text.includes(phrase));
+
+  const matchCount = loginWallPhrases.filter((phrase) => text.includes(phrase)).length;
+  if (matchCount >= 3) return true;
+
+  const profileSignals = [
+    /\b(ceo|cto|coo|vp|founder|co-founder|engineer|designer|manager|director|head of)\b/i,
+    /\b(company|startup|building|launched|shipped|created|working on)\b/i,
+    /\b(university|stanford|mit|harvard|college|degree|studied)\b/i,
+    /@[a-z0-9_]{2,}/i,
+    /\b(followers|following|posts|tweets|connections)\b/i,
+    /\b(experience|skills|projects|publications|patents)\b/i,
+  ];
+  const signalCount = profileSignals.filter((re) => re.test(text)).length;
+  if (signalCount === 0 && trimmed.length < 2000) return true;
+
+  const lines = trimmed.split("\n").filter((l) => l.trim().length > 10);
+  const navLines = lines.filter((l) =>
+    /^[\s|·•\-–—]*((home|explore|search|notifications|messages|profile|settings|more|menu|about|contact|blog|careers|developers|business|advertise|help)\s*[|·•\-–—\s]*)+$/i.test(l.trim())
+  );
+  if (navLines.length > 0 && lines.length - navLines.length < 5) return true;
+
+  return false;
 }
 
 async function searchProfileContext(url: string): Promise<string | null> {
@@ -244,19 +285,27 @@ function buildSearchQuery(url: string): string | null {
   try {
     const parsed = new URL(url);
     const host = parsed.hostname.replace(/^www\./, "");
-    const handle = parsed.pathname.split("/").filter(Boolean)[0];
+    const segments = parsed.pathname.split("/").filter(Boolean);
+
+    let handle: string | null = null;
+    if (host.includes("linkedin.com")) {
+      const inIdx = segments.indexOf("in");
+      handle = inIdx >= 0 ? segments[inIdx + 1] : segments[segments.length - 1];
+    } else {
+      handle = segments[0];
+    }
     if (!handle) return null;
 
     if (host.includes("x.com") || host.includes("twitter.com")) {
-      return `${handle} cofounder founder LinkedIn GitHub company profile`;
+      return `"${handle}" site:linkedin.com OR site:github.com OR site:crunchbase.com`;
     }
     if (host.includes("linkedin.com")) {
-      return `${handle} LinkedIn profile product manager company`;
+      return `"${handle}" LinkedIn founder engineer company role`;
     }
     if (host.includes("github.com")) {
-      return `${handle} GitHub profile founder company`;
+      return `"${handle}" GitHub engineer founder company`;
     }
-    return `${handle} ${host} profile`;
+    return `"${handle}" ${host} profile`;
   } catch {
     return null;
   }
