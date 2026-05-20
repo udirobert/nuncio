@@ -623,6 +623,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
             canvasId: buildResult.canvasId,
             canvasUrl: buildResult.canvasUrl,
             hook: buildResult.hook,
+            soundscapeUrl: buildResult.soundscapeUrl,
           },
         }),
       });

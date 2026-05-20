@@ -230,6 +230,9 @@ export function VideoPlayer({
   // Fetch soundscape if missing
   useEffect(() => {
     if (soundscapeUrl || !industry) return;
+    // Don't auto-generate on the fly — soundscape should be pre-generated during build
+    // This is a fallback for legacy share records without a soundscape
+    let cancelled = false;
 
     async function fetchSoundscape() {
       try {
@@ -238,7 +241,7 @@ export function VideoPlayer({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ context: industry }),
         });
-        if (res.ok) {
+        if (res.ok && !cancelled) {
           const data = await res.json();
           setSoundscapeUrl(data.audio);
         }
@@ -247,6 +250,7 @@ export function VideoPlayer({
       }
     }
     fetchSoundscape();
+    return () => { cancelled = true; };
   }, [soundscapeUrl, industry]);
 
   // Merge prop captions with locally-generated ones

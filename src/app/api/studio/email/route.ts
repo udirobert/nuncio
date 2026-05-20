@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }: {
       email?: string;
       honeypot?: string;
-      buildResult?: Pick<StudioBuildResult, "canvasId" | "canvasUrl" | "projectId" | "hook">;
+      buildResult?: Pick<StudioBuildResult, "canvasId" | "canvasUrl" | "projectId" | "hook" | "soundscapeUrl">;
     } = body;
 
     if (honeypot) {
@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
     const record = await createShareRecord({
       videoUrl: "",
       email: normalizedEmail,
+      soundscapeUrl: buildResult?.soundscapeUrl,
       recipientName: buildResult?.hook?.archetype
         ? `${buildResult.hook.archetype} hook recipient`
         : "Studio campaign",

@@ -6,6 +6,7 @@ import type { StudioNode, StudioBuildResult } from "@/lib/creative/melius-provid
 import { chooseArchetype } from "@/lib/hooks/select";
 import { ensureTrialCookie, resolveHookAccess } from "@/lib/hooks/tiers";
 import { pickFormat, type HookArchetypeId } from "@/lib/hooks/archetypes";
+import { generateAmbientVibe } from "@/lib/elevenlabs";
 
 const NODE_DIMENSIONS = {
   text: { w: 420, h: 140 },
@@ -263,6 +264,19 @@ export async function POST(request: NextRequest) {
 
         send({ phase: "generate", status: "Generation started", detail: "Assets rendering — polling for completion" });
 
+        // Generate cinematic soundscape (non-blocking — don't fail the build if ElevenLabs is unavailable)
+        let soundscapeDataUrl: string | undefined;
+        const vibeId = scriptResult?.vibeId || body.vibeId || "tech-office";
+        try {
+          if (process.env.ELEVENLABS_API_KEY) {
+            send({ phase: "generate", status: "Generating cinematic soundscape", detail: `ElevenLabs · vibe: ${vibeId}` });
+            const audioBuffer = await generateAmbientVibe(vibeId);
+            soundscapeDataUrl = `data:audio/mpeg;base64,${audioBuffer.toString("base64")}`;
+          }
+        } catch (error) {
+          console.warn("[studio/build] Soundscape generation failed (non-fatal):", error);
+        }
+
         const finalResult: StudioBuildResult = {
           projectId,
           canvasId,
@@ -271,6 +285,7 @@ export async function POST(request: NextRequest) {
           nodes: studioNodes,
           recommendedVibeId: scriptResult?.vibeId || "tech-office",
           vibeReasoning: scriptResult?.vibeReasoning || "Standard professional vibe.",
+          soundscapeUrl: soundscapeDataUrl,
           hook: {
             archetype: hookChoice.archetype.label,
             reasoning: hookChoice.reasoning,

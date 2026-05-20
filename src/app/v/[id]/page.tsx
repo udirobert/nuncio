@@ -184,15 +184,26 @@ export default function VideoLandingPage({
                   <div className="w-full h-full bg-ink" />
                 </button>
               ) : (
-                <video
-                  src={videoData.videoUrl}
-                  controls
-                  autoPlay
-                  playsInline
-                  className="w-full h-full object-contain"
-                >
-                  <track kind="captions" />
-                </video>
+                <>
+                  {videoData.soundscapeUrl && (
+                    <audio
+                      src={videoData.soundscapeUrl}
+                      autoPlay
+                      loop
+                      className="hidden"
+                      ref={(el) => { if (el) el.volume = 0.3; }}
+                    />
+                  )}
+                  <video
+                    src={videoData.videoUrl}
+                    controls
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-contain"
+                  >
+                    <track kind="captions" />
+                  </video>
+                </>
               )}
             </div>
           </motion.div>

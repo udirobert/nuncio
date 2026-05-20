@@ -188,6 +188,7 @@ export interface StudioBuildResult {
   nodes: StudioNode[];
   recommendedVibeId?: string;
   vibeReasoning?: string;
+  soundscapeUrl?: string;
   hook?: {
     archetype: string;
     reasoning: string;

@@ -8,6 +8,8 @@ import { pickFormat, type HookArchetypeId } from "@/lib/hooks/archetypes";
 export interface EnrichResponse {
   profile: Profile;
   script: string;
+  vibeId: string;
+  vibeReasoning: string;
   hook: {
     archetype: string;
     reasoning: string;
@@ -63,6 +65,8 @@ export async function POST(request: NextRequest) {
   const response: EnrichResponse = {
     profile,
     script: scriptResult.script,
+    vibeId: scriptResult.vibeId,
+    vibeReasoning: scriptResult.vibeReasoning,
     hook: {
       archetype: hookChoice.archetype.label,
       reasoning: hookChoice.reasoning,

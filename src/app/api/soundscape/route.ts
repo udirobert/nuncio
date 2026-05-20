@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateAmbientVibe } from "@/lib/elevenlabs";
+import { generateSoundEffect, VIBE_PRESETS } from "@/lib/elevenlabs";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
-import { getProofStorageProvider } from "@/lib/storage";
 
 export async function POST(request: NextRequest) {
-  // Use same rate limit as video for now as it's a generative operation
   const clientId = getClientId(request);
   const limit = checkRateLimit(clientId, "video", RATE_LIMITS.video);
   if (!limit.allowed) {
@@ -15,7 +13,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { context } = await request.json();
+    const { context, preview } = await request.json();
 
     if (!context) {
       return NextResponse.json(
@@ -24,29 +22,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const audioBuffer = await generateAmbientVibe(context);
-    
-    // For the hackathon, we'll store this in Grove if enabled,
-    // otherwise return the base64 data for immediate use/caching
-    const proofProvider = getProofStorageProvider();
-    
-    if (proofProvider && proofProvider.name === "grove") {
-      // In a real scenario, we'd have a specific upload method for assets.
-      // For now, we'll return base64 and let the client handle it or implement
-      // a dedicated upload helper if we find one in the codebase.
-      const base64Audio = audioBuffer.toString("base64");
-      return NextResponse.json({
-        audio: `data:audio/mpeg;base64,${base64Audio}`,
-        context
-      });
-    }
+    const preset = VIBE_PRESETS.find((p) => p.id === context);
+    const prompt = preset
+      ? preset.prompt
+      : `Ambient background soundscape for: ${context}. Subtle, non-distracting, high quality foley.`;
+
+    // Preview mode: 3s clip for the customization panel
+    // Full mode: 20s loop for the actual video
+    const duration = preview ? 3 : 20;
+    const audioBuffer = await generateSoundEffect(prompt, duration, 0.8);
 
     const base64Audio = audioBuffer.toString("base64");
     return NextResponse.json({
       audio: `data:audio/mpeg;base64,${base64Audio}`,
-      context
+      context,
+      duration,
     });
-
   } catch (error) {
     console.error("[soundscape] Generation failed:", error);
     return NextResponse.json(

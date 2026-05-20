@@ -146,7 +146,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices 
       const res = await fetch("/api/soundscape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ context: id }),
+        body: JSON.stringify({ context: id, preview: true }),
       });
       if (res.ok) {
         const data = await res.json();
