@@ -56,7 +56,25 @@ X-API-Key: $TINYFISH_API_KEY
 }
 ```
 
-**Error handling:** Failed URLs do not count against quota. If a platform returns a login wall, fall back gracefully — the pipeline continues with whatever profiles succeeded.
+**Login-wall detection:** Many platforms (X/Twitter, LinkedIn) return login walls instead of profile content when fetched server-side. The enrichment layer detects these with a two-threshold heuristic:
+- Phrase matching (≥2 matches of "terms of service", "sign in", "cookie policy", etc.)
+- X Corp footer detection
+- Profile signal scoring (no role/company/education signals in short content)
+- Navigation-heavy content detection
+
+When fetch returns junk, it is **discarded entirely** — never combined with search results.
+
+**Multi-phase search fallback (X/Twitter):**
+
+Twitter profiles are consistently behind a login wall. When a `x.com` or `twitter.com` URL is detected, the enrichment uses a three-phase search strategy:
+
+1. **Phase 1a — X-native** (`"@handle" OR "handle" site:x.com`): Retrieves bio snippets, tweet text, and profile metadata from X search results
+2. **Phase 1b — Cross-platform** (`"handle" site:linkedin.com OR site:github.com`): Finds mentions and cross-links on other platforms
+3. **Phase 2 — Targeted** (`"Real Name" "Company"`): After extracting the person's name and company from Phase 1 results using regex patterns, a targeted search retrieves rich profile data (full LinkedIn profiles, news articles, investor/company pages)
+
+Name extraction uses patterns like `"Name (@handle)"` from search result titles. Company extraction prioritises mentions adjacent to the handle (e.g., `@handle - Co-founder at Company`).
+
+**Error handling:** Failed URLs do not count against quota. If both fetch and search fail, the pipeline continues with whatever profiles succeeded. The build route returns a clear error if no usable profile data is found.
 
 **Cost:** Free tier includes 25 URLs/minute. No credits consumed on failed fetches.
 
@@ -91,9 +109,13 @@ Claude receives the structured profile plus a brief about the sender (who you ar
 
 **System prompt contract:**
 - Respond only in the requested JSON format
+- The `name` field must be the person's real full name — never generic labels ("Help Center", "User", etc.)
 - Reference at least 2 specific details from the enriched profile in the script
+- Script is written as a direct message TO the recipient (first person sender, second person recipient)
 - Keep the script under 200 words (avatar delivery time)
 - Do not fabricate credentials or claims not present in the enrichment data
+
+**Name validation:** After synthesis, the profile name is validated against a blocklist of common garbage values (login-wall artifacts, platform names, generic labels). If the name fails validation, the build route returns an early error: "Could not identify a person from this profile."
 
 ---
 
@@ -238,7 +260,8 @@ STRIPE_SECRET_KEY=
 
 | Stage | Failure mode | Recovery |
 |---|---|---|
-| TinyFish | Login wall / 403 on profile | Skip that URL, continue with remaining profiles. Show warning in UI. |
+| TinyFish | Login wall / 403 on profile | Discard junk, run multi-phase search fallback (X/Twitter gets 3-phase). If all fail, show clear error. |
+| Synthesis | Name not identifiable | Early exit with "Could not identify a person" error — prevents downstream garbage. |
 | Claude | Rate limit | Retry with exponential backoff (max 3 attempts) |
 | Melius | Canvas creation fails | Fall through to local provider — pipeline continues without Melius |
 | HeyGen Video Agent | API unavailable | Automatic fallback to direct `/v3/videos` API |

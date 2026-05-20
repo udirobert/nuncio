@@ -54,6 +54,12 @@ export async function POST(request: NextRequest) {
         send({ phase: "synthesise", status: "Parsing surface signals...", detail: "Role · company · notable work · interests · tone" });
         const profile = await synthesise(markdown);
 
+        if (profile.name === "there") {
+          send({ error: "Could not identify a person from this profile. The page may be behind a login wall — try a different URL or platform." });
+          controller.close();
+          return;
+        }
+
         // 3. Generate script
         send({ phase: "synthesise", status: "Drafting outreach script...", detail: "Conversational, < 90 seconds, specific" });
         const script = await generateScript(profile, senderBrief, { intent: intent as Parameters<typeof generateScript>[2] extends { intent: infer I } ? I : undefined });

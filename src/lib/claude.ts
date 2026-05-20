@@ -21,7 +21,7 @@ export async function synthesise(
     return fallbackProfile(enrichment);
   }
 
-  const systemPrompt = `You are a profile synthesis agent. Given enriched social profile data, produce a structured JSON profile. Respond ONLY with valid JSON matching this schema: { "name": string, "current_role": string, "company": string, "notable_work": string[], "interests": string[], "tone": "formal" | "conversational" | "technical", "personalization_hooks": string[] }. Do not fabricate information not present in the source data. Do not wrap in markdown code blocks. Output raw JSON only.`;
+  const systemPrompt = `You are a profile synthesis agent. Given enriched social profile data, produce a structured JSON profile. Respond ONLY with valid JSON matching this schema: { "name": string, "current_role": string, "company": string, "notable_work": string[], "interests": string[], "tone": "formal" | "conversational" | "technical", "personalization_hooks": string[] }. Do not fabricate information not present in the source data. Do not wrap in markdown code blocks. Output raw JSON only. IMPORTANT: The "name" field MUST be the person's real full name (first + last). If the data does not contain an identifiable person's name, return "name": "". Never use generic labels like "Help Center", "User", "Profile", or website/brand names as the person's name.`;
 
   const userMessage = `Synthesise the following enriched profile data into a structured profile:\n\n${enrichment.join("\n\n---\n\n")}`;
 
@@ -111,9 +111,24 @@ function parseProfileJson(text: string): Profile | null {
   return null;
 }
 
+const GARBAGE_NAMES = new Set([
+  "help center", "user", "profile", "account", "home", "settings",
+  "sign in", "log in", "twitter", "x", "linkedin", "github",
+  "privacy policy", "terms of service", "there",
+]);
+
+function isValidPersonName(name: string | undefined): boolean {
+  if (!name || name.trim().length < 2) return false;
+  if (GARBAGE_NAMES.has(name.toLowerCase().trim())) return false;
+  if (/^[^a-zA-Z]*$/.test(name)) return false;
+  if (name.split(/\s+/).length > 5) return false;
+  return true;
+}
+
 function normaliseProfile(profile: Partial<Profile>): Profile {
+  const name = isValidPersonName(profile.name) ? profile.name!.trim() : "there";
   return {
-    name: profile.name || "there",
+    name,
     current_role: profile.current_role || "",
     company: profile.company || "",
     notable_work: Array.isArray(profile.notable_work) ? profile.notable_work : [],

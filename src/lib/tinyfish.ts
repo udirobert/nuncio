@@ -187,20 +187,17 @@ export async function enrich(
         return { url, markdown, success: true, source: "fetch" };
       }
 
-      // Fetch failed or returned junk — try search
+      // Fetch failed or returned junk — try search (discard junk entirely)
       try {
         const searchMarkdown = await searchProfileContext(url);
         if (searchMarkdown) {
-          const combined = markdown.trim().length > 0
-            ? `${markdown}\n\n---\n\nSearch context:\n${searchMarkdown}`
-            : searchMarkdown;
           return {
             url,
-            markdown: combined,
+            markdown: searchMarkdown,
             success: true,
-            source: markdown.trim().length > 0 ? "fetch+search" : "search",
+            source: "search",
             warning: fetchOk
-              ? "Fetch returned low-quality profile content; augmented with TinyFish Search."
+              ? "Fetch returned login-wall content; using TinyFish Search instead."
               : "Fetch service unavailable; using TinyFish Search.",
           };
         }
@@ -245,7 +242,10 @@ function isLowQualityFetch(markdown: string): boolean {
   ];
 
   const matchCount = loginWallPhrases.filter((phrase) => text.includes(phrase)).length;
-  if (matchCount >= 3) return true;
+  if (matchCount >= 2) return true;
+
+  // X/Twitter specific: their login wall dumps legal footer as main content
+  if (text.includes("© 2026 x corp") || text.includes("© 2025 x corp") || text.includes("x corp")) return true;
 
   const profileSignals = [
     /\b(ceo|cto|coo|vp|founder|co-founder|engineer|designer|manager|director|head of)\b/i,
@@ -267,53 +267,133 @@ function isLowQualityFetch(markdown: string): boolean {
   return false;
 }
 
-async function searchProfileContext(url: string): Promise<string | null> {
-  const query = buildSearchQuery(url);
-  if (!query) return null;
+interface SearchResult {
+  title?: string;
+  snippet?: string;
+  url?: string;
+}
 
+async function runSearch(query: string): Promise<SearchResult[]> {
   const response = await fetchWithRetry(
     `${TINYFISH_SEARCH_URL}?${new URLSearchParams({ query }).toString()}`,
     {
-      headers: {
-        "X-API-Key": TINYFISH_API_KEY || "",
-      },
+      headers: { "X-API-Key": TINYFISH_API_KEY || "" },
     },
     { maxAttempts: 1, timeoutMs: 10000 }
   );
-
-  if (!response.ok) return null;
+  if (!response.ok) return [];
   const data = await response.json();
-  const results = Array.isArray(data.results) ? data.results.slice(0, 5) : [];
-  if (results.length === 0) return null;
+  return Array.isArray(data.results) ? data.results : [];
+}
+
+async function searchProfileContext(url: string): Promise<string | null> {
+  const handle = extractHandle(url);
+  if (!handle) return null;
+
+  const host = new URL(url).hostname.replace(/^www\./, "");
+  const isTwitter = host.includes("x.com") || host.includes("twitter.com");
+
+  let allResults: SearchResult[] = [];
+
+  if (isTwitter) {
+    // Phase 1a: X-native results (tweets, bio, profile snippets)
+    const xResults = await runSearch(`"@${handle}" OR "${handle}" site:x.com`);
+    allResults.push(...xResults);
+
+    // Phase 1b: Cross-platform mentions (LinkedIn, news, etc.)
+    const crossResults = await runSearch(`"${handle}" site:linkedin.com OR site:github.com OR site:crunchbase.com`);
+    allResults.push(...crossResults);
+
+    // Extract real name and company from combined results
+    const combined = [...xResults, ...crossResults];
+    const realName = extractNameFromSnippets(handle, combined);
+
+    // Phase 2: If we found their name, search for rich profile data
+    if (realName) {
+      const company = extractCompanyFromSnippets(combined, handle);
+      const targetedQuery = company
+        ? `"${realName}" "${company}"`
+        : `"${realName}" site:linkedin.com OR site:crunchbase.com`;
+      const targetedResults = await runSearch(targetedQuery);
+      allResults.push(...targetedResults);
+    }
+  } else {
+    const query = buildSearchQuery(url, handle, host);
+    if (!query) return null;
+    allResults = await runSearch(query);
+  }
+
+  // Deduplicate by URL
+  const seen = new Set<string>();
+  const uniqueResults = allResults.filter((r) => {
+    if (!r.url || seen.has(r.url)) return false;
+    seen.add(r.url);
+    return true;
+  }).slice(0, 10);
+
+  if (uniqueResults.length === 0) return null;
 
   return [
-    `Profile URL: ${url}`,
+    `Profile URL: ${url}${handle ? ` (handle: @${handle})` : ""}`,
     `The following are web search results about this person:`,
     "",
-    ...results.map((result: { title?: string; snippet?: string; url?: string }, index: number) => {
+    ...uniqueResults.map((result, index) => {
       return `${index + 1}. ${result.title || "Untitled"}\n${result.snippet || ""}\nSource: ${result.url || ""}`;
     }),
   ].join("\n\n");
 }
 
-function buildSearchQuery(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname.replace(/^www\./, "");
-    const segments = parsed.pathname.split("/").filter(Boolean);
+function extractNameFromSnippets(handle: string, results: SearchResult[]): string | null {
+  for (const r of results) {
+    const combined = `${r.title || ""} ${r.snippet || ""}`;
+    // Pattern: "Name (@handle)" or "Name (@handle) / Posts"
+    const match = combined.match(new RegExp(`([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*)\\s*\\(@?${handle}\\)`, "i"));
+    if (match) return match[1].trim();
+    // Pattern: title like "joowon (@n0w00j) / Posts / X"
+    const titleMatch = r.title?.match(new RegExp(`^([\\w]+)\\s*\\(@?${handle}\\)`, "i"));
+    if (titleMatch) return titleMatch[1].trim();
+  }
+  return null;
+}
 
-    let handle: string | null = null;
-    if (host.includes("linkedin.com")) {
-      const inIdx = segments.indexOf("in");
-      handle = inIdx >= 0 ? segments[inIdx + 1] : segments[segments.length - 1];
-    } else {
-      handle = segments[0];
+function extractCompanyFromSnippets(results: SearchResult[], handle?: string): string | null {
+  // First pass: look for company directly associated with the handle
+  if (handle) {
+    for (const r of results) {
+      const text = `${r.title || ""} ${r.snippet || ""}`;
+      // Pattern: "@handle - Role at Company" or "handle ... Co-founder at Company"
+      const handleCtx = text.match(new RegExp(`@?${handle}[^.]*?(?:co-?founder|founder|ceo|cto)\\s+(?:at|@)\\s+([A-Z][a-zA-Z]+)`, "i"));
+      if (handleCtx) return handleCtx[1];
+      // Pattern: "Name - cofounder @ company" in title
+      const titleMatch = r.title?.match(/cofounder\s*@\s*([a-zA-Z]+)/i);
+      if (titleMatch && text.toLowerCase().includes(handle.toLowerCase())) return titleMatch[1];
+    }
+  }
+  // Second pass: first "founder/CEO at X" mention
+  for (const r of results) {
+    const text = `${r.title || ""} ${r.snippet || ""}`;
+    const match = text.match(/(?:co-?founder|founder|ceo|cto)\s+(?:at|@)\s+([A-Z][a-zA-Z]+)/i);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+function buildSearchQuery(url: string, handle?: string | null, host?: string): string | null {
+  try {
+    if (!handle) {
+      const parsed = new URL(url);
+      host = parsed.hostname.replace(/^www\./, "");
+      const segments = parsed.pathname.split("/").filter(Boolean);
+      if (host?.includes("linkedin.com")) {
+        const inIdx = segments.indexOf("in");
+        handle = inIdx >= 0 ? segments[inIdx + 1] : segments[segments.length - 1];
+      } else {
+        handle = segments[0];
+      }
     }
     if (!handle) return null;
+    if (!host) host = new URL(url).hostname.replace(/^www\./, "");
 
-    if (host.includes("x.com") || host.includes("twitter.com")) {
-      return `"${handle}" site:linkedin.com OR site:github.com OR site:crunchbase.com`;
-    }
     if (host.includes("linkedin.com")) {
       return `"${handle}" site:linkedin.com OR site:wikipedia.org OR site:crunchbase.com`;
     }
@@ -321,6 +401,21 @@ function buildSearchQuery(url: string): string | null {
       return `"${handle}" GitHub engineer founder company`;
     }
     return `"${handle}" ${host} profile`;
+  } catch {
+    return null;
+  }
+}
+
+function extractHandle(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "");
+    const segments = parsed.pathname.split("/").filter(Boolean);
+    if (host.includes("linkedin.com")) {
+      const inIdx = segments.indexOf("in");
+      return inIdx >= 0 ? segments[inIdx + 1] : segments[segments.length - 1] || null;
+    }
+    return segments[0] || null;
   } catch {
     return null;
   }
