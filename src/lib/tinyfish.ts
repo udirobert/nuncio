@@ -146,13 +146,20 @@ export async function enrich(
 
   let urlsToEnrich = urls;
   if (options?.discoverRelated && urls.length > 0) {
-    const discovery = await discoverProfiles(urls[0]);
-    const discoveredUrls = discovery.discoveredProfiles.map((p) => p.url);
-    urlsToEnrich = [...urls, ...discoveredUrls];
+    try {
+      const discovery = await discoverProfiles(urls[0]);
+      const discoveredUrls = discovery.discoveredProfiles.map((p) => p.url);
+      urlsToEnrich = [...urls, ...discoveredUrls];
+    } catch {
+      // Discovery is optional — continue with original URLs
+    }
   }
 
   const results = await Promise.all(
     urlsToEnrich.map(async (url): Promise<EnrichmentResult> => {
+      // Try fetch first
+      let markdown = "";
+      let fetchOk = false;
       try {
         const response = await fetchWithRetry(
           TINYFISH_URL,
@@ -164,20 +171,24 @@ export async function enrich(
             },
             body: JSON.stringify({ urls: [url] }),
           },
-          { maxAttempts: 2 } // lighter retry for per-URL calls
+          { maxAttempts: 2 }
         );
-
-        let markdown = "";
+        fetchOk = response.ok;
         if (response.ok) {
           const data = await response.json();
           const item = normaliseTinyFishItem(data);
           markdown = item?.markdown || item?.text || item?.content || "";
         }
+      } catch {
+        // Fetch threw — fall through to search
+      }
 
-        if (markdown.trim().length > 0 && !isLowQualityFetch(markdown)) {
-          return { url, markdown, success: true, source: "fetch" };
-        }
+      if (markdown.trim().length > 0 && !isLowQualityFetch(markdown)) {
+        return { url, markdown, success: true, source: "fetch" };
+      }
 
+      // Fetch failed or returned junk — try search
+      try {
         const searchMarkdown = await searchProfileContext(url);
         if (searchMarkdown) {
           const combined = markdown.trim().length > 0
@@ -188,16 +199,16 @@ export async function enrich(
             markdown: combined,
             success: true,
             source: markdown.trim().length > 0 ? "fetch+search" : "search",
-            warning: response.ok
+            warning: fetchOk
               ? "Fetch returned low-quality profile content; augmented with TinyFish Search."
               : "Fetch service unavailable; using TinyFish Search.",
           };
         }
-
-        return { url, markdown: "", success: false };
       } catch {
-        return { url, markdown: "", success: false };
+        // Search also failed
       }
+
+      return { url, markdown: "", success: false };
     })
   );
 
