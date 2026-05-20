@@ -60,20 +60,11 @@ export async function POST(request: NextRequest) {
         const hookFormat = pickFormat(profile);
         const hookAccess = resolveHookAccess(request, typeof email === "string" ? email : null);
 
-        send({ phase: "canvas", status: "Initialising Melius session...", detail: "MCP session initialised" });
-        const hookGeneration = await generateHookVideo({
-          prompt: hookChoice.prompt,
-          modelEndpoint: hookAccess.modelEndpoint,
-          tier: hookAccess.tier,
-          generationAllowed: hookAccess.generationAllowed,
-          aspectRatio: hookFormat.aspectRatio,
-          durationSeconds: Math.min(5, hookFormat.durationSeconds),
-        });
-
         // 4. Build Melius canvas
         resetMeliusSession();
         const melius = new MeliusProvider();
 
+        send({ phase: "canvas", status: "Initialising Melius session...", detail: "MCP session initialised" });
         const session = await melius.createSession(profile.name);
         const canvasId = session.id;
         const projectId = melius["projectId"] || "";
@@ -200,15 +191,15 @@ export async function POST(request: NextRequest) {
         const hookConceptNodeId = await melius.createCustomTextNode(canvasId, "Hook Concept", hookConceptText, pos("hookConcept"));
         sendNode({ id: hookConceptNodeId, label: "Hook Concept", type: "custom_text", status: "complete", prompt: hookConceptText, reasoning: "Documenting strategy." });
 
-        // Video Node
+        // Video Node - created as "generating" placeholder first
         send({ phase: "nodes", status: "Placing Hook Cinematic", detail: "node_type: video · fal hook prompt" });
         let hookVideoNodeId: string | null = null;
         try {
-          hookVideoNodeId = await melius.createVideoNode(canvasId, "Hook Cinematic", hookChoice.prompt, pos("hookVideo"), hookGeneration.outputUrl);
+          hookVideoNodeId = await melius.createVideoNode(canvasId, "Hook Cinematic", hookChoice.prompt, pos("hookVideo"), undefined);
           sendNode({
             id: hookVideoNodeId, label: "Hook Cinematic", type: "video",
-            status: hookGeneration.outputUrl ? "complete" : hookGeneration.status === "failed" ? "failed" : "pending",
-            prompt: hookChoice.prompt, outputUrl: hookGeneration.outputUrl, reasoning: "Placing cinematic video hook."
+            status: "generating",
+            prompt: hookChoice.prompt, outputUrl: undefined, reasoning: "Placing cinematic video hook."
           });
         } catch (error) {
           console.warn("[studio/build] Hook video node failed", error);
@@ -245,7 +236,7 @@ export async function POST(request: NextRequest) {
         send({ phase: "generate", status: "Kicking off thumbnail image", detail: "Model: Seedance · poll for completion" });
         await melius.startRun(thumbNodeId, canvasId);
 
-        // Final result
+        // Final result (video node in generating state initially)
         const finalResult: StudioBuildResult = {
           projectId,
           canvasId,
@@ -260,13 +251,39 @@ export async function POST(request: NextRequest) {
             remainingFree: hookAccess.remainingFree,
             canRegenerate: hookAccess.canRegenerate,
             watermark: hookAccess.watermark,
-            status: hookGeneration.outputUrl ? "complete" : hookGeneration.status,
+            status: "generating",
             format: hookFormat.label,
             formatReasoning: hookFormat.reasoning,
-            outputUrl: hookGeneration.outputUrl,
-            warning: hookAccess.reason || hookGeneration.error,
+            outputUrl: undefined,
+            warning: hookAccess.reason,
           },
         };
+
+        // Trigger background video generation asynchronously (non-blocking)
+        if (hookVideoNodeId) {
+          (async () => {
+            try {
+              console.log(`[studio/build] Starting background hook video generation for canvas ${canvasId}...`);
+              const hookGeneration = await generateHookVideo({
+                prompt: hookChoice.prompt,
+                modelEndpoint: hookAccess.modelEndpoint,
+                tier: hookAccess.tier,
+                generationAllowed: hookAccess.generationAllowed,
+                aspectRatio: hookFormat.aspectRatio,
+                durationSeconds: Math.min(5, hookFormat.durationSeconds),
+              });
+
+              if (hookGeneration.outputUrl) {
+                console.log(`[studio/build] Background video generation complete! Attaching to node ${hookVideoNodeId} on canvas ${canvasId}...`);
+                await melius.attachVideoToNode(hookVideoNodeId, hookGeneration.outputUrl, canvasId);
+              } else {
+                console.error(`[studio/build] Background video generation completed but returned no outputUrl for canvas ${canvasId}:`, hookGeneration);
+              }
+            } catch (err) {
+              console.error(`[studio/build] Background video generation failed for canvas ${canvasId}:`, err);
+            }
+          })();
+        }
 
         send({ type: "done", result: finalResult });
         controller.close();
