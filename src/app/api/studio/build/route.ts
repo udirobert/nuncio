@@ -30,44 +30,73 @@ export async function POST(request: NextRequest) {
       };
 
       try {
-        const { url, senderBrief, senderName, intent, email, archetype, meliusApiKey } = await request.json();
+        const body = await request.json();
+        const { url, senderBrief, senderName, intent, email, archetype, meliusApiKey } = body;
 
-        if (!url) {
-          send({ error: "url is required" });
-          controller.close();
-          return;
+        // Confirmed mode: profile + script already reviewed by user
+        const confirmedProfile = body.profile as import("@/lib/claude").Profile | undefined;
+        const confirmedScript = body.script as string | undefined;
+        const confirmedHook = body.hook as { archetype: string; reasoning: string; concept: string; prompt: string; format: string; formatReasoning: string } | undefined;
+
+        let profile: import("@/lib/claude").Profile;
+        let script: string;
+        let hookChoice: { archetype: { label: string }; reasoning: string; concept: string; prompt: string };
+        let hookFormat: { label: string; reasoning: string };
+
+        if (confirmedProfile && confirmedScript) {
+          // Skip enrichment — user already reviewed and confirmed
+          profile = confirmedProfile;
+          script = confirmedScript;
+          if (confirmedHook) {
+            hookChoice = { archetype: { label: confirmedHook.archetype }, reasoning: confirmedHook.reasoning, concept: confirmedHook.concept, prompt: confirmedHook.prompt };
+            hookFormat = { label: confirmedHook.format, reasoning: confirmedHook.formatReasoning };
+          } else {
+            const hc = chooseArchetype(profile, senderBrief, archetype as HookArchetypeId | undefined);
+            hookChoice = { archetype: { label: hc.archetype.label }, reasoning: hc.reasoning, concept: hc.concept, prompt: hc.prompt };
+            const hf = pickFormat(profile);
+            hookFormat = { label: hf.label, reasoning: hf.reasoning };
+          }
+          send({ phase: "synthesise", status: "Using confirmed profile", detail: `${profile.name} — ${profile.current_role}` });
+        } else {
+          // Legacy mode: full pipeline from URL
+          if (!url) {
+            send({ error: "url is required" });
+            controller.close();
+            return;
+          }
+
+          // 1. Enrich
+          send({ phase: "enrich", status: "Reading public profile...", detail: "Fetching markdown + discovering related URLs" });
+          const enrichment = await enrich([url], { discoverRelated: true });
+          const markdown = enrichment.filter((r) => r.success).map((r) => r.markdown);
+          if (markdown.length === 0) {
+            send({ error: "Could not access profile" });
+            controller.close();
+            return;
+          }
+
+          // 2. Synthesise
+          send({ phase: "synthesise", status: "Parsing surface signals...", detail: "Role · company · notable work · interests · tone" });
+          profile = await synthesise(markdown);
+
+          if (profile.name === "there") {
+            send({ error: "Could not identify a person from this profile. The page may be behind a login wall — try a different URL or platform." });
+            controller.close();
+            return;
+          }
+
+          // 3. Generate script
+          send({ phase: "synthesise", status: "Drafting outreach script...", detail: "Conversational, < 90 seconds, specific" });
+          script = await generateScript(profile, senderBrief, {
+            intent: intent as Parameters<typeof generateScript>[2] extends { intent: infer I } ? I : undefined,
+            senderName: typeof senderName === "string" ? senderName.trim() || undefined : undefined,
+          });
+          const hc = chooseArchetype(profile, senderBrief, archetype as HookArchetypeId | undefined);
+          hookChoice = { archetype: { label: hc.archetype.label }, reasoning: hc.reasoning, concept: hc.concept, prompt: hc.prompt };
+          const hf = pickFormat(profile);
+          hookFormat = { label: hf.label, reasoning: hf.reasoning };
         }
 
-        const urls = [url];
-
-        // 1. Enrich
-        send({ phase: "enrich", status: "Reading public profile...", detail: "Fetching markdown + discovering related URLs" });
-        const enrichment = await enrich(urls, { discoverRelated: true });
-        const markdown = enrichment.filter((r) => r.success).map((r) => r.markdown);
-        if (markdown.length === 0) {
-          send({ error: "Could not access profile" });
-          controller.close();
-          return;
-        }
-
-        // 2. Synthesise
-        send({ phase: "synthesise", status: "Parsing surface signals...", detail: "Role · company · notable work · interests · tone" });
-        const profile = await synthesise(markdown);
-
-        if (profile.name === "there") {
-          send({ error: "Could not identify a person from this profile. The page may be behind a login wall — try a different URL or platform." });
-          controller.close();
-          return;
-        }
-
-        // 3. Generate script
-        send({ phase: "synthesise", status: "Drafting outreach script...", detail: "Conversational, < 90 seconds, specific" });
-        const script = await generateScript(profile, senderBrief, {
-          intent: intent as Parameters<typeof generateScript>[2] extends { intent: infer I } ? I : undefined,
-          senderName: typeof senderName === "string" ? senderName.trim() || undefined : undefined,
-        });
-        const hookChoice = chooseArchetype(profile, senderBrief, archetype as HookArchetypeId | undefined);
-        const hookFormat = pickFormat(profile);
         const hookAccess = resolveHookAccess(request, typeof email === "string" ? email : null);
 
         // 4. Build Melius canvas

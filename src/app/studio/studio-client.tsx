@@ -9,7 +9,7 @@ import type { StudioBuildResult, StudioNode } from "@/lib/creative/melius-provid
 import type { VideoCustomization, HeyGenAvatar, HeyGenVoice } from "@/lib/heygen";
 import { VideoCustomization as VideoCustomizationComponent } from "@/components/video-customization";
 
-type StudioStage = "input" | "building" | "ready" | "error";
+type StudioStage = "input" | "enriching" | "review" | "building" | "ready" | "error";
 type ArchetypeSelection = "auto" | "mirror" | "origin" | "future_cast" | "inside_joke" | "day_in_the_life";
 type CaptureIntent = "share" | "download" | "render";
 
@@ -377,6 +377,12 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [videoCustomization, setVideoCustomization] = useState<VideoCustomization | undefined>();
   const [showCustomization, setShowCustomization] = useState(false);
 
+  // Review stage state
+  const [reviewProfile, setReviewProfile] = useState<import("@/lib/claude").Profile | null>(null);
+  const [reviewScript, setReviewScript] = useState("");
+  const [reviewHook, setReviewHook] = useState<{ archetype: string; reasoning: string; concept: string; prompt: string; format: string; formatReasoning: string } | null>(null);
+  const [reviewRegenerating, setReviewRegenerating] = useState(false);
+
   // Melius connection
   const [meliusKey, setMeliusKey] = useState<string>("");
   const [meliusKeyInput, setMeliusKeyInput] = useState("");
@@ -424,13 +430,70 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     setMeliusKey("");
   }
 
-  async function handleBuild() {
+  async function handleEnrich() {
     if (!url.trim()) return;
+    setStage("enriching");
+    setError("");
+
+    try {
+      const res = await fetch("/api/studio/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: url.trim(),
+          senderName: senderName.trim() || undefined,
+          senderBrief: senderBrief.trim() || undefined,
+          intent: archetype === "auto" ? undefined : undefined,
+          archetype: archetype === "auto" ? undefined : archetype,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Enrichment failed");
+      }
+
+      const data = await res.json();
+      setReviewProfile(data.profile);
+      setReviewScript(data.script);
+      setReviewHook(data.hook);
+      setStage("review");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Enrichment failed");
+      setStage("error");
+    }
+  }
+
+  async function handleRegenerate() {
+    if (!reviewProfile) return;
+    setReviewRegenerating(true);
+    try {
+      const res = await fetch("/api/studio/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: url.trim(),
+          senderName: senderName.trim() || undefined,
+          senderBrief: senderBrief.trim() || undefined,
+          archetype: archetype === "auto" ? undefined : archetype,
+          profile: reviewProfile,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setReviewScript(data.script);
+        setReviewHook(data.hook);
+      }
+    } catch { /* keep current script */ }
+    setReviewRegenerating(false);
+  }
+
+  async function handleConfirmBuild() {
+    if (!reviewProfile || !reviewScript) return;
     setLogIndex(0);
     setAppearedCount(0);
     setEdgeCount(0);
     setStage("building");
-    setError("");
     setShowHookReasoning(false);
 
     try {
@@ -444,6 +507,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           email: capturedEmail || undefined,
           archetype: archetype === "auto" ? undefined : archetype,
           meliusApiKey: meliusKey || undefined,
+          profile: reviewProfile,
+          script: reviewScript,
+          hook: reviewHook,
         }),
       });
 
@@ -778,7 +844,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
   return (
     <>
-      <Header stage={stage === "ready" ? "review" : stage === "building" ? "progress" : "input"} />
+      <Header stage={stage === "ready" ? "review" : (stage === "building" || stage === "enriching") ? "progress" : stage === "review" ? "review" : "input"} />
 
       <main className="flex-1 w-full">
         <AnimatePresence mode="wait">
@@ -819,7 +885,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                           onChange={(e) => setUrl(e.target.value)}
                           placeholder="https://linkedin.com/in/…"
                           className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
-                          onKeyDown={(e) => e.key === "Enter" && handleBuild()}
+                          onKeyDown={(e) => e.key === "Enter" && handleEnrich()}
                         />
                         <div className="flex flex-wrap gap-2 mt-2">
                           {[
@@ -953,11 +1019,11 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       </div>
 
                       <button
-                        onClick={handleBuild}
+                        onClick={handleEnrich}
                         disabled={!url.trim()}
                         className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
                       >
-                        Brief the agent
+                        Research profile
                         <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M3 8h10M9 4l4 4-4 4" />
                         </svg>
@@ -1022,6 +1088,201 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   ))}
                 </div>
               </section>
+            </motion.div>
+          )}
+
+          {/* ─── ENRICHING ───────────────────────────────────────────── */}
+          {stage === "enriching" && (
+            <motion.div
+              key="enriching"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="px-6 pt-24 pb-16 max-w-2xl mx-auto text-center"
+            >
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15 mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
+                  Researching
+                </span>
+              </div>
+              <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight">
+                Reading their profile
+              </h1>
+              <p className="text-sm text-ink-muted mt-2">
+                Enriching public data, synthesising profile, and drafting your script.
+              </p>
+              <div className="mt-8 flex justify-center">
+                <div className="w-8 h-8 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+              </div>
+            </motion.div>
+          )}
+
+          {/* ─── REVIEW ──────────────────────────────────────────────── */}
+          {stage === "review" && reviewProfile && (
+            <motion.div
+              key="review"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="px-6 pt-24 pb-16 max-w-3xl mx-auto"
+            >
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-success-soft border border-success/15 mb-4">
+                  <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                  <span className="text-[10px] uppercase tracking-widest font-medium text-success">
+                    Review
+                  </span>
+                </div>
+                <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight">
+                  Confirm before building
+                </h1>
+                <p className="text-sm text-ink-muted mt-2">
+                  Edit anything below, then hit Build to generate the canvas.
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                {/* Profile card */}
+                <div className="rounded-xl border border-cream-dark bg-white p-5 space-y-4">
+                  <div className="text-[10px] uppercase tracking-widest font-medium text-ink-muted">Profile</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-ink-faint block mb-1">Name</label>
+                      <input
+                        type="text"
+                        value={reviewProfile.name}
+                        onChange={(e) => setReviewProfile({ ...reviewProfile, name: e.target.value })}
+                        className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-ink-faint block mb-1">Company</label>
+                      <input
+                        type="text"
+                        value={reviewProfile.company}
+                        onChange={(e) => setReviewProfile({ ...reviewProfile, company: e.target.value })}
+                        className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-[10px] text-ink-faint block mb-1">Role</label>
+                      <input
+                        type="text"
+                        value={reviewProfile.current_role}
+                        onChange={(e) => setReviewProfile({ ...reviewProfile, current_role: e.target.value })}
+                        className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Personalization hooks as chips */}
+                  <div>
+                    <label className="text-[10px] text-ink-faint block mb-2">Personalization hooks</label>
+                    <div className="flex flex-wrap gap-2">
+                      {reviewProfile.personalization_hooks.map((hook, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-accent/20 bg-accent-soft text-xs text-accent"
+                        >
+                          {hook}
+                          <button
+                            onClick={() => setReviewProfile({
+                              ...reviewProfile,
+                              personalization_hooks: reviewProfile.personalization_hooks.filter((_, j) => j !== i),
+                            })}
+                            className="text-accent/50 hover:text-accent"
+                          >
+                            &times;
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tone selector */}
+                  <div>
+                    <label className="text-[10px] text-ink-faint block mb-2">Tone</label>
+                    <div className="flex gap-2">
+                      {(["conversational", "formal", "technical"] as const).map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => setReviewProfile({ ...reviewProfile, tone: t })}
+                          className={`px-3 py-1.5 rounded-md border text-xs transition-colors ${
+                            reviewProfile.tone === t
+                              ? "border-accent bg-accent-soft text-accent"
+                              : "border-cream-dark text-ink-muted hover:border-accent/30"
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Script */}
+                <div className="rounded-xl border border-cream-dark bg-white p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] uppercase tracking-widest font-medium text-ink-muted">Script</div>
+                    <button
+                      onClick={handleRegenerate}
+                      disabled={reviewRegenerating}
+                      className="text-[11px] text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {reviewRegenerating ? (
+                        <span className="w-3 h-3 border border-accent/30 border-t-accent rounded-full animate-spin" />
+                      ) : (
+                        <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M2 8a6 6 0 0 1 10.5-4M14 8a6 6 0 0 1-10.5 4" />
+                          <path d="M12 2v4h-4M4 14v-4h4" />
+                        </svg>
+                      )}
+                      Regenerate
+                    </button>
+                  </div>
+                  <textarea
+                    value={reviewScript}
+                    onChange={(e) => setReviewScript(e.target.value)}
+                    rows={6}
+                    className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-accent/30"
+                  />
+                  <p className="text-[11px] text-ink-faint">
+                    {reviewScript.split(/\s+/).filter(Boolean).length} words · ~{Math.round(reviewScript.split(/\s+/).filter(Boolean).length / 2.5)}s at natural pace
+                  </p>
+                </div>
+
+                {/* Hook info */}
+                {reviewHook && (
+                  <div className="rounded-xl border border-cream-dark bg-white p-5 space-y-2">
+                    <div className="text-[10px] uppercase tracking-widest font-medium text-ink-muted">Hook</div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded bg-warm-soft border border-warm/20 text-[11px] text-warm font-medium">
+                        {reviewHook.archetype}
+                      </span>
+                      <span className="text-xs text-ink-muted">{reviewHook.format}</span>
+                    </div>
+                    <p className="text-xs text-ink-muted leading-relaxed">{reviewHook.reasoning}</p>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setStage("input")}
+                    className="flex-1 rounded-xl border border-cream-dark py-3 text-sm font-medium text-ink-muted hover:border-ink/30 transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleConfirmBuild}
+                    className="flex-[2] btn-press rounded-xl bg-ink text-cream py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
+                  >
+                    Build on Melius
+                    <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 8h10M9 4l4 4-4 4" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </motion.div>
           )}
 

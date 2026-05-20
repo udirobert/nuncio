@@ -48,6 +48,9 @@ Thumbs.db
 artifacts/test-runs/
 .junie
 .kilo
+.claude
+.antigravitycli
+.antigravitycli/
 
 
 # HyperFrames rendered output
