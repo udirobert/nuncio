@@ -21,9 +21,9 @@ export async function synthesise(
     return fallbackProfile(enrichment);
   }
 
-  const systemPrompt = `You are a profile synthesis agent. Given enriched social profile data, produce a structured JSON profile. Respond ONLY with valid JSON matching this schema: { "name": string, "current_role": string, "company": string, "notable_work": string[], "interests": string[], "tone": "formal" | "conversational" | "technical", "personalization_hooks": string[] }. Do not fabricate information not present in the source data. Do not wrap in markdown code blocks. Output raw JSON only. IMPORTANT: The "name" field MUST be the person's real full name (first + last). If the data does not contain an identifiable person's name, return "name": "". Never use generic labels like "Help Center", "User", "Profile", or website/brand names as the person's name.`;
+  const systemPrompt = `You are a profile synthesis agent. Given enriched social profile data, produce a structured JSON profile. Respond ONLY with valid JSON matching this schema: { "name": string, "current_role": string, "company": string, "notable_work": string[], "interests": string[], "tone": "formal" | "conversational" | "technical", "personalization_hooks": string[] }. Do not fabricate information not present in the source data. Do not wrap in markdown code blocks. Output raw JSON only. IMPORTANT: The "name" field MUST be the PROFILE OWNER's real full name (first + last). The data starts with a Profile URL — that is the person you are profiling. Other people mentioned in search results are NOT the profile owner. If you cannot determine the profile owner's name, return "name": "". Never use generic labels like "Help Center", "User", "Profile", or other people's names.`;
 
-  const userMessage = `Synthesise the following enriched profile data into a structured profile:\n\n${enrichment.join("\n\n---\n\n")}`;
+  const userMessage = `Synthesise the following enriched profile data into a structured profile. IMPORTANT: The profile owner is the person whose URL appears at the top — only extract THEIR name, role, and details. Other people mentioned in replies, comments, or articles are not the subject.\n\n${enrichment.join("\n\n---\n\n")}`;
 
   try {
     const text = await chatCompletion(systemPrompt, userMessage);
@@ -65,15 +65,18 @@ const INTENT_RUBRICS: Record<IntentId, string> = {
 export async function generateScript(
   profile: Profile,
   senderBrief?: string,
-  options?: { forceFallback?: boolean; intent?: IntentId }
+  options?: { forceFallback?: boolean; intent?: IntentId; senderName?: string }
 ): Promise<string> {
   if (options?.forceFallback) {
     return fallbackScript(profile, senderBrief);
   }
 
   const intentRubric = options?.intent ? INTENT_RUBRICS[options.intent] : null;
+  const senderNameInstruction = options?.senderName
+    ? `The sender's name is ${options.senderName} — use it naturally in the opening.`
+    : `Do NOT include a sender name or placeholder like "[Your Name]". Just start naturally without introducing yourself by name.`;
 
-  const systemPrompt = `You are a video script writer. Write a personalised 45-90 second video script (under 200 words) that is a direct message TO ${profile.name}. Address them by name. The sender is speaking directly to this person in a personalised video outreach. Reference at least 2 specific details from their profile. Write in first person as the sender, second person ("you") for the recipient. Be conversational and genuine — not salesy or generic. Never write about them in third person. Respond with ONLY the script text, no JSON wrapping, no markdown, no labels.${intentRubric ? `\n\n${intentRubric}` : ""}`;
+  const systemPrompt = `You are a video script writer. Write a personalised 45-90 second video script (under 200 words) that is a direct message TO ${profile.name}. Address them by name. The sender is speaking directly to this person in a personalised video outreach. Reference at least 2 specific details from their profile. Write in first person as the sender, second person ("you") for the recipient. Be conversational and genuine — not salesy or generic. Never write about them in third person. Never use placeholder brackets like [Your Name] or [specific topic] — use ACTUAL details from the profile or omit. ${senderNameInstruction} Respond with ONLY the script text, no JSON wrapping, no markdown, no labels.${intentRubric ? `\n\n${intentRubric}` : ""}`;
 
   const userMessage = `Profile:\n${JSON.stringify(profile, null, 2)}\n\n${senderBrief ? `Sender brief: ${senderBrief}` : "Write a general introduction/outreach script."}`;
 

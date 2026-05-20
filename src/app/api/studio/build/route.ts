@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       };
 
       try {
-        const { url, senderBrief, intent, email, archetype, meliusApiKey } = await request.json();
+        const { url, senderBrief, senderName, intent, email, archetype, meliusApiKey } = await request.json();
 
         if (!url) {
           send({ error: "url is required" });
@@ -62,7 +62,10 @@ export async function POST(request: NextRequest) {
 
         // 3. Generate script
         send({ phase: "synthesise", status: "Drafting outreach script...", detail: "Conversational, < 90 seconds, specific" });
-        const script = await generateScript(profile, senderBrief, { intent: intent as Parameters<typeof generateScript>[2] extends { intent: infer I } ? I : undefined });
+        const script = await generateScript(profile, senderBrief, {
+          intent: intent as Parameters<typeof generateScript>[2] extends { intent: infer I } ? I : undefined,
+          senderName: typeof senderName === "string" ? senderName.trim() || undefined : undefined,
+        });
         const hookChoice = chooseArchetype(profile, senderBrief, archetype as HookArchetypeId | undefined);
         const hookFormat = pickFormat(profile);
         const hookAccess = resolveHookAccess(request, typeof email === "string" ? email : null);
@@ -140,7 +143,7 @@ export async function POST(request: NextRequest) {
         // Text nodes
         send({ phase: "nodes", status: "Placing Profile Summary", detail: "node_type: custom_text" });
         const profileNodeId = await melius.createCustomTextNode(canvasId, "Profile Summary", profileSummary, geo(0));
-        sendNode({ id: profileNodeId, label: "Profile Summary", type: "custom_text", status: "complete" });
+        sendNode({ id: profileNodeId, label: "Profile Summary", type: "custom_text", status: "complete", prompt: profileSummary });
 
         send({ phase: "nodes", status: "Placing Script", detail: "node_type: custom_text" });
         const scriptNodeId = await melius.createCustomTextNode(canvasId, "Script", script, geo(1));
@@ -148,11 +151,11 @@ export async function POST(request: NextRequest) {
 
         send({ phase: "nodes", status: "Placing Visual Direction", detail: "node_type: custom_text" });
         const visualDirNodeId = await melius.createCustomTextNode(canvasId, "Visual Direction", visualDirection, geo(2));
-        sendNode({ id: visualDirNodeId, label: "Visual Direction", type: "custom_text", status: "complete" });
+        sendNode({ id: visualDirNodeId, label: "Visual Direction", type: "custom_text", status: "complete", prompt: visualDirection });
 
         send({ phase: "nodes", status: "Placing Outreach Objective", detail: "node_type: custom_text" });
         const objectiveNodeId = await melius.createCustomTextNode(canvasId, "Outreach Objective", objectiveText, geo(3));
-        sendNode({ id: objectiveNodeId, label: "Outreach Objective", type: "custom_text", status: "complete" });
+        sendNode({ id: objectiveNodeId, label: "Outreach Objective", type: "custom_text", status: "complete", prompt: objectiveText });
 
         // Image nodes
         send({ phase: "nodes", status: "Placing Video Background", detail: "node_type: image · prompt seeded" });

@@ -354,6 +354,10 @@ interface StudioClientProps {
 
 function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [url, setUrl] = useState("");
+  const [senderName, setSenderName] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("nuncio_sender_name") || "";
+    return "";
+  });
   const [senderBrief, setSenderBrief] = useState("");
   const [stage, setStage] = useState<StudioStage>("input");
   const [buildResult, setBuildResult] = useState<StudioBuildResult | null>(null);
@@ -435,6 +439,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: url.trim(),
+          senderName: senderName.trim() || undefined,
           senderBrief: senderBrief.trim() || undefined,
           email: capturedEmail || undefined,
           archetype: archetype === "auto" ? undefined : archetype,
@@ -839,6 +844,22 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                             </button>
                           ))}
                         </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                          Your name <span className="normal-case text-ink-faint">— how you sign off in the video</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={senderName}
+                          onChange={(e) => {
+                            setSenderName(e.target.value);
+                            if (typeof window !== "undefined") localStorage.setItem("nuncio_sender_name", e.target.value);
+                          }}
+                          placeholder="e.g. Udi"
+                          className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                        />
                       </div>
 
                       <div>
