@@ -157,6 +157,19 @@ interface MeliusRunResult {
   outputs?: { url: string }[];
 }
 
+interface MeliusCanvasNode {
+  id: string;
+  nodeType?: string;
+  type?: string;
+  title?: string;
+  textPrompt?: string;
+  prompt?: string;
+  status?: string;
+  activeVersionId?: string | null;
+  outputs?: { url: string }[];
+  versions?: { title?: string; asset?: { url: string } }[];
+}
+
 export interface StudioNode {
   id: string;
   label: string;
@@ -495,24 +508,38 @@ export class MeliusProvider implements CreativeProvider {
 
   async getCanvasContent(canvasId: string): Promise<{ nodes: StudioNode[] }> {
     const result = await this.call<{
-      nodes: { id: string; title?: string; type: string; prompt?: string; status?: string; outputs?: { url: string }[] }[];
-    }>("canvas_content", { canvasId });
+      nodes?: MeliusCanvasNode[];
+      data?: { nodes?: MeliusCanvasNode[] };
+    } | MeliusCanvasNode[]>("canvas_content", { canvasId });
 
-    const nodes: StudioNode[] = (result.nodes || []).map((n) => {
-      const type = n.type as StudioNode["type"];
-      const isGenerative = type === "image" || type === "video";
-      let status: StudioNode["status"];
-      if (!isGenerative) {
-        status = "complete";
-      } else if (n.outputs?.[0]?.url) {
-        status = "complete";
-      } else if (n.status === "running" || n.status === "completed") {
-        status = "generating";
-      } else {
-        status = "pending";
-      }
-      return { id: n.id, label: n.title || n.type, type, status, prompt: n.prompt, outputUrl: n.outputs?.[0]?.url };
-    });
+    const rawNodes: MeliusCanvasNode[] = Array.isArray(result)
+      ? result
+      : (result as { nodes?: MeliusCanvasNode[]; data?: { nodes?: MeliusCanvasNode[] } }).nodes
+        || (result as { data?: { nodes?: MeliusCanvasNode[] } }).data?.nodes
+        || [];
+
+    const nodes: StudioNode[] = rawNodes
+      .filter((n) => n.nodeType !== "group" && n.id)
+      .map((n) => {
+        const type = (n.nodeType || n.type || "custom_text") as StudioNode["type"];
+        const isGenerative = type === "image" || type === "video";
+        const outputUrl = n.versions?.[0]?.asset?.url || n.outputs?.[0]?.url || undefined;
+        const title = n.versions?.[0]?.title || n.title || type;
+        const prompt = n.textPrompt || n.prompt || undefined;
+
+        let status: StudioNode["status"];
+        if (!isGenerative) {
+          status = "complete";
+        } else if (outputUrl) {
+          status = "complete";
+        } else if (n.activeVersionId || n.status === "running" || n.status === "completed") {
+          status = "generating";
+        } else {
+          status = "pending";
+        }
+
+        return { id: n.id, label: title, type, status, prompt, outputUrl };
+      });
 
     return { nodes };
   }
