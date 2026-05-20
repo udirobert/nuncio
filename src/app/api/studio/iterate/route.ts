@@ -3,7 +3,7 @@ import { MeliusProvider, resetMeliusSession } from "@/lib/creative/melius-provid
 
 export async function POST(request: NextRequest) {
   try {
-    const { nodeId, prompt, canvasId } = await request.json();
+    const { nodeId, prompt, canvasId, meliusApiKey } = await request.json();
 
     if (!nodeId) {
       return NextResponse.json({ error: "nodeId is required" }, { status: 400 });
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     resetMeliusSession();
-    const melius = new MeliusProvider();
+    const melius = new MeliusProvider(meliusApiKey || undefined);
 
     await melius.updateNodePrompt(nodeId, prompt, canvasId);
     const runId = await melius.startRun(nodeId, canvasId);

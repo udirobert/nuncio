@@ -20,8 +20,13 @@ let _provider: CreativeProvider | null = null;
 /**
  * Get the active creative provider.
  * Lazily instantiated, cached for the process lifetime.
+ * Pass an apiKey to create a user-scoped Melius provider (not cached).
  */
-export function getCreativeProvider(): CreativeProvider {
+export function getCreativeProvider(apiKey?: string): CreativeProvider {
+  if (apiKey) {
+    return new MeliusProvider(apiKey);
+  }
+
   if (_provider) return _provider;
 
   if (process.env.MELIUS_API_KEY) {

@@ -4,27 +4,32 @@ import type {
   GeneratedAsset,
 } from "./types";
 
-const MELIUS_API_KEY = process.env.MELIUS_API_KEY;
 const MELIUS_MCP_URL = "https://api.melius.com/mcp";
 const MELIUS_RUN_TIMEOUT_SECONDS = Number(process.env.MELIUS_RUN_TIMEOUT_SECONDS || 30);
+
+function resolveApiKey(override?: string): string {
+  const key = override || process.env.MELIUS_API_KEY;
+  if (!key) throw new Error("MELIUS_API_KEY is not configured");
+  return key;
+}
+
 let mcpSessionId: string | null = null;
+let mcpSessionApiKey: string | null = null;
 
 export function resetMeliusSession(): void {
   mcpSessionId = null;
+  mcpSessionApiKey = null;
 }
 
-async function getMcpSessionId(): Promise<string> {
-  if (mcpSessionId) return mcpSessionId;
-  if (!MELIUS_API_KEY) {
-    throw new Error("MELIUS_API_KEY is not configured");
-  }
+async function getMcpSessionId(apiKey: string): Promise<string> {
+  if (mcpSessionId && mcpSessionApiKey === apiKey) return mcpSessionId;
 
   const response = await fetch(MELIUS_MCP_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json, text/event-stream",
-      Authorization: `Bearer ${MELIUS_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       jsonrpc: "2.0",
@@ -52,25 +57,23 @@ async function getMcpSessionId(): Promise<string> {
   }
 
   mcpSessionId = sessionId;
+  mcpSessionApiKey = apiKey;
   return sessionId;
 }
 
 async function mcpCall<T>(
   method: string,
-  params: Record<string, unknown>
+  params: Record<string, unknown>,
+  apiKey: string
 ): Promise<T> {
-  if (!MELIUS_API_KEY) {
-    throw new Error("MELIUS_API_KEY is not configured");
-  }
-
-  const sessionId = await getMcpSessionId();
+  const sessionId = await getMcpSessionId(apiKey);
 
   const response = await fetch(MELIUS_MCP_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json, text/event-stream",
-      Authorization: `Bearer ${MELIUS_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       "Mcp-Session-Id": sessionId,
     },
     body: JSON.stringify({
@@ -168,6 +171,7 @@ export interface StudioBuildResult {
   projectId: string;
   canvasId: string;
   canvasUrl: string;
+  userOwned?: boolean;
   nodes: StudioNode[];
   hook?: {
     archetype: string;
@@ -191,17 +195,26 @@ export class MeliusProvider implements CreativeProvider {
   private canvasId: string | null = null;
   private nodeIds: Map<string, string> = new Map();
   private guideLoaded = false;
+  private apiKey: string;
+
+  constructor(apiKey?: string) {
+    this.apiKey = resolveApiKey(apiKey);
+  }
+
+  private call<T>(method: string, params: Record<string, unknown>): Promise<T> {
+    return mcpCall<T>(method, params, this.apiKey);
+  }
 
   private async ensureGuide(topic?: string): Promise<void> {
     if (this.guideLoaded) return;
-    await mcpCall<string>("get_guide", { topic: topic || "getting-started" });
+    await this.call<string>("get_guide", { topic: topic || "getting-started" });
     this.guideLoaded = true;
   }
 
   async createSession(targetName: string): Promise<CreativeSession> {
     await this.ensureGuide();
 
-    const project = await mcpCall<MeliusProject>("project_create", {
+    const project = await this.call<MeliusProject>("project_create", {
       title: `nuncio — ${targetName} — ${Date.now()}`,
       description: "Autonomous nuncio personalised video outreach session",
       visibility: "public",
@@ -209,7 +222,7 @@ export class MeliusProvider implements CreativeProvider {
     this.projectId = project.id || project.projectId || null;
     if (!this.projectId) throw new Error("Melius project_create did not return an id");
 
-    const canvas = await mcpCall<MeliusCanvas>("canvas_create", {
+    const canvas = await this.call<MeliusCanvas>("canvas_create", {
       projectId: this.projectId,
       title: `nuncio session ${Date.now()}`,
     });
@@ -225,7 +238,7 @@ export class MeliusProvider implements CreativeProvider {
   }
 
   async updateProjectVisibility(projectId: string, visibility: "public" | "private"): Promise<void> {
-    await mcpCall("project_update", {
+    await this.call("project_update", {
       projectId,
       visibility,
     });
@@ -234,7 +247,7 @@ export class MeliusProvider implements CreativeProvider {
   async generateBackground(session: CreativeSession, prompt: string): Promise<GeneratedAsset> {
     if (!this.canvasId) throw new Error("No active canvas");
 
-    const nodes = await mcpCall<{ nodes: MeliusNode[] }>("bulk_create_nodes", {
+    const nodes = await this.call<{ nodes: MeliusNode[] }>("bulk_create_nodes", {
       canvasId: this.canvasId,
       nodes: [{
         nodeType: "image",
@@ -249,19 +262,19 @@ export class MeliusProvider implements CreativeProvider {
     if (!nodeId) throw new Error("Melius bulk_create_nodes did not return a background node id");
     this.nodeIds.set("background", nodeId);
 
-    const run = await mcpCall<MeliusBulkRun>("bulk_run_start", {
+    const run = await this.call<MeliusBulkRun>("bulk_run_start", {
       canvasId: this.canvasId,
       nodeIds: [nodeId],
     });
     const bulkRunId = run.id || run.bulkRunId;
 
-    await mcpCall<MeliusRunResult>("bulk_run_wait", {
+    await this.call<MeliusRunResult>("bulk_run_wait", {
       bulkRunId,
       timeoutSeconds: MELIUS_RUN_TIMEOUT_SECONDS,
       intervalSeconds: 3,
     });
 
-    const download = await mcpCall<{ outputs: { url: string }[] }>("bulk_run_download", { bulkRunId });
+    const download = await this.call<{ outputs: { url: string }[] }>("bulk_run_download", { bulkRunId });
 
     const url = download.outputs?.[0]?.url || "";
     const asset: GeneratedAsset = { type: "background", url, prompt, provider: this.name };
@@ -272,7 +285,7 @@ export class MeliusProvider implements CreativeProvider {
   async generateThumbnail(session: CreativeSession, prompt: string): Promise<GeneratedAsset> {
     if (!this.canvasId) throw new Error("No active canvas");
 
-    const nodes = await mcpCall<{ nodes: MeliusNode[] }>("bulk_create_nodes", {
+    const nodes = await this.call<{ nodes: MeliusNode[] }>("bulk_create_nodes", {
       canvasId: this.canvasId,
       nodes: [{
         nodeType: "image",
@@ -287,19 +300,19 @@ export class MeliusProvider implements CreativeProvider {
     if (!nodeId) throw new Error("Melius bulk_create_nodes did not return a thumbnail node id");
     this.nodeIds.set("thumbnail", nodeId);
 
-    const run = await mcpCall<MeliusBulkRun>("bulk_run_start", {
+    const run = await this.call<MeliusBulkRun>("bulk_run_start", {
       canvasId: this.canvasId,
       nodeIds: [nodeId],
     });
     const bulkRunId = run.id || run.bulkRunId;
 
-    await mcpCall<MeliusRunResult>("bulk_run_wait", {
+    await this.call<MeliusRunResult>("bulk_run_wait", {
       bulkRunId,
       timeoutSeconds: MELIUS_RUN_TIMEOUT_SECONDS,
       intervalSeconds: 3,
     });
 
-    const download = await mcpCall<{ outputs: { url: string }[] }>("bulk_run_download", { bulkRunId });
+    const download = await this.call<{ outputs: { url: string }[] }>("bulk_run_download", { bulkRunId });
 
     const url = download.outputs?.[0]?.url || "";
     const asset: GeneratedAsset = { type: "thumbnail", url, prompt, provider: this.name };
@@ -310,7 +323,7 @@ export class MeliusProvider implements CreativeProvider {
   async storeText(session: CreativeSession, label: string, content: string): Promise<void> {
     if (!this.canvasId) throw new Error("No active canvas");
 
-    const response = await mcpCall<{ nodes?: MeliusNode[] } | undefined>("bulk_create_nodes", {
+    const response = await this.call<{ nodes?: MeliusNode[] } | undefined>("bulk_create_nodes", {
       canvasId: this.canvasId,
       nodes: [{
         nodeType: "custom_text",
@@ -332,14 +345,14 @@ export class MeliusProvider implements CreativeProvider {
       return;
     }
 
-    await mcpCall<void>("node_set_text", { nodeId, text: content });
+    await this.call<void>("node_set_text", { nodeId, text: content });
     this.nodeIds.set(label, nodeId);
   }
 
   async finalise(session: CreativeSession): Promise<CreativeSession> {
     if (this.canvasId) {
       try {
-        await mcpCall<void>("comment_create", {
+        await this.call<void>("comment_create", {
           canvasId: this.canvasId,
           body: `nuncio session completed. ${session.assets.length} assets generated.`,
           x: 0, y: -100,
@@ -352,7 +365,7 @@ export class MeliusProvider implements CreativeProvider {
   async export(session: CreativeSession): Promise<string | null> {
     if (!this.canvasId) return null;
     try {
-      const result = await mcpCall<{ url: string }>("creative_download", { canvasId: this.canvasId });
+      const result = await this.call<{ url: string }>("creative_download", { canvasId: this.canvasId });
       session.exportUrl = result.url;
       return result.url;
     } catch { return null; }
@@ -361,29 +374,29 @@ export class MeliusProvider implements CreativeProvider {
   // ── Studio-specific MCP methods ──────────────────────────────────
 
   async claimPresence(canvasId: string, region: { x: number; y: number; w: number; h: number }): Promise<void> {
-    await mcpCall<void>("show_presence", {
+    await this.call<void>("show_presence", {
       canvasId,
       region: `${region.x},${region.y},${region.w},${region.h}`,
     });
   }
 
   async releasePresence(canvasId?: string): Promise<void> {
-    await mcpCall<void>("release_presence", canvasId ? { canvasId } : {});
+    await this.call<void>("release_presence", canvasId ? { canvasId } : {});
   }
 
   async createCustomTextNode(canvasId: string, title: string, text: string, geometry: { x: number; y: number; w: number; h: number }): Promise<string> {
-    const result = await mcpCall<{ nodes: MeliusNode[] }>("bulk_create_nodes", {
+    const result = await this.call<{ nodes: MeliusNode[] }>("bulk_create_nodes", {
       canvasId,
       nodes: [{ nodeType: "custom_text", title, text, geometry }],
     });
     const nodeId = result.nodes[0]?.id || result.nodes[0]?.nodeId;
     if (!nodeId) throw new Error(`Failed to create custom_text node: ${title}`);
-    await mcpCall<void>("node_set_text", { nodeId, text });
+    await this.call<void>("node_set_text", { nodeId, text });
     return nodeId;
   }
 
   async createImageNode(canvasId: string, title: string, prompt: string, geometry: { x: number; y: number; w: number; h: number }): Promise<string> {
-    const result = await mcpCall<{ nodes: MeliusNode[] }>("bulk_create_nodes", {
+    const result = await this.call<{ nodes: MeliusNode[] }>("bulk_create_nodes", {
       canvasId,
       nodes: [{ nodeType: "image", title, prompt, aspectRatio: "16:9", geometry }],
     });
@@ -411,7 +424,7 @@ export class MeliusProvider implements CreativeProvider {
       node.url = sourceUrl;
     }
 
-    const result = await mcpCall<{ nodes: MeliusNode[] }>("bulk_create_nodes", {
+    const result = await this.call<{ nodes: MeliusNode[] }>("bulk_create_nodes", {
       canvasId,
       nodes: [node],
     });
@@ -423,11 +436,11 @@ export class MeliusProvider implements CreativeProvider {
   async attachVideoToNode(nodeId: string, sourceUrl: string, canvasId?: string): Promise<void> {
     const params: Record<string, string> = { nodeId, sourceUrl, url: sourceUrl };
     if (canvasId) params.canvasId = canvasId;
-    await mcpCall<void>("node_update", params);
+    await this.call<void>("node_update", params);
   }
 
   async createTextLlmNode(canvasId: string, title: string, prompt: string, geometry: { x: number; y: number; w: number; h: number }): Promise<string> {
-    const result = await mcpCall<{ nodes: MeliusNode[] }>("bulk_create_nodes", {
+    const result = await this.call<{ nodes: MeliusNode[] }>("bulk_create_nodes", {
       canvasId,
       nodes: [{ nodeType: "text", title, prompt, geometry }],
     });
@@ -437,7 +450,7 @@ export class MeliusProvider implements CreativeProvider {
   }
 
   async createGroupNode(canvasId: string, title: string, childNodeIds: string[], geometry?: { x: number; y: number; w: number; h: number }): Promise<string> {
-    const result = await mcpCall<{ nodes: MeliusNode[] }>("bulk_create_nodes", {
+    const result = await this.call<{ nodes: MeliusNode[] }>("bulk_create_nodes", {
       canvasId,
       nodes: [{ nodeType: "group", title, geometry }].map((n) =>
         childNodeIds.length ? { ...n, children: childNodeIds } : n
@@ -447,7 +460,7 @@ export class MeliusProvider implements CreativeProvider {
   }
 
   async bulkCreateEdges(canvasId: string, edges: { sourceNodeId: string; targetNodeId: string; type?: string }[]): Promise<void> {
-    await mcpCall<void>("bulk_create_edges", {
+    await this.call<void>("bulk_create_edges", {
       canvasId,
       edges: edges.map((e) => ({
         srcNodeId: e.sourceNodeId,
@@ -460,20 +473,20 @@ export class MeliusProvider implements CreativeProvider {
   async updateNodePrompt(nodeId: string, prompt: string, canvasId?: string): Promise<void> {
     const params: Record<string, string> = { nodeId, prompt };
     if (canvasId) params.canvasId = canvasId;
-    await mcpCall<void>("node_update", params);
+    await this.call<void>("node_update", params);
   }
 
   async startRun(nodeId: string, canvasId?: string): Promise<string> {
     const params: Record<string, string> = { nodeId };
     if (canvasId) params.canvasId = canvasId;
-    const result = await mcpCall<{ id: string; runId?: string; status: string }>("run_start", params);
+    const result = await this.call<{ id: string; runId?: string; status: string }>("run_start", params);
     return result.id || result.runId || "";
   }
 
   async getRunStatus(runId: string, canvasId?: string): Promise<{ status: string; outputUrl?: string }> {
     const params: Record<string, string> = { runId };
     if (canvasId) params.canvasId = canvasId;
-    const result = await mcpCall<{ status: string; outputs?: { url: string }[]; error?: string }>("run_get", params);
+    const result = await this.call<{ status: string; outputs?: { url: string }[]; error?: string }>("run_get", params);
     return {
       status: result.status,
       outputUrl: result.outputs?.[0]?.url,
@@ -481,7 +494,7 @@ export class MeliusProvider implements CreativeProvider {
   }
 
   async getCanvasContent(canvasId: string): Promise<{ nodes: StudioNode[] }> {
-    const result = await mcpCall<{
+    const result = await this.call<{
       nodes: { id: string; title?: string; type: string; prompt?: string; status?: string; outputs?: { url: string }[] }[];
     }>("canvas_content", { canvasId });
 
@@ -505,7 +518,7 @@ export class MeliusProvider implements CreativeProvider {
   }
 
   async planLayout(canvasId: string, nodes: { id: string; nodeType: string; w: number; h: number }[]): Promise<{ x: number; y: number }[]> {
-    const result = await mcpCall<{ positions: { x: number; y: number }[] }>("canvas_plan_layout", {
+    const result = await this.call<{ positions: { x: number; y: number }[] }>("canvas_plan_layout", {
       canvasId,
       nodes,
     });
@@ -513,7 +526,7 @@ export class MeliusProvider implements CreativeProvider {
   }
 
   async addComment(canvasId: string, body: string, x: number, y: number): Promise<void> {
-    await mcpCall<void>("comment_create", { canvasId, body, x, y });
+    await this.call<void>("comment_create", { canvasId, body, x, y });
   }
 
   async getProjectShareUrl(projectId: string): Promise<string> {
@@ -526,7 +539,7 @@ export class MeliusProvider implements CreativeProvider {
 
   async exportCanvas(canvasId: string): Promise<string | null> {
     try {
-      const result = await mcpCall<{ url: string }>("creative_download", { canvasId });
+      const result = await this.call<{ url: string }>("creative_download", { canvasId });
       return result.url;
     } catch {
       return null;

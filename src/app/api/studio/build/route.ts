@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       };
 
       try {
-        const { url, senderBrief, intent, email, archetype } = await request.json();
+        const { url, senderBrief, intent, email, archetype, meliusApiKey } = await request.json();
 
         if (!url) {
           send({ error: "url is required" });
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
         // 4. Build Melius canvas
         resetMeliusSession();
-        const melius = new MeliusProvider();
+        const melius = new MeliusProvider(meliusApiKey || undefined);
 
         send({ phase: "canvas", status: "Initialising Melius session...", detail: "MCP session initialised" });
         const session = await melius.createSession(profile.name);
@@ -218,6 +218,7 @@ export async function POST(request: NextRequest) {
           projectId,
           canvasId,
           canvasUrl,
+          userOwned: !!meliusApiKey,
           nodes: studioNodes,
           hook: {
             archetype: hookChoice.archetype.label,

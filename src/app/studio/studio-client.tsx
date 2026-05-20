@@ -355,6 +355,11 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [videoCustomization, setVideoCustomization] = useState<VideoCustomization | undefined>();
   const [showCustomization, setShowCustomization] = useState(false);
 
+  // Melius connection
+  const [meliusKey, setMeliusKey] = useState<string>("");
+  const [meliusKeyInput, setMeliusKeyInput] = useState("");
+  const [showMeliusConnect, setShowMeliusConnect] = useState(false);
+
   // Building stage state
   const [logIndex, setLogIndex] = useState(0);
   const [appearedCount, setAppearedCount] = useState(0);
@@ -379,7 +384,23 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     } catch {
       // ignore parse errors
     }
+    const savedKey = localStorage.getItem("nuncio_melius_key");
+    if (savedKey) setMeliusKey(savedKey);
   }, [searchParams]);
+
+  function connectMelius() {
+    const key = meliusKeyInput.trim();
+    if (!key.startsWith("mk_")) return;
+    localStorage.setItem("nuncio_melius_key", key);
+    setMeliusKey(key);
+    setMeliusKeyInput("");
+    setShowMeliusConnect(false);
+  }
+
+  function disconnectMelius() {
+    localStorage.removeItem("nuncio_melius_key");
+    setMeliusKey("");
+  }
 
   async function handleBuild() {
     if (!url.trim()) return;
@@ -399,6 +420,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           senderBrief: senderBrief.trim() || undefined,
           email: capturedEmail || undefined,
           archetype: archetype === "auto" ? undefined : archetype,
+          meliusApiKey: meliusKey || undefined,
         }),
       });
 
@@ -683,7 +705,10 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
     pollRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`/api/studio/canvas/${canvasId}`);
+        const pollUrl = meliusKey
+          ? `/api/studio/canvas/${canvasId}?key=${encodeURIComponent(meliusKey)}`
+          : `/api/studio/canvas/${canvasId}`;
+        const res = await fetch(pollUrl);
         if (!res.ok) return;
         const data = await res.json();
 
@@ -711,7 +736,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         pollRef.current = null;
       }
     };
-  }, [isReady, canvasId]);
+  }, [isReady, canvasId, meliusKey]);
 
   const nodeStats = useMemo(() => {
     if (!buildResult) return { text: 0, image: 0, video: 0, complete: 0, total: 0 };
@@ -830,6 +855,62 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                             </button>
                           ))}
                         </div>
+                      </div>
+
+                      {/* Melius connection */}
+                      <div className="pt-1">
+                        {meliusKey ? (
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-success/20 bg-success-soft">
+                            <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                            <span className="text-[11px] font-medium text-success">Melius connected</span>
+                            <span className="text-[10px] text-ink-faint ml-1 font-mono">{meliusKey.slice(0, 10)}…</span>
+                            <button
+                              onClick={disconnectMelius}
+                              className="ml-auto text-[10px] text-ink-faint hover:text-error transition-colors"
+                            >
+                              Disconnect
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => setShowMeliusConnect(!showMeliusConnect)}
+                              className="text-[11px] text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5"
+                            >
+                              <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                <path d="M6 3h4v2H6zM3 7h10v6H3z" />
+                                <path d="M8 5v2M5 10h6" />
+                              </svg>
+                              Connect your Melius account
+                              <span className="text-[9px] text-ink-faint/60 ml-1">optional</span>
+                            </button>
+                            {showMeliusConnect && (
+                              <div className="mt-2 p-3 rounded-lg border border-cream-dark bg-cream/30 space-y-2">
+                                <p className="text-[11px] text-ink-muted leading-relaxed">
+                                  Paste your Melius API key to build canvases in your own workspace. Generate a key in Melius → Team Settings → API keys.
+                                </p>
+                                <p className="text-[10px] text-ink-faint leading-relaxed">
+                                  Your key is stored in this browser only and sent over HTTPS to make Melius calls — never persisted on our servers.
+                                </p>
+                                <div className="flex gap-2">
+                                  <input
+                                    value={meliusKeyInput}
+                                    onChange={(e) => setMeliusKeyInput(e.target.value)}
+                                    placeholder="mk_live_…"
+                                    className="flex-1 rounded-lg border border-cream-dark bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                                  />
+                                  <button
+                                    onClick={connectMelius}
+                                    disabled={!meliusKeyInput.trim().startsWith("mk_")}
+                                    className="rounded-lg bg-accent text-white px-3 py-2 text-xs font-medium disabled:opacity-40 hover:bg-accent/90 transition-colors"
+                                  >
+                                    Connect
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
 
                       <button
@@ -1051,6 +1132,20 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   >
                     Share
                   </button>
+
+                  {buildResult.userOwned && buildResult.canvasUrl && (
+                    <a
+                      href={buildResult.canvasUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-accent/20 bg-accent-soft px-3 py-2.5 text-xs font-medium text-accent hover:bg-accent/10 transition-colors"
+                    >
+                      Open in Melius
+                      <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M6 3h7v7M13 3L6 10" />
+                      </svg>
+                    </a>
+                  )}
 
                   <div className="flex-1" />
 
