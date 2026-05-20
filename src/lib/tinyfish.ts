@@ -167,13 +167,12 @@ export async function enrich(
           { maxAttempts: 2 } // lighter retry for per-URL calls
         );
 
-        if (!response.ok) {
-          return { url, markdown: "", success: false };
+        let markdown = "";
+        if (response.ok) {
+          const data = await response.json();
+          const item = normaliseTinyFishItem(data);
+          markdown = item?.markdown || item?.text || item?.content || "";
         }
-
-        const data = await response.json();
-        const item = normaliseTinyFishItem(data);
-        const markdown = item?.markdown || item?.text || item?.content || "";
 
         if (markdown.trim().length > 0 && !isLowQualityFetch(markdown)) {
           return { url, markdown, success: true, source: "fetch" };
@@ -189,7 +188,9 @@ export async function enrich(
             markdown: combined,
             success: true,
             source: markdown.trim().length > 0 ? "fetch+search" : "search",
-            warning: "Fetch returned low-quality profile content; augmented with TinyFish Search.",
+            warning: response.ok
+              ? "Fetch returned low-quality profile content; augmented with TinyFish Search."
+              : "Fetch service unavailable; using TinyFish Search.",
           };
         }
 
