@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const script = await generateScript(profile, senderBrief, {
+  const scriptResult = await generateScript(profile, senderBrief, {
     intent: intent as IntentId | undefined,
     senderName: typeof senderName === "string" ? senderName.trim() || undefined : undefined,
   });
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
   const response: EnrichResponse = {
     profile,
-    script,
+    script: scriptResult.script,
     hook: {
       archetype: hookChoice.archetype.label,
       reasoning: hookChoice.reasoning,

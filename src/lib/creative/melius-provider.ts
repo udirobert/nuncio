@@ -186,6 +186,8 @@ export interface StudioBuildResult {
   canvasUrl: string;
   userOwned?: boolean;
   nodes: StudioNode[];
+  recommendedVibeId?: string;
+  vibeReasoning?: string;
   hook?: {
     archetype: string;
     reasoning: string;

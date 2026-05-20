@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ShareNuncio } from "@/components/share-nuncio";
 import type { AgentTraceItem, CanvasProof } from "@/lib/artifacts";
@@ -10,11 +10,13 @@ interface VideoPlayerProps {
   videoUrl: string;
   videoId?: string;
   shareId?: string;
+  soundscapeUrl?: string;
   canvas?: CanvasProof;
   trace?: AgentTraceItem[];
   captions?: Caption[];
   onReset: () => void;
   recipientName?: string;
+  industry?: string;
 }
 
 interface Caption {
@@ -174,17 +176,78 @@ export function VideoPlayer({
   videoUrl,
   videoId,
   shareId,
+  soundscapeUrl: propSoundscapeUrl,
   canvas,
   trace,
   captions: propCaptions,
   onReset,
   recipientName,
+  industry,
 }: VideoPlayerProps) {
   const [copied, setCopied] = useState(false);
   const [showConfetti, setShowConfetti] = useState(true);
   const [localCaptions, setLocalCaptions] = useState<Caption[] | null>(null);
   const [captionsLoading, setCaptionsLoading] = useState(false);
   const [vttUrl, setVttUrl] = useState<string | null>(null);
+
+  // Cinematic Soundscape state
+  const [soundscapeUrl, setSoundscapeUrl] = useState<string | null>(propSoundscapeUrl || null);
+  const [isDucked, setIsDucked] = useState(false);
+  const [soundscapeEnabled, setSoundscapeEnabled] = useState(true);
+  const soundscapeRef = useRef<HTMLAudioElement | null>(null);
+
+  // Smooth ducking transition
+  useEffect(() => {
+    const audio = soundscapeRef.current;
+    if (!audio || !soundscapeEnabled) return;
+
+    const targetVolume = isDucked ? 0.08 : 0.35;
+    const startVolume = audio.volume;
+    const duration = 800; // 800ms fade
+    const startTime = performance.now();
+
+    function animate(currentTime: number) {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Use easeInOutQuad for smoother feel
+      const ease = progress < 0.5 
+        ? 2 * progress * progress 
+        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+      if (audio) {
+        audio.volume = startVolume + (targetVolume - startVolume) * ease;
+      }
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    }
+
+    requestAnimationFrame(animate);
+  }, [isDucked, soundscapeEnabled]);
+
+  // Fetch soundscape if missing
+  useEffect(() => {
+    if (soundscapeUrl || !industry) return;
+
+    async function fetchSoundscape() {
+      try {
+        const res = await fetch("/api/soundscape", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ context: industry }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSoundscapeUrl(data.audio);
+        }
+      } catch (error) {
+        console.warn("[soundscape] Auto-fetch failed:", error);
+      }
+    }
+    fetchSoundscape();
+  }, [soundscapeUrl, industry]);
 
   // Merge prop captions with locally-generated ones
   const captions = propCaptions || localCaptions;
@@ -288,8 +351,18 @@ export function VideoPlayer({
           initial={{ opacity: 0, y: 20, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ delay: 0.3, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className="aspect-video w-full rounded-2xl overflow-hidden bg-ink shadow-2xl shadow-ink/25 mb-8 ring-1 ring-ink/5"
+          className="aspect-video w-full rounded-2xl overflow-hidden bg-ink shadow-2xl shadow-ink/25 mb-8 ring-1 ring-ink/5 relative"
         >
+          {soundscapeUrl && soundscapeEnabled && (
+            <audio
+              ref={soundscapeRef}
+              src={soundscapeUrl}
+              autoPlay
+              loop
+              className="hidden"
+            />
+          )}
+
           <video
             src={videoUrl}
             controls
@@ -297,6 +370,9 @@ export function VideoPlayer({
             muted
             playsInline
             className="w-full h-full object-contain"
+            onPlay={() => setIsDucked(true)}
+            onPause={() => setIsDucked(false)}
+            onEnded={() => setIsDucked(false)}
           >
             <track kind="captions" />
             {vttUrl && (
@@ -309,6 +385,48 @@ export function VideoPlayer({
               />
             )}
           </video>
+          
+          {soundscapeUrl && (
+            <div className="absolute top-4 right-4 z-20 flex items-center gap-3">
+              {soundscapeEnabled && (
+                <div className="flex items-end gap-[2px] h-3 mb-1">
+                  {[...Array(4)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      animate={{ height: isDucked ? [2, 6, 2] : [4, 12, 4] }}
+                      transition={{ 
+                        duration: 0.8, 
+                        repeat: Infinity, 
+                        delay: i * 0.15,
+                        ease: "easeInOut" 
+                      }}
+                      className="w-[2px] bg-accent rounded-full"
+                    />
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => setSoundscapeEnabled(!soundscapeEnabled)}
+                className={`
+                  p-2 rounded-full backdrop-blur-md transition-all
+                  ${soundscapeEnabled 
+                    ? "bg-accent/20 text-accent border border-accent/30 shadow-lg shadow-accent/10" 
+                    : "bg-ink/40 text-cream/50 border border-cream/10"
+                  }
+                `}
+                title={soundscapeEnabled ? "Mute ElevenLabs Soundscape" : "Enable ElevenLabs Soundscape"}
+              >
+                <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M1 8h2l3-3v6l-3-3H1V8z" />
+                  {soundscapeEnabled ? (
+                    <path d="M9 5c1 1 1 5 0 6M11 3c2 2 2 8 0 10" />
+                  ) : (
+                    <path d="M8 8l4 4M12 8l-4 4" />
+                  )}
+                </svg>
+              </button>
+            </div>
+          )}
         </motion.div>
 
         {/* Actions */}

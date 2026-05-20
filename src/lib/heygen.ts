@@ -132,6 +132,7 @@ export async function getVoices(): Promise<HeyGenVoice[]> {
 export interface VideoCustomization {
   avatarId?: string;
   voiceId?: string;
+  soundscapeVibe?: string;
   background?: { type: "color"; value: string } | { type: "image"; url: string };
   width?: number;
   height?: number;

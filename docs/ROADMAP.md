@@ -60,9 +60,19 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 - [ ] Simple auth (email + magic link, no passwords)
 - [ ] Session history — list of previously generated videos
 
+## Phase 3 — Cinematic Layer (ElevenLabs Hackathon)
+
+**Goal:** Transform "clinical" AI video into a high-production cinematic experience via generative soundscapes.
+
+- [x] ElevenLabs service layer for Sound Effects API
+- [ ] Context-aware vibe generation — LLM picks soundscape prompt based on target industry
+- [ ] Layered audio player in `/v/[id]` with "ducking" (bg volume drops when avatar speaks)
+- [ ] Cinematic entrance — procedural SFX (whoosh/impact) on video start
+- [ ] Script-triggered Foley — sound effects synced to script keywords
+
 ---
 
-## Phase 3 — Batch mode (Month 2)
+## Phase 4 — Batch mode (Month 2)
 
 **Goal:** Enable sales/recruiting teams to run campaigns.
 

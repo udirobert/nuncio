@@ -47,6 +47,12 @@ export type IntentId =
   | "reengage"
   | "founder_to_founder";
 
+export interface ScriptResult {
+  script: string;
+  vibeId: string;
+  vibeReasoning: string;
+}
+
 const INTENT_RUBRICS: Record<IntentId, string> = {
   warm_intro:
     "Intent: warm introduction. Open with curiosity, not a pitch. Acknowledge a specific recent piece of their work before saying anything about yourself. End with a low-friction ask (a question, a 15-min chat, or simply 'reply if curious').",
@@ -62,13 +68,23 @@ const INTENT_RUBRICS: Record<IntentId, string> = {
     "Intent: founder-to-founder. Speak peer-to-peer, not buyer-to-vendor. Reference a hard problem they've publicly written or talked about that overlaps with yours. Offer something concrete (a tool, an intro, a learning) before asking for anything in return.",
 };
 
+const VIBE_SYSTEM_CONTEXT = `
+You also need to recommend an ElevenLabs "Cinematic Vibe" (background atmosphere) for this video.
+AVAILABLE VIBES:
+- "tech-office": Modern, sleek, productive. Best for software, engineering, and tech startups.
+- "quiet-cafe": Warm, conversational, human. Best for creative, relaxed, or human-centric outreach.
+- "startup-hustle": High-energy, collaborative, fast-paced. Best for high-growth, intense, or energetic prospects.
+- "zen-studio": Calm, focused, minimalist. Best for designers, artists, or high-end residential creative vibes.
+- "city-pulse": Urban, dynamic, global business. Best for finance, corporate, or urban-centric professional context.
+`;
+
 export async function generateScript(
   profile: Profile,
   senderBrief?: string,
   options?: { forceFallback?: boolean; intent?: IntentId; senderName?: string }
-): Promise<string> {
+): Promise<ScriptResult> {
   if (options?.forceFallback) {
-    return fallbackScript(profile, senderBrief);
+    return { script: fallbackScript(profile, senderBrief), vibeId: "tech-office", vibeReasoning: "Fallback default." };
   }
 
   const intentRubric = options?.intent ? INTENT_RUBRICS[options.intent] : null;
@@ -76,18 +92,52 @@ export async function generateScript(
     ? `The sender's name is ${options.senderName} — use it naturally in the opening.`
     : `Do NOT include a sender name or placeholder like "[Your Name]". Just start naturally without introducing yourself by name.`;
 
-  const systemPrompt = `You are a video script writer. Write a personalised 45-90 second video script (under 200 words) that is a direct message TO ${profile.name}. Address them by name. The sender is speaking directly to this person in a personalised video outreach. Reference at least 2 specific details from their profile. Write in first person as the sender, second person ("you") for the recipient. Be conversational and genuine — not salesy or generic. Never write about them in third person. Never use placeholder brackets like [Your Name] or [specific topic] — use ACTUAL details from the profile or omit. ${senderNameInstruction} Respond with ONLY the script text, no JSON wrapping, no markdown, no labels.${intentRubric ? `\n\n${intentRubric}` : ""}`;
+  const systemPrompt = `You are an expert video script writer. Write a personalised 45-90 second video script (under 200 words) that is a direct message TO ${profile.name}. Address them by name. The sender is speaking directly to this person in a personalised video outreach. Reference at least 2 specific details from their profile. Write in first person as the sender, second person ("you") for the recipient. Be conversational and genuine — not salesy or generic. Never write about them in third person. Never use placeholder brackets like [Your Name] or [specific topic] — use ACTUAL details from the profile or omit. ${senderNameInstruction}${intentRubric ? `\n\n${intentRubric}` : ""}
+
+${VIBE_SYSTEM_CONTEXT}
+
+OUTPUT FORMAT (JSON):
+{
+  "script": "The full script text.",
+  "vibeId": "The ID of the recommended vibe.",
+  "vibeReasoning": "1-sentence on why this vibe matches this person's role or industry."
+}
+Respond ONLY with raw JSON. No markdown code blocks.`;
 
   const userMessage = `Profile:\n${JSON.stringify(profile, null, 2)}\n\n${senderBrief ? `Sender brief: ${senderBrief}` : "Write a general introduction/outreach script."}`;
 
   try {
     const text = await chatCompletion(systemPrompt, userMessage);
-    if (text.trim().length > 20) return text.trim();
+    const parsed = parseScriptJson(text);
+    if (parsed) return parsed;
   } catch (error) {
     console.warn("[script] Script generation failed, using heuristic fallback:", error);
   }
 
-  return fallbackScript(profile, senderBrief);
+  return { script: fallbackScript(profile, senderBrief), vibeId: "tech-office", vibeReasoning: "Heuristic fallback." };
+}
+
+function parseScriptJson(text: string): ScriptResult | null {
+  const trimmed = text.trim();
+  const candidates = [
+    trimmed,
+    trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/)?.[1],
+    trimmed.match(/\{[\s\S]*\}/)?.[0],
+  ].filter(Boolean) as string[];
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate) as Partial<ScriptResult>;
+      if (parsed.script) {
+        return {
+          script: parsed.script,
+          vibeId: parsed.vibeId || "tech-office",
+          vibeReasoning: parsed.vibeReasoning || "Standard professional vibe."
+        };
+      }
+    } catch { /* noop */ }
+  }
+  return null;
 }
 
 function parseProfileJson(text: string): Profile | null {

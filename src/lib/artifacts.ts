@@ -36,6 +36,7 @@ export interface ShareRecord {
   plan?: "free" | "pro";
   industry?: string;
   videoStyle?: string;
+  soundscapeUrl?: string;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
 }

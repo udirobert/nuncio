@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
         let script: string;
         let hookChoice: { archetype: { label: string }; reasoning: string; concept: string; prompt: string };
         let hookFormat: { label: string; reasoning: string };
+        let scriptResult: import("@/lib/claude").ScriptResult | null = null;
 
         if (confirmedProfile && confirmedScript) {
           // Skip enrichment — user already reviewed and confirmed
@@ -87,10 +88,14 @@ export async function POST(request: NextRequest) {
 
           // 3. Generate script
           send({ phase: "synthesise", status: "Drafting outreach script...", detail: "Conversational, < 90 seconds, specific" });
-          script = await generateScript(profile, senderBrief, {
+          scriptResult = await generateScript(profile, senderBrief, {
             intent: intent as Parameters<typeof generateScript>[2] extends { intent: infer I } ? I : undefined,
             senderName: typeof senderName === "string" ? senderName.trim() || undefined : undefined,
           });
+          script = scriptResult.script;
+          // Store the vibeId in the session or send it as part of the phase metadata
+          send({ phase: "synthesise", status: "Recommending Cinematic Vibe...", detail: scriptResult.vibeReasoning });
+          
           const hc = chooseArchetype(profile, senderBrief, archetype as HookArchetypeId | undefined);
           hookChoice = { archetype: { label: hc.archetype.label }, reasoning: hc.reasoning, concept: hc.concept, prompt: hc.prompt };
           const hf = pickFormat(profile);
@@ -264,6 +269,8 @@ export async function POST(request: NextRequest) {
           canvasUrl,
           userOwned: !!meliusApiKey,
           nodes: studioNodes,
+          recommendedVibeId: scriptResult?.vibeId || "tech-office",
+          vibeReasoning: scriptResult?.vibeReasoning || "Standard professional vibe.",
           hook: {
             archetype: hookChoice.archetype.label,
             reasoning: hookChoice.reasoning,

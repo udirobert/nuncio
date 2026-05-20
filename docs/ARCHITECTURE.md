@@ -185,6 +185,13 @@ POST /v1/video_translate
 }
 ```
 
+## Stage 5 — Cinematic Soundscape (ElevenLabs)
+
+To differentiate nuncio from standard AI video, we add a generative audio layer:
+1. **Context-Aware Foley** — The LLM generates a soundscape prompt based on the recipient's industry/vibe (e.g., "tech office," "garden cafe").
+2. **Generative Ambience** — ElevenLabs Sound Effects API generates a high-fidelity loop.
+3. **Layered Delivery** — The landing page `/v/[id]` layers this ambience under the HeyGen video with intelligent ducking.
+
 ---
 
 ## API routes (Next.js)

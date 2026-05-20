@@ -574,7 +574,17 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
             }
 
             if (data.type === "done") {
-              setBuildResult(data.result);
+              const result = data.result as StudioBuildResult;
+              setBuildResult(result);
+              
+              // Apply AI recommended vibe to the customization state
+              if (result.recommendedVibeId) {
+                setVideoCustomization(prev => ({
+                  ...prev,
+                  soundscapeVibe: result.recommendedVibeId
+                }));
+              }
+              
               setStage("ready");
               return;
             }
