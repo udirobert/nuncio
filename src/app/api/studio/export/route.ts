@@ -3,14 +3,14 @@ import { MeliusProvider, resetMeliusSession } from "@/lib/creative/melius-provid
 
 export async function POST(request: NextRequest) {
   try {
-    const { canvasId } = await request.json();
+    const { canvasId, meliusApiKey } = await request.json();
 
     if (!canvasId) {
       return NextResponse.json({ error: "canvasId is required" }, { status: 400 });
     }
 
     resetMeliusSession();
-    const melius = new MeliusProvider();
+    const melius = new MeliusProvider(meliusApiKey || undefined);
 
     const downloadUrl = await melius.exportCanvas(canvasId);
 

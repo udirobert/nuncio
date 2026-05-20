@@ -769,7 +769,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               transition={{ duration: 0.35 }}
             >
               <section className="relative px-6 pt-24 pb-16">
-                <div className="max-w-6xl mx-auto grid lg:grid-cols-[1.05fr,1fr] gap-12 items-center">
+                <div className="max-w-6xl mx-auto grid md:grid-cols-[1.05fr,1fr] gap-12 items-center">
                   <div className="space-y-7">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15">
                       <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
@@ -926,7 +926,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     </div>
                   </div>
 
-                  <div className="hidden lg:block">
+                  <div className="hidden md:block">
                     <AmbientCanvasLoop />
                     <p className="text-[11px] text-ink-faint text-center mt-3 font-mono">
                       ↑ live preview · what the agent builds on Melius
