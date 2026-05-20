@@ -485,14 +485,21 @@ export class MeliusProvider implements CreativeProvider {
       nodes: { id: string; title?: string; type: string; prompt?: string; status?: string; outputs?: { url: string }[] }[];
     }>("canvas_content", { canvasId });
 
-    const nodes: StudioNode[] = (result.nodes || []).map((n) => ({
-      id: n.id,
-      label: n.title || n.type,
-      type: n.type as StudioNode["type"],
-      status: (n.status === "completed" || n.outputs?.[0]?.url) ? "complete" : n.status === "running" ? "generating" : "pending",
-      prompt: n.prompt,
-      outputUrl: n.outputs?.[0]?.url,
-    }));
+    const nodes: StudioNode[] = (result.nodes || []).map((n) => {
+      const type = n.type as StudioNode["type"];
+      const isGenerative = type === "image" || type === "video";
+      let status: StudioNode["status"];
+      if (!isGenerative) {
+        status = "complete";
+      } else if (n.status === "completed" || n.outputs?.[0]?.url) {
+        status = "complete";
+      } else if (n.status === "running") {
+        status = "generating";
+      } else {
+        status = "pending";
+      }
+      return { id: n.id, label: n.title || n.type, type, status, prompt: n.prompt, outputUrl: n.outputs?.[0]?.url };
+    });
 
     return { nodes };
   }

@@ -668,7 +668,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
   function openDownloadTarget() {
     const hookUrl = buildResult?.hook?.outputUrl;
-    window.open(hookUrl || buildResult?.canvasUrl || "/studio", "_blank", "noopener,noreferrer");
+    if (hookUrl) {
+      window.open(hookUrl, "_blank", "noopener,noreferrer");
+    }
   }
 
   // Poll Melius for node generation status
@@ -753,10 +755,10 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     <h1 className="font-[family-name:var(--font-display)] text-5xl lg:text-6xl tracking-tight leading-[1.02]">
                       Brief an agent.
                       <br />
-                      <span className="text-ink-muted">Get a Melius canvas.</span>
+                      <span className="text-ink-muted">Get personalised creative.</span>
                     </h1>
                     <p className="text-ink-muted text-base max-w-md leading-relaxed">
-                      Drop in a profile URL. A nuncio agent reads the human, builds a full creative canvas on Melius — nodes, edges, generation runs — then hands it to you. Iterate directly in Melius.
+                      Drop in a profile URL. A nuncio agent reads the human, generates a personalised outreach script, cinematic images, and a hook video — all powered by Melius under the hood.
                     </p>
 
                     <div className="space-y-3 max-w-md">
@@ -858,7 +860,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     How the agent works
                   </p>
                   <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-tight mt-2">
-                    Four moves. Eight nodes. A canvas you own.
+                    Four moves. Eight nodes. Creative you can use.
                   </h2>
                 </div>
                 <div className="grid md:grid-cols-4 gap-4">
@@ -883,9 +885,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     },
                     {
                       kicker: "04",
-                      title: "Hands it to you",
-                      body: "Starts generation runs, releases presence. You open the canvas in Melius to iterate.",
-                      tool: "run_start · release_presence",
+                      title: "Delivers creative",
+                      body: "Starts generation runs and delivers your images, hook video, and script — ready to render or share.",
+                      tool: "run_start · bulk_run_download",
                     },
                   ].map((step) => (
                     <div
@@ -988,19 +990,20 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               animate={{ opacity: 1 }}
               className="px-6 pt-24 pb-12 max-w-5xl mx-auto space-y-6"
             >
-              {/* Success banner + primary CTA */}
+              {/* Header + actions */}
               <div className="rounded-2xl border border-cream-dark bg-gradient-to-br from-white via-white to-accent-soft/30 p-6 space-y-4">
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-success-soft border border-success/20">
                     <span className="w-1.5 h-1.5 rounded-full bg-success" />
                     <span className="text-[10px] uppercase tracking-widest font-medium text-success">
-                      Canvas ready
+                      Creative ready
                     </span>
                   </div>
                   <p className="text-sm text-ink">
-                    Built <span className="font-medium">{nodeStats.total} nodes</span> ({nodeStats.text} text · {nodeStats.image} image · {nodeStats.video} video).
-                    {nodeStats.complete < nodeStats.total && (
-                      <span className="text-ink-faint ml-1">· {nodeStats.complete}/{nodeStats.total} generated</span>
+                    {nodeStats.complete === nodeStats.total ? (
+                      <>All <span className="font-medium">{nodeStats.total} assets</span> generated.</>
+                    ) : (
+                      <><span className="font-medium">{nodeStats.complete}/{nodeStats.total}</span> assets generated — images and video are still rendering…</>
                     )}
                   </p>
                 </div>
@@ -1010,45 +1013,34 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     <span className="rounded-full border border-accent/20 bg-white px-2.5 py-1 text-accent">
                       {buildResult.hook.archetype} · {buildResult.hook.format}
                     </span>
-                    <span className="rounded-full border border-cream-dark bg-white px-2.5 py-1 text-ink-muted">
-                      {buildResult.hook.status === "generating" ? "generating on Melius…" : buildResult.hook.status}
-                    </span>
+                    {buildResult.hook.status === "generating" && (
+                      <span className="rounded-full border border-warm/20 bg-warm-soft px-2.5 py-1 text-warm animate-pulse">
+                        generating…
+                      </span>
+                    )}
                     <button
                       onClick={() => setShowHookReasoning((v) => !v)}
                       className="rounded-full border border-accent/20 bg-white px-2.5 py-1 text-accent hover:bg-accent-soft transition-colors"
                     >
-                      why?
+                      why this hook?
                     </button>
                   </div>
                 )}
 
-                {/* Primary action: Open in Melius */}
                 <div className="flex flex-wrap items-center gap-3 border-t border-cream-dark/50 pt-4">
-                  <a
-                    href={buildResult.canvasUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-5 py-3 text-sm font-medium hover:bg-ink-light transition-colors shadow-sm"
-                  >
-                    Open in Melius
-                    <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M6 3H3v10h10V10M10 3h3v3M7 9l6-6" />
-                    </svg>
-                  </a>
-
                   <button
                     onClick={() => {
                       if (!capturedEmail) { openCapture("render"); } else { handleRenderVideo(); }
                     }}
                     disabled={videoRendering === "rendering"}
-                    className="btn-press inline-flex items-center gap-1.5 rounded-xl border border-cream-dark px-4 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors disabled:opacity-40"
+                    className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-5 py-3 text-sm font-medium hover:bg-ink-light transition-colors shadow-sm disabled:opacity-40"
                   >
                     {videoRendering === "rendering" ? "Rendering…" : videoRendering === "done" ? "Video ready" : "Render HeyGen video"}
                   </button>
 
                   <button
                     onClick={handleDownloadClick}
-                    className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-2.5 text-xs font-medium text-ink-muted hover:bg-cream-dark/50 transition-colors"
+                    className="btn-press inline-flex items-center gap-1.5 rounded-xl border border-cream-dark px-4 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
                   >
                     Export ZIP
                   </button>
@@ -1081,7 +1073,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   </button>
                 </div>
 
-                {/* Video customization (collapsible) */}
+                {/* Video customization */}
                 <div className="border-t border-cream-dark/50 pt-3">
                   <button
                     onClick={() => setShowCustomization(!showCustomization)}
@@ -1091,7 +1083,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       <circle cx="8" cy="8" r="3" />
                       <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" />
                     </svg>
-                    {showCustomization ? "Hide video customization" : "Customize video avatar & voice"}
+                    {showCustomization ? "Hide video customization" : "Customize avatar & voice"}
                   </button>
                   <AnimatePresence>
                     {showCustomization && (
@@ -1112,7 +1104,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 </div>
               </div>
 
-              {/* Hook reasoning (expandable) */}
+              {/* Hook reasoning */}
               {buildResult.hook && showHookReasoning && (
                 <motion.div
                   initial={{ opacity: 0, y: -6 }}
@@ -1129,47 +1121,13 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 </motion.div>
               )}
 
-              {/* Canvas recap + node list */}
-              <div className="grid grid-cols-1 lg:grid-cols-[1.4fr,1fr] gap-6">
-                <div className="rounded-2xl border border-cream-dark bg-white overflow-hidden shadow-[0_2px_40px_-16px_rgba(74,58,255,0.15)]">
-                  <div className="aspect-[4/3]">
-                    <AgentCanvas appearedCount={8} edgeCount={6} />
-                  </div>
-                  <div className="flex items-center justify-between px-4 py-3 border-t border-cream-dark">
-                    <span className="text-[11px] font-mono text-ink-faint">
-                      {nodeStats.total} nodes · 6 edges · {nodeStats.complete}/{nodeStats.total} generated
-                    </span>
-                    <a
-                      href={buildResult.canvasUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[11px] text-accent hover:underline font-medium"
-                    >
-                      Edit in Melius →
-                    </a>
-                  </div>
-                </div>
+              {/* Generated outputs */}
+              <div className="space-y-4">
+                {/* Visual outputs: images + hook video */}
+                <OutputGrid nodes={buildResult.nodes} hookStatus={buildResult.hook?.status} />
 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-[10px] font-medium text-ink-faint uppercase tracking-widest">
-                      Nodes
-                    </h2>
-                    <span className="text-[10px] font-mono text-ink-faint">
-                      {nodeStats.complete}/{nodeStats.total} ready
-                    </span>
-                  </div>
-
-                  <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
-                    {buildResult.nodes.map((node) => (
-                      <NodeCard key={node.id} node={node} canvasUrl={buildResult.canvasUrl} />
-                    ))}
-                  </div>
-
-                  <p className="text-[10px] text-ink-faint leading-relaxed pt-1">
-                    Open in Melius to edit prompts, regenerate nodes, compare versions, or add new ones.
-                  </p>
-                </div>
+                {/* Script */}
+                <ScriptCard nodes={buildResult.nodes} />
               </div>
 
               {/* Video result */}
@@ -1359,57 +1317,91 @@ function AgentLogPanel({ logIndex }: { logIndex: number }) {
   );
 }
 
-function NodeCard({ node, canvasUrl }: { node: StudioNode; canvasUrl: string }) {
-  const typeColor = node.type === "image" ? "text-warm" : node.type === "video" ? "text-success" : "text-accent";
+function OutputGrid({ nodes, hookStatus }: { nodes: StudioNode[]; hookStatus?: string }) {
+  const imageNodes = nodes.filter((n) => n.type === "image");
+  const videoNode = nodes.find((n) => n.type === "video");
 
   return (
-    <div className="rounded-xl border border-cream-dark bg-white p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs shrink-0">{statusIcon(node.status)}</span>
-          <span className={`text-[10px] font-mono uppercase ${typeColor}`}>{node.type}</span>
-          <span className="text-sm font-medium text-ink truncate">{node.label}</span>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {imageNodes.map((node) => (
+        <div key={node.id} className="rounded-xl border border-cream-dark bg-white overflow-hidden">
+          <div className="aspect-video bg-cream/50 relative">
+            {node.outputUrl ? (
+              <img
+                src={node.outputUrl}
+                alt={node.label}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="text-center space-y-2">
+                  <div className="w-6 h-6 rounded-full border-2 border-accent/30 border-t-accent animate-spin mx-auto" />
+                  <span className="text-[10px] text-ink-faint">Generating…</span>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="px-3 py-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-ink truncate">{node.label}</span>
+            <span className="text-[10px] text-ink-faint">{statusIcon(node.status)}</span>
+          </div>
         </div>
-        {(node.type === "image" || node.type === "video") && (
-          <a
-            href={canvasUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] text-accent hover:underline shrink-0"
-          >
-            Edit in Melius
-          </a>
+      ))}
+
+      {videoNode && (
+        <div className="rounded-xl border border-cream-dark bg-white overflow-hidden">
+          <div className="aspect-video bg-ink relative">
+            {videoNode.outputUrl ? (
+              <video
+                src={videoNode.outputUrl}
+                className="w-full h-full object-cover"
+                muted
+                loop
+                autoPlay
+                playsInline
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="text-center space-y-2">
+                  {hookStatus === "generating" ? (
+                    <>
+                      <div className="w-6 h-6 rounded-full border-2 border-accent/30 border-t-accent animate-spin mx-auto" />
+                      <span className="text-[10px] text-cream/60">Generating hook video…</span>
+                    </>
+                  ) : (
+                    <span className="text-[10px] text-cream/40">Video pending</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="px-3 py-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-ink truncate">{videoNode.label}</span>
+            <span className="text-[10px] text-ink-faint">{statusIcon(videoNode.status)}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScriptCard({ nodes }: { nodes: StudioNode[] }) {
+  const scriptNode = nodes.find((n) => n.label === "Script" && n.type === "custom_text");
+  const profileNode = nodes.find((n) => n.label === "Profile Summary" && n.type === "custom_text");
+
+  if (!scriptNode?.prompt) return null;
+
+  return (
+    <div className="rounded-xl border border-cream-dark bg-white p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] uppercase tracking-widest font-medium text-accent">Script</span>
+        {profileNode?.prompt && (
+          <span className="text-[10px] text-ink-faint">
+            — for {profileNode.prompt.split("—")[0]?.trim() || "recipient"}
+          </span>
         )}
       </div>
-
-      {node.outputUrl && node.type === "video" && (
-        <video
-          src={node.outputUrl}
-          className="w-full rounded-lg border border-cream-dark bg-ink aspect-video object-cover"
-          muted
-          loop
-          autoPlay
-          playsInline
-        />
-      )}
-
-      {node.outputUrl && (
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-success font-medium">Generated</span>
-          <a
-            href={node.outputUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] text-accent hover:underline truncate"
-          >
-            View output →
-          </a>
-        </div>
-      )}
-
-      {node.prompt && (
-        <p className="text-xs text-ink-muted leading-relaxed line-clamp-2">{node.prompt}</p>
-      )}
+      <p className="text-sm text-ink leading-relaxed whitespace-pre-wrap">{scriptNode.prompt}</p>
     </div>
   );
 }
