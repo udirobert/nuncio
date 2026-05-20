@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
         ...(buildResult?.hook
           ? [{
               label: "Hook Engine tier",
-              detail: `${buildResult.hook.tier} · ${buildResult.hook.model} · ${buildResult.hook.archetype}`,
+              detail: `${buildResult.hook.tier} · ${buildResult.hook.archetype}`,
               status: "complete" as const,
             }]
           : []),

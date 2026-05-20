@@ -168,12 +168,10 @@ export interface StudioBuildResult {
   projectId: string;
   canvasId: string;
   canvasUrl: string;
-  embedUrl: string;
   nodes: StudioNode[];
   hook?: {
     archetype: string;
     reasoning: string;
-    model: string;
     tier: "trial" | "free" | "pro" | "studio";
     remainingFree: number;
     canRegenerate: boolean;

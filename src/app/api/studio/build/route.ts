@@ -4,19 +4,14 @@ import { synthesise, generateScript } from "@/lib/claude";
 import { MeliusProvider, resetMeliusSession } from "@/lib/creative/melius-provider";
 import type { StudioNode, StudioBuildResult } from "@/lib/creative/melius-provider";
 import { chooseArchetype } from "@/lib/hooks/select";
-import { generateHookVideo } from "@/lib/hooks/generate";
 import { ensureTrialCookie, resolveHookAccess } from "@/lib/hooks/tiers";
 import { pickFormat, type HookArchetypeId } from "@/lib/hooks/archetypes";
 
-const NODE_GEOMETRY = {
-  profileSummary: { x: 0, y: 0, w: 420, h: 140 },
-  script: { x: 0, y: 160, w: 420, h: 200 },
-  visualDirection: { x: 0, y: 380, w: 420, h: 140 },
-  objective: { x: 0, y: 540, w: 420, h: 100 },
-  background: { x: 460, y: 0, w: 420, h: 236 },
-  thumbnail: { x: 460, y: 256, w: 420, h: 236 },
-  hookConcept: { x: 920, y: 0, w: 420, h: 160 },
-  hookVideo: { x: 920, y: 180, w: 420, h: 236 },
+const NODE_DIMENSIONS = {
+  text: { w: 420, h: 140 },
+  textLarge: { w: 420, h: 200 },
+  image: { w: 420, h: 236 },
+  video: { w: 420, h: 236 },
 };
 
 export async function POST(request: NextRequest) {
@@ -73,26 +68,13 @@ export async function POST(request: NextRequest) {
           throw new Error("Failed to create Melius canvas");
         }
 
-        // Ensure visibility is public for non-logged-in users
-        try {
-          if (projectId) {
-            await melius.updateProjectVisibility(projectId, "public");
-          }
-        } catch (error) {
-          console.warn("[studio/build] Visibility update failed:", error);
-        }
+        const canvasUrl = session.canvasUrl || `https://app.melius.com/canvas/${canvasId}`;
 
-        // Send canvas info immediately so client can show iframe
         send({
           phase: "canvas",
           status: "Opening a fresh Melius canvas",
           detail: `Canvas created: ${canvasId}`,
-          canvas: {
-            projectId,
-            canvasId,
-            canvasUrl: session.canvasUrl || `https://app.melius.com/canvas/${canvasId}`,
-            embedUrl: `https://app.melius.com/canvas/${canvasId}/embed`,
-          }
+          canvas: { projectId, canvasId, canvasUrl },
         });
 
         await melius.claimPresence(canvasId, { x: 0, y: 0, w: 880, h: 600 });
@@ -104,48 +86,40 @@ export async function POST(request: NextRequest) {
         const visualDirection = `Tone: ${profile.tone}, warm, genuine\nStyle: Clean, professional background. Warm lighting.\nTarget: ${profile.name} — ${role}`;
         const profileSummary = `${profile.name} — ${profile.current_role}${profile.company ? ` at ${profile.company}` : ""}\n\nNotable: ${profile.notable_work.join(", ")}\nInterests: ${profile.interests.join(", ")}`;
 
-        // Generate temporary IDs upfront
-        const NODE_IDS = {
-          profileSummary: crypto.randomUUID(),
-          script: crypto.randomUUID(),
-          visualDirection: crypto.randomUUID(),
-          objective: crypto.randomUUID(),
-          background: crypto.randomUUID(),
-          thumbnail: crypto.randomUUID(),
-          hookConcept: crypto.randomUUID(),
-          hookVideo: crypto.randomUUID(),
-        };
-
-        const layoutNodes = [
-          { id: NODE_IDS.profileSummary, nodeType: "custom_text", ...NODE_GEOMETRY.profileSummary },
-          { id: NODE_IDS.script, nodeType: "custom_text", ...NODE_GEOMETRY.script },
-          { id: NODE_IDS.visualDirection, nodeType: "custom_text", ...NODE_GEOMETRY.visualDirection },
-          { id: NODE_IDS.objective, nodeType: "custom_text", ...NODE_GEOMETRY.objective },
-          { id: NODE_IDS.background, nodeType: "image", ...NODE_GEOMETRY.background },
-          { id: NODE_IDS.thumbnail, nodeType: "image", ...NODE_GEOMETRY.thumbnail },
-          { id: NODE_IDS.hookConcept, nodeType: "custom_text", ...NODE_GEOMETRY.hookConcept },
-          { id: NODE_IDS.hookVideo, nodeType: "video", ...NODE_GEOMETRY.hookVideo },
+        // Let Melius compute optimal layout — we only provide dimensions
+        const layoutSpec = [
+          { id: crypto.randomUUID(), nodeType: "custom_text", ...NODE_DIMENSIONS.text },
+          { id: crypto.randomUUID(), nodeType: "custom_text", ...NODE_DIMENSIONS.textLarge },
+          { id: crypto.randomUUID(), nodeType: "custom_text", ...NODE_DIMENSIONS.text },
+          { id: crypto.randomUUID(), nodeType: "custom_text", ...NODE_DIMENSIONS.text },
+          { id: crypto.randomUUID(), nodeType: "image", ...NODE_DIMENSIONS.image },
+          { id: crypto.randomUUID(), nodeType: "image", ...NODE_DIMENSIONS.image },
+          { id: crypto.randomUUID(), nodeType: "custom_text", ...NODE_DIMENSIONS.text },
+          { id: crypto.randomUUID(), nodeType: "video", ...NODE_DIMENSIONS.video },
         ];
 
-        send({ phase: "canvas", status: "Planning node layout", detail: "8 nodes · grid-snapped" });
+        send({ phase: "canvas", status: "Planning node layout", detail: "8 nodes · dynamic positions" });
         let positions: { x: number; y: number }[] = [];
         try {
-          positions = await melius.planLayout(canvasId, layoutNodes);
+          positions = await melius.planLayout(canvasId, layoutSpec);
         } catch (error) {
-          console.warn("[studio/build] Layout planning failed:", error);
+          console.warn("[studio/build] Layout planning failed, using fallback:", error);
         }
-        const geometryKeys = ["profileSummary", "script", "visualDirection", "objective", "background", "thumbnail", "hookConcept", "hookVideo"] as const;
 
-        function pos(key: typeof geometryKeys[number]): { x: number; y: number; w: number; h: number } {
-          const idx = geometryKeys.indexOf(key);
-          const p = positions[idx];
-          const g = NODE_GEOMETRY[key];
-          return p ? { x: p.x, y: p.y, w: g.w, h: g.h } : g;
+        // Fallback positions if planLayout fails
+        const fallbackPositions = [
+          { x: 0, y: 0 }, { x: 0, y: 160 }, { x: 0, y: 380 }, { x: 0, y: 540 },
+          { x: 460, y: 0 }, { x: 460, y: 256 },
+          { x: 920, y: 0 }, { x: 920, y: 180 },
+        ];
+
+        function geo(idx: number): { x: number; y: number; w: number; h: number } {
+          const p = positions[idx] || fallbackPositions[idx] || { x: idx * 100, y: 0 };
+          const spec = layoutSpec[idx];
+          return { x: p.x, y: p.y, w: spec.w, h: spec.h };
         }
 
         const studioNodes: StudioNode[] = [];
-
-        // Helper to send node updates
         const sendNode = (node: StudioNode) => {
           studioNodes.push(node);
           send({ phase: "nodes", node });
@@ -153,29 +127,29 @@ export async function POST(request: NextRequest) {
 
         // Text nodes
         send({ phase: "nodes", status: "Placing Profile Summary", detail: "node_type: custom_text" });
-        const profileNodeId = await melius.createCustomTextNode(canvasId, "Profile Summary", profileSummary, pos("profileSummary"));
-        sendNode({ id: profileNodeId, label: "Profile Summary", type: "custom_text", status: "complete", reasoning: "Distilling the enriched profile into key facts." });
+        const profileNodeId = await melius.createCustomTextNode(canvasId, "Profile Summary", profileSummary, geo(0));
+        sendNode({ id: profileNodeId, label: "Profile Summary", type: "custom_text", status: "complete" });
 
         send({ phase: "nodes", status: "Placing Script", detail: "node_type: custom_text" });
-        const scriptNodeId = await melius.createCustomTextNode(canvasId, "Script", script, pos("script"));
-        sendNode({ id: scriptNodeId, label: "Script", type: "custom_text", status: "complete", reasoning: "Drafting a personalised outreach script." });
+        const scriptNodeId = await melius.createCustomTextNode(canvasId, "Script", script, geo(1));
+        sendNode({ id: scriptNodeId, label: "Script", type: "custom_text", status: "complete", prompt: script });
 
         send({ phase: "nodes", status: "Placing Visual Direction", detail: "node_type: custom_text" });
-        const visualDirNodeId = await melius.createCustomTextNode(canvasId, "Visual Direction", visualDirection, pos("visualDirection"));
-        sendNode({ id: visualDirNodeId, label: "Visual Direction", type: "custom_text", status: "complete", reasoning: "Setting the visual tone and style constraints." });
+        const visualDirNodeId = await melius.createCustomTextNode(canvasId, "Visual Direction", visualDirection, geo(2));
+        sendNode({ id: visualDirNodeId, label: "Visual Direction", type: "custom_text", status: "complete" });
 
         send({ phase: "nodes", status: "Placing Outreach Objective", detail: "node_type: custom_text" });
-        const objectiveNodeId = await melius.createCustomTextNode(canvasId, "Outreach Objective", objectiveText, pos("objective"));
-        sendNode({ id: objectiveNodeId, label: "Outreach Objective", type: "custom_text", status: "complete", reasoning: "Capturing the campaign goal." });
+        const objectiveNodeId = await melius.createCustomTextNode(canvasId, "Outreach Objective", objectiveText, geo(3));
+        sendNode({ id: objectiveNodeId, label: "Outreach Objective", type: "custom_text", status: "complete" });
 
         // Image nodes
         send({ phase: "nodes", status: "Placing Video Background", detail: "node_type: image · prompt seeded" });
-        const bgNodeId = await melius.createImageNode(canvasId, "Video Background", bgPrompt, pos("background"));
-        sendNode({ id: bgNodeId, label: "Video Background", type: "image", status: "pending", prompt: bgPrompt, reasoning: "Seeding a cinematic 16:9 background prompt." });
+        const bgNodeId = await melius.createImageNode(canvasId, "Video Background", bgPrompt, geo(4));
+        sendNode({ id: bgNodeId, label: "Video Background", type: "image", status: "pending", prompt: bgPrompt });
 
         send({ phase: "nodes", status: "Placing Video Thumbnail", detail: "node_type: image · prompt seeded" });
-        const thumbNodeId = await melius.createImageNode(canvasId, "Video Thumbnail", thumbPrompt, pos("thumbnail"));
-        sendNode({ id: thumbNodeId, label: "Video Thumbnail", type: "image", status: "pending", prompt: thumbPrompt, reasoning: "Generating a clean, inviting thumbnail prompt." });
+        const thumbNodeId = await melius.createImageNode(canvasId, "Video Thumbnail", thumbPrompt, geo(5));
+        sendNode({ id: thumbNodeId, label: "Video Thumbnail", type: "image", status: "pending", prompt: thumbPrompt });
 
         // Hook Concept
         const hookConceptText = [
@@ -184,29 +158,27 @@ export async function POST(request: NextRequest) {
           `Archetype: ${hookChoice.archetype.label}`,
           `Reasoning: ${hookChoice.reasoning}`,
           `Format: ${hookFormat.label}`,
-          `Model: ${hookAccess.modelLabel}`,
         ].filter(Boolean).join("\n");
 
         send({ phase: "nodes", status: "Placing Hook Concept", detail: "node_type: custom_text · archetype reasoning" });
-        const hookConceptNodeId = await melius.createCustomTextNode(canvasId, "Hook Concept", hookConceptText, pos("hookConcept"));
-        sendNode({ id: hookConceptNodeId, label: "Hook Concept", type: "custom_text", status: "complete", prompt: hookConceptText, reasoning: "Documenting strategy." });
+        const hookConceptNodeId = await melius.createCustomTextNode(canvasId, "Hook Concept", hookConceptText, geo(6));
+        sendNode({ id: hookConceptNodeId, label: "Hook Concept", type: "custom_text", status: "complete", prompt: hookConceptText });
 
-        // Video Node - created as "generating" placeholder first
-        send({ phase: "nodes", status: "Placing Hook Cinematic", detail: "node_type: video · fal hook prompt" });
+        // Video Node — generation happens through Melius (not Fal directly)
+        send({ phase: "nodes", status: "Placing Hook Cinematic", detail: "node_type: video · Melius generation" });
         let hookVideoNodeId: string | null = null;
         try {
-          hookVideoNodeId = await melius.createVideoNode(canvasId, "Hook Cinematic", hookChoice.prompt, pos("hookVideo"), undefined);
+          hookVideoNodeId = await melius.createVideoNode(canvasId, "Hook Cinematic", hookChoice.prompt, geo(7), undefined);
           sendNode({
             id: hookVideoNodeId, label: "Hook Cinematic", type: "video",
-            status: "generating",
-            prompt: hookChoice.prompt, outputUrl: undefined, reasoning: "Placing cinematic video hook."
+            status: "pending", prompt: hookChoice.prompt,
           });
         } catch (error) {
-          console.warn("[studio/build] Hook video node failed", error);
+          console.warn("[studio/build] Hook video node creation failed:", error);
         }
 
         // Edges
-        send({ phase: "edges", status: "Wiring Profile → Background", detail: "edge_type: text" });
+        send({ phase: "edges", status: "Wiring node connections", detail: "Context flows between nodes" });
         const edges = [
           { sourceNodeId: profileNodeId, targetNodeId: bgNodeId, type: "text" },
           { sourceNodeId: visualDirNodeId, targetNodeId: bgNodeId, type: "text" },
@@ -221,69 +193,46 @@ export async function POST(request: NextRequest) {
         }
         await melius.bulkCreateEdges(canvasId, edges);
 
-        send({ phase: "canvas", status: "Grouping nodes into one workspace", detail: "Single draggable workspace" });
+        send({ phase: "canvas", status: "Grouping nodes", detail: "Single workspace" });
         const allNodeIds = [profileNodeId, scriptNodeId, visualDirNodeId, objectiveNodeId, bgNodeId, thumbNodeId, hookConceptNodeId, hookVideoNodeId].filter(Boolean) as string[];
         await melius.createGroupNode(canvasId, `${profile.name} — Video Outreach`, allNodeIds);
 
-        send({ phase: "canvas", status: "Leaving an audit comment", detail: "Future humans will know an agent did this" });
-        await melius.addComment(canvasId, `nuncio studio session for ${profile.name}. Hook Engine chose ${hookChoice.archetype.label}`, 0, -80);
+        send({ phase: "canvas", status: "Leaving an audit comment" });
+        await melius.addComment(canvasId, `nuncio studio session for ${profile.name}. Hook: ${hookChoice.archetype.label}`, 0, -80);
 
         await melius.releasePresence(canvasId);
 
-        // Start Runs
-        send({ phase: "generate", status: "Kicking off background image", detail: "Model: Seedance · poll for completion" });
+        // Start all generation runs through Melius
+        send({ phase: "generate", status: "Starting image generation", detail: "Background + Thumbnail via Melius" });
         await melius.startRun(bgNodeId, canvasId);
-        send({ phase: "generate", status: "Kicking off thumbnail image", detail: "Model: Seedance · poll for completion" });
         await melius.startRun(thumbNodeId, canvasId);
 
-        // Final result (video node in generating state initially)
+        if (hookVideoNodeId && hookAccess.generationAllowed) {
+          send({ phase: "generate", status: "Starting hook video generation", detail: "Via Melius video node" });
+          await melius.startRun(hookVideoNodeId, canvasId);
+        }
+
+        send({ phase: "generate", status: "Handing the canvas to you", detail: "Open in Melius to iterate" });
+
         const finalResult: StudioBuildResult = {
           projectId,
           canvasId,
-          canvasUrl: session.canvasUrl || `https://app.melius.com/canvas/${canvasId}`,
-          embedUrl: `https://app.melius.com/canvas/${canvasId}/embed`,
+          canvasUrl,
           nodes: studioNodes,
           hook: {
             archetype: hookChoice.archetype.label,
             reasoning: hookChoice.reasoning,
-            model: hookAccess.modelLabel,
             tier: hookAccess.tier,
             remainingFree: hookAccess.remainingFree,
             canRegenerate: hookAccess.canRegenerate,
             watermark: hookAccess.watermark,
-            status: "generating",
+            status: hookAccess.generationAllowed ? "generating" : "demo",
             format: hookFormat.label,
             formatReasoning: hookFormat.reasoning,
             outputUrl: undefined,
             warning: hookAccess.reason,
           },
         };
-
-        // Trigger background video generation asynchronously (non-blocking)
-        if (hookVideoNodeId) {
-          (async () => {
-            try {
-              console.log(`[studio/build] Starting background hook video generation for canvas ${canvasId}...`);
-              const hookGeneration = await generateHookVideo({
-                prompt: hookChoice.prompt,
-                modelEndpoint: hookAccess.modelEndpoint,
-                tier: hookAccess.tier,
-                generationAllowed: hookAccess.generationAllowed,
-                aspectRatio: hookFormat.aspectRatio,
-                durationSeconds: Math.min(5, hookFormat.durationSeconds),
-              });
-
-              if (hookGeneration.outputUrl) {
-                console.log(`[studio/build] Background video generation complete! Attaching to node ${hookVideoNodeId} on canvas ${canvasId}...`);
-                await melius.attachVideoToNode(hookVideoNodeId, hookGeneration.outputUrl, canvasId);
-              } else {
-                console.error(`[studio/build] Background video generation completed but returned no outputUrl for canvas ${canvasId}:`, hookGeneration);
-              }
-            } catch (err) {
-              console.error(`[studio/build] Background video generation failed for canvas ${canvasId}:`, err);
-            }
-          })();
-        }
 
         send({ type: "done", result: finalResult });
         controller.close();

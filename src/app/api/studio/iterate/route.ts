@@ -8,7 +8,6 @@ export async function POST(request: NextRequest) {
     if (!nodeId) {
       return NextResponse.json({ error: "nodeId is required" }, { status: 400 });
     }
-
     if (!prompt) {
       return NextResponse.json({ error: "prompt is required" }, { status: 400 });
     }
@@ -16,17 +15,9 @@ export async function POST(request: NextRequest) {
     resetMeliusSession();
     const melius = new MeliusProvider();
 
-    if (canvasId) {
-      await melius.claimPresence(canvasId, { x: 0, y: 0, w: 880, h: 600 });
-    }
-
-    // Update the node's prompt
     await melius.updateNodePrompt(nodeId, prompt, canvasId);
-
-    // Re-run generation
     const runId = await melius.startRun(nodeId, canvasId);
 
-    // Poll for completion (up to 30s)
     let status = "running";
     let outputUrl: string | undefined;
     const pollStart = Date.now();
@@ -38,10 +29,6 @@ export async function POST(request: NextRequest) {
       if (runStatus.outputUrl) {
         outputUrl = runStatus.outputUrl;
       }
-    }
-
-    if (canvasId) {
-      await melius.releasePresence(canvasId);
     }
 
     return NextResponse.json({
