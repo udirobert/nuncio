@@ -2,7 +2,8 @@
  * LLM provider abstraction.
  * Supports multiple backends with automatic fallback:
  * 1. Anthropic Claude (if ANTHROPIC_API_KEY is set)
- * 2. Featherless AI (if FEATHERLESS_API_KEY is set) — OpenAI-compatible, open-weight models
+ * 2. Venice AI (if VENICE_API_KEY is set) — OpenAI-compatible
+ * 3. Featherless AI (if FEATHERLESS_API_KEY is set) — OpenAI-compatible, open-weight models
  *
  * This prevents vendor lock-in and ensures the app works even without
  * an Anthropic key (which is harder to get for hackathon participants).
@@ -10,7 +11,7 @@
 
 import { fetchWithRetry } from "@/lib/retry";
 
-type Provider = "anthropic" | "google" | "featherless";
+type Provider = "anthropic" | "google" | "venice" | "featherless";
 
 interface LLMConfig {
   provider: Provider;
@@ -21,8 +22,9 @@ interface LLMConfig {
 }
 
 const DEFAULT_GOOGLE_MODEL = "gemini-3.1-flash";
+const DEFAULT_VENICE_MODEL = "deepseek-v4-flash";
 const DEFAULT_FEATHERLESS_MODEL = "deepseek-ai/DeepSeek-V4-Flash";
-const DEFAULT_LLM_TIMEOUT_MS = 15000;
+const DEFAULT_LLM_TIMEOUT_MS = 30000;
 
 function getConfig(): LLMConfig {
   const preferred = process.env.PREFERRED_LLM_PROVIDER as Provider | undefined;
@@ -37,14 +39,18 @@ function getConfig(): LLMConfig {
   if (preferred === "featherless" && process.env.FEATHERLESS_API_KEY) {
     return getFeatherlessConfig();
   }
+  if (preferred === "venice" && process.env.VENICE_API_KEY) {
+    return getVeniceConfig();
+  }
 
-  // 2. Default Priority: Anthropic -> Google -> Featherless
+  // 2. Default Priority: Anthropic -> Google -> Venice -> Featherless
   if (process.env.ANTHROPIC_API_KEY) return getAnthropicConfig();
   if (process.env.GOOGLE_API_KEY) return getGoogleConfig();
+  if (process.env.VENICE_API_KEY) return getVeniceConfig();
   if (process.env.FEATHERLESS_API_KEY) return getFeatherlessConfig();
 
   throw new Error(
-    "No LLM provider configured. Set ANTHROPIC_API_KEY, GOOGLE_API_KEY, or FEATHERLESS_API_KEY."
+    "No LLM provider configured. Set ANTHROPIC_API_KEY, GOOGLE_API_KEY, VENICE_API_KEY, or FEATHERLESS_API_KEY."
   );
 }
 
@@ -75,6 +81,16 @@ function getFeatherlessConfig(): LLMConfig {
     baseUrl: "https://api.featherless.ai/v1",
     apiKey: process.env.FEATHERLESS_API_KEY!,
     timeoutMs: Number(process.env.FEATHERLESS_TIMEOUT_MS || DEFAULT_LLM_TIMEOUT_MS),
+  };
+}
+
+function getVeniceConfig(): LLMConfig {
+  return {
+    provider: "venice",
+    model: process.env.VENICE_MODEL || DEFAULT_VENICE_MODEL,
+    baseUrl: "https://api.venice.ai/api/v1",
+    apiKey: process.env.VENICE_API_KEY!,
+    timeoutMs: Number(process.env.VENICE_TIMEOUT_MS || DEFAULT_LLM_TIMEOUT_MS),
   };
 }
 
@@ -178,8 +194,8 @@ async function callAnthropic(
 }
 
 /**
- * OpenAI-compatible API (Featherless, etc.)
- * Handles Qwen3's thinking mode (reasoning field) and markdown-wrapped JSON.
+ * OpenAI-compatible API (Venice, Featherless, etc.)
+ * Handles thinking mode (reasoning field) and markdown-wrapped JSON.
  */
 async function callOpenAICompatible(
   config: LLMConfig,
@@ -187,6 +203,21 @@ async function callOpenAICompatible(
   userMessage: string,
   maxTokens: number
 ): Promise<string> {
+  const payload: Record<string, unknown> = {
+    model: config.model,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage },
+    ],
+    max_tokens: maxTokens,
+    temperature: 0.7,
+  };
+
+  // Venice-specific: disable thinking mode for faster, cheaper responses
+  if (config.provider === "venice") {
+    payload.venice_parameters = { disable_thinking: true };
+  }
+
   const response = await fetchWithRetry(
     `${config.baseUrl}/chat/completions`,
     {
@@ -195,15 +226,7 @@ async function callOpenAICompatible(
         "Content-Type": "application/json",
         Authorization: `Bearer ${config.apiKey}`,
       },
-      body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
-        ],
-        max_tokens: maxTokens,
-        temperature: 0.7,
-      }),
+      body: JSON.stringify(payload),
     },
     { timeoutMs: config.timeoutMs, maxAttempts: 1 }
   );

@@ -129,7 +129,11 @@ function isValidPersonName(name: string | undefined): boolean {
 }
 
 function normaliseProfile(profile: Partial<Profile>): Profile {
-  const name = isValidPersonName(profile.name) ? profile.name!.trim() : "there";
+  const rawName = isValidPersonName(profile.name) ? profile.name!.trim() : "there";
+  // Capitalize each word if all-lowercase (common with social handles)
+  const name = /^[a-z\s]+$/.test(rawName)
+    ? rawName.replace(/\b\w/g, (c) => c.toUpperCase())
+    : rawName;
   return {
     name,
     current_role: profile.current_role || "",
@@ -150,6 +154,16 @@ function fallbackProfile(enrichment: string[]): Profile {
     .map(cleanProfileLine)
     .filter(isUsefulProfileLine);
   const name = inferName(lines) || "there";
+
+  // Try to extract role and company from patterns like "Co-founder at Melius"
+  let current_role = "";
+  let company = "";
+  const roleMatch = text.match(/(?:^|\s|-)(\w[\w\s-]*?(?:founder|ceo|cto|coo|vp|engineer|designer|manager|director|head of\s+\w+))\s+(?:at|@)\s+(\w[\w\s]*)/im);
+  if (roleMatch) {
+    current_role = roleMatch[1].trim();
+    company = roleMatch[2].trim().split(/[.,\s]/)[0];
+  }
+
   const hooks = lines
     .filter((line) => line.length > 20 && line.length < 140)
     .filter((line) => line !== name)
@@ -157,8 +171,8 @@ function fallbackProfile(enrichment: string[]): Profile {
 
   return {
     name,
-    current_role: "",
-    company: "",
+    current_role,
+    company,
     notable_work: hooks.slice(0, 2),
     interests: hooks.slice(2, 4),
     tone: "conversational",
@@ -193,11 +207,28 @@ function isUsefulProfileLine(line: string): boolean {
 }
 
 function inferName(lines: string[]): string | null {
+  // Pattern 1: "Firstname Lastname" at start of line (proper case)
   const properName = lines.find((line) => /^[A-Z][a-z]+\s+[A-Z][a-z]+/.test(line));
   if (properName) {
     return properName.split(/\s+/).slice(0, 2).join(" ");
   }
 
+  // Pattern 2: "name (@handle) / Posts / X" from search result titles
+  const text = lines.join("\n");
+  const titleMatch = text.match(/(\w+)\s*\(@?\w+\)\s*[/|]/);
+  if (titleMatch) {
+    const candidate = titleMatch[1];
+    // Capitalise first letter
+    return candidate.charAt(0).toUpperCase() + candidate.slice(1);
+  }
+
+  // Pattern 3: "Name (@handle)" anywhere
+  const handleNameMatch = text.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*\(@?\w+\)/);
+  if (handleNameMatch) {
+    return handleNameMatch[1].trim();
+  }
+
+  // Pattern 4: bare handle as last resort
   const handleLine = lines.find((line) => /^[a-zA-Z0-9_.-]{2,32}$/.test(line));
   return handleLine || null;
 }
