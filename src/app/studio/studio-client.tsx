@@ -1100,90 +1100,152 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 </p>
               </div>
 
-              <div className="grid lg:grid-cols-[1.4fr,1fr] gap-6">
-                {/* Canvas */}
-                <div className="rounded-2xl border border-cream-dark bg-white overflow-hidden shadow-[0_2px_40px_-16px_rgba(74,58,255,0.25)]">
-                  <div className="aspect-[4/3] relative">
-                    {buildResult?.canvasId ? (
-                      <div className="absolute inset-0">
-                        <iframe
-                          src={buildResult.embedUrl}
-                          className="w-full h-full border-0"
-                          allow="clipboard-read; clipboard-write; microphone"
-                          title="Live Melius Canvas"
-                        />
-                        <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-white/90 backdrop-blur rounded-full px-2.5 py-1 shadow-sm border border-cream-dark z-30 pointer-events-none">
-                          <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                          <span className="text-[10px] font-mono text-ink-faint uppercase">Live build</span>
-                        </div>
+              {logIndex <= 4 ? (
+                <div className="max-w-2xl mx-auto w-full mt-4">
+                  {/* Agent log centered at the top */}
+                  <div className="rounded-2xl border border-cream-dark bg-ink text-cream overflow-hidden flex flex-col shadow-[0_4px_30px_-10px_rgba(0,0,0,0.3)] min-h-[220px]">
+                    <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-black/10">
+                      <div className="flex gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-error/70" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-warm/70" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-success/70" />
                       </div>
-                    ) : (
-                      <div className="w-full h-full origin-top-left" style={{ transform: "scale(0.85)", width: "118%", height: "118%" }}>
-                        <AgentCanvas
-                          appearedCount={appearedCount}
-                          edgeCount={edgeCount}
-                          showCursor
-                          cursorTarget={cursorTarget}
-                        />
+                      <span className="text-[10px] font-mono text-cream/50 ml-2">agent.log · mcp tool calls</span>
+                      <div className="ml-auto flex items-center gap-1.5 text-[9px] font-mono text-accent-soft/80 uppercase">
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                        <span>Enriching & Synthesising</span>
                       </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4 px-4 py-2.5 border-t border-cream-dark text-[11px] font-mono text-ink-faint">
-                    <span><span className="text-ink">{appearedCount}</span>/6 nodes</span>
-                    <span><span className="text-ink">{edgeCount}</span>/4 edges</span>
-                    <span className="ml-auto">{Math.min(100, Math.round((logIndex / AGENT_SCRIPT.length) * 100))}%</span>
-                  </div>
-                </div>
-
-                {/* Agent log */}
-                <div className="rounded-2xl border border-cream-dark bg-ink text-cream overflow-hidden flex flex-col">
-                  <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
-                    <div className="flex gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-error/70" />
-                      <span className="w-2.5 h-2.5 rounded-full bg-warm/70" />
-                      <span className="w-2.5 h-2.5 rounded-full bg-success/70" />
                     </div>
-                    <span className="text-[10px] font-mono text-cream/50 ml-2">agent.log · mcp tool calls</span>
-                  </div>
-                  <div className="flex-1 px-4 py-3 space-y-1.5 overflow-y-auto max-h-[500px] font-mono text-[11px]">
-                    {AGENT_SCRIPT.slice(0, logIndex).map((entry, i) => {
-                      const meta = PHASE_META[entry.phase];
-                      const isLatest = i === logIndex - 1;
-                      return (
-                        <motion.div
-                          key={i}
-                          initial={{ opacity: 0, x: -8 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.25 }}
-                          className="space-y-0.5"
-                        >
-                          <div className="flex items-baseline gap-2">
-                            <span className={`text-[9px] uppercase tracking-wider ${meta.color} w-16 shrink-0`}>
-                              {meta.label}
-                            </span>
-                            <span className="text-cream/50 text-[10px]">→</span>
-                            <span className="text-cream/90">
-                              {entry.message}
-                              {isLatest && <span className="ml-1 animate-pulse">▍</span>}
-                            </span>
-                          </div>
-                          {entry.tool && (
-                            <div className="flex items-baseline gap-2 pl-[72px]">
-                              <span className="text-cream/30">$</span>
-                              <span className="text-accent-soft/80 truncate">{entry.tool}</span>
+                    <div className="flex-1 px-5 py-4 space-y-2 overflow-y-auto max-h-[400px] font-mono text-[11px]">
+                      {AGENT_SCRIPT.slice(0, logIndex).map((entry, i) => {
+                        const meta = PHASE_META[entry.phase];
+                        const isLatest = i === logIndex - 1;
+                        return (
+                          <motion.div
+                            key={i}
+                            initial={{ opacity: 0, x: -8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.25 }}
+                            className="space-y-0.5"
+                          >
+                            <div className="flex items-baseline gap-2">
+                              <span className={`text-[9px] uppercase tracking-wider ${meta.color} w-16 shrink-0`}>
+                                {meta.label}
+                              </span>
+                              <span className="text-cream/50 text-[10px]">→</span>
+                              <span className="text-cream/90">
+                                {entry.message}
+                                {isLatest && <span className="ml-1 animate-pulse">▍</span>}
+                              </span>
                             </div>
-                          )}
-                          {entry.detail && (
-                            <div className="pl-[72px] text-cream/40 text-[10px]">
-                              {entry.detail}
-                            </div>
-                          )}
-                        </motion.div>
-                      );
-                    })}
+                            {entry.tool && (
+                              <div className="flex items-baseline gap-2 pl-[72px]">
+                                <span className="text-cream/30">$</span>
+                                <span className="text-accent-soft/80 truncate">{entry.tool}</span>
+                              </div>
+                            )}
+                            {entry.detail && (
+                              <div className="pl-[72px] text-cream/40 text-[10px]">
+                                {entry.detail}
+                              </div>
+                            )}
+                          </motion.div>
+                        );
+                      })}
+                      {logIndex === 0 && (
+                        <div className="text-cream/30 text-center py-6 animate-pulse font-mono text-[11px]">
+                          Initialising enrichment agent...
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="grid lg:grid-cols-[1.4fr,1fr] gap-6">
+                  {/* Canvas */}
+                  <div className="rounded-2xl border border-cream-dark bg-white overflow-hidden shadow-[0_2px_40px_-16px_rgba(74,58,255,0.25)]">
+                    <div className="aspect-[4/3] relative">
+                      {buildResult?.canvasId ? (
+                        <div className="absolute inset-0">
+                          <iframe
+                            src={buildResult.embedUrl}
+                            className="w-full h-full border-0"
+                            allow="clipboard-read; clipboard-write; microphone"
+                            title="Live Melius Canvas"
+                          />
+                          <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-white/90 backdrop-blur rounded-full px-2.5 py-1 shadow-sm border border-cream-dark z-30 pointer-events-none">
+                            <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                            <span className="text-[10px] font-mono text-ink-faint uppercase">Live build</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-full h-full origin-top-left" style={{ transform: "scale(0.85)", width: "118%", height: "118%" }}>
+                          <AgentCanvas
+                            appearedCount={appearedCount}
+                            edgeCount={edgeCount}
+                            showCursor
+                            cursorTarget={cursorTarget}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4 px-4 py-2.5 border-t border-cream-dark text-[11px] font-mono text-ink-faint">
+                      <span><span className="text-ink">{appearedCount}</span>/6 nodes</span>
+                      <span><span className="text-ink">{edgeCount}</span>/4 edges</span>
+                      <span className="ml-auto">{Math.min(100, Math.round((logIndex / AGENT_SCRIPT.length) * 100))}%</span>
+                    </div>
+                  </div>
+
+                  {/* Agent log */}
+                  <div className="rounded-2xl border border-cream-dark bg-ink text-cream overflow-hidden flex flex-col">
+                    <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+                      <div className="flex gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-error/70" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-warm/70" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-success/70" />
+                      </div>
+                      <span className="text-[10px] font-mono text-cream/50 ml-2">agent.log · mcp tool calls</span>
+                    </div>
+                    <div className="flex-1 px-4 py-3 space-y-1.5 overflow-y-auto max-h-[500px] font-mono text-[11px]">
+                      {AGENT_SCRIPT.slice(0, logIndex).map((entry, i) => {
+                        const meta = PHASE_META[entry.phase];
+                        const isLatest = i === logIndex - 1;
+                        return (
+                          <motion.div
+                            key={i}
+                            initial={{ opacity: 0, x: -8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.25 }}
+                            className="space-y-0.5"
+                          >
+                            <div className="flex items-baseline gap-2">
+                              <span className={`text-[9px] uppercase tracking-wider ${meta.color} w-16 shrink-0`}>
+                                {meta.label}
+                              </span>
+                              <span className="text-cream/50 text-[10px]">→</span>
+                              <span className="text-cream/90">
+                                {entry.message}
+                                {isLatest && <span className="ml-1 animate-pulse">▍</span>}
+                              </span>
+                            </div>
+                            {entry.tool && (
+                              <div className="flex items-baseline gap-2 pl-[72px]">
+                                <span className="text-cream/30">$</span>
+                                <span className="text-accent-soft/80 truncate">{entry.tool}</span>
+                              </div>
+                            )}
+                            {entry.detail && (
+                              <div className="pl-[72px] text-cream/40 text-[10px]">
+                                {entry.detail}
+                              </div>
+                            )}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
 

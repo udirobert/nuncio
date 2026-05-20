@@ -59,7 +59,7 @@ export async function generateHookVideo(input: {
 
     let isCompleted = false;
     let pollInterval = 1000;
-    const maxTime = 120 * 1000; // 120 seconds max wait for video generation
+    const maxTime = 300 * 1000; // 300 seconds max wait for video generation
     const startTime = Date.now();
 
     while (Date.now() - startTime < maxTime) {
@@ -82,7 +82,7 @@ export async function generateHookVideo(input: {
     }
 
     if (!isCompleted) {
-      return { status: "failed", requestId, error: "fal hook generation timed out after 120 seconds." };
+      return { status: "failed", requestId, error: "fal hook generation timed out after 300 seconds." };
     }
 
     const result = await fetch(`${FAL_BASE_URL}/${input.modelEndpoint}/requests/${requestId}`, {
