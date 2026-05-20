@@ -286,11 +286,14 @@ async function searchProfileContext(url: string): Promise<string | null> {
   const results = Array.isArray(data.results) ? data.results.slice(0, 5) : [];
   if (results.length === 0) return null;
 
-  return results
-    .map((result: { title?: string; snippet?: string; url?: string }, index: number) => {
-      return `${index + 1}. ${result.title || "Untitled"}\n${result.snippet || ""}\n${result.url || ""}`;
-    })
-    .join("\n\n");
+  return [
+    `Profile URL: ${url}`,
+    `The following are web search results about this person:`,
+    "",
+    ...results.map((result: { title?: string; snippet?: string; url?: string }, index: number) => {
+      return `${index + 1}. ${result.title || "Untitled"}\n${result.snippet || ""}\nSource: ${result.url || ""}`;
+    }),
+  ].join("\n\n");
 }
 
 function buildSearchQuery(url: string): string | null {
@@ -312,7 +315,7 @@ function buildSearchQuery(url: string): string | null {
       return `"${handle}" site:linkedin.com OR site:github.com OR site:crunchbase.com`;
     }
     if (host.includes("linkedin.com")) {
-      return `"${handle}" LinkedIn founder engineer company role`;
+      return `"${handle}" site:linkedin.com OR site:wikipedia.org OR site:crunchbase.com`;
     }
     if (host.includes("github.com")) {
       return `"${handle}" GitHub engineer founder company`;

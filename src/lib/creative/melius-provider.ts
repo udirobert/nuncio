@@ -504,9 +504,9 @@ export class MeliusProvider implements CreativeProvider {
       let status: StudioNode["status"];
       if (!isGenerative) {
         status = "complete";
-      } else if (n.status === "completed" || n.outputs?.[0]?.url) {
+      } else if (n.outputs?.[0]?.url) {
         status = "complete";
-      } else if (n.status === "running") {
+      } else if (n.status === "running" || n.status === "completed") {
         status = "generating";
       } else {
         status = "pending";

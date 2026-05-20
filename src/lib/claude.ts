@@ -73,7 +73,7 @@ export async function generateScript(
 
   const intentRubric = options?.intent ? INTENT_RUBRICS[options.intent] : null;
 
-  const systemPrompt = `You are a video script writer. Given a structured profile and an optional sender brief, write a personalised 45-90 second video script (under 200 words). The script must reference at least 2 specific details from the profile. Write in first person as the sender. Be conversational and genuine — not salesy or generic. Respond with ONLY the script text, no JSON wrapping, no markdown, no labels.${intentRubric ? `\n\n${intentRubric}` : ""}`;
+  const systemPrompt = `You are a video script writer. Write a personalised 45-90 second video script (under 200 words) that is a direct message TO ${profile.name}. Address them by name. The sender is speaking directly to this person in a personalised video outreach. Reference at least 2 specific details from their profile. Write in first person as the sender, second person ("you") for the recipient. Be conversational and genuine — not salesy or generic. Never write about them in third person. Respond with ONLY the script text, no JSON wrapping, no markdown, no labels.${intentRubric ? `\n\n${intentRubric}` : ""}`;
 
   const userMessage = `Profile:\n${JSON.stringify(profile, null, 2)}\n\n${senderBrief ? `Sender brief: ${senderBrief}` : "Write a general introduction/outreach script."}`;
 
