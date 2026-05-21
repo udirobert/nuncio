@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import type { Profile } from "@/lib/claude";
 import type { AgentTraceItem, CanvasProof } from "@/lib/artifacts";
@@ -63,6 +63,10 @@ export function ScriptReview({
   const [isEditing, setIsEditing] = useState(false);
   const [editedScript, setEditedScript] = useState(script);
   const [isRevealed, setIsRevealed] = useState(false);
+  const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
+  const [ttsLoading, setTtsLoading] = useState(false);
+  const [ttsPlaying, setTtsPlaying] = useState(false);
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const wordCount = editedScript.trim().split(/\s+/).length;
   const wordCountColor =
@@ -82,6 +86,48 @@ export function ScriptReview({
     const timer = setTimeout(() => setIsRevealed(true), 400);
     return () => clearTimeout(timer);
   }, []);
+
+  // Clear TTS cache when script changes
+  useEffect(() => {
+    setTtsAudioUrl(null);
+  }, [editedScript]);
+
+  async function handleTtsPreview() {
+    if (ttsPlaying && ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      ttsAudioRef.current.currentTime = 0;
+      setTtsPlaying(false);
+      return;
+    }
+    if (ttsAudioUrl) {
+      const audio = new Audio(ttsAudioUrl);
+      audio.onended = () => setTtsPlaying(false);
+      ttsAudioRef.current = audio;
+      audio.play().catch(() => {});
+      setTtsPlaying(true);
+      return;
+    }
+    setTtsLoading(true);
+    try {
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: editedScript }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTtsAudioUrl(data.audio);
+        const audio = new Audio(data.audio);
+        audio.onended = () => setTtsPlaying(false);
+        ttsAudioRef.current = audio;
+        audio.play().catch(() => {});
+        setTtsPlaying(true);
+      }
+    } catch (error) {
+      console.error("[tts] Preview failed:", error);
+    }
+    setTtsLoading(false);
+  }
 
   function handleSaveEdit() {
     onEdit(editedScript);
@@ -228,22 +274,44 @@ export function ScriptReview({
                 ~{Math.ceil(wordCount / 2.5)}s delivery
               </span>
             </div>
-            {sources && sources.length > 0 && (
-              <div className="flex items-center gap-1.5">
-                {sources.map((s, i) => {
-                  let hostname = s;
-                  try { hostname = new URL(s).hostname.replace("www.", ""); } catch { /* noop */ }
-                  return (
-                    <span
-                      key={i}
-                      className="inline-flex items-center rounded-full bg-cream-dark px-2 py-0.5 text-[10px] text-ink-faint"
-                    >
-                      {hostname}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleTtsPreview}
+                disabled={ttsLoading || !editedScript.trim()}
+                className="text-[11px] text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1.5 transition-colors"
+              >
+                {ttsLoading ? (
+                  <span className="w-3 h-3 border border-accent/30 border-t-accent rounded-full animate-spin" />
+                ) : ttsPlaying ? (
+                  <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="currentColor">
+                    <rect x="3" y="3" width="4" height="10" rx="1" />
+                    <rect x="9" y="3" width="4" height="10" rx="1" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M3 6.5v3a1 1 0 001 1h1.5l3 2.5V3L5.5 5.5H4a1 1 0 00-1 1z" />
+                    <path d="M10 5.5c.7.7.7 5.3 0 5M12 4c1.3 1.3 1.3 7.7 0 8" />
+                  </svg>
+                )}
+                {ttsLoading ? "Generating..." : ttsPlaying ? "Stop" : "Hear it"}
+              </button>
+              {sources && sources.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  {sources.map((s, i) => {
+                    let hostname = s;
+                    try { hostname = new URL(s).hostname.replace("www.", ""); } catch { /* noop */ }
+                    return (
+                      <span
+                        key={i}
+                        className="inline-flex items-center rounded-full bg-cream-dark px-2 py-0.5 text-[10px] text-ink-faint"
+                      >
+                        {hostname}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </motion.div>
 
