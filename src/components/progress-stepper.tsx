@@ -311,6 +311,16 @@ export function ProgressStepper({ steps, warnings, urls, script, recipientName }
                 >
                   {step.label}
                 </span>
+                {step.creditLabel && (
+                  <span className="mt-0.5 block text-[10px] text-ink-faint">
+                    {step.status === "complete"
+                      ? "Used"
+                      : step.status === "active"
+                        ? "Using"
+                        : "Will use"}{" "}
+                    {step.creditLabel}
+                  </span>
+                )}
               </div>
 
               {/* Elapsed time */}
@@ -396,7 +406,7 @@ export function ProgressStepper({ steps, warnings, urls, script, recipientName }
           transition={{ delay: 0.6 }}
           className="text-center text-xs text-ink-faint mt-12"
         >
-          Enrichment takes ~15 seconds · Video rendering takes 3–5 minutes
+          Credit usage is shown per stage · Video rendering uses 1 HeyGen credit
         </motion.p>
       </motion.div>
     </main>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import type { Profile } from "@/lib/claude";
 
@@ -27,8 +27,6 @@ export function AnglePicker({ profile, onConfirm, onSkip }: AnglePickerProps) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [autoSkipTimer, setAutoSkipTimer] = useState(10);
-  const autoSkipRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch angles from the API
   useEffect(() => {
@@ -56,36 +54,7 @@ export function AnglePicker({ profile, onConfirm, onSkip }: AnglePickerProps) {
     fetchAngles();
   }, [profile]);
 
-  // Auto-skip countdown (if user doesn't interact, proceed with selected angles after 10s)
-  useEffect(() => {
-    if (loading || error) return;
-
-    autoSkipRef.current = setInterval(() => {
-      setAutoSkipTimer((prev) => {
-        if (prev <= 1) {
-          if (autoSkipRef.current) clearInterval(autoSkipRef.current);
-          // Auto-confirm with selected angles
-          const selectedAngles = angles.filter((_, i) => selected.has(i));
-          onConfirm(selectedAngles.length > 0 ? selectedAngles : angles);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => {
-      if (autoSkipRef.current) clearInterval(autoSkipRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, error]);
-
   function toggleAngle(index: number) {
-    // Stop auto-skip on user interaction
-    if (autoSkipRef.current) {
-      clearInterval(autoSkipRef.current);
-      autoSkipRef.current = null;
-    }
-    setAutoSkipTimer(0);
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(index)) {
@@ -167,7 +136,7 @@ export function AnglePicker({ profile, onConfirm, onSkip }: AnglePickerProps) {
           </h1>
           <p className="text-ink-muted text-sm">
             We found {angles.length} personalisation signals in {profile.name}&apos;s profile.
-            Pick 1–2 to focus the script, or use all.
+            Pick 1–2 to focus the script, or use all. We will wait here until you choose.
           </p>
         </div>
 
@@ -264,17 +233,9 @@ export function AnglePicker({ profile, onConfirm, onSkip }: AnglePickerProps) {
             </span>
           </button>
         </motion.div>
-
-        {/* Auto-skip timer */}
-        {autoSkipTimer <= 10 && autoSkipTimer > 0 && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center text-[11px] text-ink-faint mt-3"
-          >
-            Auto-continuing in {autoSkipTimer}s · or pick your angles above
-          </motion.p>
-        )}
+        <p className="text-center text-[11px] text-ink-faint mt-3">
+          Script generation starts only after you confirm an angle.
+        </p>
       </motion.div>
     </main>
   );

@@ -15,6 +15,7 @@ export interface StepState {
   label: string;
   status: "pending" | "active" | "complete" | "failed";
   elapsed?: number;
+  creditLabel?: string;
 }
 
 export interface EnrichmentWarning {
@@ -47,10 +48,10 @@ export interface PipelineState {
 }
 
 const INITIAL_STEPS: StepState[] = [
-  { id: "enrich", label: "Fetching profiles", status: "pending" },
-  { id: "script", label: "Analysing context", status: "pending" },
-  { id: "canvas", label: "Composing visuals", status: "pending" },
-  { id: "video", label: "Rendering video", status: "pending" },
+  { id: "enrich", label: "Fetching profiles", status: "pending", creditLabel: "TinyFish credits" },
+  { id: "script", label: "Analysing context", status: "pending", creditLabel: "LLM tokens" },
+  { id: "canvas", label: "Composing visuals", status: "pending", creditLabel: "Melius MCP" },
+  { id: "video", label: "Rendering video", status: "pending", creditLabel: "1 HeyGen credit" },
 ];
 
 type SetState = (

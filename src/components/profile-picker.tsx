@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import type { DiscoveredProfile } from "@/lib/tinyfish";
 
@@ -20,37 +20,14 @@ export function ProfilePicker({
   const [selected, setSelected] = useState<Set<string>>(
     new Set([primaryUrl, ...discoveredProfiles.map((p) => p.url)])
   );
-  const [autoSkipTimer, setAutoSkipTimer] = useState(10);
-  const autoSkipRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (discoveredProfiles.length === 0) {
-      setTimeout(() => onConfirm([primaryUrl]), 500);
-      return;
-    }
-
-    autoSkipRef.current = setInterval(() => {
-      setAutoSkipTimer((prev) => {
-        if (prev <= 1) {
-          if (autoSkipRef.current) clearInterval(autoSkipRef.current);
-          onConfirm(Array.from(selected));
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => {
-      if (autoSkipRef.current) clearInterval(autoSkipRef.current);
-    };
-  }, [discoveredProfiles.length, onConfirm, primaryUrl, selected]);
+    if (discoveredProfiles.length !== 0) return;
+    const timer = setTimeout(() => onConfirm([primaryUrl]), 500);
+    return () => clearTimeout(timer);
+  }, [discoveredProfiles.length, onConfirm, primaryUrl]);
 
   function toggleProfile(url: string) {
-    if (autoSkipRef.current) {
-      clearInterval(autoSkipRef.current);
-      autoSkipRef.current = null;
-    }
-    setAutoSkipTimer(0);
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(url)) {
@@ -63,9 +40,6 @@ export function ProfilePicker({
   }
 
   function handleConfirm() {
-    if (autoSkipRef.current) {
-      clearInterval(autoSkipRef.current);
-    }
     onConfirm(Array.from(selected));
   }
 
@@ -115,7 +89,7 @@ export function ProfilePicker({
           </h1>
           <p className="text-ink-muted text-sm">
             We discovered {discoveredProfiles.length} additional profiles.
-            Verify the correct ones before we research them.
+            Verify the correct ones before we spend research credits on them.
           </p>
         </div>
 
@@ -196,17 +170,9 @@ export function ProfilePicker({
             </span>
           </button>
         </motion.div>
-
-        {/* Auto-skip timer */}
-        {autoSkipTimer <= 10 && autoSkipTimer > 0 && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center text-[11px] text-ink-faint mt-3"
-          >
-            Auto-continuing in {autoSkipTimer}s · or pick your profiles above
-          </motion.p>
-        )}
+        <p className="text-center text-[11px] text-ink-faint mt-3">
+          Research continues only after you confirm these profiles.
+        </p>
       </motion.div>
     </main>
   );

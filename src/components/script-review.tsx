@@ -81,16 +81,67 @@ export function ScriptReview({
     [editedScript, profile.personalization_hooks]
   );
 
+  const runCreditSummary = useMemo(() => {
+    const sourceCount = Math.max(1, urls?.length || sources?.length || 1);
+    return {
+      researchCredits: sourceCount,
+      scriptRequests: 1,
+      canvasSessions: canvas ? 1 : 0,
+      renderCredits: 1,
+    };
+  }, [canvas, sources?.length, urls?.length]);
+
+  const [profileUsageCount] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+
+    const profileKey = (profile.name || urls?.[0] || "unknown-profile")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+    const runKey = [
+      "nuncio_credit_run",
+      profileKey,
+      urls?.join("|") || sources?.join("|") || editedScript.slice(0, 48),
+    ].join(":");
+    const usageKey = "nuncio_credit_usage_by_profile";
+
+    try {
+      const raw = localStorage.getItem(usageKey);
+      const allUsage = raw ? JSON.parse(raw) : {};
+      const existing = allUsage[profileKey] || {
+        name: profile.name || "Unknown profile",
+        runs: 0,
+        researchCredits: 0,
+        scriptRequests: 0,
+        canvasSessions: 0,
+        renderCreditsEstimated: 0,
+      };
+
+      if (!sessionStorage.getItem(runKey)) {
+        allUsage[profileKey] = {
+          ...existing,
+          name: profile.name || existing.name,
+          runs: existing.runs + 1,
+          researchCredits: existing.researchCredits + runCreditSummary.researchCredits,
+          scriptRequests: existing.scriptRequests + runCreditSummary.scriptRequests,
+          canvasSessions: existing.canvasSessions + runCreditSummary.canvasSessions,
+          renderCreditsEstimated: existing.renderCreditsEstimated + runCreditSummary.renderCredits,
+        };
+        localStorage.setItem(usageKey, JSON.stringify(allUsage));
+        sessionStorage.setItem(runKey, "1");
+      }
+
+      return (allUsage[profileKey] || existing).runs;
+    } catch {
+      return null;
+    }
+  });
+
   // Trigger reveal after mount
   useEffect(() => {
     const timer = setTimeout(() => setIsRevealed(true), 400);
     return () => clearTimeout(timer);
   }, []);
-
-  // Clear TTS cache when script changes
-  useEffect(() => {
-    setTtsAudioUrl(null);
-  }, [editedScript]);
 
   async function handleTtsPreview() {
     if (ttsPlaying && ttsAudioRef.current) {
@@ -208,6 +259,41 @@ export function ScriptReview({
           </span>
         </motion.div>
 
+        {/* Credit usage */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.32 }}
+          className="mb-6 rounded-xl border border-cream-dark bg-cream-dark/25 px-4 py-3"
+        >
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+              Credit usage
+            </p>
+            <span className="text-[10px] text-ink-faint">
+              Tracked to {profile.name || "this profile"}
+              {profileUsageCount ? ` · run ${profileUsageCount}` : ""}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
+            <span className="rounded-lg bg-white px-3 py-2 text-ink-muted">
+              Used {runCreditSummary.researchCredits} TinyFish research credit{runCreditSummary.researchCredits === 1 ? "" : "s"}
+            </span>
+            <span className="rounded-lg bg-white px-3 py-2 text-ink-muted">
+              Used {runCreditSummary.scriptRequests} script request
+            </span>
+            <span className="rounded-lg bg-white px-3 py-2 text-ink-muted">
+              Used {runCreditSummary.canvasSessions} Melius canvas session{runCreditSummary.canvasSessions === 1 ? "" : "s"}
+            </span>
+            <span className="rounded-lg bg-white px-3 py-2 text-ink-muted">
+              Next: {runCreditSummary.renderCredits} HeyGen render credit
+            </span>
+          </div>
+          <p className="mt-2 text-[10px] text-ink-faint">
+            ElevenLabs previews only spend when you click Hear it or preview a vibe.
+          </p>
+        </motion.div>
+
         {/* Script card */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -225,7 +311,10 @@ export function ScriptReview({
               >
                 <textarea
                   value={editedScript}
-                  onChange={(e) => setEditedScript(e.target.value)}
+                  onChange={(e) => {
+                    setEditedScript(e.target.value);
+                    setTtsAudioUrl(null);
+                  }}
                   rows={8}
                   className="w-full text-[15px] leading-[1.7] resize-none focus:outline-none bg-transparent text-ink"
                   aria-label="Edit video script"
