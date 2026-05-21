@@ -25,9 +25,9 @@ export function Header({ stage, isDemo }: HeaderProps) {
   const showStage = stage && stage !== "input" && stage !== "error";
 
   const NAV_LINKS = [
-    { label: "Home", href: "/" },
+    { label: "Video", href: "/", subtitle: "Quick render" },
+    { label: "Studio", href: "/studio", subtitle: "Canvas" },
     { label: "Playbook", href: "/playbook" },
-    { label: "Studio", href: "/studio" },
     { label: "Pricing", href: "/pricing" },
   ];
 
@@ -65,6 +65,11 @@ export function Header({ stage, isDemo }: HeaderProps) {
                   }`}
                 >
                   {link.label}
+                  {link.subtitle && (
+                    <span className="normal-case tracking-normal text-[9px] text-ink-faint ml-1">
+                      {link.subtitle}
+                    </span>
+                  )}
                 </Link>
               </motion.div>
             );
