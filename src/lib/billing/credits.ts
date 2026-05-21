@@ -1,5 +1,6 @@
 import { getClientId } from "@/lib/rate-limit";
 import { getAccountStorageProvider } from "@/lib/storage";
+import { readAccountSession } from "@/lib/auth/session";
 
 export type CreditAction =
   | "profile.research"
@@ -73,6 +74,15 @@ export function getCreditSubject(request: Request): CreditSubject {
       workspaceId,
       userId,
       anonymous: !userId,
+    };
+  }
+
+  const session = readAccountSession(request);
+  if (session) {
+    return {
+      workspaceId: session.workspaceId,
+      userId: session.userId,
+      anonymous: false,
     };
   }
 

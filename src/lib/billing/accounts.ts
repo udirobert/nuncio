@@ -34,6 +34,24 @@ export async function upsertBillingAccount(input: {
   return { user, workspace };
 }
 
+export async function ensureTrialCredits(input: {
+  workspace: WorkspaceAccount;
+  user?: AccountUser;
+}): Promise<number> {
+  const summary = await getAccountStorageProvider().getCreditSummary(input.workspace.id);
+  if (summary && summary.transactions.length > 0) return 0;
+
+  const amount = Number(process.env.NUNCIO_TRIAL_CREDITS || 10);
+  const grantAmount = Number.isFinite(amount) ? amount : 10;
+  await grantCredits({
+    workspaceId: input.workspace.id,
+    userId: input.user?.id || input.workspace.ownerUserId,
+    amount: grantAmount,
+    reason: "account_trial_grant",
+  });
+  return grantAmount;
+}
+
 export async function grantPlanCredits(input: {
   workspace: WorkspaceAccount;
   user?: AccountUser;

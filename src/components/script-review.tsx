@@ -7,6 +7,13 @@ import type { AgentTraceItem, CanvasProof } from "@/lib/artifacts";
 import type { VideoCustomization, HeyGenAvatar, HeyGenVoice } from "@/lib/heygen";
 import { VideoCustomization as VideoCustomizationComponent } from "@/components/video-customization";
 
+interface BillingBalance {
+  anonymous: boolean;
+  balance: number;
+  plan?: string;
+  transactions?: { type: string; amount: number; reason: string }[];
+}
+
 interface ScriptReviewProps {
   script: string;
   profile: Profile;
@@ -87,60 +94,36 @@ export function ScriptReview({
       researchCredits: sourceCount,
       scriptRequests: 1,
       canvasSessions: canvas ? 1 : 0,
-      renderCredits: 1,
+      renderCredits: 5,
     };
   }, [canvas, sources?.length, urls?.length]);
 
-  const [profileUsageCount] = useState<number | null>(() => {
-    if (typeof window === "undefined") return null;
-
-    const profileKey = (profile.name || urls?.[0] || "unknown-profile")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
-    const runKey = [
-      "nuncio_credit_run",
-      profileKey,
-      urls?.join("|") || sources?.join("|") || editedScript.slice(0, 48),
-    ].join(":");
-    const usageKey = "nuncio_credit_usage_by_profile";
-
-    try {
-      const raw = localStorage.getItem(usageKey);
-      const allUsage = raw ? JSON.parse(raw) : {};
-      const existing = allUsage[profileKey] || {
-        name: profile.name || "Unknown profile",
-        runs: 0,
-        researchCredits: 0,
-        scriptRequests: 0,
-        canvasSessions: 0,
-        renderCreditsEstimated: 0,
-      };
-
-      if (!sessionStorage.getItem(runKey)) {
-        allUsage[profileKey] = {
-          ...existing,
-          name: profile.name || existing.name,
-          runs: existing.runs + 1,
-          researchCredits: existing.researchCredits + runCreditSummary.researchCredits,
-          scriptRequests: existing.scriptRequests + runCreditSummary.scriptRequests,
-          canvasSessions: existing.canvasSessions + runCreditSummary.canvasSessions,
-          renderCreditsEstimated: existing.renderCreditsEstimated + runCreditSummary.renderCredits,
-        };
-        localStorage.setItem(usageKey, JSON.stringify(allUsage));
-        sessionStorage.setItem(runKey, "1");
-      }
-
-      return (allUsage[profileKey] || existing).runs;
-    } catch {
-      return null;
-    }
-  });
+  const [billingBalance, setBillingBalance] = useState<BillingBalance | null>(null);
 
   // Trigger reveal after mount
   useEffect(() => {
     const timer = setTimeout(() => setIsRevealed(true), 400);
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadBalance() {
+      try {
+        const res = await fetch("/api/billing/balance");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setBillingBalance(data);
+      } catch {
+        // Balance is helpful UI, not required for review.
+      }
+    }
+
+    loadBalance();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function handleTtsPreview() {
@@ -271,25 +254,29 @@ export function ScriptReview({
               Credit usage
             </p>
             <span className="text-[10px] text-ink-faint">
-              Tracked to {profile.name || "this profile"}
-              {profileUsageCount ? ` · run ${profileUsageCount}` : ""}
+              {billingBalance
+                ? `${billingBalance.anonymous ? "Trial" : billingBalance.plan || "Account"} balance: ${billingBalance.balance} credits`
+                : `Tracked to ${profile.name || "this profile"}`}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-2 text-[11px]">
             <span className="rounded-lg bg-white px-3 py-2 text-ink-muted">
-              Used {runCreditSummary.researchCredits} TinyFish research credit{runCreditSummary.researchCredits === 1 ? "" : "s"}
+              Est. used {runCreditSummary.researchCredits} research credit{runCreditSummary.researchCredits === 1 ? "" : "s"}
             </span>
             <span className="rounded-lg bg-white px-3 py-2 text-ink-muted">
-              Used {runCreditSummary.scriptRequests} script request
+              Est. used {runCreditSummary.scriptRequests} script credit
             </span>
             <span className="rounded-lg bg-white px-3 py-2 text-ink-muted">
-              Used {runCreditSummary.canvasSessions} Melius canvas session{runCreditSummary.canvasSessions === 1 ? "" : "s"}
+              Est. used {runCreditSummary.canvasSessions} canvas credit{runCreditSummary.canvasSessions === 1 ? "" : "s"}
             </span>
             <span className="rounded-lg bg-white px-3 py-2 text-ink-muted">
-              Next: {runCreditSummary.renderCredits} HeyGen render credit
+              Next: {runCreditSummary.renderCredits} render credits
             </span>
           </div>
           <p className="mt-2 text-[10px] text-ink-faint">
+            {billingBalance
+              ? `After render: ${Math.max(0, billingBalance.balance - runCreditSummary.renderCredits)} credits.`
+              : "Balance loads from the account ledger when a session is available."}{" "}
             ElevenLabs previews only spend when you click Hear it or preview a vibe.
           </p>
         </motion.div>
@@ -542,7 +529,7 @@ export function ScriptReview({
         >
           {wordCount > 200
             ? `Script is ${wordCount} words — shorten to 200 or fewer to render`
-            : "Rendering takes ~60 seconds · Uses 1 credit"}
+            : `Rendering takes ~60 seconds · Uses ${runCreditSummary.renderCredits} credits`}
         </motion.p>
       </motion.div>
     </main>
