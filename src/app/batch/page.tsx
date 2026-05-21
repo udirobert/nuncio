@@ -1,14 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion } from "motion/react";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import Link from "next/link";
+
+interface BatchJob {
+  id: string;
+  url: string;
+  recipientName?: string;
+  status: string;
+  videoId?: string;
+  error?: string;
+}
 
 interface Batch {
   id: string;
   name: string;
+  senderBrief: string;
   status: string;
-  jobs: { url: string; status: string }[];
+  jobs: BatchJob[];
   completedCount: number;
   failedCount: number;
   createdAt: string;
@@ -20,13 +30,8 @@ export default function BatchPage() {
   const [name, setName] = useState("");
   const [urls, setUrls] = useState("");
   const [senderBrief, setSenderBrief] = useState("");
-
-  useEffect(() => {
-    fetch("/api/batch")
-      .then((r) => r.json())
-      .then(setBatches)
-      .catch(() => {});
-  }, []);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
   async function loadBatches() {
     try {
@@ -36,6 +41,27 @@ export default function BatchPage() {
       // ignore
     }
   }
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/batch")
+      .then((r) => r.json())
+      .then((data) => { if (!cancelled) setBatches(data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    const hasRunning = batches.some((b) => b.status === "running" || b.status === "queued");
+    if (hasRunning) {
+      pollRef.current = setInterval(loadBatches, 5000);
+    } else {
+      if (pollRef.current) clearInterval(pollRef.current);
+    }
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [batches]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -136,26 +162,84 @@ export default function BatchPage() {
             key={batch.id}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl border border-cream-dark bg-white p-4"
+            className="rounded-xl border border-cream-dark bg-white overflow-hidden"
           >
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-medium text-sm text-ink">{batch.name}</h3>
-              <span className={`text-[10px] uppercase tracking-widest font-medium px-2 py-0.5 rounded-full ${
-                batch.status === "completed"
-                  ? "text-success bg-success/10"
-                  : batch.status === "failed"
-                    ? "text-warm bg-warm-soft"
-                    : "text-ink-faint bg-cream-dark"
-              }`}>
-                {batch.status}
-              </span>
-            </div>
-            <div className="flex items-center gap-4 text-[11px] text-ink-muted">
-              <span>{batch.jobs.length} profiles</span>
-              <span>{batch.completedCount} completed</span>
-              {batch.failedCount > 0 && <span className="text-warm">{batch.failedCount} failed</span>}
-              <span className="text-ink-faint">{new Date(batch.createdAt).toLocaleDateString()}</span>
-            </div>
+            <button
+              onClick={() => setExpanded(expanded === batch.id ? null : batch.id)}
+              className="w-full p-4 text-left"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium text-sm text-ink">{batch.name}</h3>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] uppercase tracking-widest font-medium px-2 py-0.5 rounded-full ${
+                    batch.status === "completed"
+                      ? "text-success bg-success/10"
+                      : batch.status === "failed"
+                        ? "text-warm bg-warm-soft"
+                        : batch.status === "running"
+                          ? "text-accent bg-accent-soft/30"
+                          : "text-ink-faint bg-cream-dark"
+                  }`}>
+                    {batch.status}
+                  </span>
+                  <motion.span
+                    animate={{ rotate: expanded === batch.id ? 180 : 0 }}
+                    className="text-ink-faint text-xs"
+                  >
+                    ▾
+                  </motion.span>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 text-[11px] text-ink-muted">
+                <span>{batch.jobs.length} profiles</span>
+                <span>{batch.completedCount} completed</span>
+                {batch.failedCount > 0 && <span className="text-warm">{batch.failedCount} failed</span>}
+                <span className="text-ink-faint">{new Date(batch.createdAt).toLocaleDateString()}</span>
+              </div>
+            </button>
+
+            <AnimatePresence>
+              {expanded === batch.id && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="border-t border-cream-dark"
+                >
+                  <div className="divide-y divide-cream-dark">
+                    {batch.jobs.map((job) => (
+                      <div key={job.id} className="px-4 py-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-ink truncate">{job.url}</p>
+                            {job.recipientName && (
+                              <p className="text-[10px] text-ink-faint mt-0.5">{job.recipientName}</p>
+                            )}
+                          </div>
+                          <span className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                            job.status === "completed"
+                              ? "text-success bg-success/10"
+                              : job.status === "failed"
+                                ? "text-warm bg-warm-soft"
+                                : job.status === "processing"
+                                  ? "text-accent bg-accent-soft/30"
+                                  : "text-ink-faint bg-cream-dark"
+                          }`}>
+                            {job.status}
+                          </span>
+                        </div>
+                        {job.error && (
+                          <p className="text-[10px] text-warm mt-1 truncate">{job.error}</p>
+                        )}
+                        {job.videoId && (
+                          <p className="text-[10px] text-ink-faint mt-1">Video: {job.videoId}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         ))}
       </div>

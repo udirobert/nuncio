@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createBatch, listBatches } from "@/lib/batch/queue";
+import { createBatch, listBatches, getBatch } from "@/lib/batch/queue";
+import { processBatch } from "@/lib/batch/processor";
 
 export async function GET() {
   return NextResponse.json(listBatches());
@@ -23,5 +24,28 @@ export async function POST(request: NextRequest) {
   }
 
   const batch = createBatch({ name, urls, senderBrief, senderName });
+
+  processBatch(batch.id, request).catch((err) => {
+    console.error(`[batch] Processing failed for ${batch.id}:`, err);
+  });
+
   return NextResponse.json(batch, { status: 201 });
+}
+
+export async function PATCH(request: NextRequest) {
+  const { id } = await request.json();
+  if (!id) {
+    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+
+  const batch = getBatch(id);
+  if (!batch) {
+    return NextResponse.json({ error: "Batch not found" }, { status: 404 });
+  }
+
+  processBatch(id, request).catch((err) => {
+    console.error(`[batch] Re-processing failed for ${id}:`, err);
+  });
+
+  return NextResponse.json({ ok: true });
 }
