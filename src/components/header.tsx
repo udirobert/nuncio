@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import type { PipelineState } from "@/lib/pipeline";
+import { AccountMenu } from "@/components/account-menu";
 
 interface HeaderProps {
   stage?: PipelineState["stage"];
@@ -29,6 +30,7 @@ export function Header({ stage, isDemo }: HeaderProps) {
     { label: "Studio", href: "/studio", subtitle: "Canvas" },
     { label: "Playbook", href: "/playbook" },
     { label: "Pricing", href: "/pricing" },
+    { label: "Batch", href: "/batch" },
   ];
 
   return (
@@ -76,11 +78,13 @@ export function Header({ stage, isDemo }: HeaderProps) {
           })}
         </nav>
 
-        {isDemo && (
-          <span className="text-[10px] uppercase tracking-widest font-medium text-warm bg-warm-soft px-2 py-0.5 rounded-full">
-            Demo
-          </span>
-        )}
+          <AccountMenu />
+
+          {isDemo && (
+            <span className="text-[10px] uppercase tracking-widest font-medium text-warm bg-warm-soft px-2 py-0.5 rounded-full">
+              Demo
+            </span>
+          )}
 
         <AnimatePresence>
           {showStage && (

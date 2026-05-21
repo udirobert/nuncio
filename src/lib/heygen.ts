@@ -43,11 +43,12 @@ export interface VideoStatus {
 }
 
 /**
- * Create a video using HeyGen's Video Agent API.
+ * Create a video using HeyGen's Video Agent API (Avatar V engine).
  * The Video Agent handles scene composition, avatar selection, and rendering
  * from a structured prompt — the recommended approach for agentic workflows.
  *
- * Falls back to /v2/video/generate (Avatar V) direct API if Video Agent is unavailable.
+ * Falls back to /v2/video/generate direct API if Video Agent is unavailable.
+ * Both paths use the Avatar V engine.
  */
 export async function createVideo(
   script: string,
