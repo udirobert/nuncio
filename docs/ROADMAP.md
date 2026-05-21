@@ -171,7 +171,60 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 - **Avatar V availability:** Launches May 18. Hackathon demo on May 14–15 uses Avatar IV as fallback. Switch to V in Phase 1.
 - **Voice clone quality:** HeyGen voice cloning requires a clean 30-second audio sample. Background noise or music degrades quality significantly. Document this clearly for users.
 - **Melius MCP egress:** Uploading images to Melius requires network egress enabled in Claude organisation settings. Document in setup guide.
-- **Stripe integration:** Infrastructure added (`/api/checkout`, `/api/webhook`), awaiting configuration. Free users get `privacy: "public"` videos; pro users get private videos + future features.
+- **Stripe and credits:** Current Stripe checkout is demo infrastructure and is not yet connected to an authoritative credit ledger. The platform direction is unified auth + workspace billing + Nuncio credits. Users buy or receive Nuncio credits through Stripe, then spend that single balance across research, script, canvas, render, translation, captions, and delivery. Provider credits stay internal.
+
+---
+
+## Unified Credit Platform Plan
+
+### Product principles
+
+- Users see one balance: **Nuncio credits**.
+- Provider-specific spend is shown as agent trace/proof, not as separate currencies.
+- Every expensive action has a clear before/after balance.
+- Render actions require explicit confirmation because they consume the largest credit amount.
+- Recipient profiles retain cumulative spend history so users can understand prospect-level campaign economics.
+
+### Target product flow
+
+1. Anonymous users can start a limited trial flow.
+2. Before durable saves, repeated runs, or video render, the app asks the user to sign in.
+3. Signed-in users see a credit balance in the header.
+4. Review screens show: credits spent so far, render cost, and expected balance after render.
+5. If credits are insufficient, the CTA changes to buy credits or upgrade.
+6. On provider failure, reserved credits are refunded automatically.
+
+### Implementation phases
+
+- [ ] Add user/workspace auth boundary.
+- [ ] Move Stripe customer and subscription fields from share records to user/workspace records.
+- [ ] Add an append-only `credit_transactions` ledger with grants, debits, refunds, and adjustments.
+- [ ] Add `GenerationFlow` records to tie usage to one outreach run.
+- [ ] Add `RecipientProfile` records to tie cumulative spend to a prospect.
+- [ ] Protect `/api/video` first with server-side credit reservation/refund.
+- [ ] Protect `/api/enrich`, `/api/script`, `/api/canvas`, `/api/studio/build`, `/api/translate`, and `/api/captions`.
+- [ ] Update `/pricing` from hook allowances to monthly Nuncio credit grants and top-up packs.
+- [ ] Replace browser-local credit tracking with API-backed balance and usage history.
+
+### Initial credit pricing model
+
+These are product defaults, not provider invoices:
+
+| Action | User-facing cost |
+| --- | ---: |
+| Research one profile URL | 1 credit |
+| Generate script | 1 credit |
+| Build Melius canvas | 1 credit |
+| Render video | 5 credits |
+| Translate video | 2 credits |
+| Generate captions | 1 credit |
+| Preview voice/vibe | Free during review, rate-limited |
+
+### Rollout safety
+
+Credit enforcement should ship behind `NUNCIO_CREDITS_ENFORCED=true`. With enforcement off, routes
+can return credit estimates and record ledger-style events without blocking the demo flow. Once auth,
+Stripe grants, and balance display are live, enable hard blocking in production.
 
 ---
 

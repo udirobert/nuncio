@@ -311,13 +311,53 @@ Full share records stay in the share metadata store. Grove proof bundles intenti
 
 ---
 
-## Stripe integration (`/api/checkout`, `/api/webhook`)
+## Account, Stripe, and Credits
 
-For future monetization:
-- `/api/checkout` — creates Stripe Checkout sessions for subscriptions
-- `/api/webhook` — handles `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.deleted`
-- Share records track `plan` (`"free"` | `"pro"`), `stripeCustomerId`, `stripeSubscriptionId`
-- Privacy defaults to `"public"` for free users, `"private"` for pro (pending config)
+The platform should use one user-facing currency: **Nuncio credits**. Provider-specific costs
+(TinyFish, LLM, Melius, ElevenLabs, HeyGen, Speechmatics) are internal cost drivers, not separate
+currencies exposed to users.
 
-Required env vars (not yet configured):
-- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_MONTHLY_PRICE_ID`, `NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID`
+Target account model:
+
+- `User` — authenticated person; owns or belongs to workspaces.
+- `Workspace` — billing and usage boundary for solo users or teams.
+- `CreditBalance` — current available credits, monthly included credits, and renewal date.
+- `CreditTransaction` — append-only ledger of grants, debits, refunds, and adjustments.
+- `GenerationFlow` — one outreach run across research, script, canvas, render, captions, etc.
+- `RecipientProfile` — synthesized prospect profile plus cumulative spend/history for that recipient.
+
+Stripe funds the ledger:
+
+- `/api/checkout` creates subscription or top-up checkout sessions.
+- `/api/webhook` maps Stripe customers/subscriptions to users/workspaces.
+- `checkout.session.completed` grants initial credits for the purchased plan or pack.
+- `invoice.paid` grants monthly included credits.
+- `invoice.payment_failed` and `customer.subscription.deleted` stop future grants and downgrade entitlements.
+
+Share records are output artifacts only. They should not be the billing source of truth. Existing
+`plan`, `stripeCustomerId`, and `stripeSubscriptionId` fields on share records are legacy demo
+fields and should be migrated to user/workspace records.
+
+Cost enforcement pattern:
+
+1. Estimate the Nuncio credit cost server-side.
+2. Reserve or debit credits before calling an external provider.
+3. Commit the transaction when the provider accepts the job.
+4. Refund the reservation if the provider rejects or fails before useful output is produced.
+5. Attach all debits to a `GenerationFlow` and, when known, a `RecipientProfile`.
+
+Initial rollout should protect the most expensive route first:
+
+- `/api/video` — render video, currently estimated at 5 Nuncio credits.
+- `/api/enrich` — profile research, estimated at 1 credit per URL.
+- `/api/script` — script generation, estimated at 1 credit.
+- `/api/canvas` and `/api/studio/build` — canvas creation, estimated at 1 credit.
+- `/api/soundscape`, `/api/tts`, `/api/translate`, `/api/captions` — meter once product pricing is finalized.
+
+During migration, `NUNCIO_CREDITS_ENFORCED=true` should turn on hard blocking. With enforcement
+off, routes can still record/return estimated credit usage without preventing demo flows.
+
+Required env vars:
+
+- Stripe: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_MONTHLY_PRICE_ID`, `NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID`
+- Credits: `NUNCIO_CREDITS_ENFORCED`, `NUNCIO_TRIAL_CREDITS`
