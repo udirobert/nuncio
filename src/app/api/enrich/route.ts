@@ -4,6 +4,15 @@ import { validateUrls } from "@/lib/validation";
 import { MemoryCache } from "@/lib/cache";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 import { recordHit, recordMiss } from "@/lib/cache-metrics";
+import {
+  commitCreditReservation,
+  estimateCreditCost,
+  getCreditBalance,
+  getCreditSubject,
+  InsufficientCreditsError,
+  refundCreditReservation,
+  reserveCredits,
+} from "@/lib/billing/credits";
 
 // Cache enrichment results for 30 minutes
 const enrichmentCache = new MemoryCache<unknown[]>(30);
@@ -56,25 +65,62 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Call TinyFish only for valid URLs
-  const result = await enrich(valid, { discoverRelated: Boolean(discoverRelated) });
+  const subject = getCreditSubject(request);
+  const creditCost = estimateCreditCost("profile.research", valid.length);
+  let reservationId: string | undefined;
 
-  // Add validation errors as failed results
-  const fullResult = [
-    ...result,
-    ...errors.map((e) => ({
-      url: e.url,
-      markdown: "",
-      success: false,
-      reason: e.error,
-    })),
-  ];
+  try {
+    const reservation = await reserveCredits({
+      subject,
+      action: "profile.research",
+      amount: creditCost,
+      reason: "Research public profile URLs",
+      provider: "tinyfish",
+    });
+    reservationId = reservation.id;
 
-  // Cache successful results
-  enrichmentCache.set(cacheKey, fullResult);
-  recordMiss("enrich", `${valid.length} URLs`);
+    // Call TinyFish only for valid URLs
+    const result = await enrich(valid, { discoverRelated: Boolean(discoverRelated) });
+    await commitCreditReservation(reservation.id);
 
-  return NextResponse.json(fullResult, {
-    headers: { "X-Cache": "miss" },
-  });
+    // Add validation errors as failed results
+    const fullResult = [
+      ...result,
+      ...errors.map((e) => ({
+        url: e.url,
+        markdown: "",
+        success: false,
+        reason: e.error,
+      })),
+    ];
+
+    // Cache successful results
+    enrichmentCache.set(cacheKey, fullResult);
+    recordMiss("enrich", `${valid.length} URLs`);
+
+    return NextResponse.json(fullResult, {
+      headers: {
+        "X-Cache": "miss",
+        "X-Nuncio-Credits-Charged": String(creditCost),
+        "X-Nuncio-Credits-Balance": String(await getCreditBalance(subject)),
+      },
+    });
+  } catch (error) {
+    if (reservationId) {
+      await refundCreditReservation(reservationId);
+    }
+
+    if (error instanceof InsufficientCreditsError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          requiredCredits: error.required,
+          availableCredits: error.available,
+        },
+        { status: 402 }
+      );
+    }
+
+    throw error;
+  }
 }

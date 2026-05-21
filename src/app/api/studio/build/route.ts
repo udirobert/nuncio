@@ -7,6 +7,14 @@ import { chooseArchetype } from "@/lib/hooks/select";
 import { ensureTrialCookie, resolveHookAccess } from "@/lib/hooks/tiers";
 import { pickFormat, type HookArchetypeId } from "@/lib/hooks/archetypes";
 import { generateAmbientVibe } from "@/lib/elevenlabs";
+import {
+  commitCreditReservation,
+  estimateCreditCost,
+  getCreditSubject,
+  InsufficientCreditsError,
+  refundCreditReservation,
+  reserveCredits,
+} from "@/lib/billing/credits";
 
 const NODE_DIMENSIONS = {
   text: { w: 420, h: 140 },
@@ -21,6 +29,7 @@ export async function POST(request: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       let closed = false;
+      let reservationId: string | undefined;
       const send = (data: unknown) => {
         if (closed) return;
         try {
@@ -38,6 +47,23 @@ export async function POST(request: NextRequest) {
         const confirmedProfile = body.profile as import("@/lib/claude").Profile | undefined;
         const confirmedScript = body.script as string | undefined;
         const confirmedHook = body.hook as { archetype: string; reasoning: string; concept: string; prompt: string; format: string; formatReasoning: string } | undefined;
+        if (!(confirmedProfile && confirmedScript) && !url) {
+          send({ error: "url is required" });
+          controller.close();
+          return;
+        }
+        const subject = getCreditSubject(request);
+        const creditCost = confirmedProfile && confirmedScript
+          ? estimateCreditCost("canvas.build")
+          : estimateCreditCost("profile.research") + estimateCreditCost("script.generate") + estimateCreditCost("canvas.build");
+        const reservation = await reserveCredits({
+          subject,
+          action: "canvas.build",
+          amount: creditCost,
+          reason: confirmedProfile && confirmedScript ? "Build Studio canvas from reviewed script" : "Build Studio campaign from URL",
+          provider: "melius",
+        });
+        reservationId = reservation.id;
 
         let profile: import("@/lib/claude").Profile;
         let script: string;
@@ -301,11 +327,23 @@ export async function POST(request: NextRequest) {
           },
         };
 
+        await commitCreditReservation(reservation.id);
         send({ type: "done", result: finalResult });
         controller.close();
       } catch (error) {
+        if (reservationId) {
+          await refundCreditReservation(reservationId);
+        }
         console.error("[studio/build] Stream error:", error);
-        send({ error: error instanceof Error ? error.message : "Studio build failed" });
+        if (error instanceof InsufficientCreditsError) {
+          send({
+            error: error.message,
+            requiredCredits: error.required,
+            availableCredits: error.available,
+          });
+        } else {
+          send({ error: error instanceof Error ? error.message : "Studio build failed" });
+        }
         controller.close();
       }
     }

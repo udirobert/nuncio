@@ -15,11 +15,11 @@ const PLAN_TIERS = [
     eyebrow: "Anonymous judges",
     price: "$0",
     period: "first canvas",
-    hookModel: "fal Wan 2.5",
-    quality: "Draft cinematic",
-    allowance: "1 hook / IP / 24h",
-    speed: "~12s hook generation",
-    watermark: "Watermarked export",
+    hookModel: "10 trial credits",
+    quality: "Draft workflow",
+    allowance: "Enough for research + one review",
+    speed: "Render requires account",
+    watermark: "Public share",
     cta: "Start anonymous",
     note: "No email. Drop a profile URL and watch the agent build.",
     featured: false,
@@ -30,11 +30,11 @@ const PLAN_TIERS = [
     eyebrow: "Email captured",
     price: "$0",
     period: "monthly",
-    hookModel: "fal LTX or Wan",
-    quality: "Draft cinematic",
-    allowance: "3 hooks / month",
-    speed: "~12s hook generation",
-    watermark: "Watermarked export",
+    hookModel: "10 starter credits",
+    quality: "Account ledger",
+    allowance: "Spend across research, scripts, canvas, render",
+    speed: "5 credits per render",
+    watermark: "Public share",
     cta: "Try free",
     note: "Unlocks extra rerolls and a shareable campaign link.",
     featured: false,
@@ -47,10 +47,10 @@ const PLAN_TIERS = [
     annualPrice: "$290",
     period: "month",
     annualPeriod: "year",
-    hookModel: "fal Kling 2.0",
-    quality: "Cinematic",
-    allowance: "50 hooks / month",
-    speed: "~45s hook generation",
+    hookModel: "200 credits / month",
+    quality: "Cinematic renders",
+    allowance: "Credits spend across every Nuncio stage",
+    speed: "Unused credits tracked in ledger",
     watermark: "No watermark",
     cta: "Get Pro",
     note: "Best for reps and founders sending real social-ready outreach.",
@@ -62,22 +62,22 @@ const PLAN_TIERS = [
     eyebrow: "Agency / brand",
     price: "$79+",
     period: "month",
-    hookModel: "fal Veo3",
-    quality: "Flagship",
-    allowance: "200 hooks / month",
-    speed: "~60s hook generation",
+    hookModel: "1,000+ credits / month",
+    quality: "Team workspace",
+    allowance: "Shared credit pool and usage history",
+    speed: "Priority render capacity",
     watermark: "No watermark",
     cta: "Talk to us",
-    note: "For teams that want flagship hooks, brand review, and volume.",
+    note: "For teams that want shared credits, brand review, and volume.",
     featured: false,
   },
 ] as const;
 
 const FAQS = [
-  { q: "Is the first hook really free?", a: "Yes. You can build the canvas and generate the first draft hook without email or a credit card." },
+  { q: "What are Nuncio credits?", a: "Credits are the single balance used for research, script generation, canvas creation, rendering, translation, captions, and delivery." },
   { q: "Can I cancel anytime?", a: "Absolutely. Cancel through your dashboard in one click. No long-term commitments." },
-  { q: "Why do tiers use different hook models?", a: "nuncio routes low-friction trials to fast draft models and upgrades paid campaigns to cinematic models when the stakes justify the cost." },
-  { q: "Do you offer agency plans?", a: "We do. Studio is for teams that need higher monthly volume, flagship video models, and brand-safe review workflows." },
+  { q: "How many credits does a video use?", a: "The current Video flow estimates 1 credit for research, 1 for script, 1 for canvas, and 5 for rendering." },
+  { q: "Do you offer agency plans?", a: "We do. Studio is for teams that need higher monthly volume, shared credits, brand review, and usage reporting." },
 ];
 
 function PricingContent() {
@@ -125,7 +125,7 @@ function PricingContent() {
           Scale your impact,<br />not your costs.
         </h1>
         <p className="text-ink-muted text-base max-w-lg mx-auto">
-          Start without friction. Upgrade only when the campaign needs a more cinematic hook model.
+          Buy one Nuncio credit balance and spend it across research, scripts, creative canvases, renders, translations, captions, and delivery.
         </p>
       </motion.div>
 
@@ -143,7 +143,7 @@ function PricingContent() {
               </svg>
             </div>
             <h3 className="text-lg font-semibold text-ink mb-1">Welcome to the Pro family!</h3>
-            <p className="text-sm text-ink-muted">Your subscription is active. Kling-powered hook generation is now unlocked.</p>
+            <p className="text-sm text-ink-muted">Your subscription is active. Monthly Nuncio credits are now available in your workspace.</p>
           </motion.div>
         )}
         {canceled && (
@@ -231,7 +231,7 @@ function PricingContent() {
 
               <div className="rounded-xl border border-cream-dark bg-cream/40 p-3 mt-5 space-y-2">
                 <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="text-ink-muted">Hook model</span>
+                  <span className="text-ink-muted">Credits</span>
                   <span className="font-semibold text-ink text-right">{tier.hookModel}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3 text-sm">

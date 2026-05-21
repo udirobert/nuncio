@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createCanvas } from "@/lib/melius";
+import {
+  commitCreditReservation,
+  estimateCreditCost,
+  getCreditBalance,
+  getCreditSubject,
+  InsufficientCreditsError,
+  refundCreditReservation,
+  reserveCredits,
+} from "@/lib/billing/credits";
 
 function detectIndustry(profile?: { current_role?: string; company?: string; interests?: string[]; notable_work?: string[] }): string {
   if (!profile) return "general";
@@ -33,6 +42,8 @@ function detectIndustry(profile?: { current_role?: string; company?: string; int
 }
 
 export async function POST(request: NextRequest) {
+  let reservationId: string | undefined;
+
   try {
     const { profile, script, senderBrief } = await request.json();
 
@@ -43,10 +54,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const subject = getCreditSubject(request);
+    const creditCost = estimateCreditCost("canvas.build");
+    const reservation = await reserveCredits({
+      subject,
+      action: "canvas.build",
+      amount: creditCost,
+      reason: "Build creative canvas",
+      provider: "melius",
+    });
+    reservationId = reservation.id;
+
     const industry = detectIndustry(profile);
     const result = await createCanvas(profile, script, senderBrief, industry);
-    return NextResponse.json({ ...result, industry });
+    await commitCreditReservation(reservation.id);
+
+    return NextResponse.json(
+      { ...result, industry },
+      {
+        headers: {
+          "X-Nuncio-Credits-Charged": String(creditCost),
+          "X-Nuncio-Credits-Balance": String(await getCreditBalance(subject)),
+        },
+      }
+    );
   } catch (error) {
+    if (reservationId) {
+      await refundCreditReservation(reservationId);
+    }
+
+    if (error instanceof InsufficientCreditsError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          requiredCredits: error.required,
+          availableCredits: error.available,
+        },
+        { status: 402 }
+      );
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Canvas creation failed" },
       { status: 500 }
