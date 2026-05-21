@@ -461,7 +461,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
       const data = await res.json();
       setReviewProfile(data.profile);
-      setReviewScript(data.script);
+      setReviewScript(typeof data.script === "string" ? data.script : "");
       setReviewHook(data.hook);
       setStage("review");
     } catch (err) {
@@ -487,7 +487,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
       });
       if (res.ok) {
         const data = await res.json();
-        setReviewScript(data.script);
+        setReviewScript(typeof data.script === "string" ? data.script : "");
         setReviewHook(data.hook);
       }
     } catch { /* keep current script */ }
@@ -1938,7 +1938,7 @@ function ScriptCard({ nodes }: { nodes: StudioNode[] }) {
         <span className="text-[10px] uppercase tracking-widest font-medium text-accent">Script</span>
         {profileNode?.prompt && (
           <span className="text-[10px] text-ink-faint">
-            — for {profileNode.prompt.split("—")[0]?.trim() || "recipient"}
+            — for {String(profileNode.prompt).split("—")[0]?.trim() || "recipient"}
           </span>
         )}
       </div>
