@@ -1,57 +1,139 @@
-# Submission readiness notes
+# ElevenLabs × Stripe Hackathon Submission
 
-## Current real artifact
+## Loom Demo Script
 
-Latest successful real HeyGen golden path:
+Target: ~3 minutes. Conversational, show don't tell.
 
-- Target: `https://github.com/rauchg`
-- Artifact: `artifacts/test-runs/golden/2026-05-15T07-02-46-287Z-golden.json`
-- HeyGen video ID: `05c00abc3ef742948bb058f1be33f4f3`
-- Turso share path: `/v/2184dcb4-567`
+---
 
-Timings:
+### INTRO (0:00–0:20)
 
-| Stage | Duration |
-|---|---:|
-| TinyFish enrichment | 2.1s |
-| Featherless Premium script | 13.4s |
-| HeyGen job start | 1.1s |
-| HeyGen render completion | 4m17s |
-| Turso share record | 4.0s |
+> "Hey — this is nuncio. It's a tool that turns any social profile into a personalised video outreach in under 5 minutes. I built it because cold outreach has a less than 5% reply rate, and the reason is simple: people can tell when something wasn't made for them. Nuncio fixes that."
 
-Notes:
+**Show:** The studio landing page, clean and empty.
 
-- HeyGen returns signed media URLs that can expire. Download or screen-record completed videos before submitting.
-- For live demos, start a HeyGen render but show a completed artifact while polling continues.
-- The `rauchg` artifact proves the full HeyGen/Turso path, but a cleaner target profile should be used for final public materials.
+---
 
-## Hackathon figure enrichment test
+### THE FLOW (0:20–1:00)
 
-Artifact:
+> "Here's how it works. I paste someone's Twitter or LinkedIn URL, add my name, and optionally a one-line brief about why I'm reaching out."
 
-- `artifacts/test-runs/enrichment/2026-05-15-hackathon-figures.json`
+**Action:** Paste a URL (e.g. `https://x.com/n0w00j`), type your name, hit "Research profile."
 
-Inputs:
+> "The agent goes and reads their public profile, figures out who they are, what they care about, and drafts a personalised script. This takes about 8 seconds."
 
-- `https://ca.linkedin.com/in/yekeh` — strong LinkedIn Fetch result for Onee Yekeh / HeyGen.
-- `https://x.com/timgl` — X Fetch returns JS boilerplate; TinyFish Search fallback is needed.
-- `https://x.com/gorkem` — X Fetch returns JS boilerplate; TinyFish Search fallback adds useful fal/Gorkem context.
+**Show:** The enriching spinner, then the review stage appearing.
 
-## Recommended final artifact target
+---
 
-Use `https://ca.linkedin.com/in/yekeh` first. It has the strongest clean enrichment and is directly relevant to the HeyGen hackathon.
+### ELEVENLABS — SCRIPT PREVIEW (1:00–1:30)
 
-Suggested sender brief:
+> "Before I commit to rendering a full video, I can hear what this script sounds like. This is ElevenLabs text-to-speech — I hit 'Hear it' and get an instant audio preview of the script."
 
-> I am building nuncio, an agentic video personalization pipeline that uses HeyGen to turn public profile context into a short, tailored outreach video. I would love feedback from a HeyGen product perspective on making developer-facing video agents feel genuinely useful and not like generic automation.
+**Action:** Click "Hear it" button. Let it play for 5-10 seconds.
 
-Suggested command:
+> "I can edit the script, tweak the tone, remove a personalization hook that doesn't land — and hear it again. This saves me from burning a 4-minute video render on a script that doesn't sound right."
 
-```bash
-GOLDEN_PROFILE_URL=https://ca.linkedin.com/in/yekeh \
-GOLDEN_SKIP_CANVAS=1 \
-GOLDEN_SENDER_BRIEF="I am building nuncio, an agentic video personalization pipeline that uses HeyGen to turn public profile context into a short, tailored outreach video. I would love feedback from a HeyGen product perspective on making developer-facing video agents feel genuinely useful and not like generic automation." \
-pnpm golden
-```
+**Show:** Edit a word in the script, show the button resets.
 
-Run Melius separately until the canvas smoke is green; do not let it block the final HeyGen submission artifact.
+---
+
+### ELEVENLABS — CINEMATIC SOUNDSCAPE (1:30–2:00)
+
+> "The second ElevenLabs integration is what I call Cinematic Soundscapes. When the video renders, nuncio generates a context-aware ambient audio layer using ElevenLabs Sound Effects. If I'm reaching out to a startup founder, it picks 'Startup Hustle' — high-energy office ambience. A designer gets 'Zen Studio.' The recipient doesn't just watch a talking head in silence — they hear an atmosphere that was chosen for them."
+
+**Show:** Point to the vibe selector in customization, or show the soundscape toggle on the video player with the animated bars.
+
+> "The audio ducks automatically when the avatar speaks and swells back up during pauses — like a professional broadcast mix."
+
+---
+
+### ELEVENLABS — AUDIO MEMO HOOK (2:00–2:20)
+
+> "Third — the audio memo. Sending a video link cold in a DM is high friction. So nuncio generates a 10-second voice teaser: 'Hey Joowon, I put together a quick video for you about what you're building at Melius — check the link below.' You send that as a voice note first, then drop the link. Open rates go way up."
+
+**Action:** Click "Audio memo" button, show the player appear, hit play briefly.
+
+---
+
+### STRIPE — MONETIZATION (2:20–2:45)
+
+> "On the Stripe side — nuncio has a full subscription flow. Free users get limited generations with watermarks. Pro unlocks unlimited renders, no watermarks, and priority generation. The checkout, webhooks, and subscription management are all wired through Stripe."
+
+**Show:** Briefly flash the pricing page or the Pro badge in the UI. Don't dwell — judges can see the code.
+
+---
+
+### CLOSE (2:45–3:00)
+
+> "So that's nuncio — personalised video outreach powered by ElevenLabs for the audio intelligence and Stripe for the business model. Three ElevenLabs integrations: TTS script preview, cinematic soundscapes, and audio memo hooks. All solving real friction points in the outreach workflow. Thanks for watching."
+
+**End on:** The completed video playing with the soundscape visualizer active.
+
+---
+
+## Technical Summary (for written submission)
+
+### ElevenLabs Integration
+
+| Feature | API Used | Purpose |
+|---------|----------|---------|
+| Script Preview | Text-to-Speech (`eleven_flash_v2_5`) | Hear the script before committing to a video render |
+| Cinematic Soundscape | Sound Effects API | Context-aware ambient audio layer matched to recipient's industry |
+| Audio Memo Hook | Text-to-Speech (`eleven_flash_v2_5`) | Short voice teaser for DM outreach before sharing the full video |
+
+### Stripe Integration
+
+| Feature | API Used |
+|---------|----------|
+| Pro subscriptions | Checkout Sessions, Customer Portal |
+| Webhook handling | `checkout.session.completed`, `customer.subscription.*` |
+| Tiered access | Free (limited, watermarked) → Pro (unlimited, clean) |
+| Payment page | `/pricing` with monthly/annual toggle |
+
+### Stack
+
+- Next.js 16 (App Router)
+- Venice AI (DeepSeek V4 Flash) for LLM inference
+- TinyFish for profile enrichment
+- ElevenLabs for TTS + Sound Effects
+- HeyGen for avatar video rendering
+- Melius MCP for creative canvas
+- Stripe for payments
+- Coolify on Vultr for deployment
+
+### Links
+
+- Live: https://nuncio.app/studio
+- Repo: https://github.com/udirobert/nuncio
+- Pricing: https://nuncio.app/pricing
+
+---
+
+## Social Post Templates
+
+### X/Twitter
+
+> Just shipped nuncio for #ElevenHacks — personalised video outreach that sounds as good as it looks.
+>
+> 3 @elevenlabsio integrations:
+> 🎙️ TTS script preview (hear before you render)
+> 🎬 Cinematic soundscapes (AI-generated ambient audio per recipient)
+> 🎤 Audio memo hooks (voice teasers for DMs)
+>
+> Monetized with @stripe subscriptions.
+>
+> [link to demo video]
+
+### LinkedIn
+
+> Built something for the ElevenLabs × Stripe hackathon: nuncio — an AI tool that turns any social profile into a personalised video outreach.
+>
+> The ElevenLabs integration goes beyond basic voiceovers:
+> • Script preview via TTS — hear your script before burning a 4-min render
+> • Cinematic soundscapes — AI-generated ambient audio matched to the recipient's industry
+> • Audio memo hooks — short voice teasers to send as DM openers
+>
+> Stripe handles Pro subscriptions for unlimited renders.
+>
+> Cold outreach has a <5% reply rate. Personalised video changes that. #ElevenHacks
