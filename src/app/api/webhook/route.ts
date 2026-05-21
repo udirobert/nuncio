@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { updateShareRecordByCustomerId } from "@/lib/share-store";
 import {
+  attachStripeCustomerToWorkspace,
   getWorkspaceForStripeCustomer,
   grantPlanCredits,
   updateWorkspaceSubscription,
@@ -32,11 +33,33 @@ export async function POST(request: NextRequest) {
         const customerId = session.customer as string;
         const subscriptionId = session.subscription as string;
         const planType = session.metadata?.planType || "pro";
+        const purchaseType = session.metadata?.purchaseType || "subscription";
+        const workspaceId = session.metadata?.workspaceId || session.client_reference_id || "";
+        const userId = session.metadata?.userId || "";
         const email = session.customer_details?.email || session.customer_email;
 
         console.log(`[webhook] Checkout completed: customer=${customerId}, plan=${planType}`);
 
-        if (email) {
+        if (workspaceId) {
+          const workspace = await attachStripeCustomerToWorkspace({
+            workspaceId,
+            userId,
+            stripeCustomerId: customerId,
+            stripeSubscriptionId: subscriptionId || undefined,
+            planType,
+          });
+          if (workspace) {
+            const granted = await grantPlanCredits({
+              workspace,
+              planType,
+              stripeEventId: event.id,
+              reason: purchaseType === "credit_pack"
+                ? "stripe_credit_pack_checkout_completed"
+                : "stripe_subscription_checkout_completed",
+            });
+            console.log(`[webhook] Granted ${granted} checkout credits to workspace=${workspace.id}`);
+          }
+        } else if (email) {
           const { user, workspace } = await upsertBillingAccount({
             email,
             stripeCustomerId: customerId,
@@ -48,9 +71,11 @@ export async function POST(request: NextRequest) {
             user,
             planType,
             stripeEventId: event.id,
-            reason: "stripe_checkout_completed",
+            reason: purchaseType === "credit_pack"
+              ? "stripe_credit_pack_checkout_completed"
+              : "stripe_subscription_checkout_completed",
           });
-          console.log(`[webhook] Granted ${granted} credits to workspace=${workspace.id}`);
+          console.log(`[webhook] Granted ${granted} checkout credits to workspace=${workspace.id}`);
         } else {
           console.warn(`[webhook] Checkout completed without customer email: customer=${customerId}`);
         }
@@ -67,14 +92,20 @@ export async function POST(request: NextRequest) {
       case "invoice.paid": {
         const invoice = event.data.object as Stripe.Invoice;
         const customerId = invoice.customer as string;
+        const billingReason = (invoice as Stripe.Invoice & { billing_reason?: string }).billing_reason;
 
         console.log(`[webhook] Invoice paid: customer=${customerId}`);
+
+        if (billingReason === "subscription_create") {
+          console.log(`[webhook] Skipping initial subscription invoice grant for customer=${customerId}`);
+          break;
+        }
 
         const workspace = await getWorkspaceForStripeCustomer(customerId);
         if (workspace) {
           const granted = await grantPlanCredits({
             workspace,
-            planType: workspace.plan || "pro",
+            planType: workspace.stripePlanType || workspace.plan || "pro",
             stripeEventId: event.id,
             stripeInvoiceId: invoice.id,
             reason: "stripe_invoice_paid",

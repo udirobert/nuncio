@@ -7,6 +7,9 @@ const PLAN_CREDITS: Record<string, number> = {
   "pro-annual": 2400,
   pro: 200,
   studio: 1000,
+  "credits-100": 100,
+  "credits-500": 500,
+  "credits-1000": 1000,
 };
 
 export function creditsForPlan(planType?: string): number {
@@ -28,6 +31,7 @@ export async function upsertBillingAccount(input: {
     name: input.email,
     stripeCustomerId: input.stripeCustomerId,
     stripeSubscriptionId: input.stripeSubscriptionId,
+    stripePlanType: input.planType,
     plan: normalizePlan(input.planType),
   });
 
@@ -89,6 +93,33 @@ export async function getWorkspaceForStripeCustomer(customerId: string): Promise
   return getAccountStorageProvider().getWorkspaceByStripeCustomerId(customerId);
 }
 
+export async function attachStripeCustomerToWorkspace(input: {
+  workspaceId: string;
+  userId?: string;
+  stripeCustomerId: string;
+  stripeSubscriptionId?: string;
+  planType?: string;
+}): Promise<WorkspaceAccount | null> {
+  const provider = getAccountStorageProvider();
+  const isCreditPack = input.planType?.startsWith("credits-");
+  const workspace = await provider.updateWorkspace(input.workspaceId, {
+    stripeCustomerId: input.stripeCustomerId,
+    stripeSubscriptionId: input.stripeSubscriptionId,
+    ...(isCreditPack
+      ? {}
+      : {
+          stripePlanType: input.planType,
+          plan: normalizePlan(input.planType),
+        }),
+  });
+  if (input.userId) {
+    await provider.updateUser(input.userId, {
+      stripeCustomerId: input.stripeCustomerId,
+    });
+  }
+  return workspace;
+}
+
 export async function updateWorkspaceSubscription(input: {
   customerId: string;
   stripeSubscriptionId?: string;
@@ -99,6 +130,7 @@ export async function updateWorkspaceSubscription(input: {
   if (!workspace) return null;
   return provider.updateWorkspace(workspace.id, {
     stripeSubscriptionId: input.stripeSubscriptionId,
+    stripePlanType: input.stripeSubscriptionId ? workspace.stripePlanType : undefined,
     plan: input.plan,
   });
 }

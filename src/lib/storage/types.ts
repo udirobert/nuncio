@@ -37,6 +37,7 @@ export interface WorkspaceAccount {
   name: string;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
+  stripePlanType?: string;
   plan?: "free" | "pro" | "studio";
   createdAt: string;
   updatedAt: string;
@@ -70,6 +71,7 @@ export interface AccountStorageProvider {
   upsertUserByEmail(email: string, updates?: Partial<AccountUser>): Promise<AccountUser>;
   getUserByEmail(email: string): Promise<AccountUser | null>;
   getUserByStripeCustomerId(customerId: string): Promise<AccountUser | null>;
+  updateUser(id: string, updates: Partial<AccountUser>): Promise<AccountUser | null>;
   upsertWorkspaceForUser(user: AccountUser, updates?: Partial<WorkspaceAccount>): Promise<WorkspaceAccount>;
   getWorkspace(id: string): Promise<WorkspaceAccount | null>;
   getWorkspaceByStripeCustomerId(customerId: string): Promise<WorkspaceAccount | null>;

@@ -7,6 +7,29 @@ import { Header } from "@/components/header";
 
 const MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID || "";
 const ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRO_ANNUAL_PRICE_ID || "";
+const CREDIT_PACKS = [
+  {
+    id: "credits-100",
+    label: "100 credits",
+    price: "$15",
+    priceId: process.env.NEXT_PUBLIC_STRIPE_CREDITS_100_PRICE_ID || "",
+    note: "Top up for a short campaign.",
+  },
+  {
+    id: "credits-500",
+    label: "500 credits",
+    price: "$59",
+    priceId: process.env.NEXT_PUBLIC_STRIPE_CREDITS_500_PRICE_ID || "",
+    note: "Best for founder-led prospecting.",
+  },
+  {
+    id: "credits-1000",
+    label: "1,000 credits",
+    price: "$99",
+    priceId: process.env.NEXT_PUBLIC_STRIPE_CREDITS_1000_PRICE_ID || "",
+    note: "Team volume and testing.",
+  },
+] as const;
 
 const PLAN_TIERS = [
   {
@@ -90,17 +113,17 @@ function PricingContent() {
 
   const currentPriceId = annual ? ANNUAL_PRICE_ID : MONTHLY_PRICE_ID;
 
-  async function handleCheckout() {
-    if (!currentPriceId) {
+  async function handleCheckout(priceId = currentPriceId, planType = annual ? "pro-annual" : "pro-monthly", mode: "subscription" | "payment" = "subscription") {
+    if (!priceId) {
       alert("Stripe not configured.");
       return;
     }
-    setLoading(annual ? "annual" : "monthly");
+    setLoading(planType);
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ priceId: currentPriceId, planType: annual ? "pro-annual" : "pro-monthly" }),
+        body: JSON.stringify({ priceId, planType, mode }),
       });
       const { url } = await res.json();
       if (url) window.location.assign(url);
@@ -278,6 +301,46 @@ function PricingContent() {
           );
         })}
       </div>
+
+      <motion.section
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+        className="mt-10 rounded-2xl border border-cream-dark bg-white p-5"
+      >
+        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
+              Credit packs
+            </span>
+            <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl tracking-tight">
+              Top up without changing plans.
+            </h2>
+          </div>
+          <p className="max-w-md text-sm text-ink-muted">
+            One-time packs are useful while Stripe is in test mode and for users who need a few extra renders.
+          </p>
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          {CREDIT_PACKS.map((pack) => (
+            <button
+              key={pack.id}
+              onClick={() => handleCheckout(pack.priceId, pack.id, "payment")}
+              disabled={!pack.priceId || loading === pack.id}
+              className="btn-press rounded-xl border border-cream-dark p-4 text-left transition-all hover:border-accent/40 hover:bg-accent-soft/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold text-ink">{pack.label}</span>
+                <span className="font-[family-name:var(--font-display)] text-2xl text-accent">{pack.price}</span>
+              </div>
+              <p className="mt-1 text-xs text-ink-muted">{pack.note}</p>
+              <p className="mt-3 text-[10px] uppercase tracking-widest text-ink-faint">
+                {pack.priceId ? loading === pack.id ? "Opening checkout..." : "Buy pack" : "Price ID missing"}
+              </p>
+            </button>
+          ))}
+        </div>
+      </motion.section>
 
       {/* Trust badges */}
       <motion.div

@@ -57,6 +57,15 @@ export class FileAccountStorageProvider implements AccountStorageProvider {
     return this.data.users.find((u) => u.stripeCustomerId === customerId) || null;
   }
 
+  async updateUser(id: string, updates: Partial<AccountUser>): Promise<AccountUser | null> {
+    await this.load();
+    const user = this.data.users.find((u) => u.id === id);
+    if (!user) return null;
+    Object.assign(user, updates, { updatedAt: new Date().toISOString() });
+    await this.persist();
+    return user;
+  }
+
   async upsertWorkspaceForUser(user: AccountUser, updates?: Partial<WorkspaceAccount>): Promise<WorkspaceAccount> {
     await this.load();
     const now = new Date().toISOString();
@@ -74,6 +83,7 @@ export class FileAccountStorageProvider implements AccountStorageProvider {
       name: updates?.name || user.email,
       stripeCustomerId: updates?.stripeCustomerId,
       stripeSubscriptionId: updates?.stripeSubscriptionId,
+      stripePlanType: updates?.stripePlanType,
       plan: updates?.plan || "free",
       createdAt: now,
       updatedAt: now,

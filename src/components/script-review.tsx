@@ -104,6 +104,8 @@ export function ScriptReview({
   }, [canvas, sources?.length, urls?.length]);
 
   const [billingBalance, setBillingBalance] = useState<BillingBalance | null>(null);
+  const hasInsufficientRenderCredits =
+    billingBalance?.anonymous === false && billingBalance.balance < runCreditSummary.renderCredits;
 
   // Trigger reveal after mount
   useEffect(() => {
@@ -183,6 +185,10 @@ export function ScriptReview({
   function handleRender() {
     if (billingBalance?.anonymous !== false) {
       setShowAccountGate(true);
+      return;
+    }
+    if (hasInsufficientRenderCredits) {
+      window.location.assign("/pricing");
       return;
     }
     renderWithCurrentState();
@@ -601,7 +607,7 @@ export function ScriptReview({
             }`}
           >
             <span className="flex items-center justify-center gap-2">
-              Render video
+              {hasInsufficientRenderCredits ? "Buy credits" : "Render video"}
               <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M3 8h10M9 4l4 4-4 4" />
               </svg>

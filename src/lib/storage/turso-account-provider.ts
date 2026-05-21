@@ -70,6 +70,22 @@ export class TursoAccountStorageProvider implements AccountStorageProvider {
     return parseRow<AccountUser>(result.rows[0]?.record_json);
   }
 
+  async updateUser(id: string, updates: Partial<AccountUser>): Promise<AccountUser | null> {
+    await this.ensureSchema();
+    const result = await this.client.execute({
+      sql: `SELECT record_json FROM users WHERE id = ? LIMIT 1`,
+      args: [id],
+    });
+    const existing = parseRow<AccountUser>(result.rows[0]?.record_json);
+    if (!existing) return null;
+    const updated = { ...existing, ...updates, updatedAt: new Date().toISOString() };
+    await this.client.execute({
+      sql: `UPDATE users SET record_json = ?, stripe_customer_id = ?, updated_at = ? WHERE id = ?`,
+      args: [JSON.stringify(updated), updated.stripeCustomerId || null, updated.updatedAt, id],
+    });
+    return updated;
+  }
+
   async upsertWorkspaceForUser(user: AccountUser, updates?: Partial<WorkspaceAccount>): Promise<WorkspaceAccount> {
     await this.ensureSchema();
     const result = await this.client.execute({
@@ -94,6 +110,7 @@ export class TursoAccountStorageProvider implements AccountStorageProvider {
       name: updates?.name || user.email,
       stripeCustomerId: updates?.stripeCustomerId,
       stripeSubscriptionId: updates?.stripeSubscriptionId,
+      stripePlanType: updates?.stripePlanType,
       plan: updates?.plan || "free",
       createdAt: now,
       updatedAt: now,

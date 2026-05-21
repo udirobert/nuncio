@@ -241,12 +241,22 @@ export default function HomeClient({ initialAvatars, initialVoices }: HomeClient
                   This can happen with profile access issues, provider limits, or a dropped connection while rendering.
                 </p>
               </div>
-              <button
-                onClick={handleReset}
-                className="btn-press inline-flex items-center gap-2 rounded-2xl border border-cream-dark px-5 py-3.5 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
-              >
-                Try again
-              </button>
+              <div className="flex flex-wrap justify-center gap-3">
+                {state.error?.toLowerCase().includes("insufficient credits") && (
+                  <button
+                    onClick={() => window.location.assign("/pricing")}
+                    className="btn-press inline-flex items-center gap-2 rounded-2xl bg-ink px-5 py-3.5 text-sm font-medium text-cream hover:bg-ink-light transition-colors"
+                  >
+                    Buy credits
+                  </button>
+                )}
+                <button
+                  onClick={handleReset}
+                  className="btn-press inline-flex items-center gap-2 rounded-2xl border border-cream-dark px-5 py-3.5 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+                >
+                  Try again
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
