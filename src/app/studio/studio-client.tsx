@@ -382,6 +382,12 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [reviewScript, setReviewScript] = useState("");
   const [reviewHook, setReviewHook] = useState<{ archetype: string; reasoning: string; concept: string; prompt: string; format: string; formatReasoning: string } | null>(null);
   const [reviewRegenerating, setReviewRegenerating] = useState(false);
+  const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
+  const [ttsLoading, setTtsLoading] = useState(false);
+  const [ttsPlaying, setTtsPlaying] = useState(false);
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [audioMemoUrl, setAudioMemoUrl] = useState<string | null>(null);
+  const [audioMemoLoading, setAudioMemoLoading] = useState(false);
 
   // Melius connection
   const [meliusKey, setMeliusKey] = useState<string>("");
@@ -486,6 +492,71 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
       }
     } catch { /* keep current script */ }
     setReviewRegenerating(false);
+  }
+
+  async function handleTtsPreview() {
+    // If already playing, stop
+    if (ttsPlaying && ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      ttsAudioRef.current.currentTime = 0;
+      setTtsPlaying(false);
+      return;
+    }
+
+    // If we already have audio for this script, just play it
+    if (ttsAudioUrl) {
+      const audio = new Audio(ttsAudioUrl);
+      audio.onended = () => setTtsPlaying(false);
+      ttsAudioRef.current = audio;
+      audio.play().catch(() => {});
+      setTtsPlaying(true);
+      return;
+    }
+
+    // Generate new TTS
+    setTtsLoading(true);
+    try {
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: reviewScript }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTtsAudioUrl(data.audio);
+        const audio = new Audio(data.audio);
+        audio.onended = () => setTtsPlaying(false);
+        ttsAudioRef.current = audio;
+        audio.play().catch(() => {});
+        setTtsPlaying(true);
+      }
+    } catch (error) {
+      console.error("[tts] Preview failed:", error);
+    }
+    setTtsLoading(false);
+  }
+
+  async function handleAudioMemo() {
+    if (audioMemoUrl) return; // Already generated
+    if (!reviewProfile) return;
+    setAudioMemoLoading(true);
+    try {
+      const name = reviewProfile.name || "there";
+      const hook = reviewProfile.personalization_hooks?.[0] || reviewProfile.current_role || "";
+      const memoText = `Hey ${name}, I just put together a quick personalised video for you${hook ? ` about ${hook}` : ""}. Check the link below — I think you'll find it relevant.`;
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: memoText }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAudioMemoUrl(data.audio);
+      }
+    } catch (error) {
+      console.error("[audio-memo] Generation failed:", error);
+    }
+    setAudioMemoLoading(false);
   }
 
   async function handleConfirmBuild() {
@@ -1252,13 +1323,35 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   </div>
                   <textarea
                     value={reviewScript}
-                    onChange={(e) => setReviewScript(e.target.value)}
+                    onChange={(e) => { setReviewScript(e.target.value); setTtsAudioUrl(null); }}
                     rows={6}
                     className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-accent/30"
                   />
-                  <p className="text-[11px] text-ink-faint">
-                    {reviewScript.split(/\s+/).filter(Boolean).length} words · ~{Math.round(reviewScript.split(/\s+/).filter(Boolean).length / 2.5)}s at natural pace
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] text-ink-faint">
+                      {reviewScript.split(/\s+/).filter(Boolean).length} words · ~{Math.round(reviewScript.split(/\s+/).filter(Boolean).length / 2.5)}s at natural pace
+                    </p>
+                    <button
+                      onClick={handleTtsPreview}
+                      disabled={ttsLoading || !reviewScript.trim()}
+                      className="text-[11px] text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1.5 transition-colors"
+                    >
+                      {ttsLoading ? (
+                        <span className="w-3 h-3 border border-accent/30 border-t-accent rounded-full animate-spin" />
+                      ) : ttsPlaying ? (
+                        <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="currentColor">
+                          <rect x="3" y="3" width="4" height="10" rx="1" />
+                          <rect x="9" y="3" width="4" height="10" rx="1" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M3 6.5v3a1 1 0 001 1h1.5l3 2.5V3L5.5 5.5H4a1 1 0 00-1 1z" />
+                          <path d="M10 5.5c.7.7.7 5.3 0 5M12 4c1.3 1.3 1.3 7.7 0 8" />
+                        </svg>
+                      )}
+                      {ttsLoading ? "Generating..." : ttsPlaying ? "Stop" : "Hear it"}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Hook info */}
@@ -1445,6 +1538,23 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     Share
                   </button>
 
+                  <button
+                    onClick={handleAudioMemo}
+                    disabled={audioMemoLoading}
+                    className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-2.5 text-xs font-medium text-ink-muted hover:bg-cream-dark/50 transition-colors disabled:opacity-50"
+                    title="Generate a voice memo teaser to send as a DM hook"
+                  >
+                    {audioMemoLoading ? (
+                      <span className="w-3 h-3 border border-accent/30 border-t-accent rounded-full animate-spin" />
+                    ) : (
+                      <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
+                        <path d="M3 8a5 5 0 0010 0M8 13v2" />
+                      </svg>
+                    )}
+                    {audioMemoUrl ? "Memo ready" : "Audio memo"}
+                  </button>
+
                   {buildResult.userOwned && buildResult.canvasUrl && (
                     <a
                       href={buildResult.canvasUrl}
@@ -1479,6 +1589,27 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     Brief another →
                   </button>
                 </div>
+
+                {/* Audio memo player */}
+                {audioMemoUrl && (
+                  <div className="rounded-xl border border-accent/20 bg-accent-soft/30 p-4 flex items-center gap-3">
+                    <div className="flex-1">
+                      <p className="text-[10px] uppercase tracking-widest font-medium text-accent mb-1">Audio Memo Ready</p>
+                      <p className="text-[11px] text-ink-muted">Send this as a DM teaser before sharing the full video link.</p>
+                    </div>
+                    <audio src={audioMemoUrl} controls className="h-8 w-48" />
+                    <a
+                      href={audioMemoUrl}
+                      download="nuncio-audio-memo.mp3"
+                      className="p-2 rounded-lg border border-accent/20 text-accent hover:bg-accent/10 transition-colors"
+                      title="Download memo"
+                    >
+                      <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M8 2v9M4.5 7.5L8 11l3.5-3.5M2 14h12" />
+                      </svg>
+                    </a>
+                  </div>
+                )}
 
                 {/* Video customization */}
                 <div className="border-t border-cream-dark/50 pt-3">

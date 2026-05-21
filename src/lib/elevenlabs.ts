@@ -85,3 +85,58 @@ export async function generateAmbientVibe(context: string): Promise<Buffer> {
   // We use a high prompt influence for ambience to ensure it stays in the background
   return generateSoundEffect(prompt, 20, 0.8);
 }
+
+/**
+ * Convert text to speech using ElevenLabs TTS API.
+ * Returns MP3 audio buffer.
+ */
+export async function textToSpeech(
+  text: string,
+  options?: { voiceId?: string; modelId?: string }
+): Promise<Buffer> {
+  if (!ELEVENLABS_API_KEY) {
+    throw new Error("ELEVENLABS_API_KEY is not configured");
+  }
+
+  // Default: "Roger" — laid-back, casual, resonant (available on free tier)
+  const voiceId = options?.voiceId || "CwhRBWXzGAHq8TQ4Fs17";
+  const modelId = options?.modelId || "eleven_flash_v2_5";
+
+  const response = await fetchWithRetry(
+    `${ELEVENLABS_BASE_URL}/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+    {
+      method: "POST",
+      headers: {
+        "xi-api-key": ELEVENLABS_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text,
+        model_id: modelId,
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75,
+          style: 0.3,
+        },
+      }),
+    },
+    { timeoutMs: 30000, maxAttempts: 1 }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`ElevenLabs TTS error: ${response.status} — ${error}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
+/** Available TTS voices for the UI */
+export const TTS_VOICES = [
+  { id: "CwhRBWXzGAHq8TQ4Fs17", name: "Roger", description: "Laid-back, casual" },
+  { id: "EXAVITQu4vr4xnSDxMaL", name: "Sarah", description: "Mature, confident" },
+  { id: "IKne3meq5aSn9XLyUdCD", name: "Charlie", description: "Deep, energetic" },
+  { id: "cjVigY5qzO86Huf0OWal", name: "Eric", description: "Smooth, trustworthy" },
+  { id: "XrExE9yKIg1WjnnlVkGX", name: "Matilda", description: "Professional, knowledgeable" },
+];
