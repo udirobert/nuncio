@@ -67,14 +67,14 @@ export async function POST(request: NextRequest) {
         credits: {
           action: "video.render",
           charged: renderCreditCost,
-          balanceAfter: getCreditBalance(subject),
+          balanceAfter: await getCreditBalance(subject),
           mode: reservation.status === "shadow" ? "shadow" : "enforced",
         },
       },
       {
         headers: {
           "X-Nuncio-Credits-Charged": String(renderCreditCost),
-          "X-Nuncio-Credits-Balance": String(getCreditBalance(subject)),
+          "X-Nuncio-Credits-Balance": String(await getCreditBalance(subject)),
         },
       }
     );

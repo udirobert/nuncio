@@ -1,4 +1,5 @@
 import { getClientId } from "@/lib/rate-limit";
+import { getAccountStorageProvider } from "@/lib/storage";
 
 export type CreditAction =
   | "profile.research"
@@ -81,8 +82,13 @@ export function getCreditSubject(request: Request): CreditSubject {
   };
 }
 
-export function getCreditBalance(subject: CreditSubject): number {
-  return ensureLedger(subject.workspaceId).balance;
+export async function getCreditBalance(subject: CreditSubject): Promise<number> {
+  if (subject.workspaceId.startsWith("anon:")) {
+    return ensureLedger(subject.workspaceId).balance;
+  }
+
+  const summary = await getAccountStorageProvider().getCreditSummary(subject.workspaceId);
+  return summary?.balance || 0;
 }
 
 export async function reserveCredits(input: {
@@ -106,27 +112,44 @@ export async function reserveCredits(input: {
       flowId: input.flowId,
       provider: input.provider,
       status: "shadow",
+      balanceAfter: await getCreditBalance(input.subject),
     };
     reservations.set(id, reservation);
     return reservation;
   }
 
-  const account = ensureLedger(input.subject.workspaceId);
-  if (account.balance < amount) {
-    throw new InsufficientCreditsError(amount, account.balance);
+  const currentBalance = await getCreditBalance(input.subject);
+  if (currentBalance < amount) {
+    throw new InsufficientCreditsError(amount, currentBalance);
   }
 
-  account.balance -= amount;
-  account.transactions.push({
-    id: crypto.randomUUID(),
-    type: "debit",
-    amount,
-    action: input.action,
-    reason: input.reason,
-    createdAt: new Date().toISOString(),
-    reservationId: id,
-  });
+  if (input.subject.workspaceId.startsWith("anon:")) {
+    const account = ensureLedger(input.subject.workspaceId);
+    account.balance -= amount;
+    account.transactions.push({
+      id: crypto.randomUUID(),
+      type: "debit",
+      amount,
+      action: input.action,
+      reason: input.reason,
+      createdAt: new Date().toISOString(),
+      reservationId: id,
+    });
+  } else {
+    await getAccountStorageProvider().appendCreditTransaction({
+      workspaceId: input.subject.workspaceId,
+      userId: input.subject.userId,
+      type: "debit",
+      amount,
+      action: input.action,
+      reason: input.reason,
+      flowId: input.flowId,
+      provider: input.provider,
+      reservationId: id,
+    });
+  }
 
+  const balanceAfter = currentBalance - amount;
   const reservation: CreditReservation = {
     id,
     subject: input.subject,
@@ -136,7 +159,7 @@ export async function reserveCredits(input: {
     flowId: input.flowId,
     provider: input.provider,
     status: "reserved",
-    balanceAfter: account.balance,
+    balanceAfter,
   };
   reservations.set(id, reservation);
   return reservation;
@@ -152,32 +175,57 @@ export async function refundCreditReservation(id: string, reason = "provider_fai
   const reservation = reservations.get(id);
   if (!reservation || reservation.status !== "reserved") return;
 
-  const account = ensureLedger(reservation.subject.workspaceId);
-  account.balance += reservation.amount;
-  account.transactions.push({
-    id: crypto.randomUUID(),
-    type: "refund",
-    amount: reservation.amount,
-    action: reservation.action,
-    reason,
-    createdAt: new Date().toISOString(),
-    reservationId: id,
-  });
+  if (reservation.subject.workspaceId.startsWith("anon:")) {
+    const account = ensureLedger(reservation.subject.workspaceId);
+    account.balance += reservation.amount;
+    account.transactions.push({
+      id: crypto.randomUUID(),
+      type: "refund",
+      amount: reservation.amount,
+      action: reservation.action,
+      reason,
+      createdAt: new Date().toISOString(),
+      reservationId: id,
+    });
+    reservation.balanceAfter = account.balance;
+  } else {
+    await getAccountStorageProvider().appendCreditTransaction({
+      workspaceId: reservation.subject.workspaceId,
+      userId: reservation.subject.userId,
+      type: "refund",
+      amount: reservation.amount,
+      action: reservation.action,
+      reason,
+      flowId: reservation.flowId,
+      provider: reservation.provider,
+      reservationId: id,
+    });
+    reservation.balanceAfter = await getCreditBalance(reservation.subject);
+  }
 
   reservation.status = "refunded";
-  reservation.balanceAfter = account.balance;
 }
 
-export class InsufficientCreditsError extends Error {
-  constructor(
-    public readonly required: number,
-    public readonly available: number
-  ) {
-    super(`Insufficient credits — ${required} required, ${available} available.`);
-    this.name = "InsufficientCreditsError";
-  }
+export async function grantCredits(input: {
+  workspaceId: string;
+  userId?: string;
+  amount: number;
+  reason: string;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  await getAccountStorageProvider().appendCreditTransaction({
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+    type: "grant",
+    amount: input.amount,
+    reason: input.reason,
+    metadata: input.metadata,
+  });
 }
 
+/*
+ * Legacy in-memory ledger remains only for anonymous/demo subjects.
+ */
 function ensureLedger(workspaceId: string): LedgerState {
   const existing = ledger.get(workspaceId);
   if (existing) return existing;
@@ -197,4 +245,14 @@ function ensureLedger(workspaceId: string): LedgerState {
   };
   ledger.set(workspaceId, created);
   return created;
+}
+
+export class InsufficientCreditsError extends Error {
+  constructor(
+    public readonly required: number,
+    public readonly available: number
+  ) {
+    super(`Insufficient credits — ${required} required, ${available} available.`);
+    this.name = "InsufficientCreditsError";
+  }
 }

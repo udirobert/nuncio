@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { updateShareRecordByCustomerId } from "@/lib/share-store";
+import {
+  getWorkspaceForStripeCustomer,
+  grantPlanCredits,
+  updateWorkspaceSubscription,
+  upsertBillingAccount,
+} from "@/lib/billing/accounts";
 
 export async function POST(request: NextRequest) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
@@ -26,10 +32,30 @@ export async function POST(request: NextRequest) {
         const customerId = session.customer as string;
         const subscriptionId = session.subscription as string;
         const planType = session.metadata?.planType || "pro";
+        const email = session.customer_details?.email || session.customer_email;
 
         console.log(`[webhook] Checkout completed: customer=${customerId}, plan=${planType}`);
 
-        // Update the user's plan in the database
+        if (email) {
+          const { user, workspace } = await upsertBillingAccount({
+            email,
+            stripeCustomerId: customerId,
+            stripeSubscriptionId: subscriptionId,
+            planType,
+          });
+          const granted = await grantPlanCredits({
+            workspace,
+            user,
+            planType,
+            stripeEventId: event.id,
+            reason: "stripe_checkout_completed",
+          });
+          console.log(`[webhook] Granted ${granted} credits to workspace=${workspace.id}`);
+        } else {
+          console.warn(`[webhook] Checkout completed without customer email: customer=${customerId}`);
+        }
+
+        // Legacy compatibility while share records are migrated away from billing state.
         await updateShareRecordByCustomerId(customerId, {
           plan: planType as "pro",
           stripeSubscriptionId: subscriptionId,
@@ -44,7 +70,21 @@ export async function POST(request: NextRequest) {
 
         console.log(`[webhook] Invoice paid: customer=${customerId}`);
 
-        // Subscription renewed - ensure plan is still active
+        const workspace = await getWorkspaceForStripeCustomer(customerId);
+        if (workspace) {
+          const granted = await grantPlanCredits({
+            workspace,
+            planType: workspace.plan || "pro",
+            stripeEventId: event.id,
+            stripeInvoiceId: invoice.id,
+            reason: "stripe_invoice_paid",
+          });
+          console.log(`[webhook] Granted ${granted} renewal credits to workspace=${workspace.id}`);
+        } else {
+          console.warn(`[webhook] No workspace found for paid invoice customer=${customerId}`);
+        }
+
+        // Legacy compatibility while share records are migrated away from billing state.
         await updateShareRecordByCustomerId(customerId, {
           plan: "pro",
         });
@@ -57,7 +97,12 @@ export async function POST(request: NextRequest) {
 
         console.log(`[webhook] Payment failed: customer=${customerId}`);
 
-        // Downgrade to free on payment failure
+        await updateWorkspaceSubscription({
+          customerId,
+          plan: "free",
+        });
+
+        // Legacy compatibility while share records are migrated away from billing state.
         await updateShareRecordByCustomerId(customerId, {
           plan: "free",
         });
@@ -70,7 +115,13 @@ export async function POST(request: NextRequest) {
 
         console.log(`[webhook] Subscription cancelled: customer=${customerId}`);
 
-        // User cancelled - downgrade to free
+        await updateWorkspaceSubscription({
+          customerId,
+          stripeSubscriptionId: undefined,
+          plan: "free",
+        });
+
+        // Legacy compatibility while share records are migrated away from billing state.
         await updateShareRecordByCustomerId(customerId, {
           plan: "free",
           stripeSubscriptionId: undefined,
