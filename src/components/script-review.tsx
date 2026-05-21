@@ -11,6 +11,7 @@ interface BillingBalance {
   anonymous: boolean;
   balance: number;
   plan?: string;
+  email?: string;
   transactions?: { type: string; amount: number; reason: string }[];
 }
 
@@ -73,6 +74,10 @@ export function ScriptReview({
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
   const [ttsLoading, setTtsLoading] = useState(false);
   const [ttsPlaying, setTtsPlaying] = useState(false);
+  const [showAccountGate, setShowAccountGate] = useState(false);
+  const [accountEmail, setAccountEmail] = useState("");
+  const [accountLoading, setAccountLoading] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const wordCount = editedScript.trim().split(/\s+/).length;
@@ -109,7 +114,7 @@ export function ScriptReview({
   useEffect(() => {
     let cancelled = false;
 
-    async function loadBalance() {
+    async function loadInitialBalance() {
       try {
         const res = await fetch("/api/billing/balance");
         if (!res.ok) return;
@@ -120,7 +125,7 @@ export function ScriptReview({
       }
     }
 
-    loadBalance();
+    loadInitialBalance();
     return () => {
       cancelled = true;
     };
@@ -168,11 +173,48 @@ export function ScriptReview({
     setIsEditing(false);
   }
 
-  function handleRender() {
+  function renderWithCurrentState() {
     if (isEditing) {
       onEdit(editedScript);
     }
     onRender(videoCustomization);
+  }
+
+  function handleRender() {
+    if (billingBalance?.anonymous !== false) {
+      setShowAccountGate(true);
+      return;
+    }
+    renderWithCurrentState();
+  }
+
+  async function handleCreateAccountAndRender() {
+    setAccountLoading(true);
+    setAccountError(null);
+
+    try {
+      const res = await fetch("/api/account/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: accountEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Could not create account session");
+      }
+      setBillingBalance({
+        anonymous: false,
+        balance: data.balance,
+        plan: data.plan,
+        email: data.email,
+      });
+      setShowAccountGate(false);
+      renderWithCurrentState();
+    } catch (error) {
+      setAccountError(error instanceof Error ? error.message : "Could not create account session");
+    } finally {
+      setAccountLoading(false);
+    }
   }
 
   const [videoCustomization, setVideoCustomization] = useState<VideoCustomization | undefined>();
@@ -280,6 +322,52 @@ export function ScriptReview({
             ElevenLabs previews only spend when you click Hear it or preview a vibe.
           </p>
         </motion.div>
+
+        <AnimatePresence>
+          {showAccountGate && (
+            <motion.div
+              initial={{ opacity: 0, y: 8, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: "auto" }}
+              exit={{ opacity: 0, y: -8, height: 0 }}
+              className="mb-6 overflow-hidden rounded-2xl border border-accent/20 bg-accent-soft/25 p-4"
+            >
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-accent">
+                  <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M8 1.75l5 2.25v3.5c0 3.2-2.1 5.8-5 6.75-2.9-.95-5-3.55-5-6.75V4l5-2.25z" />
+                    <path d="M5.5 8.25l1.75 1.75L10.75 6.5" />
+                  </svg>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-ink">Save this render to an account</p>
+                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+                    Add an email to attach trial credits and this render history to your workspace before spending {runCreditSummary.renderCredits} credits.
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      type="email"
+                      value={accountEmail}
+                      onChange={(e) => setAccountEmail(e.target.value)}
+                      placeholder="you@company.com"
+                      autoComplete="email"
+                      className="min-w-0 flex-1 rounded-xl border border-cream-dark bg-white px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-accent"
+                    />
+                    <button
+                      onClick={handleCreateAccountAndRender}
+                      disabled={accountLoading}
+                      className="btn-press rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-cream transition-all hover:bg-ink-light disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {accountLoading ? "Saving..." : "Save & render"}
+                    </button>
+                  </div>
+                  {accountError && (
+                    <p className="mt-2 text-xs text-error">{accountError}</p>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Script card */}
         <motion.div
