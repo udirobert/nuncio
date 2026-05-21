@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
 
   // --- Pass 2: Script generation ---
   const scriptKey = `script:generate:${hashInput({ profile, senderBrief, intent, forceFallback })}`;
-  const { value: script, fromCache: scriptCached } = await cached(
+  const { value: scriptResult, fromCache: scriptCached } = await cached(
     scriptKey,
     "script generation",
     () => generateScript(profile, senderBrief, { forceFallback, intent }),
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
   );
 
   return NextResponse.json(
-    { profile, script },
+    { profile, script: scriptResult.script, vibeId: scriptResult.vibeId, vibeReasoning: scriptResult.vibeReasoning },
     {
       headers: {
         "X-Cache": scriptCached ? "hit" : "miss",
