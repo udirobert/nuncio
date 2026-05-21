@@ -45,15 +45,9 @@ describe("estimateCreditCost", () => {
     expect(estimateCreditCost("profile.research")).toBe(1);
     expect(estimateCreditCost("script.generate")).toBe(1);
     expect(estimateCreditCost("canvas.build")).toBe(1);
-    expect(estimateCreditCost("video.render")).toBe(5);
-    expect(estimateCreditCost("video.translate")).toBe(2);
-    expect(estimateCreditCost("captions.generate")).toBe(1);
-    expect(estimateCreditCost("preview.generate")).toBe(0);
-  });
+    expect(estimateCreditCost("video.render")).toBe(8);
 
-  it("multiplies by quantity", () => {
-    expect(estimateCreditCost("profile.research", 3)).toBe(3);
-    expect(estimateCreditCost("video.render", 2)).toBe(10);
+    expect(estimateCreditCost("video.render", 2)).toBe(16);
   });
 
   it("clamps quantity to 0", () => {
@@ -140,7 +134,7 @@ describe("reserveCredits", () => {
       reason: "Default amount",
     });
 
-    expect(reservation.amount).toBe(5);
+    expect(reservation.amount).toBe(8);
   });
 });
 

@@ -66,8 +66,8 @@ const PLAN_TIERS = [
     id: "pro",
     name: "Pro",
     eyebrow: "Recommended",
-    price: "$29",
-    annualPrice: "$290",
+    price: "$39",
+    annualPrice: "$390",
     period: "month",
     annualPeriod: "year",
     hookModel: "200 credits / month",
@@ -99,7 +99,7 @@ const PLAN_TIERS = [
 const FAQS = [
   { q: "What are Nuncio credits?", a: "Credits are the single balance used for research, script generation, canvas creation, rendering, translation, captions, and delivery." },
   { q: "Can I cancel anytime?", a: "Absolutely. Cancel through your dashboard in one click. No long-term commitments." },
-  { q: "How many credits does a video use?", a: "The current Video flow estimates 1 credit for research, 1 for script, 1 for canvas, and 5 for rendering." },
+  { q: "How many credits does a video use?", a: "A full video costs 11 credits: 1 for research, 1 for script, 1 for canvas, 1 for soundscape, and 8 for rendering." },
   { q: "Do you offer agency plans?", a: "We do. Studio is for teams that need higher monthly volume, shared credits, brand review, and usage reporting." },
 ];
 

@@ -19,8 +19,9 @@ export async function processJob(
   const subject = getCreditSubject(request);
   const researchCost = estimateCreditCost("profile.research");
   const scriptCost = estimateCreditCost("script.generate");
+  const soundscapeCost = estimateCreditCost("soundscape.generate");
   const renderCost = estimateCreditCost("video.render");
-  const totalCost = researchCost + scriptCost + renderCost;
+  const totalCost = researchCost + scriptCost + soundscapeCost + renderCost;
 
   updateJob(batch.id, job.id, { status: "processing", startedAt: new Date().toISOString() });
 

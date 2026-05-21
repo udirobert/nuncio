@@ -6,6 +6,7 @@ export type CreditAction =
   | "profile.research"
   | "script.generate"
   | "canvas.build"
+  | "soundscape.generate"
   | "video.render"
   | "video.translate"
   | "captions.generate"
@@ -48,7 +49,8 @@ const COSTS: Record<CreditAction, number> = {
   "profile.research": 1,
   "script.generate": 1,
   "canvas.build": 1,
-  "video.render": 5,
+  "soundscape.generate": 1,
+  "video.render": 8,
   "video.translate": 2,
   "captions.generate": 1,
   "preview.generate": 0,
