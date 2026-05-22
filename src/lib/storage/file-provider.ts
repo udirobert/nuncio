@@ -1,5 +1,5 @@
 import type { ShareRecord } from "@/lib/artifacts";
-import type { ShareRecordInput, ShareStorageProvider } from "./types";
+import type { ShareListOptions, ShareRecordInput, ShareStorageProvider } from "./types";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -35,16 +35,18 @@ export class FileShareStorageProvider implements ShareStorageProvider {
     await this.persist();
   }
 
-  async list(options?: { limit?: number; industry?: string; privacy?: string }): Promise<ShareRecord[]> {
+  async list(options?: ShareListOptions): Promise<ShareRecord[]> {
     await this.load();
     const limit = options?.limit || 50;
     const privacy = options?.privacy;
     const industry = options?.industry;
+    const workspaceId = options?.workspaceId;
 
     const records = Array.from(this.records.values())
       .filter((r) => {
         if (privacy && r.privacy !== privacy) return false;
         if (industry && r.industry !== industry) return false;
+        if (workspaceId && r.workspaceId !== workspaceId) return false;
         return true;
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())

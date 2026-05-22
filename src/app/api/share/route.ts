@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createShareRecord } from "@/lib/share-store";
 import type { CanvasProof, AgentTraceItem } from "@/lib/artifacts";
 import type { Profile } from "@/lib/claude";
+import { readAccountSession } from "@/lib/auth/session";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -31,6 +32,8 @@ export async function POST(request: NextRequest) {
     videoStyle?: string;
   } = body;
 
+  const session = readAccountSession(request);
+
   // Allow empty videoUrl for early-share (before video renders)
   // but require it for final share record
   if (videoUrl === undefined) {
@@ -49,6 +52,7 @@ export async function POST(request: NextRequest) {
     privacy: privacy || "public",
     industry,
     videoStyle,
+    workspaceId: session?.workspaceId,
   });
 
   return NextResponse.json({ record, shareUrl: `/v/${record.id}` });

@@ -2,6 +2,13 @@ import type { ShareRecord } from "@/lib/artifacts";
 
 export type ShareRecordInput = Omit<ShareRecord, "id" | "createdAt">;
 
+export interface ShareListOptions {
+  limit?: number;
+  industry?: string;
+  privacy?: string;
+  workspaceId?: string;
+}
+
 export interface ProofPublishResult {
   provider: string;
   uri?: string;
@@ -14,7 +21,7 @@ export interface ShareStorageProvider {
   create(input: ShareRecordInput): Promise<ShareRecord>;
   get(id: string): Promise<ShareRecord | null>;
   update(record: ShareRecord): Promise<void>;
-  list(options?: { limit?: number; industry?: string; privacy?: string }): Promise<ShareRecord[]>;
+  list(options?: ShareListOptions): Promise<ShareRecord[]>;
   findByCustomerId(customerId: string): Promise<ShareRecord | null>;
 }
 

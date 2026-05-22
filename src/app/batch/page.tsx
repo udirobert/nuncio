@@ -159,6 +159,12 @@ export default function BatchPage() {
           <p className="text-sm text-ink-muted mt-1">
             Create and manage batch video campaigns.
           </p>
+          <Link
+            href="/studio"
+            className="text-[11px] text-accent hover:text-accent/80 transition-colors mt-2 inline-block"
+          >
+            Need a single, cinematic video? Try Studio →
+          </Link>
         </div>
         <button
           onClick={() => { setShowForm(!showForm); setError(""); }}

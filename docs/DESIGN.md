@@ -167,12 +167,174 @@ The happy path is: enter URLs → review script → render video → copy link. 
 
 ---
 
-## Hackathon demo mode
+## Batch mode
 
-For the live demo on May 15, the app should have a demo shortcut:
+The batch page (`/batch`) introduces a new flow for multi-profile campaigns:
 
-- A pre-filled example with a public figure's profiles (with permission / public figures only)
-- A "demo mode" flag that skips enrichment and uses a cached profile, reducing wait time to ~4-5m (just the HeyGen render)
-- Clear visual indicator when in demo mode so judges understand the context
+```
+┌──────────────────────────────────────────────┐
+│  Batch Campaigns                             │
+│                                              │
+│  ┌──────────────────────────────────────────┐ │
+│  │ Campaigns: 2  Profiles: 14  Done: 8      │ │
+│  └──────────────────────────────────────────┘ │
+│                                              │
+│  [New Campaign →]                             │
+│                                              │
+│  ┌──────────────────────────────────────────┐ │
+│  │ Campaign A          3/5   ████░░  60%   │ │
+│  │   Alice Chen           ✓  [View]        │ │
+│  │   Bob Park           ⟳  [Retry]        │ │
+│  │   Carol Smith         ✗  Network err  [D]│ │
+│  └──────────────────────────────────────────┘ │
+│  ┌──────────────────────────────────────────┐ │
+│  │ Campaign B          5/5   █████  100%   │ │
+│  │   David Kim            ✓  [View]        │ │
+│  │   Eve Lee              ✓  [View]        │ │
+│  └──────────────────────────────────────────┘ │
+└──────────────────────────────────────────────┘
+```
 
-This lets the presenter show the full flow in real time without network surprises.
+- Summary header shows aggregate counts (campaigns, profiles, done, failed)
+- Each campaign card has a progress bar (animated, percentage + fraction count)
+- Job rows show: name, status icon, video link (if done), retry (if failed), delete button
+- Auto-polls every 3s while any job is processing
+- Delete shows a confirmation before removing
+- Form for creating a new campaign takes a comma-separated list of URLs and a sender brief
+- Form shows loading state during submission and error messages inline
+
+## Auth header & account menu
+
+When signed in, the header shows:
+
+```
+[Logo]  Studio  Batch  Pricing         [email@example.com ▼]
+                                          ┌──────────────┐
+                                          │ email@me.com  │
+                                          │ Pro plan      │
+                                          │ 142 credits   │
+                                          │──────────────│
+                                          │ Sign out      │
+                                          └──────────────┘
+```
+
+- Account menu is a simple dropdown triggered on click
+- Displays email, plan name, current credit balance
+- "Sign out" calls `POST /api/auth/logout`
+- When not signed in, the header shows a "Sign in" link
+- Pricing page is always accessible (even before sign-in)
+
+## Pricing page
+
+```
+┌──────────────────────────────────────────────┐
+│  Pricing                                      │
+│                                               │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐       │
+│  │ Pro     │  │ 100 Cr. │  │ 500 Cr. │       │
+│  │ $39/mo  │  │ $15     │  │ $99     │       │
+│  │ 200 cr. │  │ 1-time  │  │ 1-time  │       │
+│  │ [Buy →]  │  │ [Buy →]  │  │ [Buy →]  │       │
+│  └─────────┘  └─────────┘  └─────────┘       │
+│                                               │
+│  Also: Pro Annual $390/yr (2400 credits)      │
+└──────────────────────────────────────────────┘
+```
+
+- Clean 3-column card layout
+- Each card shows plan name, price, credit count, purchase CTA
+- Stripe Checkout opens in same tab after clicking
+- After successful payment, user is redirected back to `/studio`
+- Pricing page is server-rendered, uses `NEXT_PUBLIC_STRIPE_*` env vars for price IDs
+
+## Updated component inventory
+
+### Batch components
+- **Campaign card** — rounded card with progress bar, job list, summary count
+- **Progress bar** — `transition: width 500ms ease;` with fraction label (e.g. "3/5")
+- **Job row** — name + status icon + action buttons (View/Retry/Delete)
+- **Delete button** — small "×" or "D", only on completed/failed jobs, with confirmation
+- **Inline error** — red badge below failed job row showing the error message
+
+### Auth components
+- **Account dropdown** — `position: absolute` dropdown from header, click-to-toggle
+- **Session indicator** — email text in header, login link when absent
+- **Session middleware** — protection check before protected routes
+
+---
+
+## Dashboard
+
+The dashboard (`/dashboard`) is the post-login landing page that unifies all nuncio experiences:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Welcome back, sarah@example.com                            │
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │ Credits       │  │ This month   │  │ Quick actions     │  │
+│  │    142        │  │ 8 videos     │  │ [Studio] [Batch]  │  │
+│  │  $39/mo · Pro │  │ 88 credits   │  │ [Pricing]         │  │
+│  │  Recent: -11  │  │ 3 campaigns  │  │                   │  │
+│  └──────────────┘  └──────────────┘  └──────────────────┘  │
+│                                                             │
+│  Recent activity                                             │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ Today                                                     ││
+│  │ ✓ Alice Chen — Studio video               [View]        ││
+│  │ ◌ Campaign A — 3/5 profiles               [Open]        ││
+│  │ ✗ Bob Park — Batch campaign               [Retry]       ││
+│  └─────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Sections:**
+- **Credit card** — balance, plan name, recent transactions (last 5), "Buy credits" CTA
+- **Usage summary** — total videos, completed count, active campaigns, total campaigns
+- **Quick actions** — Studio, Batch, Pricing with icons and descriptions
+- **Recent activity** — unified feed of both share records and batch campaigns, grouped by date, with status icons and action links
+
+**States:**
+- **Loading:** skeleton placeholders for all sections
+- **Empty:** "No videos yet" with CTA to create first video
+- **Signed out:** redirects to `/login`
+
+**Data sources:**
+- `/api/account/session` — auth check, plan, basic balance
+- `/api/billing/balance` — credit balance + transaction history
+- `/api/videos/recent?workspaceId=X` — recent share records filtered by workspace
+- `/api/batch` — recent batch campaigns
+
+## Onboarding modal
+
+Shown on first visit to `/dashboard` or `/studio`:
+
+```
+┌──────────────────────────┐
+│ ━━━━━━━━━━━━━━━━━━━━━━  │
+│                          │
+│ Paste a social URL       │
+│                          │
+│ LinkedIn, Twitter, or    │
+│ any profile link. Nuncio │
+│ enriches public context  │
+│ to personalise your      │
+│ video.                   │
+│                          │
+│ Skip              Next → │
+└──────────────────────────┘
+```
+
+- **3 tips:** Paste URL → Review script → Share link
+- **Tracking:** `localStorage` (`nuncio_onboarding_done` key)
+- **Dismissible:** close button, "Skip" link, or "Got it" on last step
+- **Replayable:** "Show tips" button in account menu
+- **Animation:** modal fades in with backdrop blur, steps slide horizontally
+- **Progress indicator:** segmented bar at top shows position
+
+---
+
+## Hackathon demo mode (retired)
+
+The pre-filled demo shortcut was removed after the hackathon. The app now runs at full speed
+for all users with the live pipeline enabled on every request.

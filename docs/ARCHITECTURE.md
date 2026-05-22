@@ -2,7 +2,9 @@
 
 ## Overview
 
-nuncio is a linear agentic pipeline. Each stage is a discrete API call with a clean input/output contract. Stages are independent — they can be swapped, retried, or extended without touching adjacent layers.
+nuncio is a modular agentic pipeline. Each stage is a discrete API call with a clean input/output
+contract. Stages are independent — they can be swapped, retried, or extended without touching
+adjacent layers.
 
 ```
 User input (URLs)
@@ -14,22 +16,51 @@ User input (URLs)
               │
               ▼
 ┌─────────────────────────────┐
-│  2. Claude synthesis        │  Profile merge + script generation
+│  2. Claude/LLM synthesis    │  Profile merge + script generation
 └─────────────┬───────────────┘
               │
               ▼
 ┌─────────────────────────────┐
-│  3. Melius canvas           │  MCP agent creates project + assets
+│  3. Hook Engine             │  Archetype selection + hook video generation
 └─────────────┬───────────────┘
               │
               ▼
 ┌─────────────────────────────┐
-│  4. HeyGen video render     │  HyperFrames + Avatar V + voice clone
+│  4. Melius canvas           │  MCP agent creates project + assets
+└─────────────┬───────────────┘
+              │
+              ▼
+┌─────────────────────────────┐
+│  5. ElevenLabs soundscape   │  Generative ambience per vibe preset
+└─────────────┬───────────────┘
+              │
+              ▼
+┌─────────────────────────────┐
+│  6. HeyGen video render     │  Avatar V + voice clone
+└─────────────┬───────────────┘
+              │
+              ▼
+┌─────────────────────────────┐
+│  7. Speechmatics captions   │  Fire-and-forget transcription
 └─────────────┬───────────────┘
               │
               ▼
      Shareable video link
 ```
+
+### Batch mode
+
+For multi-profile campaigns, the same pipeline runs per job in an in-memory queue:
+
+```
+POST /api/batch  ──→  createBatch()  ──→  processBatch()  ──→  enrich → script → render
+                        │                      │
+                        ▼                      ▼
+                   queue (Map)           updateJob() per stage
+```
+
+The batch processor reuses the same library functions (enrich, synthesise, generateScript,
+createVideo) as the individual Studio flow, wrapped in a per-job reservation pattern.
 
 ---
 
@@ -37,177 +68,243 @@ User input (URLs)
 
 **Purpose:** Extract structured, clean text from any social profile URL.
 
-**Why TinyFish:** Most social profiles are JavaScript-rendered. TinyFish runs a real browser and returns clean markdown, stripping navigation, ads, and boilerplate. Multiple URLs are fetched in parallel server-side — a LinkedIn profile, a Twitter timeline, and a Farcaster profile can all be fetched in a single call.
+**Why TinyFish:** Most social profiles are JavaScript-rendered. TinyFish runs a real browser and
+returns clean markdown, stripping navigation, ads, and boilerplate. Multiple URLs are fetched in
+parallel server-side.
 
-**Input:** Array of profile URLs
-**Output:** Array of clean markdown strings, one per URL
+**Cost:** Search and Fetch are free. No credits consumed on failed fetches.
 
-**API:**
-```
-POST https://api.fetch.tinyfish.ai
-X-API-Key: $TINYFISH_API_KEY
-
-{
-  "urls": [
-    "https://linkedin.com/in/username",
-    "https://twitter.com/username",
-    "https://warpcast.com/username"
-  ]
-}
-```
-
-**Login-wall detection:** Many platforms (X/Twitter, LinkedIn) return login walls instead of profile content when fetched server-side. The enrichment layer detects these with a two-threshold heuristic:
-- Phrase matching (≥2 matches of "terms of service", "sign in", "cookie policy", etc.)
-- X Corp footer detection
-- Profile signal scoring (no role/company/education signals in short content)
-- Navigation-heavy content detection
-
-When fetch returns junk, it is **discarded entirely** — never combined with search results.
-
-**Multi-phase search fallback (X/Twitter):**
-
-Twitter profiles are consistently behind a login wall. When a `x.com` or `twitter.com` URL is detected, the enrichment uses a three-phase search strategy:
-
-1. **Phase 1a — X-native** (`"@handle" OR "handle" site:x.com`): Retrieves bio snippets, tweet text, and profile metadata from X search results
-2. **Phase 1b — Cross-platform** (`"handle" site:linkedin.com OR site:github.com`): Finds mentions and cross-links on other platforms
-3. **Phase 2 — Targeted** (`"Real Name" "Company"`): After extracting the person's name and company from Phase 1 results using regex patterns, a targeted search retrieves rich profile data (full LinkedIn profiles, news articles, investor/company pages)
-
-Name extraction uses patterns like `"Name (@handle)"` from search result titles. Company extraction prioritises mentions adjacent to the handle (e.g., `@handle - Co-founder at Company`).
-
-**Error handling:** Failed URLs do not count against quota. If both fetch and search fail, the pipeline continues with whatever profiles succeeded. The build route returns a clear error if no usable profile data is found.
-
-**Cost:** Free tier includes 25 URLs/minute. No credits consumed on failed fetches.
+See `src/lib/tinyfish.ts`.
 
 ---
 
-## Stage 2 — Claude synthesis
+## Stage 2 — LLM synthesis
 
-**Purpose:** Merge enriched profile data into a coherent person-summary and generate a personalised video script.
+**Purpose:** Merge enriched profile data into a coherent person-summary and generate a
+personalised video script.
 
 **Two-pass approach:**
 
-*Pass 1 — profile synthesis:*
-Claude receives all enriched markdown and produces a structured JSON profile:
-```json
-{
-  "name": "...",
-  "current_role": "...",
-  "company": "...",
-  "notable_work": ["..."],
-  "interests": ["..."],
-  "tone": "formal | conversational | technical",
-  "personalization_hooks": ["specific things to reference in the script"]
-}
-```
+*Pass 1 — profile synthesis (`synthesise()`):*
+LLM receives all enriched markdown and produces a structured JSON profile.
 
-*Pass 2 — script generation:*
-Claude receives the structured profile plus a brief about the sender (who you are, what you want to say, the call to action) and produces a 45–90 second video script. The script references specific real things about the person — not generic openers.
+*Pass 2 — script generation (`generateScript()`):*
+LLM receives the structured profile plus a sender brief and produces a video script.
 
-**Model:** `claude-sonnet-4-5`
-**Input:** Raw enrichment markdown + sender brief
-**Output:** Structured profile JSON + final script string
+**Provider fallback chain:** Anthropic Claude → Google Gemini → Venice AI → Featherless AI.
+Priority overridable via `PREFERRED_LLM_PROVIDER` env var.
 
-**System prompt contract:**
-- Respond only in the requested JSON format
-- The `name` field must be the person's real full name — never generic labels ("Help Center", "User", etc.)
-- Reference at least 2 specific details from the enriched profile in the script
-- Script is written as a direct message TO the recipient (first person sender, second person recipient)
-- Keep the script under 200 words (avatar delivery time)
-- Do not fabricate credentials or claims not present in the enrichment data
+**Current production:** Featherless AI (DeepSeek V4 Flash, flat-rate $25-200/mo, unlimited tokens).
 
-**Name validation:** After synthesis, the profile name is validated against a blocklist of common garbage values (login-wall artifacts, platform names, generic labels). If the name fails validation, the build route returns an early error: "Could not identify a person from this profile."
+See `src/lib/llm.ts` (abstraction) and `src/lib/claude.ts` (prompts).
 
 ---
 
-## Stage 3 — Melius canvas
+## Stage 3 — Hook Engine
 
-**Purpose:** Organise the creative output into a persistent, downloadable project canvas via the Melius MCP server.
+**Purpose:** Select a creative "hook" archetype for the video opener and generate a short
+cinematic hook video.
 
-**Agent actions (in order):**
+**Five archetypes:**
+1. Mirror — reflect the recipient's own content back at them
+2. Origin — show how their work started or what influenced them
+3. Future-cast — imagine a near-future world their work enables
+4. Inside-joke — reference a specific detail only they'd recognise
+5. Day-in-the-life — vignette of their daily workflow
 
-1. `project_create` — create a new project named after the target person
-2. `canvas_create` — create a canvas called "nuncio session"
-3. `canvas_plan_layout` — compute node positions to avoid overlaps
-4. `bulk_create_nodes` — create nodes for: script text, profile summary, background image prompt, thumbnail prompt
-5. `bulk_run_start` — trigger generation on image/video nodes
-6. `bulk_run_wait` — poll until all nodes are complete
-7. `bulk_run_download` — download generated assets
-8. `creative_download` — export full canvas as ZIP for HeyGen
+**Format decisioning:** `pickFormat(profile)` selects 9:16 vs 16:9, captions on/off, target
+duration based on profile signals.
 
-**MCP server URL:** `https://api.melius.com/mcp`
+**Hook video:** Generated via fal.ai video endpoints with a Melius video node fallback.
 
-**Why this stage matters:** Melius persists all generated assets so they can be reused, iterated on, or handed off. If HeyGen generation fails, assets are not lost. The canvas also serves as an audit log of the full creative session.
-
-**Guide used:** `get_guide("ugc-ads")` — informs node structure and layout for short-form video creative.
+See `docs/HOOK_ENGINE.md` and `src/lib/hooks/`.
 
 ---
 
-## Stage 4 — HeyGen video render
+## Stage 4 — Melius canvas
 
-**Purpose:** Render the final avatar video using the script, voice clone, and Melius-generated visual assets.
+**Purpose:** Organise the creative output into a persistent, downloadable project canvas via the
+Melius MCP server.
 
-**Primary: Video Agent API** (`POST /v1/video_agent/generate`)
+**Agent actions:** project_create → canvas_create → bulk_create_nodes → bulk_run_start →
+bulk_run_wait → bulk_run_download
 
-The Video Agent is HeyGen's high-level endpoint for agentic workflows. We send a structured scene prompt following HeyGen Skills guidelines, and the agent handles avatar selection, scene composition, and rendering.
+**Creative provider abstraction:** `MeliusProvider` (full MCP) with `LocalProvider` fallback
+(Fal image generation if `MELIUS_API_KEY` is not set).
 
-**Prompt structure (built by `buildVideoAgentPrompt()`):**
-```
-Scene 1 — INTRO (3s): Avatar looks at camera, begins naturally
-Scene 2 — MAIN MESSAGE (variable): Delivers the personalised script
-Scene 3 — CLOSE (3s): Natural ending, smile
+**Non-blocking:** Canvas creation failures don't block the pipeline — the video continues without
+it.
 
-Global style: warm, conversational, high expressiveness, 1080p 16:9
-```
+See `src/lib/creative/` and `src/lib/melius.ts`.
 
-**Fallback: Direct API** (`POST /v3/videos`)
+---
 
-If the Video Agent is unavailable (rate limit, downtime), the system falls back to the direct video creation endpoint with manual avatar_id, voice_id, and background configuration.
+## Stage 5 — ElevenLabs soundscape
+
+**Purpose:** Add generative ambient audio beneath the video for a cinematic feel.
+
+**Five vibe presets:** tech-office, quiet-cafe, startup-hustle, zen-studio, city-pulse
+**API:** `POST /v1/sound-generation` (sound effects) + `POST /v1/text-to-speech/{voiceId}` (TTS)
+**Model:** `eleven_flash_v2_5` for TTS, standard model for sound effects
+
+See `src/lib/elevenlabs.ts`.
+
+---
+
+## Stage 6 — HeyGen video render
+
+**Purpose:** Render the final avatar video using the script, voice clone, and assets.
+
+**Primary: Video Agent API** (`POST /v3/video-agents`, Avatar V engine, $2/min)
+**Fallback:** `/v2/video/generate` (direct scene composition, $1/min)
 
 **Sequence:**
+1. Build Video Agent prompt from script + recipient name
+2. Call Video Agent with prompt and config (incognito mode)
+3. If Video Agent fails → fall back to v2 direct API
+4. Poll status every 5s
+5. On completion, return video URL
 
-1. Build structured Video Agent prompt from script + recipient name
-2. Call `POST /v1/video_agent/generate` with prompt and config
-3. If Video Agent fails → fall back to `POST /v3/videos` with manual params
-4. Poll status: `GET /v1/video_status.get?video_id={id}` every 5 seconds
-5. On `status === "completed"`, return `video_url`
-6. Optional: `POST /v1/video_translate` for multilingual delivery (8 languages)
+**Translation:** `POST /v1/video_translate` via HeyGen ($2/min)
 
-**Avatar:** Avatar V (launched May 18 2026). Avatar ID stored as env var.
-
-**Voice:** Pre-clone the sender's voice once via `POST /v1/voice_clone`. Store the `voice_id` as an environment variable.
-
-**Translation:**
-```
-POST /v1/video_translate
-{
-  "video_id": "<generated_video_id>",
-  "target_language": "es"  // es, fr, de, pt, ja, zh, ar, hi
-}
-```
-
-## Stage 5 — Cinematic Soundscape (ElevenLabs)
-
-To differentiate nuncio from standard AI video, we add a generative audio layer:
-1. **Context-Aware Foley** — The LLM generates a soundscape prompt based on the recipient's industry/vibe (e.g., "tech office," "garden cafe").
-2. **Generative Ambience** — ElevenLabs Sound Effects API generates a high-fidelity loop.
-3. **Layered Delivery** — The landing page `/v/[id]` layers this ambience under the HeyGen video with intelligent ducking.
+See `src/lib/heygen.ts`.
 
 ---
 
-## API routes (Next.js)
+## Stage 7 — Speechmatics captions
+
+**Purpose:** Generate timed captions for the video.
+
+**Fire-and-forget:** After video render completes, the audio is transcribed asynchronously and
+caption segments are stored alongside the share record.
+
+**API:** `@speechmatics/batch-client` (enhanced operating point, English)
+**Cost:** Free tier includes 480 min/month
+
+See `src/lib/speechmatics.ts`.
+
+---
+
+## Auth system
+
+**Magic-link auth** (no passwords):
+
+1. User submits email on `/login` page → `POST /api/auth/login`
+2. Server creates a token (in-memory Map, 15-min expiry) and sends a Resend email with the link
+3. User clicks link → `GET /api/auth/verify?token=xxx` → HMAC-signed cookie (`nuncio_account`) set
+4. Cookie read by `readAccountSession()` — workspaceId, userId, email, plan, stripeCustomerId
+
+The account menu in the header shows the signed-in user's email, plan, and credit balance.
+Logout via `POST /api/auth/logout` clears the cookie.
+
+See `src/lib/auth/session.ts` and `src/lib/auth/magic-link.ts`.
+
+---
+
+## Credit system
+
+**Single currency:** Nuncio credits. Provider costs are internal — users see one balance.
+
+**Pattern:** reserve → commit/refund
+
+1. `reserveCredits()` — check balance meets cost, hold the amount
+2. If provider accepts the job → `commitCreditReservation()` — deduct from balance
+3. If provider fails → `refundCreditReservation()` — release the hold
+
+**Credit costs:**
+
+| Action | Cost |
+|--------|-----:|
+| profile.research | 1 |
+| script.generate | 1 |
+| canvas.build | 1 |
+| soundscape.generate | 1 |
+| video.render | 8 |
+| video.translate | 2 |
+| captions.generate | 1 |
+| preview.generate | 0 |
+
+**Enforcement:** Controlled by `NUNCIO_CREDITS_ENFORCED=true`. When off, reservations are
+"shadow" — recorded but not blocked. When on, insufficient credits return 402.
+
+**Anonymous users:** Get 10 trial credits via `ensureLedger()`. Subject is `anon:{clientIp}`.
+
+See `src/lib/billing/credits.ts` and `docs/CREDITS.md`.
+
+---
+
+## API routes (Next.js App Router)
+
+### Core pipeline
 
 | Route | Method | Description |
 |---|---|---|
-| `/api/enrich` | POST | Accepts `{ urls: string[] }`, returns enriched markdown per URL |
-| `/api/script` | POST | Accepts `{ enrichment: string[], senderBrief: string }`, returns `{ profile, script }` |
-| `/api/canvas` | POST | Accepts `{ profile, script }`, creates creative session, returns `{ canvasId, assetUrls }` |
-| `/api/video` | POST | Accepts `{ script, assetUrls, recipientName }`, triggers HeyGen Video Agent, returns `{ videoId }` |
-| `/api/video/[id]` | GET | Polls HeyGen for video status, returns `{ status, videoUrl? }` |
-| `/api/translate` | POST | Accepts `{ videoId, targetLanguage }`, triggers HeyGen Video Translate |
-| `/api/transcribe` | POST | Accepts audio file (multipart), returns `{ transcript, confidence, words }` via Speechmatics |
-| `/api/transcribe/token` | GET | Returns short-lived JWT for browser-side Speechmatics WebSocket |
-| `/api/captions` | POST | Accepts `{ videoUrl }`, transcribes video and returns timed caption segments |
-| `/api/voice-check` | POST | Accepts audio file, returns voice clone quality assessment |
+| `/api/enrich` | POST | Accepts `{ urls }`, returns enriched markdown |
+| `/api/script` | POST | Accepts `{ enrichment, senderBrief }`, returns `{ profile, script }` |
+| `/api/canvas` | POST | Accepts `{ profile, script }`, creates Melius canvas |
+| `/api/soundscape` | POST | Generates ElevenLabs ambient audio from vibe/context |
+| `/api/video` | POST | Triggers HeyGen render with credit reservation |
+| `/api/video/[id]` | GET | Polls HeyGen status |
+| `/api/translate` | POST | HeyGen video translate |
+| `/api/transcribe` | POST | Speechmatics batch transcription |
+| `/api/transcribe/token` | GET | Short-lived JWT for browser-side WebSocket |
+| `/api/captions` | POST | Transcribe video → timed caption segments |
+| `/api/voice-check` | POST | Voice clone quality assessment |
+| `/api/compose` | POST | Hook + body video composition |
+| `/api/gallery` | GET | List recent videos |
+
+### Studio
+
+| Route | Method | Description |
+|---|---|---|
+| `/api/studio/enrich` | POST | Enrich + script + hook + soundscape in one call (with credit enforcement) |
+| `/api/studio/iterate` | POST | Re-iterate canvas with edits |
+| `/api/studio/hook/regenerate` | POST | Re-generate hook video (preserves archetype) |
+| `/api/studio/build` | POST | Full pipeline: enrich → script → hook → canvas → soundscape → render |
+| `/api/studio/email` | POST | Email capture for share delivery |
+| `/api/studio/export` | POST | Export project artifacts |
+| `/api/studio/canvas/[id]` | GET | Canvas state |
+
+### Batch
+
+| Route | Method | Description |
+|---|---|---|
+| `/api/batch` | POST | Create and trigger a batch campaign |
+| `/api/batch` | GET | List all batches |
+| `/api/batch` | PATCH | Retry a failed batch |
+| `/api/batch/[id]` | GET | Get single batch with all jobs |
+| `/api/batch/[id]` | DELETE | Delete a batch |
+
+### Auth
+
+| Route | Method | Description |
+|---|---|---|
+| `/api/auth/login` | POST | Request magic link (sends email via Resend) |
+| `/api/auth/verify` | GET | Verify token and set session cookie |
+| `/api/auth/logout` | POST | Clear session cookie |
+| `/api/account/session` | GET | Return current session state |
+
+### Credits & billing
+
+| Route | Method | Description |
+|---|---|---|
+| `/api/billing/balance` | GET | Current credit balance for authenticated user |
+| `/api/checkout` | POST | Create Stripe checkout session |
+| `/api/webhook` | POST | Stripe webhook (checkout, invoice, subscription events) |
+
+### Other
+
+| Route | Method | Description |
+|---|---|---|
+| `/api/heygen/avatars` | GET | Cached avatar list |
+| `/api/heygen/voices` | GET | Cached voice list |
+| `/api/cache/status` | GET | Cache hit/miss stats |
+| `/api/persist` | POST | Upload video to persistent storage (Grove) |
+| `/api/preview-angles` | POST | LLM-based outreach angle suggestions |
+| `/api/share/[id]` | GET | Share page metadata |
+| `/api/tts` | POST | ElevenLabs text-to-speech |
+| `/api/videos/recent` | GET | Recent videos for authenticated workspace |
+| `/api/webhook` | POST | Stripe event processing |
 
 ---
 
@@ -216,26 +313,28 @@ To differentiate nuncio from standard AI video, we add a generative audio layer:
 ```
 { urls[] }
     │
-    ├── TinyFish ──→ { markdown[] }
-    │                      │
-    │               Claude synthesis
-    │                      │
-    │              { profile, script }
-    │                      │
-    │            Melius MCP agent
-    │                      │
-    │         { canvasId, assetUrls[] }
-    │                      │
-    │              HeyGen render
-    │                      │
-    └──────────────→ { videoUrl, canvasUrl }
+    ├── TinyFish ──────────→ { markdown[] }
+    │                              │
+    │                       LLM synthesis
+    │                              │
+    │                    { profile, script }
+    │                              │
+    │                    Hook Engine (archetype + format + video)
+    │                              │
+    │                    Melius MCP agent
+    │                              │
+    │                    ElevenLabs soundscape
+    │                              │
+    │                    HeyGen render
+    │                              │
+    └──────────────────→ { videoUrl, canvasUrl, captions }
 ```
 
 ---
 
 ## Environment variables
 
-See [`.env.example`](../.env.example) for the complete list with documentation. Key groups:
+See [`.env.example`](../.env.example) for the complete list. Key groups:
 
 ```env
 # Required
@@ -247,11 +346,17 @@ HEYGEN_VOICE_ID=
 # LLM (at least one required)
 ANTHROPIC_API_KEY=
 # or
+GOOGLE_API_KEY=
+# or
+VENICE_API_KEY=
+# or
 FEATHERLESS_API_KEY=
 
 # Optional but recommended
 MELIUS_API_KEY=
 SPEECHMATICS_API_KEY=
+ELEVENLABS_API_KEY=
+RESEND_API_KEY=
 TURSO_DATABASE_URL=
 TURSO_AUTH_TOKEN=
 
@@ -259,6 +364,15 @@ TURSO_AUTH_TOKEN=
 FAL_KEY=
 GROVE_ENABLED=false
 STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID=
+NEXT_PUBLIC_STRIPE_PRO_ANNUAL_PRICE_ID=
+NEXT_PUBLIC_STRIPE_CREDITS_100_PRICE_ID=
+NEXT_PUBLIC_STRIPE_CREDITS_500_PRICE_ID=
+
+# Credits
+NUNCIO_CREDITS_ENFORCED=true
+NUNCIO_TRIAL_CREDITS=10
 ```
 
 ---
@@ -267,98 +381,52 @@ STRIPE_SECRET_KEY=
 
 | Stage | Failure mode | Recovery |
 |---|---|---|
-| TinyFish | Login wall / 403 on profile | Discard junk, run multi-phase search fallback (X/Twitter gets 3-phase). If all fail, show clear error. |
-| Synthesis | Name not identifiable | Early exit with "Could not identify a person" error — prevents downstream garbage. |
-| Claude | Rate limit | Retry with exponential backoff (max 3 attempts) |
-| Melius | Canvas creation fails | Fall through to local provider — pipeline continues without Melius |
-| HeyGen Video Agent | API unavailable | Automatic fallback to direct `/v3/videos` API |
-| HeyGen | Video generation timeout (>5 min) | Surface error to user, preserve script for retry |
-| HeyGen | Invalid avatar/voice ID | Validate IDs on startup, fail fast with clear error message |
-| Speechmatics | Transcription fails | Non-blocking — voice input degrades gracefully to text-only |
+| TinyFish | Login wall / 403 on profile | Discard junk, run multi-phase search fallback. If all fail, show clear error. |
+| Synthesis | Name not identifiable | Early exit with "Could not identify a person" error |
+| LLM | Rate limit | Provider fallback chain (Anthropic → Google → Venice → Featherless) |
+| Melius | Canvas creation fails | Fall through to local provider — pipeline continues |
+| HeyGen Video Agent | API unavailable | Automatic fallback to direct `/v2/video/generate` |
+| HeyGen | Timeout (>5 min) | Surface error, preserve script for retry |
+| Speechmatics | Transcription fails | Non-blocking — degrades gracefully to text-only |
+| Credits | Insufficient balance | Return 402 with required/available amounts |
 
 ---
 
 ## Cross-cutting concerns
 
 ### Retry logic (`src/lib/retry.ts`)
-
-All external API calls use `fetchWithRetry()` — exponential backoff with configurable max attempts, initial delay, and retryable status codes (429, 500, 502, 503, 504).
+All external API calls use `fetchWithRetry()` — exponential backoff with configurable max
+attempts, initial delay, and retryable status codes (429, 500, 502, 503, 504).
 
 ### Creative provider abstraction (`src/lib/creative/`)
-
-The Melius integration is behind a `CreativeProvider` interface:
-- `MeliusProvider` — full MCP integration (project, canvas, nodes, generation, export)
-- `LocalProvider` — metadata fallback, optionally generating images through Fal when `FAL_KEY` is set
-
-Factory auto-selects based on whether `MELIUS_API_KEY` is configured. No vendor lock-in.
-
-### Speechmatics integration (`src/lib/speechmatics.ts`)
-
-- **Voice input** — sender brief via microphone recording → batch transcription
-- **Video captions** — transcribe rendered video → timed subtitle segments
-- **Voice clone quality check** — assess audio sample confidence, detect noise/silence issues
-- **Realtime token** — JWT generation for browser-side WebSocket connections
+Melius integration behind a `CreativeProvider` interface:
+- `MeliusProvider` — full MCP integration
+- `LocalProvider` — metadata fallback, optionally generating images through Fal
 
 ### Storage providers (`src/lib/storage/`)
+- `FileShareStorageProvider` — default local/Vultr fallback
+- `TursoShareStorageProvider` — production metadata store
+- `AccountStorageProvider` — user/workspace/credit storage (Turso)
 
-Share metadata and proof publishing are separate concerns:
+### Rate limiting (`src/lib/rate-limit.ts`)
+Per-route rate limits for `enrich`, `script`, `preview-angles`, `video`, `translate`,
+`persist`, and shared limits for `script + preview-angles`.
 
-- `FileShareStorageProvider` — default local/Vultr fallback using `NUNCIO_DATA_DIR/share-records.json`.
-- `TursoShareStorageProvider` — production metadata store when `TURSO_DATABASE_URL` is set.
-- `GroveProofStorageProvider` — optional public, redacted proof-bundle publishing when `GROVE_ENABLED=true`.
-
-Full share records stay in the share metadata store. Grove proof bundles intentionally omit private script/profile detail and publish only redacted workflow evidence.
+### LLM provider chain (`src/lib/llm.ts`)
+Anthropic Claude → Google Gemini → Venice AI → Featherless AI. Provider picks up if the
+previous one has no API key configured. Priority overridable via `PREFERRED_LLM_PROVIDER`.
 
 ---
 
-## Account, Stripe, and Credits
+## Pages
 
-The platform should use one user-facing currency: **Nuncio credits**. Provider-specific costs
-(TinyFish, LLM, Melius, ElevenLabs, HeyGen, Speechmatics) are internal cost drivers, not separate
-currencies exposed to users.
-
-Target account model:
-
-- `User` — authenticated person; owns or belongs to workspaces.
-- `Workspace` — billing and usage boundary for solo users or teams.
-- `CreditBalance` — current available credits, monthly included credits, and renewal date.
-- `CreditTransaction` — append-only ledger of grants, debits, refunds, and adjustments.
-- `GenerationFlow` — one outreach run across research, script, canvas, render, captions, etc.
-- `RecipientProfile` — synthesized prospect profile plus cumulative spend/history for that recipient.
-
-Stripe funds the ledger:
-
-- `/api/checkout` creates subscription or top-up checkout sessions.
-- `/api/webhook` maps Stripe customers/subscriptions to users/workspaces.
-- `checkout.session.completed` grants initial credits for the purchased plan or pack.
-- `invoice.paid` grants monthly included credits.
-- `invoice.payment_failed` and `customer.subscription.deleted` stop future grants and downgrade entitlements.
-
-Share records are output artifacts only. They should not be the billing source of truth. Existing
-`plan`, `stripeCustomerId`, and `stripeSubscriptionId` fields on share records are legacy demo
-fields and should be migrated to user/workspace records.
-
-Cost enforcement pattern:
-
-1. Estimate the Nuncio credit cost server-side.
-2. Reserve or debit credits before calling an external provider.
-3. Commit the transaction when the provider accepts the job.
-4. Refund the reservation if the provider rejects or fails before useful output is produced.
-5. Attach all debits to a `GenerationFlow` and, when known, a `RecipientProfile`.
-
-Initial rollout should protect the most expensive route first:
-
-- `/api/video` — render video, currently estimated at 5 Nuncio credits.
-- `/api/enrich` — profile research, estimated at 1 credit per URL.
-- `/api/script` — script generation, estimated at 1 credit.
-- `/api/canvas` and `/api/studio/build` — canvas creation, estimated at 1 credit.
-- `/api/soundscape`, `/api/tts`, `/api/translate`, `/api/captions` — meter once product pricing is finalized.
-
-During migration, `NUNCIO_CREDITS_ENFORCED=true` should turn on hard blocking. With enforcement
-off, routes can still record/return estimated credit usage without preventing demo flows.
-
-Required env vars:
-
-- Stripe subscriptions: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_MONTHLY_PRICE_ID`, `NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID`
-- Stripe credit packs: `NEXT_PUBLIC_STRIPE_CREDITS_100_PRICE_ID`, `NEXT_PUBLIC_STRIPE_CREDITS_500_PRICE_ID`, `NEXT_PUBLIC_STRIPE_CREDITS_1000_PRICE_ID`
-- Credits: `NUNCIO_CREDITS_ENFORCED`, `NUNCIO_TRIAL_CREDITS`
+| Route | Type | Description |
+|---|---|---|---|
+| `/` | Static | Landing page |
+| `/studio` | Static | Agentic video builder (main UX) |
+| `/batch` | Static | Batch campaign management |
+| `/dashboard` | Static | Post-login account dashboard |
+| `/login` | Static | Magic-link auth |
+| `/pricing` | Static | Plan comparison + Stripe checkout |
+| `/playbook` | Static | Usage guide |
+| `/v/[id]` | Dynamic | Video share page |

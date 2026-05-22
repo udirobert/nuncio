@@ -21,6 +21,7 @@ export interface ShareRecord {
   recipientName?: string;
   senderName?: string;
   email?: string;
+  workspaceId?: string;
   createdAt: string;
   profile?: Profile;
   sources?: string[];

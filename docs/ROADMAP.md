@@ -2,7 +2,10 @@
 
 ## Status
 
-nuncio is in active development, built initially for the HeyGen Hackathon (May 14–15 2026) and extended for simultaneous submission to the Milan AI Week, TechEx, and Melius hackathons.
+nuncio is in production. The core pipeline — enrichment → script → canvas → video — is live at
+[nuncio.persidian.com](https://nuncio.persidian.com) with credit enforcement, Stripe payments,
+magic-link auth, and batch campaign support. All provider integrations (TinyFish, Featherless,
+HeyGen, Melius, ElevenLabs, Speechmatics) are active.
 
 ---
 
@@ -13,22 +16,15 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 - [x] TinyFish enrichment for LinkedIn + Twitter/X, plus GitHub/Farcaster/Facebook/personal URL validation
 - [x] Claude/LLM two-pass synthesis (profile JSON + script) with Featherless fallback
 - [x] HeyGen video creation via Video Agent with `/v3/videos` fallback
-- [ ] Avatar V integration (launches May 18 — use Avatar IV as fallback for May 14–15 demo)
-- [ ] Voice clone setup (pre-cloned, stored as env var)
+- [x] Avatar V integration
+- [x] Voice clone setup (pre-cloned, stored as env var)
 - [x] Melius canvas creation + asset storage via MCP, with optional Fal image generation fallback
 - [x] Polling endpoint for video status
 - [x] Minimal frontend: URL input → loading state → script review → video player
 - [x] Branded share page metadata for generated videos (file-backed MVP store)
 - [x] Storage provider abstraction with Turso share metadata and Grove proof-publishing hooks
 - [x] Agent trace and canvas proof surfaced in the demo UI
-- [ ] Live demo: audience member gives Twitter handle → video plays in ~5 mins
-
-**Out of scope for MVP:**
-- User accounts
-- Multiple sender profiles
-- Video translation
-- Farcaster / Facebook enrichment
-- Webhook-based delivery (polling only)
+- [x] Live demo: audience member gives Twitter handle → video plays in ~5 mins
 
 ---
 
@@ -39,70 +35,109 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 - [ ] Farcaster enrichment via TinyFish
 - [ ] Facebook profile enrichment via TinyFish
 - [x] Basic user-facing error states and non-blocking canvas/share fallback
-- [ ] Webhook support for HeyGen callbacks (replace polling)
-- [ ] Avatar V once available (May 18)
-- [x] Rate limiting on core credit-sensitive API routes (`enrich`, `script`, `preview-angles`, `video`, `translate`, `persist`, Hook Engine trial caps)
+- [x] Webhook support for HeyGen callbacks
+- [x] Avatar V support
+- [x] Rate limiting on core credit-sensitive API routes
 - [x] Basic input validation (URL format check per platform)
 - [x] Loading state with step-by-step progress (not just a spinner)
 - [x] Copy-to-clipboard for branded share link when available
-- [x] Basic analytics wiring via PostHog provider + funnel event helpers (production dashboard validation pending)
+- [x] Basic analytics wiring via PostHog provider + funnel event helpers
 
 ---
 
-## Phase 2 — Multi-sender support (Week 3–4)
+## Phase 2 — Auth & Credits (Week 3–4)
 
-**Goal:** Let more than one person use it with their own identity.
+**Goal:** Users can sign in, see a credit balance, and pay for usage.
 
-- [ ] Sender profile setup (name, voice clone, avatar selection)
-- [ ] Voice clone UI — upload a 30-second clip, get a `voice_id` back
-- [ ] Avatar selection from HeyGen library
-- [ ] Sender brief template (default pitch, CTA, tone)
-- [ ] Simple auth (email + magic link, no passwords)
-- [ ] Session history — list of previously generated videos
+- [x] Magic-link auth system (email → login link via Resend)
+- [x] Session management with HMAC-signed cookies (`nuncio_account`)
+- [x] Account menu in header (email, plan, balance, logout)
+- [x] Credit ledger system (reserve → commit/refund pattern)
+- [x] Credit costs defined per action (research, script, canvas, soundscape, render, translate, captions)
+- [x] Credit enforcement on `/api/studio/enrich`, `/api/studio/iterate`, `/api/studio/hook/regenerate`
+- [x] Anonymous trial credits (10 credits, configured via `NUNCIO_TRIAL_CREDITS`)
+- [x] Stripe integration for Pro subscriptions ($39/mo, 200 credits) and credit packs (100/$15, 500/$99)
+- [x] Stripe webhook processing (checkout, invoice, subscription events)
+- [x] Stripe test-mode pricing page with credit packs
+- [x] `NUNCIO_CREDITS_ENFORCED=true` toggle for gradual rollout
 
-## Phase 3 — Cinematic Layer (ElevenLabs Hackathon)
+### Credit pricing model
 
-**Goal:** Transform "clinical" AI video into a high-production cinematic experience via generative soundscapes.
+| Action | Cost |
+|--------|-----:|
+| profile.research | 1 |
+| script.generate | 1 |
+| canvas.build | 1 |
+| soundscape.generate | 1 |
+| video.render | 8 |
+| video.translate | 2 |
+| captions.generate | 1 |
+| preview.generate | 0 |
 
-- [x] ElevenLabs service layer for Sound Effects API
-- [ ] Context-aware vibe generation — LLM picks soundscape prompt based on target industry
-- [ ] Layered audio player in `/v/[id]` with "ducking" (bg volume drops when avatar speaks)
-- [ ] Cinematic entrance — procedural SFX (whoosh/impact) on video start
-- [ ] Script-triggered Foley — sound effects synced to script keywords
+**Full pipeline:** 11 credits per 30s video.
+**Pro margin:** ~48% at $39/mo, 200 credits, $1.12/variable cost.
+
+See [`docs/CREDITS.md`](./CREDITS.md) for full cost model and provider pricing breakdown.
 
 ---
 
-## Phase 4 — Batch mode (Month 2)
+## Phase 3 — Batch campaigns (Week 4–5)
 
-**Goal:** Enable sales/recruiting teams to run campaigns.
+**Goal:** Enable sales/recruiting teams to run multi-profile campaigns.
 
-- [ ] CSV upload — paste a list of LinkedIn URLs, generate a video for each
-- [ ] Batch queue with progress dashboard
-- [ ] Per-video status tracking in Melius canvas
+- [x] In-memory batch queue with create/get/list/updateJob operations
+- [x] Batch processing pipeline (enrich → script → canvas → render per URL)
+- [x] `/api/batch` CRUD routes (POST create/trigger, GET list, PATCH retry)
+- [x] `/api/batch/[id]` routes (GET single, DELETE)
+- [x] `/batch` page with job-level detail and live auto-polling for running batches
+- [x] Progress bars per batch (animated, percentage + count)
+- [x] Job-level status display (queued → processing → completed/failed)
+- [x] Retry button for failed batches
+- [x] Delete button for completed/failed batches
+- [x] Video link ("View") for completed jobs
+- [x] Error messages displayed inline per job
+- [x] Summary header (campaigns, profiles, completed, failed)
 - [ ] Email delivery integration (attach video link to outreach email)
+- [ ] CSV upload for batch URL import
 - [ ] Deduplication — don't regenerate if a video for that profile already exists within 30 days
 - [ ] Webhook on batch completion
 
 ---
 
-## Phase 4 — Intelligence upgrades (Month 2–3)
+## Phase 4 — Cinematic Layer
+
+**Goal:** Transform "clinical" AI video into a high-production cinematic experience via generative soundscapes.
+
+- [x] ElevenLabs service layer for Sound Effects API
+- [x] Five-vibe preset system (tech-office, quiet-cafe, startup-hustle, zen-studio, city-pulse)
+- [x] Soundscape generation integrated into Studio build pipeline
+- [x] Soundscape credit cost (1 credit per generation)
+- [x] TTS integration for voice-over (ElevenLabs Flash model)
+- [ ] Context-aware vibe generation — LLM picks soundscape prompt based on target industry
+- [ ] Layered audio player in `/v/[id]` with "ducking"
+- [ ] Cinematic entrance — procedural SFX on video start
+- [ ] Script-triggered Foley — sound effects synced to script keywords
+
+---
+
+## Phase 5 — Intelligence upgrades (Month 2–3)
 
 **Goal:** Make the personalisation smarter.
 
 - [ ] Recent activity enrichment — pull last 10 tweets/posts, not just bio
 - [ ] Company enrichment — if LinkedIn shows a company, also enrich the company's website
 - [ ] Tone matching — analyse the target's writing style and adjust script tone to match
-- [ ] Multi-language delivery — auto-detect target's primary language from enrichment, translate video via HeyGen Video Translate + Lipsync
+- [ ] Multi-language delivery — auto-detect target's primary language, translate via HeyGen
 - [ ] Script A/B variants — generate 2 script options, let sender pick before rendering
 - [ ] Sender brief memory — remember past briefs so returning users don't re-enter context
 
 ---
 
-## Phase 5 — Platform integrations (Month 3+)
+## Phase 6 — Platform integrations (Month 3+)
 
 **Goal:** Embed nuncio into existing workflows.
 
-- [ ] HubSpot integration — generate a video for any contact, embed link in contact record
+- [ ] HubSpot integration — generate video for any contact, embed link in contact record
 - [ ] LinkedIn Sales Navigator extension
 - [ ] Slack bot — `/nuncio @username` in a channel
 - [ ] Zapier / Make connector
@@ -110,127 +145,67 @@ nuncio is in active development, built initially for the HeyGen Hackathon (May 1
 
 ---
 
-## Phase 6 — Melius Studio (Melius hackathon submission)
+## Phase 7 — Production hardening
 
-**Goal:** A standalone `/studio` page where Melius is the visible, interactive star — not a backend step.
+**Goal:** Make the system reliable and observable for paying users.
 
-- [x] `/studio` page with agentic canvas builder (paste profile → watches canvas build live)
-- [x] Embedded Melius canvas preview via share-link iframe
-- [x] Iterate mode: editable prompt fields per node, calls `node_update` + `run_start` via MCP
-- [x] Edge wiring between text nodes → image nodes for prompt context
-- [x] Multi-node-type showcase: `custom_text`, `image`, `group` nodes (video added in Phase 7)
-- [x] Presence claiming via `show_presence` / `release_presence` for multiplayer safety
-- [x] Canvas-as-deliverable: position the canvas as a forkable template, HeyGen rendering optional
-- [x] Cinematic building-stage UI that narrates each MCP tool call live, with an animated canvas being assembled node by node
-- [ ] Full Melius submission packet: canvas screenshot, process write-up, video walkthrough
-- [ ] Add final production artifact path + HeyGen video ID after prod golden-path testing
+- [ ] Persistent batch queue (database-backed, survive restarts)
+- [ ] Persistent magic link tokens (database or Redis)
+- [ ] Error monitoring (Sentry or similar)
+- [x] User dashboard — account page with credit history, past videos, usage stats
+- [x] Onboarding flow — first-visit modal with guided tips
+- [ ] Studio page simplification — progressive disclosure of Hook Engine complexity
+- [ ] Responsive email templates for magic links
 
 ---
 
-## Phase 7 — The Hook Engine (Melius hackathon differentiator)
+## Product assessments
 
-**Goal:** Lift nuncio from "agent-orchestrated outreach video" to "agent that turns any profile into a scroll-stopping personalised media object." This is what breaks us out of *Melius wrapper* status. Full design: [`docs/HOOK_ENGINE.md`](./HOOK_ENGINE.md).
+### Design (8/10)
+Strong linear pipeline with smart fallbacks. Credit-as-single-currency model is well thought out.
+The `/dashboard` page unifies Studio and Batch into a single post-login experience with recent
+activity, credit balance, usage stats, and quick actions.
 
-### Cut 1 — minimum demonstrable Hook Engine
-- [x] `src/lib/hooks/archetypes.ts` — data definitions for all 5 archetypes (Mirror / Origin / Future-cast / Inside joke / Day-in-the-life)
-- [x] `src/lib/hooks/select.ts` — deterministic archetype selector based on profile signals
-- [x] `src/lib/hooks/generate.ts` — fal video generation path with demo fallback when the endpoint is not configured
-- [x] `MeliusProvider.createVideoNode` — creates a Melius `video` node and can attach a generated source URL
-- [x] `build/route.ts` integration — agent picks archetype, places Hook Concept + Hook Cinematic nodes, returns tier/model usage metadata
-- [x] `/studio` archetype chips on the input stage + selection-reasoning badge on recap
+### UX improvements
 
-### Cut 2 — all five archetypes, format decisioning
-- [x] Wire prompt templates for archetypes 2–5
-- [x] `pickFormat(profile)` helper — agent decides 9:16 vs 16:9 vs 1:1, captions on/off, target duration
-- [x] Format badge on `/studio` recap (`9:16 · 22s · vertical · captions on · Mirror archetype`)
-- [x] Hook video node renders as autoplay preview in the node inspector
+- [x] Account dashboard (`/dashboard`) with credit history, usage stats, recent videos
+- [x] Onboarding modal (3 tips, localStorage-tracked, dismissible, replayable from account menu)
+- [x] Unified header navigation with Dashboard link
+- [x] Account menu includes Dashboard link and "Show tips" replay
+- [x] Cross-links between Studio and Batch pages
+- [x] `/api/videos/recent` endpoint for per-workspace video listing
+- [x] `workspaceId` tracking on share records for dashboard queries
 
-### Cut 1.5 — email capture and soft gates
-- [x] Email capture modal appears only on high-intent actions: hook re-roll, share link, download/export
-- [x] Capture uses email + honeypot and stores a private campaign/share record through the existing share store
-- [x] Captured email unlocks 2 additional hook generations for the current Studio session
-- [x] Hook re-roll calls a dedicated endpoint and attaches the new hook video URL back to the Melius video node when available
+### UI/UX (7/10)
+Clean monochrome design, good motion polish. Account dashboard (`/dashboard`) shows credit
+history, usage stats, recent videos and batch campaigns. Onboarding modal guides first-time
+users through the core flow. Pricing page and account menu link to dashboard. Cross-links
+between Studio and Batch improve discoverability.
 
-### Cut 3 — polish & demo readiness
-- [x] "Re-roll the hook" button → `/api/studio/hook/regenerate` (preserves archetype, fresh take)
-- [x] `why?` reveal on archetype/format badge surfaces the agent's selection and format reasoning
-- [x] Update demo flow (`?demo=true`) to show a baked Mirror archetype with a generated hook video preview
-- [ ] Compose hook + body server-side (ffmpeg spike first, fal compose endpoint as fallback)
+### System Architecture (8/10)
+Clean separation of concerns, excellent fallback chains, production-grade credit reservation
+pattern. Weak spots: in-memory queues/tokens (lost on restart), no error monitoring.
 
-### Out of scope (post-hackathon)
-- Faceswap of sender face onto hook character (legal review needed first)
-- Branching narrative hooks (recipient clicks between two variants)
-- A/B reply-rate measurement per archetype, feeding back into the selection rule
+### Intuitiveness (5/10)
+Core "paste URL → get video" is simple. But Hook Engine archetypes, format decisioning, canvas
+nodes, and vibe selection add significant cognitive overhead for new users.
 
 ---
 
 ## Known constraints
 
-- **HeyGen generation time:** 60–180 seconds per video. Cannot be made faster — it is an upstream rendering constraint. UX must be designed around async delivery.
-- **TinyFish login walls:** LinkedIn, Facebook, and some Twitter profiles may require authentication. TinyFish browser automation can handle this via Vault credentials, but setup requires per-platform session management. Not tackled until Phase 1+.
-- **Avatar V availability:** Launches May 18. Hackathon demo on May 14–15 uses Avatar IV as fallback. Switch to V in Phase 1.
-- **Voice clone quality:** HeyGen voice cloning requires a clean 30-second audio sample. Background noise or music degrades quality significantly. Document this clearly for users.
-- **Melius MCP egress:** Uploading images to Melius requires network egress enabled in Claude organisation settings. Document in setup guide.
-- **Stripe and credits:** Current Stripe checkout is demo infrastructure and is not yet connected to an authoritative credit ledger. The platform direction is unified auth + workspace billing + Nuncio credits. Users buy or receive Nuncio credits through Stripe, then spend that single balance across research, script, canvas, render, translation, captions, and delivery. Provider credits stay internal.
-
----
-
-## Unified Credit Platform Plan
-
-### Product principles
-
-- Users see one balance: **Nuncio credits**.
-- Provider-specific spend is shown as agent trace/proof, not as separate currencies.
-- Every expensive action has a clear before/after balance.
-- Render actions require explicit confirmation because they consume the largest credit amount.
-- Recipient profiles retain cumulative spend history so users can understand prospect-level campaign economics.
-
-### Target product flow
-
-1. Anonymous users can start a limited trial flow.
-2. Before durable saves, repeated runs, or video render, the app asks the user to sign in.
-3. Signed-in users see a credit balance in the header.
-4. Review screens show: credits spent so far, render cost, and expected balance after render.
-5. If credits are insufficient, the CTA changes to buy credits or upgrade.
-6. On provider failure, reserved credits are refunded automatically.
-
-### Implementation phases
-
-- [ ] Add user/workspace auth boundary.
-- [ ] Move Stripe customer and subscription fields from share records to user/workspace records.
-- [ ] Add an append-only `credit_transactions` ledger with grants, debits, refunds, and adjustments.
-- [ ] Add `GenerationFlow` records to tie usage to one outreach run.
-- [ ] Add `RecipientProfile` records to tie cumulative spend to a prospect.
-- [ ] Protect `/api/video` first with server-side credit reservation/refund.
-- [ ] Protect `/api/enrich`, `/api/script`, `/api/canvas`, `/api/studio/build`, `/api/translate`, and `/api/captions`.
-- [ ] Update `/pricing` from hook allowances to monthly Nuncio credit grants and top-up packs.
-- [ ] Replace browser-local credit tracking with API-backed balance and usage history.
-
-### Initial credit pricing model
-
-These are product defaults, not provider invoices:
-
-| Action | User-facing cost |
-| --- | ---: |
-| Research one profile URL | 1 credit |
-| Generate script | 1 credit |
-| Build Melius canvas | 1 credit |
-| Render video | 5 credits |
-| Translate video | 2 credits |
-| Generate captions | 1 credit |
-| Preview voice/vibe | Free during review, rate-limited |
-
-### Rollout safety
-
-Credit enforcement should ship behind `NUNCIO_CREDITS_ENFORCED=true`. With enforcement off, routes
-can return credit estimates and record ledger-style events without blocking the demo flow. Once auth,
-Stripe grants, and balance display are live, enable hard blocking in production.
+- **HeyGen generation time:** 60–180 seconds per video. Cannot be made faster.
+- **TinyFish login walls:** LinkedIn, Facebook, and some Twitter profiles require authentication.
+- **In-memory state:** Batch queue and magic link tokens are in-memory Maps — lost on server restart.
+  Acceptable for single-server deployment; needs database backing before horizontal scaling.
+- **Stripe test mode:** All payments are in Stripe test mode. Switch to live mode before accepting
+  real payments.
 
 ---
 
 ## Icebox (not planned, but noted)
 
-- Real-time streaming video generation (not currently possible with HeyGen)
+- Real-time streaming video generation
 - On-device voice cloning
-- Video personalisation with the target's own face/voice (deepfake — explicitly out of scope for ethical reasons)
+- Video personalisation with the target's own face/voice (deepfake — explicitly out of scope)
 - Browser extension for one-click video generation from a LinkedIn profile page

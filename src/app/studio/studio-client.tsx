@@ -3,14 +3,20 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Header } from "@/components/header";
 import type { StudioBuildResult, StudioNode } from "@/lib/creative/melius-provider";
 import type { VideoCustomization, HeyGenAvatar, HeyGenVoice } from "@/lib/heygen";
 import { VideoCustomization as VideoCustomizationComponent } from "@/components/video-customization";
+import { OnboardingModal } from "@/components/onboarding-modal";
+import { QuickInput } from "./quick-input";
+import { QuickReview } from "./quick-review";
+import { QuickProgress } from "./quick-progress";
+import { QuickReady } from "./quick-ready";
 
-type StudioStage = "input" | "enriching" | "review" | "building" | "ready" | "error";
-type ArchetypeSelection = "auto" | "mirror" | "origin" | "future_cast" | "inside_joke" | "day_in_the_life";
+export type StudioStage = "input" | "enriching" | "review" | "building" | "ready" | "error";
+export type ArchetypeSelection = "auto" | "mirror" | "origin" | "future_cast" | "inside_joke" | "day_in_the_life";
 type CaptureIntent = "share" | "download" | "render";
 
 const INTENT_META: Record<CaptureIntent, {
@@ -55,13 +61,13 @@ const INTENT_META: Record<CaptureIntent, {
   },
 };
 
-const ARCHETYPE_OPTIONS: { id: ArchetypeSelection; label: string }[] = [
-  { id: "auto", label: "Let agent pick" },
-  { id: "mirror", label: "Mirror" },
-  { id: "origin", label: "Origin" },
-  { id: "future_cast", label: "Future-cast" },
-  { id: "inside_joke", label: "Inside joke" },
-  { id: "day_in_the_life", label: "Day-in-life" },
+const ARCHETYPE_OPTIONS: { id: ArchetypeSelection; label: string; description: string }[] = [
+  { id: "auto", label: "Let agent pick", description: "AI chooses the best hook based on the recipient's profile signals." },
+  { id: "mirror", label: "Mirror", description: "Reflect the recipient's own content back at them — their posts, work, or public statements." },
+  { id: "origin", label: "Origin", description: "Show how their work started or what influenced their trajectory." },
+  { id: "future_cast", label: "Future-cast", description: "Imagine a near-future world their current work enables." },
+  { id: "inside_joke", label: "Inside joke", description: "Reference a specific detail only they'd recognise — warm and personal." },
+  { id: "day_in_the_life", label: "Day-in-life", description: "A vignette of their daily workflow or creative process." },
 ];
 
 interface AgentLogEntry {
@@ -353,6 +359,11 @@ interface StudioClientProps {
 }
 
 function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
+  const [quickMode, setQuickMode] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("nuncio_studio_mode") !== "advanced";
+    return true;
+  });
+  const [showProgressDetails, setShowProgressDetails] = useState(false);
   const [url, setUrl] = useState("");
   const [senderName, setSenderName] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem("nuncio_sender_name") || "";
@@ -434,6 +445,12 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   function disconnectMelius() {
     localStorage.removeItem("nuncio_melius_key");
     setMeliusKey("");
+  }
+
+  function toggleMode() {
+    const next = !quickMode;
+    setQuickMode(next);
+    localStorage.setItem("nuncio_studio_mode", next ? "quick" : "advanced");
   }
 
   async function handleEnrich() {
@@ -927,11 +944,24 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   return (
     <>
       <Header stage={stage === "ready" ? "review" : (stage === "building" || stage === "enriching") ? "progress" : stage === "review" ? "review" : "input"} />
+      <OnboardingModal />
 
       <main className="flex-1 w-full">
         <AnimatePresence mode="wait">
           {/* ─── INPUT ────────────────────────────────────────────────── */}
-          {stage === "input" && (
+          {stage === "input" && (quickMode ? (
+            <QuickInput
+              key="quick-input"
+              url={url}
+              setUrl={setUrl}
+              senderName={senderName}
+              setSenderName={setSenderName}
+              senderBrief={senderBrief}
+              setSenderBrief={setSenderBrief}
+              onEnrich={handleEnrich}
+              onToggleMode={toggleMode}
+            />
+          ) : (
             <motion.div
               key="input"
               initial={{ opacity: 0, y: 20 }}
@@ -942,11 +972,19 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               <section className="relative px-6 pt-24 pb-16">
                 <div className="max-w-6xl mx-auto grid md:grid-cols-[1.05fr,1fr] gap-12 items-center">
                   <div className="space-y-7">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15">
-                      <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-                      <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
-                        Built on Melius · agent-orchestrated
-                      </span>
+                    <div className="flex items-center justify-between">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15">
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                        <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
+                          Built on Melius · agent-orchestrated
+                        </span>
+                      </div>
+                      <button
+                        onClick={toggleMode}
+                        className="text-[11px] text-ink-faint hover:text-accent transition-colors"
+                      >
+                        Switch to Quick mode
+                      </button>
                     </div>
                     <h1 className="font-[family-name:var(--font-display)] text-5xl lg:text-6xl tracking-tight leading-[1.02]">
                       Brief an agent.
@@ -956,6 +994,12 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     <p className="text-ink-muted text-base max-w-md leading-relaxed">
                       Drop in a profile URL. A nuncio agent reads the human, generates a personalised outreach script, cinematic images, and a hook video — all powered by Melius under the hood.
                     </p>
+                    <Link
+                      href="/batch"
+                      className="text-[11px] text-accent hover:text-accent/80 transition-colors inline-block"
+                    >
+                      Need to reach multiple people? Try Batch →
+                    </Link>
 
                     <div className="space-y-3 max-w-md">
                       <div>
@@ -1029,17 +1073,23 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                         </label>
                         <div className="flex flex-wrap gap-2">
                           {ARCHETYPE_OPTIONS.map((option) => (
-                            <button
-                              key={option.id}
-                              onClick={() => setArchetype(option.id)}
-                              className={`rounded-md border px-2.5 py-1 text-[11px] transition-colors ${
-                                archetype === option.id
-                                  ? "border-accent bg-accent-soft text-accent"
-                                  : "border-cream-dark/70 bg-white/60 text-ink-muted hover:border-accent/30 hover:text-accent"
-                              }`}
-                            >
-                              {option.label}
-                            </button>
+                            <div key={option.id} className="flex flex-col">
+                              <button
+                                onClick={() => setArchetype(option.id)}
+                                className={`rounded-md border px-2.5 py-1 text-[11px] transition-colors ${
+                                  archetype === option.id
+                                    ? "border-accent bg-accent-soft text-accent"
+                                    : "border-cream-dark/70 bg-white/60 text-ink-muted hover:border-accent/30 hover:text-accent"
+                                }`}
+                              >
+                                {option.label}
+                              </button>
+                              {archetype === option.id && (
+                                <span className="text-[10px] text-ink-muted mt-1 max-w-[160px] leading-relaxed">
+                                  {option.description}
+                                </span>
+                              )}
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -1128,50 +1178,27 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     How the agent works
                   </p>
                   <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-tight mt-2">
-                    Four moves. Eight nodes. Creative you can use.
+                    From profile to creative canvas
                   </h2>
                 </div>
-                <div className="grid md:grid-cols-4 gap-4">
+                <div className="grid md:grid-cols-4 gap-4 max-w-4xl mx-auto">
                   {[
-                    {
-                      kicker: "01",
-                      title: "Reads the human",
-                      body: "Pulls public signals — role, tone, recent work — through a structured enrichment pass.",
-                      tool: "tinyfish · claude",
-                    },
-                    {
-                      kicker: "02",
-                      title: "Plans the canvas",
-                      body: "Decides what nodes the campaign needs, how they connect, and asks Melius to lay them out.",
-                      tool: "melius.planLayout",
-                    },
-                    {
-                      kicker: "03",
-                      title: "Builds on Melius",
-                      body: "Creates text, image, and video nodes. Wires edges so prompts inherit upstream context.",
-                      tool: "bulk_create_nodes · bulk_create_edges",
-                    },
-                    {
-                      kicker: "04",
-                      title: "Delivers creative",
-                      body: "Starts generation runs and delivers your images, hook video, and script — ready to render or share.",
-                      tool: "run_start · bulk_run_download",
-                    },
-                  ].map((step) => (
-                    <div
-                      key={step.kicker}
-                      className="rounded-2xl border border-cream-dark bg-white p-5 space-y-2.5 hover:border-accent/30 hover:shadow-[0_2px_30px_-12px_rgba(74,58,255,0.18)] transition-all"
-                    >
-                      <span className="text-[10px] font-mono text-accent">{step.kicker}</span>
-                      <h3 className="font-medium text-ink">{step.title}</h3>
-                      <p className="text-xs text-ink-muted leading-relaxed">{step.body}</p>
-                      <p className="text-[10px] font-mono text-ink-faint pt-1 truncate">{step.tool}</p>
+                    { num: "01", title: "Reads the human", desc: "Claude reads every relevant signal from the enriched profile markdown.", tool: "tinyfish · claude" },
+                    { num: "02", title: "Plans the canvas", desc: "Melius plans an 8-node canvas: text, image, and video nodes arranged as a pipeline.", tool: "melius.planLayout" },
+                    { num: "03", title: "Builds on Melius", desc: "Bulk-create nodes with agent-presence so a human can step in and refine anytime.", tool: "bulk_create_nodes · bulk_create_edges" },
+                    { num: "04", title: "Delivers creative", desc: "Run image generation and hook video, then hand the finished canvas to you.", tool: "run_start · bulk_run_download" },
+                  ].map((item) => (
+                    <div key={item.num} className="rounded-2xl border border-cream-dark bg-white p-5 space-y-3 hover:shadow-md transition-shadow group">
+                      <span className="text-[11px] font-mono text-accent font-medium">{item.num}</span>
+                      <h3 className="font-[family-name:var(--font-display)] text-lg">{item.title}</h3>
+                      <p className="text-xs text-ink-muted leading-relaxed">{item.desc}</p>
+                      <span className="text-[9px] font-mono text-ink-faint">{item.tool}</span>
                     </div>
                   ))}
                 </div>
               </section>
             </motion.div>
-          )}
+          ))}
 
           {/* ─── ENRICHING ───────────────────────────────────────────── */}
           {stage === "enriching" && (
@@ -1200,27 +1227,45 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           )}
 
           {/* ─── REVIEW ──────────────────────────────────────────────── */}
-          {stage === "review" && reviewProfile && (
+          {stage === "review" && reviewProfile && (quickMode ? (
+            <QuickReview
+              key="quick-review"
+              profile={reviewProfile}
+              script={reviewScript}
+              senderName={senderName}
+              onBuild={handleConfirmBuild}
+              onRegenerate={handleRegenerate}
+              onBack={() => setStage("input")}
+              onToggleMode={toggleMode}
+              regenerating={reviewRegenerating}
+            />
+          ) : (
             <motion.div
               key="review"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="px-6 pt-24 pb-16 max-w-3xl mx-auto"
             >
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-success-soft border border-success/15 mb-4">
+              <div className="flex items-center justify-between mb-6">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-success-soft border border-success/15">
                   <span className="w-1.5 h-1.5 rounded-full bg-success" />
                   <span className="text-[10px] uppercase tracking-widest font-medium text-success">
                     Review
                   </span>
                 </div>
-                <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight">
-                  Confirm before building
-                </h1>
-                <p className="text-sm text-ink-muted mt-2">
-                  Edit anything below, then hit Build to generate the canvas.
-                </p>
+                <button
+                  onClick={toggleMode}
+                  className="text-[11px] text-ink-faint hover:text-accent transition-colors"
+                >
+                  Switch to Quick mode
+                </button>
               </div>
+              <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight">
+                Confirm before building
+              </h1>
+              <p className="text-sm text-ink-muted mt-2 mb-8">
+                Edit anything below, then hit Build to generate the canvas.
+              </p>
 
               <div className="space-y-6">
                 {/* Profile card */}
@@ -1388,10 +1433,16 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 </div>
               </div>
             </motion.div>
-          )}
+          ))}
 
           {/* ─── BUILDING ─────────────────────────────────────────────── */}
-          {stage === "building" && (
+          {stage === "building" && (quickMode ? (
+            <QuickProgress
+              key="quick-progress"
+              showDetails={showProgressDetails}
+              onToggleDetails={() => setShowProgressDetails(!showProgressDetails)}
+            />
+          ) : (
             <motion.div
               key="building"
               initial={{ opacity: 0 }}
@@ -1440,7 +1491,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 </div>
               )}
             </motion.div>
-          )}
+          ))}
 
           {/* ─── ERROR ────────────────────────────────────────────────── */}
           {stage === "error" && (
@@ -1467,7 +1518,34 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           )}
 
           {/* ─── READY ────────────────────────────────────────────────── */}
-          {stage === "ready" && buildResult && (
+          {stage === "ready" && buildResult && (quickMode ? (
+            <QuickReady
+              key="quick-ready"
+              buildResult={buildResult}
+              videoUrl={videoRenderResult?.videoUrl}
+              videoRendering={videoRendering}
+              videoComposed={videoComposed}
+              onRenderVideo={() => {
+                if (!capturedEmail) { openCapture("render"); } else { handleRenderVideo(); }
+              }}
+              onShare={handleShareClick}
+              onDownload={handleDownloadClick}
+              onReset={() => {
+                setStage("input");
+                setBuildResult(null);
+                setUrl("");
+                setSenderBrief("");
+                setArchetype("auto");
+                setShareUrl("");
+                setShowHookReasoning(false);
+                setVideoRendering("idle");
+                setVideoRenderResult(null);
+                setVideoComposed(false);
+              }}
+              onToggleMode={toggleMode}
+              shareUrl={shareUrl}
+            />
+          ) : (
             <motion.div
               key="ready"
               initial={{ opacity: 0 }}
@@ -1483,6 +1561,12 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       Creative ready
                     </span>
                   </div>
+                  <button
+                    onClick={toggleMode}
+                    className="text-[11px] text-ink-faint hover:text-accent transition-colors ml-auto"
+                  >
+                    Quick mode
+                  </button>
                   <p className="text-sm text-ink">
                     {nodeStats.complete === nodeStats.total ? (
                       <>All <span className="font-medium">{nodeStats.total} assets</span> generated.</>
@@ -1676,7 +1760,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 <VideoResultSection videoUrl={videoRenderResult.videoUrl} composed={videoComposed} />
               )}
             </motion.div>
-          )}
+          ))}
         </AnimatePresence>
       </main>
 

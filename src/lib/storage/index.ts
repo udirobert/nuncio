@@ -16,6 +16,7 @@ export type {
   CreditTransactionRecord,
   ProofPublishResult,
   ProofStorageProvider,
+  ShareListOptions,
   ShareRecordInput,
   ShareStorageProvider,
   WorkspaceAccount,

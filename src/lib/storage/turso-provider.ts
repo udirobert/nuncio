@@ -1,5 +1,5 @@
 import type { ShareRecord } from "@/lib/artifacts";
-import type { ShareRecordInput, ShareStorageProvider } from "./types";
+import type { ShareListOptions, ShareRecordInput, ShareStorageProvider } from "./types";
 import { createClient, type Client } from "@libsql/client";
 
 export class TursoShareStorageProvider implements ShareStorageProvider {
@@ -56,7 +56,7 @@ export class TursoShareStorageProvider implements ShareStorageProvider {
     });
   }
 
-  async list(options?: { limit?: number; industry?: string; privacy?: string }): Promise<ShareRecord[]> {
+  async list(options?: ShareListOptions): Promise<ShareRecord[]> {
     await this.ensureSchema();
     const limit = options?.limit || 50;
     let sql = `SELECT record_json FROM share_records WHERE 1=1`;
@@ -70,6 +70,11 @@ export class TursoShareStorageProvider implements ShareStorageProvider {
     if (options?.industry) {
       sql += ` AND json_extract(record_json, '$.industry') = ?`;
       args.push(options.industry);
+    }
+
+    if (options?.workspaceId) {
+      sql += ` AND json_extract(record_json, '$.workspaceId') = ?`;
+      args.push(options.workspaceId);
     }
 
     sql += ` ORDER BY created_at DESC LIMIT ?`;

@@ -1,6 +1,6 @@
 import type { ShareRecord } from "@/lib/artifacts";
 import { getProofStorageProvider, getShareStorageProvider } from "@/lib/storage";
-import type { ShareRecordInput } from "@/lib/storage";
+import type { ShareListOptions, ShareRecordInput } from "@/lib/storage";
 
 export async function createShareRecord(input: ShareRecordInput): Promise<ShareRecord> {
   const shareProvider = getShareStorageProvider();
@@ -36,7 +36,7 @@ export async function updateShareRecord(id: string, updates: Partial<Pick<ShareR
   return updated;
 }
 
-export async function listShares(options?: { limit?: number; industry?: string; privacy?: string }): Promise<ShareRecord[]> {
+export async function listShares(options?: ShareListOptions): Promise<ShareRecord[]> {
   return getShareStorageProvider().list(options);
 }
 

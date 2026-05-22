@@ -31,6 +31,7 @@ export function Header({ stage, isDemo }: HeaderProps) {
     { label: "Playbook", href: "/playbook" },
     { label: "Pricing", href: "/pricing" },
     { label: "Batch", href: "/batch" },
+    { label: "Dashboard", href: "/dashboard" },
   ];
 
   return (

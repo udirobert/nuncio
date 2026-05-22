@@ -75,12 +75,28 @@ export function AccountMenu() {
                 </div>
                 <hr className="border-cream-dark my-2" />
                 <Link
+                  href="/dashboard"
+                  onClick={() => setOpen(false)}
+                  className="block text-[11px] text-accent hover:text-accent-soft transition-colors"
+                >
+                  Dashboard
+                </Link>
+                <Link
                   href="/pricing"
                   onClick={() => setOpen(false)}
                   className="block text-[11px] text-accent hover:text-accent-soft transition-colors"
                 >
                   Buy credits
                 </Link>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem("nuncio_onboarding_done");
+                    window.location.reload();
+                  }}
+                  className="block text-[11px] text-ink-faint hover:text-ink transition-colors"
+                >
+                  Show tips
+                </button>
                 <button
                   onClick={handleLogout}
                   className="text-[11px] text-warm hover:text-warm-soft transition-colors"
