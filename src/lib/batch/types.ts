@@ -14,6 +14,8 @@ export interface Batch {
   name: string;
   senderBrief: string;
   senderName?: string;
+  creatorEmail?: string;
+  webhookUrl?: string;
   jobs: BatchJob[];
   status: "queued" | "running" | "completed" | "failed";
   createdAt: string;
@@ -27,4 +29,6 @@ export interface CreateBatchInput {
   urls: string[];
   senderBrief: string;
   senderName?: string;
+  creatorEmail?: string;
+  webhookUrl?: string;
 }

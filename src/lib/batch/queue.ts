@@ -11,6 +11,8 @@ export function createBatch(input: CreateBatchInput): Batch {
     name: input.name,
     senderBrief: input.senderBrief,
     senderName: input.senderName,
+    creatorEmail: input.creatorEmail,
+    webhookUrl: input.webhookUrl,
     status: "queued",
     createdAt: now,
     updatedAt: now,

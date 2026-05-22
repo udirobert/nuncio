@@ -34,6 +34,22 @@ function statusColor(status: string) {
   }
 }
 
+function parseCSV(text: string): Array<{ url: string; name?: string }> {
+  const lines = text.split("\n").filter((l) => l.trim());
+  const results: Array<{ url: string; name?: string }> = [];
+
+  for (const line of lines) {
+    const parts = line.split(",").map((p) => p.trim());
+    if (parts.length === 0 || !parts[0]) continue;
+    const url = parts[0];
+    const name = parts.length > 1 ? parts[1].replace(/^"|"$/g, "") : undefined;
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      results.push({ url, name });
+    }
+  }
+  return results;
+}
+
 export default function BatchPage() {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -45,7 +61,9 @@ export default function BatchPage() {
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
   const [retrying, setRetrying] = useState<string | null>(null);
+  const [emailNotify, setEmailNotify] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadBatches = useCallback(async () => {
     try {
@@ -76,6 +94,26 @@ export default function BatchPage() {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, [batches, loadBatches]);
+
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string;
+      if (!text) return;
+      const entries = parseCSV(text);
+      if (entries.length === 0) {
+        setError("No valid URLs found in CSV. Each line should have a URL, optionally followed by a name.");
+        return;
+      }
+      const urlLines = entries.map((e) => e.url).join("\n");
+      setUrls((prev) => (prev ? prev + "\n" : "") + urlLines);
+      setError("");
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -198,14 +236,34 @@ export default function BatchPage() {
             required
             className="w-full rounded-xl border border-cream-dark bg-cream px-4 py-3 text-sm text-ink placeholder:text-ink-faint outline-none focus:border-accent transition-colors"
           />
-          <textarea
-            value={urls}
-            onChange={(e) => setUrls(e.target.value)}
-            placeholder="Profile URLs, one per line&#10;https://linkedin.com/in/..."
-            rows={5}
-            required
-            className="w-full rounded-xl border border-cream-dark bg-cream px-4 py-3 text-sm text-ink placeholder:text-ink-faint outline-none focus:border-accent transition-colors resize-none"
-          />
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted">
+                Profile URLs
+              </label>
+              <label className="text-[10px] text-accent cursor-pointer hover:text-accent-light transition-colors">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                Import CSV
+              </label>
+            </div>
+            <textarea
+              value={urls}
+              onChange={(e) => setUrls(e.target.value)}
+              placeholder="https://linkedin.com/in/...&#10;https://x.com/..."
+              rows={5}
+              required
+              className="w-full rounded-xl border border-cream-dark bg-cream px-4 py-3 text-sm text-ink placeholder:text-ink-faint outline-none focus:border-accent transition-colors resize-none"
+            />
+            <p className="text-[10px] text-ink-faint mt-1">
+              One URL per line, or upload a CSV with columns: url, recipient name
+            </p>
+          </div>
           <textarea
             value={senderBrief}
             onChange={(e) => setSenderBrief(e.target.value)}
@@ -217,16 +275,27 @@ export default function BatchPage() {
           {error && (
             <p className="text-[11px] text-warm font-medium">{error}</p>
           )}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded-xl bg-accent px-6 py-3 text-sm font-medium text-white hover:bg-accent-soft transition-colors disabled:opacity-40 flex items-center gap-2"
-          >
-            {submitting && (
-              <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            )}
-            {submitting ? "Creating..." : "Create batch"}
-          </button>
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 text-[11px] text-ink-muted cursor-pointer">
+              <input
+                type="checkbox"
+                checked={emailNotify}
+                onChange={(e) => setEmailNotify(e.target.checked)}
+                className="rounded border-cream-dark text-accent focus:ring-accent/30"
+              />
+              Email me when complete
+            </label>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="rounded-xl bg-accent px-6 py-3 text-sm font-medium text-white hover:bg-accent-soft transition-colors disabled:opacity-40 flex items-center gap-2"
+            >
+              {submitting && (
+                <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              )}
+              {submitting ? "Creating..." : "Create batch"}
+            </button>
+          </div>
         </motion.form>
       )}
 
@@ -289,7 +358,7 @@ export default function BatchPage() {
                 <div className="flex items-center gap-4 text-[11px] text-ink-muted">
                   <span>{batch.jobs.length} profiles</span>
                   <span>{batch.completedCount} completed</span>
-                  {batch.failedCount > 0 && <span className="text-warm">{batch.failedCount} failed</span>}
+                  {batch.failedCount > 0 && <span className="text-warn">{batch.failedCount} failed</span>}
                   <span className="text-ink-faint">{new Date(batch.createdAt).toLocaleDateString()}</span>
                 </div>
                 {(batch.status === "running" || batch.status === "queued") && (

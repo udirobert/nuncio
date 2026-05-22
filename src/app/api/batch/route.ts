@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createBatch, listBatches, getBatch } from "@/lib/batch/queue";
 import { processBatch } from "@/lib/batch/processor";
+import { readAccountSession } from "@/lib/auth/session";
 
 export async function GET() {
   return NextResponse.json(listBatches());
 }
 
 export async function POST(request: NextRequest) {
-  const { name, urls, senderBrief, senderName } = await request.json();
+  const { name, urls, senderBrief, senderName, webhookUrl } = await request.json();
 
   if (!name || !urls || !Array.isArray(urls) || urls.length === 0) {
     return NextResponse.json(
@@ -23,7 +24,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const batch = createBatch({ name, urls, senderBrief, senderName });
+  const session = readAccountSession(request);
+  const creatorEmail = session?.email;
+
+  const batch = createBatch({ name, urls, senderBrief, senderName, creatorEmail, webhookUrl });
 
   processBatch(batch.id, request).catch((err) => {
     console.error(`[batch] Processing failed for ${batch.id}:`, err);
