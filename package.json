@@ -7,6 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "voice-server": "tsx src/voice-server/index.ts",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -16,6 +17,8 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@elevenlabs/client": "1.8.1",
+    "@elevenlabs/elevenlabs-js": "2.49.1",
     "@gsap/react": "2.1.2",
     "@libsql/client": "0.17.3",
     "@posthog/react": "1.9.0",
@@ -54,10 +57,13 @@
     "husky": "9.1.7",
     "lint-staged": "17.0.4",
     "tailwindcss": "^4",
+    "tsx": "4.22.3",
     "typescript": "^5",
     "vitest": "4.1.7"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@sentry/cli"]
+    "onlyBuiltDependencies": [
+      "@sentry/cli"
+    ]
   }
 }

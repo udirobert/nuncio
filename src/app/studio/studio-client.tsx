@@ -15,6 +15,8 @@ import { QuickInput } from "./quick-input";
 import { QuickReview } from "./quick-review";
 import { QuickProgress } from "./quick-progress";
 import { QuickReady } from "./quick-ready";
+import { VoiceOverlay } from "@/components/voice-overlay";
+import type { VoiceProfileResult } from "@/components/voice-overlay";
 
 export type StudioStage = "input" | "enriching" | "review" | "building" | "ready" | "error";
 export type ArchetypeSelection = "auto" | "mirror" | "origin" | "future_cast" | "inside_joke" | "day_in_the_life";
@@ -381,6 +383,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [capturedEmail, setCapturedEmail] = useState("");
   const [shareUrl, setShareUrl] = useState("");
   const [captureIntent, setCaptureIntent] = useState<CaptureIntent | null>(null);
+  const [voiceOverlayOpen, setVoiceOverlayOpen] = useState(false);
   const [captureEmail, setCaptureEmail] = useState("");
   const [captureHoneypot, setCaptureHoneypot] = useState("");
   const [captureError, setCaptureError] = useState("");
@@ -483,6 +486,14 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     const next = !quickMode;
     setQuickMode(next);
     localStorage.setItem("nuncio_studio_mode", next ? "quick" : "advanced");
+  }
+
+  function handleVoiceComplete(profile: VoiceProfileResult) {
+    if (profile.url) setUrl(profile.url);
+    if (profile.senderName) setSenderName(profile.senderName);
+    if (profile.senderBrief) setSenderBrief(profile.senderBrief);
+    if (profile.archetype) setArchetype(profile.archetype as ArchetypeSelection);
+    setVoiceOverlayOpen(false);
   }
 
   async function handleEnrich() {
@@ -1081,6 +1092,20 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                             </button>
                           ))}
                         </div>
+                      </div>
+
+                      {/* Voice agent FAB */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          onClick={() => setVoiceOverlayOpen(true)}
+                          className="inline-flex items-center gap-1.5 text-[11px] text-accent hover:text-accent/80 transition-colors"
+                        >
+                          <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
+                            <path d="M3 8a5 5 0 0010 0M8 13v2" />
+                          </svg>
+                          Brief with voice
+                        </button>
                       </div>
 
                       <div>
@@ -2056,6 +2081,12 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <VoiceOverlay
+        open={voiceOverlayOpen}
+        onClose={() => setVoiceOverlayOpen(false)}
+        onComplete={handleVoiceComplete}
+      />
     </>
   );
 }
