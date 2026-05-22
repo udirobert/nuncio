@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "tsx src/server/production.ts",
     "voice-server": "tsx src/voice-server/index.ts",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
