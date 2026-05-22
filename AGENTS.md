@@ -1,7 +1,7 @@
 # nuncio — Agent Context
 
 ## Goal
-Phase 5 intelligence upgrades (recent activity, company enrichment, tone matching, sender brief memory, script A/B variants), Sentry error monitoring, cinematic entrance/Foley, and responsive email templates.
+Phase 5 intelligence upgrades (recent activity, company enrichment, tone matching, sender brief memory, script A/B variants), Sentry error monitoring, cinematic entrance/Foley, responsive email templates, multi-language delivery, and studio simplification (Phase 7).
 
 ## Constraints & Preferences
 - Next.js App Router with Turso (SQLite) or file-based storage providers; provider selected by `TURSO_DATABASE_URL` or `NUNCIO_DATA_DIR`
@@ -26,6 +26,8 @@ Phase 5 intelligence upgrades (recent activity, company enrichment, tone matchin
 - Email templates use full HTML document with `<style>` block for better email client compatibility and responsive layout
 
 ## Recent Commits
+- `517d283` — studio simplification (Phase 7)
+- `8ddd233` — multi-language delivery
 - `35bd035` — cinematic entrance integration + responsive email templates
 
 ## Next Steps
@@ -34,15 +36,16 @@ Phase 5 intelligence upgrades (recent activity, company enrichment, tone matchin
 - Batch route `await` fix (included in last commit)
 
 ## Relevant Files
-- `src/lib/elevenlabs.ts`: `generateCinematicEntrance()`, `ENTRANCE_PROMPTS` per vibe
-- `src/lib/email.ts`: `wrap()` with responsive `<style>` block, `sendMagicLinkEmail()`, `sendBatchCompleteEmail()`
-- `src/app/v/[id]/page.tsx`: Cinematic entrance AudioContext playback on play button click
-- `src/app/api/studio/build/route.ts`: Cinematic entrance generation in build pipeline
-- `src/app/api/studio/email/route.ts`: `cinematicEntranceUrl` in share record
-- `src/app/studio/studio-client.tsx`: `cinematicEntranceUrl` passthrough in email capture payload
-- `src/lib/creative/melius-provider.ts`: `StudioBuildResult.cinematicEntranceUrl`
-- `src/lib/artifacts.ts`: `ShareRecord.cinematicEntranceUrl`
-- `next.config.ts`, `sentry.*.config.ts`, `instrumentation.ts`, `global-error.tsx`: Sentry setup
 - `src/lib/claude.ts`: `generateScriptVariants()`, `ScriptVariants` type
 - `src/lib/tinyfish.ts`: `fetchRecentActivity()`, `enrichCompany()`
 - `src/app/api/account/brief/route.ts`: Sender brief memory GET/PATCH
+- `src/lib/elevenlabs.ts`: `generateCinematicEntrance()`, `ENTRANCE_PROMPTS` per vibe
+- `src/lib/email.ts`: `wrap()` with responsive `<style>` block, `sendMagicLinkEmail()`, `sendBatchCompleteEmail()`
+- `src/app/v/[id]/page.tsx`: Cinematic entrance + language badge + translate
+- `src/app/api/studio/build/route.ts`: Build pipeline with language support
+- `src/app/api/studio/email/route.ts`: Profile + language in share record
+- `src/app/studio/studio-client.tsx`: Progressive disclosure UI, language selector, profile collapsible
+- `src/lib/creative/melius-provider.ts`: `StudioBuildResult` with `language`
+- `src/lib/artifacts.ts`: `ShareRecord` with `language`
+- `src/lib/languages.ts`: Shared language constants
+- `next.config.ts`, `sentry.*.config.ts`, `instrumentation.ts`, `global-error.tsx`: Sentry setup
