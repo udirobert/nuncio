@@ -190,6 +190,7 @@ export interface StudioBuildResult {
   vibeReasoning?: string;
   soundscapeUrl?: string;
   cinematicEntranceUrl?: string;
+  language?: string;
   hook?: {
     archetype: string;
     reasoning: string;

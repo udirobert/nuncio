@@ -10,6 +10,7 @@ import type { StudioBuildResult, StudioNode } from "@/lib/creative/melius-provid
 import type { VideoCustomization, HeyGenAvatar, HeyGenVoice } from "@/lib/heygen";
 import { VideoCustomization as VideoCustomizationComponent } from "@/components/video-customization";
 import { OnboardingModal } from "@/components/onboarding-modal";
+import { LANGUAGES, languageLabel } from "@/lib/languages";
 import { QuickInput } from "./quick-input";
 import { QuickReview } from "./quick-review";
 import { QuickProgress } from "./quick-progress";
@@ -744,6 +745,8 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         body: JSON.stringify({
           email: captureEmail,
           honeypot: captureHoneypot,
+          profile: reviewProfile,
+          language: reviewProfile?.language || "en",
           buildResult: {
             projectId: buildResult.projectId,
             canvasId: buildResult.canvasId,
@@ -1382,6 +1385,23 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Language selector */}
+                  <div>
+                    <label className="text-[10px] text-ink-faint block mb-2">
+                      Language
+                      <span className="ml-1.5 text-warm">(auto-detected)</span>
+                    </label>
+                    <select
+                      value={reviewProfile.language || "en"}
+                      onChange={(e) => setReviewProfile({ ...reviewProfile, language: e.target.value })}
+                      className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-white"
+                    >
+                      {LANGUAGES.map((l) => (
+                        <option key={l.code} value={l.code}>{l.label}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

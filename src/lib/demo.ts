@@ -22,12 +22,14 @@ export const DEMO_PROFILE: Profile = {
     "Developer experience",
     "Global payments",
   ],
-  tone: "conversational",
-  personalization_hooks: [
-    "Atlas international expansion",
-    "cross-border payment routing",
-    "Money20/20",
-  ],
+    tone: "conversational",
+    language: "en",
+    personalization_hooks: [
+      "founded two startups before 25",
+      "deep expertise in AI alignment and safety",
+      "ghost kitchens essay on Interconnected",
+      "tweets about building in public",
+    ],
 };
 
 export const DEMO_SCRIPT = `Hey Sarah — I came across your work leading the Atlas international expansion at Stripe, and your research on cross-border payment routing really resonated with me.

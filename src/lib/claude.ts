@@ -8,6 +8,7 @@ export interface Profile {
   interests: string[];
   tone: "formal" | "conversational" | "technical";
   personalization_hooks: string[];
+  language: string;
 }
 
 /**
@@ -21,7 +22,7 @@ export async function synthesise(
     return fallbackProfile(enrichment);
   }
 
-  const systemPrompt = `You are a profile synthesis agent. Given enriched social profile data, produce a structured JSON profile. Respond ONLY with valid JSON matching this schema: { "name": string, "current_role": string, "company": string, "notable_work": string[], "interests": string[], "tone": "formal" | "conversational" | "technical", "personalization_hooks": string[] }. Do not fabricate information not present in the source data. Do not wrap in markdown code blocks. Output raw JSON only. IMPORTANT: The "name" field MUST be the PROFILE OWNER's real full name (first + last). The data starts with a Profile URL — that is the person you are profiling. Other people mentioned in search results are NOT the profile owner. If you cannot determine the profile owner's name, return "name": "". Never use generic labels like "Help Center", "User", "Profile", or other people's names.`;
+  const systemPrompt = `You are a profile synthesis agent. Given enriched social profile data, produce a structured JSON profile. Respond ONLY with valid JSON matching this schema: { "name": string, "current_role": string, "company": string, "notable_work": string[], "interests": string[], "tone": "formal" | "conversational" | "technical", "personalization_hooks": string[], "language": string }. Do not fabricate information not present in the source data. Do not wrap in markdown code blocks. Output raw JSON only. IMPORTANT: The "name" field MUST be the PROFILE OWNER's real full name (first + last). The data starts with a Profile URL — that is the person you are profiling. Other people mentioned in search results are NOT the profile owner. If you cannot determine the profile owner's name, return "name": "". Never use generic labels like "Help Center", "User", "Profile", or other people's names. The "language" field should be the ISO 639-1 code of the primary language used in the profile content (e.g. "en", "es", "fr", "de", "ja", "zh", "pt", "ar", "hi", "it", "nl", "ko", "ru"). Default to "en" if uncertain.`;
 
   const userMessage = `Synthesise the following enriched profile data into a structured profile. IMPORTANT: The profile owner is the person whose URL appears at the top — only extract THEIR name, role, and details. Other people mentioned in replies, comments, or articles are not the subject.\n\n${enrichment.join("\n\n---\n\n")}`;
 
@@ -88,6 +89,7 @@ export async function generateScript(
     recentActivity?: string;
     companyContext?: string;
     toneInstruction?: string;
+    language?: string;
   }
 ): Promise<ScriptResult> {
   if (options?.forceFallback) {
@@ -99,12 +101,18 @@ export async function generateScript(
     ? `The sender's name is ${options.senderName} — use it naturally in the opening.`
     : `Do NOT include a sender name or placeholder like "[Your Name]". Just start naturally without introducing yourself by name.`;
 
+  const language = options?.language || profile.language || "en";
+  const languageInstruction = language !== "en"
+    ? `\nLANGUAGE: The recipient's profile content is primarily in ${language}. Write the ENTIRE script in ${language}. Every word must be in ${language} — do NOT write in English or mix languages. Use natural, fluent ${language}.`
+    : `\nLANGUAGE: Write the script in English.`;
+
   const toneInstruction = options?.toneInstruction
     ? `\nTONE: The target's natural communication style is "${profile.tone}". ${options.toneInstruction}`
     : `\nTONE: Match the target's communication style (${profile.tone}). If they write formally in their profile, write formally. If they are conversational, mirror that energy. The script should feel like a genuine message from one human to another, not a corporate form letter.`;
 
   const systemPrompt = `You are an expert video script writer. Write a personalised 45-90 second video script (under 200 words) that is a direct message TO ${profile.name}. Address them by name. The sender is speaking directly to this person in a personalised video outreach. Reference at least 2 specific details from their profile. Write in first person as the sender, second person ("you") for the recipient. Be conversational and genuine — not salesy or generic. Never write about them in third person. Never use placeholder brackets like [Your Name] or [specific topic] — use ACTUAL details from the profile or omit. ${senderNameInstruction}${intentRubric ? `\n\n${intentRubric}` : ""}
 ${toneInstruction}
+${languageInstruction}
 ${VIBE_SYSTEM_CONTEXT}
 
 OUTPUT FORMAT (JSON):
@@ -203,6 +211,9 @@ function normaliseProfile(profile: Partial<Profile>): Profile {
   const name = /^[a-z\s]+$/.test(rawName)
     ? rawName.replace(/\b\w/g, (c) => c.toUpperCase())
     : rawName;
+  const language = profile.language && /^[a-z]{2}(-[A-Z]{2})?$/.test(profile.language)
+    ? profile.language.toLowerCase()
+    : "en";
   return {
     name,
     current_role: profile.current_role || "",
@@ -213,6 +224,7 @@ function normaliseProfile(profile: Partial<Profile>): Profile {
     personalization_hooks: Array.isArray(profile.personalization_hooks)
       ? profile.personalization_hooks
       : [],
+    language,
   };
 }
 
@@ -238,6 +250,7 @@ function fallbackProfile(enrichment: string[]): Profile {
     .filter((line) => line !== name)
     .slice(0, 4);
 
+  const langCode = text.match(/[^\x00-\x7F]/) ? "und" : "en";
   return {
     name,
     current_role,
@@ -246,6 +259,7 @@ function fallbackProfile(enrichment: string[]): Profile {
     interests: hooks.slice(2, 4),
     tone: "conversational",
     personalization_hooks: hooks,
+    language: langCode,
   };
 }
 
@@ -319,12 +333,18 @@ export async function generateScriptVariants(
     senderName?: string;
     recentActivity?: string;
     companyContext?: string;
+    language?: string;
   }
 ): Promise<ScriptVariants> {
   const intentRubric = options?.intent ? INTENT_RUBRICS[options.intent] : null;
   const senderNameInstruction = options?.senderName
     ? `The sender's name is ${options.senderName} — use it naturally in the opening.`
     : `Do NOT include a sender name or placeholder like "[Your Name]". Just start naturally without introducing yourself by name.`;
+  const language = options?.language || profile.language || "en";
+  const languageInstruction = language !== "en"
+    ? `\nLANGUAGE: The recipient's profile content is primarily in ${language}. Write BOTH variants ENTIRELY in ${language}. Every word must be in ${language}.`
+    : `\nLANGUAGE: Write both scripts in English.`;
+
   const toneInstruction = `\nTONE: Match the target's communication style. If they write formally, write formally. If they are conversational, mirror that energy.`;
 
   const systemPrompt = `You are an expert video script writer. Write TWO distinct personalised 45-90 second video scripts (each under 200 words) addressed TO ${profile.name}. The sender is speaking directly to this person in a personalised video outreach.
@@ -339,6 +359,7 @@ Requirement for BOTH variants:
 ${senderNameInstruction}
 ${intentRubric ? `\n\n${intentRubric}` : ""}
 ${toneInstruction}
+${languageInstruction}
 
 The TWO variants should have DIFFERENT approaches:
 - Variant A should be the primary recommended approach — confident, direct, natural.

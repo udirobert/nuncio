@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import type { Profile } from "@/lib/claude";
+import { languageLabel } from "@/lib/languages";
 
 interface QuickReviewProps {
   profile: Profile | null;
@@ -123,6 +124,11 @@ export function QuickReview({
               <p className="text-xs text-ink-muted leading-relaxed">
                 {[profile.current_role, profile.company && `at ${profile.company}`].filter(Boolean).join(" ")}
               </p>
+              {profile.language && profile.language !== "en" && (
+                <span className="inline-flex text-[10px] px-2 py-0.5 rounded-full bg-cream-dark text-ink-muted">
+                  {languageLabel(profile.language)} · auto-detected
+                </span>
+              )}
               {profile.personalization_hooks && profile.personalization_hooks.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {profile.personalization_hooks.slice(0, 3).map((hook, i) => (

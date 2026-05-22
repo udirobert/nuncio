@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import type { ShareRecord } from "@/lib/artifacts";
+import { languageLabel } from "@/lib/languages";
 import { DuckingAudio } from "@/components/ducking-audio";
 
 /**
@@ -222,6 +223,23 @@ export default function VideoLandingPage({
               )}
             </div>
           </motion.div>
+
+          {/* Language badge */}
+          {videoData.language && videoData.language !== "en" && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              className="mt-4 text-center"
+            >
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-warm-soft border border-warm/20 text-[11px] text-warm font-medium">
+                <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="currentColor">
+                  <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 2a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm1 9H7V7h2v5z" />
+                </svg>
+                This video is in {languageLabel(videoData.language)}
+              </span>
+            </motion.div>
+          )}
 
           {/* CTA section — the growth mechanic */}
           {(videoData.trace?.length || videoData.canvas) && (

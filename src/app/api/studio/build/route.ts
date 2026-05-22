@@ -330,6 +330,7 @@ export async function POST(request: NextRequest) {
           canvasUrl,
           userOwned: !!meliusApiKey,
           nodes: studioNodes,
+          language: profile.language || "en",
           recommendedVibeId: scriptResult?.vibeId || "tech-office",
           vibeReasoning: scriptResult?.vibeReasoning || "Standard professional vibe.",
           soundscapeUrl: soundscapeDataUrl,

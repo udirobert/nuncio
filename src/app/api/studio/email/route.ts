@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createShareRecord } from "@/lib/share-store";
 import type { StudioBuildResult } from "@/lib/creative/melius-provider";
+import type { Profile } from "@/lib/claude";
 import { accountCookieOptions, ACCOUNT_COOKIE, createAccountSessionCookie } from "@/lib/auth/session";
 import { ensureTrialCredits, upsertBillingAccount } from "@/lib/billing/accounts";
 import { getCreditBalance } from "@/lib/billing/credits";
@@ -14,10 +15,14 @@ export async function POST(request: NextRequest) {
       email,
       honeypot,
       buildResult,
+      profile,
+      language,
     }: {
       email?: string;
       honeypot?: string;
       buildResult?: Pick<StudioBuildResult, "canvasId" | "canvasUrl" | "projectId" | "hook" | "soundscapeUrl" | "cinematicEntranceUrl">;
+      profile?: Profile;
+      language?: string;
     } = body;
 
     if (honeypot) {
@@ -35,14 +40,18 @@ export async function POST(request: NextRequest) {
     });
     await ensureTrialCredits({ user, workspace });
 
+    const recipientName = profile?.name || buildResult?.hook?.archetype
+      ? `${buildResult!.hook!.archetype} hook recipient`
+      : "Studio campaign";
+
     const record = await createShareRecord({
       videoUrl: "",
       email: normalizedEmail,
       soundscapeUrl: buildResult?.soundscapeUrl,
       cinematicEntranceUrl: buildResult?.cinematicEntranceUrl,
-      recipientName: buildResult?.hook?.archetype
-        ? `${buildResult.hook.archetype} hook recipient`
-        : "Studio campaign",
+      profile: profile || undefined,
+      language: language || profile?.language || "en",
+      recipientName,
       canvas: buildResult?.canvasId
         ? {
             canvasId: buildResult.canvasId,

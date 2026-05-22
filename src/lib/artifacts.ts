@@ -41,6 +41,7 @@ export interface ShareRecord {
   cinematicEntranceUrl?: string;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
+  language?: string;
 }
 
 export function buildAgentTrace(input: {
