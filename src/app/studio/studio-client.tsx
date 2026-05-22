@@ -1021,7 +1021,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15">
                         <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
                         <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
-                          Built on Melius · agent-orchestrated
+                          AI-powered · personalised video
                         </span>
                       </div>
                       <button
@@ -1579,7 +1579,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     onClick={handleConfirmBuild}
                     className="flex-[2] btn-press rounded-xl bg-ink text-cream py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2 shadow-lg"
                   >
-                    Build on Melius
+                    Build video
                     <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M3 8h10M9 4l4 4-4 4" />
                     </svg>
@@ -1749,83 +1749,113 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   </div>
                 )}
 
-                <div className="flex flex-wrap items-center gap-3 border-t border-cream-dark/50 pt-4">
-                  <button
-                    onClick={() => {
-                      if (!capturedEmail) { openCapture("render"); } else { handleRenderVideo(); }
-                    }}
-                    disabled={videoRendering === "rendering"}
-                    className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-5 py-3 text-sm font-medium hover:bg-ink-light transition-colors shadow-sm disabled:opacity-40"
-                  >
-                    {videoRendering === "rendering" ? "Rendering…" : videoRendering === "done" ? "Video ready" : "Render HeyGen video"}
-                  </button>
-
-                  <button
-                    onClick={handleDownloadClick}
-                    disabled={nodeStats.complete < nodeStats.total}
-                    title={nodeStats.complete < nodeStats.total ? "Waiting for all assets to finish generating…" : undefined}
-                    className="btn-press inline-flex items-center gap-1.5 rounded-xl border border-cream-dark px-4 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Export ZIP
-                  </button>
-
-                  <button
-                    onClick={handleShareClick}
-                    className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-2.5 text-xs font-medium text-ink-muted hover:bg-cream-dark/50 transition-colors"
-                  >
-                    Share
-                  </button>
-
-                  <button
-                    onClick={handleAudioMemo}
-                    disabled={audioMemoLoading}
-                    className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-2.5 text-xs font-medium text-ink-muted hover:bg-cream-dark/50 transition-colors disabled:opacity-50"
-                    title="Generate a voice memo teaser to send as a DM hook"
-                  >
-                    {audioMemoLoading ? (
-                      <span className="w-3 h-3 border border-accent/30 border-t-accent rounded-full animate-spin" />
-                    ) : (
-                      <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
-                        <path d="M3 8a5 5 0 0010 0M8 13v2" />
-                      </svg>
-                    )}
-                    {audioMemoUrl ? "Memo ready" : "Audio memo"}
-                  </button>
-
-                  {buildResult.userOwned && buildResult.canvasUrl && (
-                    <a
-                      href={buildResult.canvasUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-accent/20 bg-accent-soft px-3 py-2.5 text-xs font-medium text-accent hover:bg-accent/10 transition-colors"
+                <div className="border-t border-cream-dark/50 pt-4 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (!capturedEmail) { openCapture("render"); } else { handleRenderVideo(); }
+                      }}
+                      disabled={videoRendering === "rendering"}
+                      className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-5 py-3 text-sm font-medium hover:bg-ink-light transition-colors shadow-sm disabled:opacity-40"
                     >
-                      Open in Melius
-                      <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M6 3h7v7M13 3L6 10" />
+                      {videoRendering === "rendering" ? "Rendering…" : videoRendering === "done" ? "Video ready" : "Render video"}
+                    </button>
+
+                    <span className="w-px h-8 bg-cream-dark" />
+
+                    <button
+                      onClick={handleShareClick}
+                      className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-2.5 text-xs font-medium text-ink-muted hover:bg-cream-dark/50 transition-colors"
+                    >
+                      <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M4 10l4 4 4-4M8 2v10" />
                       </svg>
+                      Share
+                    </button>
+
+                    <button
+                      onClick={handleDownloadClick}
+                      disabled={nodeStats.complete < nodeStats.total}
+                      title={nodeStats.complete < nodeStats.total ? "Waiting for all assets to finish generating…" : undefined}
+                      className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-2.5 text-xs font-medium text-ink-muted hover:bg-cream-dark/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Export ZIP
+                    </button>
+
+                    <div className="flex-1" />
+
+                    <a
+                      href="/batch"
+                      onClick={() => {
+                        localStorage.setItem("nuncio_sender_brief", senderBrief || "");
+                        if (reviewProfile) {
+                          localStorage.setItem("nuncio_profile_name", reviewProfile.name || "");
+                          localStorage.setItem("nuncio_profile_company", reviewProfile.company || "");
+                        }
+                      }}
+                      className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-accent/20 bg-accent-soft/50 px-3 py-2.5 text-xs font-medium text-accent hover:bg-accent/10 transition-colors"
+                    >
+                      <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M2 4h12v10H2zM2 4l6 5 6-5M5 2h6" />
+                      </svg>
+                      Send to all
                     </a>
-                  )}
+                  </div>
 
-                  <div className="flex-1" />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={handleAudioMemo}
+                      disabled={audioMemoLoading}
+                      className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-2.5 py-1.5 text-[11px] text-ink-faint hover:text-ink-muted hover:bg-cream-dark/30 transition-colors disabled:opacity-50"
+                      title="Generate a voice memo teaser to send as a DM hook"
+                    >
+                      {audioMemoLoading ? (
+                        <span className="w-3 h-3 border border-accent/30 border-t-accent rounded-full animate-spin" />
+                      ) : (
+                        <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
+                          <path d="M3 8a5 5 0 0010 0M8 13v2" />
+                        </svg>
+                      )}
+                      {audioMemoUrl ? "Memo ready" : "Audio memo"}
+                    </button>
 
-                  <button
-                    onClick={() => {
-                      setStage("input");
-                      setBuildResult(null);
-                      setUrl("");
-                      setSenderBrief("");
-                      setArchetype("auto");
-                      setShareUrl("");
-                      setShowHookReasoning(false);
-                      setVideoRendering("idle");
-                      setVideoRenderResult(null);
-                      setVideoComposed(false);
-                    }}
-                    className="btn-press rounded-lg border border-cream-dark px-3 py-2.5 text-xs font-medium text-ink-muted hover:text-ink hover:bg-cream-dark/50 transition-colors"
-                  >
-                    Brief another →
-                  </button>
+                    {buildResult.userOwned && buildResult.canvasUrl && (
+                      <a
+                        href={buildResult.canvasUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded-lg border border-cream-dark px-2 py-1.5 text-[11px] text-ink-faint hover:text-ink-muted hover:bg-cream-dark/30 transition-colors"
+                        title="Open canvas in Melius editor"
+                      >
+                        <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M6 3h4v2H6zM3 7h10v6H3z" />
+                          <path d="M8 5v2M5 10h6" />
+                        </svg>
+                        Canvas
+                      </a>
+                    )}
+
+                    <div className="flex-1" />
+
+                    <button
+                      onClick={() => {
+                        setStage("input");
+                        setBuildResult(null);
+                        setUrl("");
+                        setSenderBrief("");
+                        setArchetype("auto");
+                        setShareUrl("");
+                        setShowHookReasoning(false);
+                        setVideoRendering("idle");
+                        setVideoRenderResult(null);
+                        setVideoComposed(false);
+                      }}
+                      className="btn-press rounded-lg border border-cream-dark px-2.5 py-1.5 text-[11px] text-ink-faint hover:text-ink-muted hover:bg-cream-dark/30 transition-colors"
+                    >
+                      Brief another →
+                    </button>
+                  </div>
                 </div>
 
                 {/* Audio memo player */}
@@ -1959,7 +1989,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     transition={{ delay: 0.1, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                     className="font-[family-name:var(--font-display)] text-3xl tracking-tight"
                   >
-                    {captureIntent === "download" ? "Export canvas" : captureIntent === "share" ? "Get share link" : "Render HeyGen video"}
+                    {captureIntent === "download" ? "Export canvas" : captureIntent === "share" ? "Share video" : "Render video"}
                   </motion.h2>
                 </div>
                 <button
@@ -1976,9 +2006,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 transition={{ delay: 0.18, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                 className="text-sm text-ink-muted leading-relaxed mb-5"
               >
-                {captureIntent === "download" && "Drop your email to export this canvas as a ZIP file from Melius."}
-                {captureIntent === "share" && "Drop your email to get a shareable campaign link."}
-                {captureIntent === "render" && "Drop your email to render a HeyGen video from this canvas."}
+                {captureIntent === "download" && "Enter your email and we'll send you a ZIP of your creative canvas."}
+                {captureIntent === "share" && "Enter your email and we'll send you a shareable link you can copy."}
+                {captureIntent === "render" && "Enter your email and we'll render your video. We'll notify you when it's ready."}
               </motion.p>
 
               <motion.form

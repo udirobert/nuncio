@@ -392,11 +392,11 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
         </div>
       </div>
 
-      {/* ElevenLabs Cinematic Vibe */}
+      {/* Background audio */}
       <div className="space-y-3 pt-2 border-t border-cream-dark/40">
         <div className="flex items-center justify-between">
           <label className="text-[10px] uppercase tracking-widest font-medium text-ink-faint">
-            Cinematic Vibe (ElevenLabs)
+            Background audio
           </label>
           {vibeLoading && (
             <span className="text-[9px] text-accent animate-pulse">Generating preview...</span>

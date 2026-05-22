@@ -55,7 +55,16 @@ export default function BatchPage() {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [urls, setUrls] = useState("");
-  const [senderBrief, setSenderBrief] = useState("");
+  const [senderBrief, setSenderBrief] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("nuncio_sender_brief");
+      if (stored) {
+        localStorage.removeItem("nuncio_sender_brief");
+        return stored;
+      }
+    }
+    return "";
+  });
   const [expanded, setExpanded] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -80,6 +89,8 @@ export default function BatchPage() {
       .then((r) => r.json())
       .then((data) => { if (!cancelled) setBatches(data); })
       .catch(() => {});
+    localStorage.removeItem("nuncio_profile_name");
+    localStorage.removeItem("nuncio_profile_company");
     return () => { cancelled = true; };
   }, []);
 

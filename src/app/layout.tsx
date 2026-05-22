@@ -57,6 +57,16 @@ export default function RootLayout({
         <PostHogProvider>
           {children}
         </PostHogProvider>
+        <footer className="mt-auto px-6 py-6 text-center">
+          <a
+            href="https://nuncio.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[11px] text-ink-faint hover:text-accent transition-colors"
+          >
+            nuncio.com
+          </a>
+        </footer>
       </body>
     </html>
   );

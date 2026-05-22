@@ -108,13 +108,13 @@ export function QuickReady({
               ) : (
                 <>
                   <p className="text-sm text-ink-muted">
-                    The creative canvas is built. Ready to render a HeyGen video.
+                    The creative canvas is built. Ready to render the video.
                   </p>
                   <button
                     onClick={onRenderVideo}
                     className="btn-press rounded-xl bg-ink text-cream px-6 py-3 text-sm font-medium hover:bg-ink-light transition-colors"
                   >
-                    Render HeyGen video
+                    Render video
                   </button>
                 </>
               )}
