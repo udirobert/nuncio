@@ -189,6 +189,7 @@ export interface StudioBuildResult {
   recommendedVibeId?: string;
   vibeReasoning?: string;
   soundscapeUrl?: string;
+  cinematicEntranceUrl?: string;
   hook?: {
     archetype: string;
     reasoning: string;

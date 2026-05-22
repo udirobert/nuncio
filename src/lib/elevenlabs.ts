@@ -86,6 +86,23 @@ export async function generateAmbientVibe(context: string): Promise<Buffer> {
   return generateSoundEffect(prompt, 20, 0.8);
 }
 
+const ENTRANCE_PROMPTS: Record<string, string> = {
+  "tech-office": "Futuristic UI whoosh with digital chime, modern tech startup reveal, clean brand intro transition, premium app launch sound",
+  "quiet-cafe": "Warm acoustic guitar swell, gentle cinematic reveal, soft orchestral intro, warm brand opening with ambient texture",
+  "startup-hustle": "Dynamic energetic whoosh with sub-bass hit, fast startup brand intro, modern power reveal, high-energy launch sound",
+  "zen-studio": "Peaceful meditation chime with gentle wind, zen bell resonance, calm mindful opening, soft ambient lift",
+  "city-pulse": "Urban cinematic swell with distant city texture, dynamic urban energy reveal, modern skyline intro, metropolitan brand sound",
+};
+
+/**
+ * Generate a short cinematic entrance SFX for video start.
+ * Returns a 2-3 second sound effect that matches the vibe.
+ */
+export async function generateCinematicEntrance(vibeId: string): Promise<Buffer> {
+  const prompt = ENTRANCE_PROMPTS[vibeId] || ENTRANCE_PROMPTS["tech-office"];
+  return generateSoundEffect(prompt, 3, 0.9);
+}
+
 /**
  * Convert text to speech using ElevenLabs TTS API.
  * Returns MP3 audio buffer.

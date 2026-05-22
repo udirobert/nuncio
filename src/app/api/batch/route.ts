@@ -4,7 +4,7 @@ import { processBatch } from "@/lib/batch/processor";
 import { readAccountSession } from "@/lib/auth/session";
 
 export async function GET() {
-  return NextResponse.json(listBatches());
+  return NextResponse.json(await listBatches());
 }
 
 export async function POST(request: NextRequest) {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   const session = readAccountSession(request);
   const creatorEmail = session?.email;
 
-  const batch = createBatch({ name, urls, senderBrief, senderName, creatorEmail, webhookUrl });
+  const batch = await createBatch({ name, urls, senderBrief, senderName, creatorEmail, webhookUrl });
 
   processBatch(batch.id, request).catch((err) => {
     console.error(`[batch] Processing failed for ${batch.id}:`, err);
@@ -42,7 +42,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
-  const batch = getBatch(id);
+  const batch = await getBatch(id);
   if (!batch) {
     return NextResponse.json({ error: "Batch not found" }, { status: 404 });
   }

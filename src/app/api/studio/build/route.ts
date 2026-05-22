@@ -6,7 +6,7 @@ import type { StudioNode, StudioBuildResult } from "@/lib/creative/melius-provid
 import { chooseArchetype } from "@/lib/hooks/select";
 import { ensureTrialCookie, resolveHookAccess } from "@/lib/hooks/tiers";
 import { pickFormat, type HookArchetypeId } from "@/lib/hooks/archetypes";
-import { generateAmbientVibe } from "@/lib/elevenlabs";
+import { generateAmbientVibe, generateCinematicEntrance } from "@/lib/elevenlabs";
 import {
   commitCreditReservation,
   estimateCreditCost,
@@ -308,15 +308,20 @@ export async function POST(request: NextRequest) {
 
         // Generate cinematic soundscape (non-blocking — don't fail the build if ElevenLabs is unavailable)
         let soundscapeDataUrl: string | undefined;
+        let cinematicEntranceUrl: string | undefined;
         const vibeId = scriptResult?.vibeId || body.vibeId || "tech-office";
         try {
           if (process.env.ELEVENLABS_API_KEY) {
             send({ phase: "generate", status: "Generating cinematic soundscape", detail: `ElevenLabs · vibe: ${vibeId}` });
             const audioBuffer = await generateAmbientVibe(vibeId);
             soundscapeDataUrl = `data:audio/mpeg;base64,${audioBuffer.toString("base64")}`;
+
+            send({ phase: "generate", status: "Generating cinematic entrance", detail: "3s SFX" });
+            const entranceBuffer = await generateCinematicEntrance(vibeId);
+            cinematicEntranceUrl = `data:audio/mpeg;base64,${entranceBuffer.toString("base64")}`;
           }
         } catch (error) {
-          console.warn("[studio/build] Soundscape generation failed (non-fatal):", error);
+          console.warn("[studio/build] Soundscape/entrance generation failed (non-fatal):", error);
         }
 
         const finalResult: StudioBuildResult = {
@@ -328,6 +333,7 @@ export async function POST(request: NextRequest) {
           recommendedVibeId: scriptResult?.vibeId || "tech-office",
           vibeReasoning: scriptResult?.vibeReasoning || "Standard professional vibe.",
           soundscapeUrl: soundscapeDataUrl,
+          cinematicEntranceUrl,
           hook: {
             archetype: hookChoice.archetype.label,
             reasoning: hookChoice.reasoning,

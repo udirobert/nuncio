@@ -38,6 +38,7 @@ export interface ShareRecord {
   industry?: string;
   videoStyle?: string;
   soundscapeUrl?: string;
+  cinematicEntranceUrl?: string;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
 }

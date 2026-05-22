@@ -8,14 +8,43 @@ function getClient(): Resend | null {
   return new Resend(key);
 }
 
-function baseTemplate(body: string): string {
-  return `<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:32px 20px">
-    <h1 style="font-size:22px;font-weight:500;margin:0 0 16px;letter-spacing:-0.3px">nuncio</h1>
-    ${body}
-    <p style="color:#999;font-size:12px;border-top:1px solid #eee;padding-top:16px;margin-top:32px">
-      nuncio · persidian.com
-    </p>
-  </div>`;
+const STYLES = `
+body{margin:0;padding:0;background-color:#f5f5f5}
+.container{max-width:520px;margin:0 auto;padding:32px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fff}
+.logo{font-size:22px;font-weight:500;margin:0 0 16px;letter-spacing:-0.3px}
+.body-text{color:#555;font-size:15px;line-height:1.6;margin:0 0 16px}
+.btn{display:inline-block;margin:20px 0;padding:14px 32px;background:#000;color:#fff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:500;text-align:center}
+.subtle{color:#999;font-size:13px;margin:0}
+.footer{color:#999;font-size:12px;border-top:1px solid #eee;padding-top:16px;margin-top:32px}
+.status-badge{display:inline-block;border-radius:8px;padding:12px 20px;margin:16px 0}
+.status-count{font-size:28px;font-weight:600}
+.status-label{color:#888;font-size:13px;margin-left:6px}
+.job-table{width:100%;border-collapse:collapse;margin:16px 0}
+.job-cell{padding:8px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#333}
+.job-link{color:#4a3aff;text-decoration:none;font-weight:500}
+.job-fail{color:#c97}
+
+@media (max-width:480px){
+.container{padding:24px 16px}
+.logo{font-size:20px}
+.body-text{font-size:14px}
+.btn{display:block;padding:16px 20px;font-size:16px;margin:16px 0}
+.status-count{font-size:24px}
+.job-cell{font-size:12px;padding:6px 8px}
+.footer{font-size:11px}
+}
+`;
+
+function wrap(html: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${STYLES}</style></head>
+<body><div class="container">
+<h1 class="logo">nuncio</h1>
+${html}
+<p class="footer">nuncio · persidian.com</p>
+</div></body>
+</html>`;
 }
 
 export function sendMagicLinkEmail(email: string, link: string): void {
@@ -28,10 +57,10 @@ export function sendMagicLinkEmail(email: string, link: string): void {
     from: FROM,
     to: email,
     subject: "Sign in to nuncio",
-    html: baseTemplate(`
-      <p style="color:#555;font-size:15px;line-height:1.5">Click the link below to sign in. This link expires in 15 minutes.</p>
-      <a href="${link}" style="display:inline-block;margin:20px 0;padding:12px 28px;background:#000;color:#fff;text-decoration:none;border-radius:8px;font-size:14px">Sign in to nuncio</a>
-      <p style="color:#999;font-size:13px">If you didn't request this, you can safely ignore this email.</p>
+    html: wrap(`
+      <p class="body-text">Click the link below to sign in. This link expires in 15 minutes.</p>
+      <a href="${link}" class="btn">Sign in to nuncio</a>
+      <p class="subtle">If you didn't request this, you can safely ignore this email.</p>
     `),
   }).then(() => {
     console.log(`[email] Magic link sent to ${email}`);
@@ -59,12 +88,12 @@ export async function sendBatchCompleteEmail(params: BatchCompleteEmailParams): 
 
   const jobRows = params.jobs.map((job) => {
     const link = job.videoId
-      ? `<a href="${params.batchUrl.replace(/\/batch.*/, "/v/" + job.videoId)}" style="color:#4a3aff;text-decoration:none">View video</a>`
-      : `<span style="color:#c97">${job.status === "failed" ? "Failed" : "—"}</span>`;
+      ? `<a href="${params.batchUrl.replace(/\/batch.*/, "/v/" + job.videoId)}" class="job-link">View video</a>`
+      : `<span class="job-fail">${job.status === "failed" ? "Failed" : "—"}</span>`;
     const name = job.recipientName ? `(${job.recipientName})` : "";
     return `<tr>
-      <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#333">${job.url} ${name}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;text-align:right">${link}</td>
+      <td class="job-cell">${job.url} ${name}</td>
+      <td class="job-cell" style="text-align:right">${link}</td>
     </tr>`;
   }).join("");
 
@@ -74,17 +103,17 @@ export async function sendBatchCompleteEmail(params: BatchCompleteEmailParams): 
     from: FROM,
     to: params.email,
     subject: `"${params.campaignName}" — batch complete (${params.completedCount}/${params.totalJobs})`,
-    html: baseTemplate(`
-      <p style="color:#555;font-size:15px;line-height:1.5">
+    html: wrap(`
+      <p class="body-text">
         Your batch campaign <strong>${params.campaignName}</strong> has finished processing.
       </p>
-      <div style="display:inline-block;background:${statusColor}10;border:1px solid ${statusColor}30;border-radius:8px;padding:12px 20px;margin:16px 0">
-        <span style="font-size:28px;font-weight:600;color:${statusColor}">${params.completedCount}</span>
-        <span style="color:#888;font-size:13px;margin-left:6px">/ ${params.totalJobs} videos ready</span>
+      <div class="status-badge" style="background:${statusColor}10;border:1px solid ${statusColor}30">
+        <span class="status-count" style="color:${statusColor}">${params.completedCount}</span>
+        <span class="status-label">/ ${params.totalJobs} videos ready</span>
         ${params.failedCount > 0 ? `<span style="color:#c97;font-size:13px;margin-left:12px">${params.failedCount} failed</span>` : ""}
       </div>
-      <table style="width:100%;border-collapse:collapse;margin:16px 0">${jobRows}</table>
-      <a href="${params.batchUrl}" style="display:inline-block;margin:12px 0;padding:10px 24px;background:#000;color:#fff;text-decoration:none;border-radius:8px;font-size:13px">View in dashboard</a>
+      <table class="job-table">${jobRows}</table>
+      <a href="${params.batchUrl}" class="btn" style="margin:12px 0;padding:12px 24px;font-size:14px">View in dashboard</a>
     `),
   });
 

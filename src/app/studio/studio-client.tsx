@@ -750,6 +750,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
             canvasUrl: buildResult.canvasUrl,
             hook: buildResult.hook,
             soundscapeUrl: buildResult.soundscapeUrl,
+            cinematicEntranceUrl: buildResult.cinematicEntranceUrl,
           },
         }),
       });

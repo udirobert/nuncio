@@ -26,6 +26,7 @@ export default function VideoLandingPage({
   const [videoData, setVideoData] = useState<ShareRecord | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hasVideoRef = useRef(false);
 
@@ -162,7 +163,14 @@ export default function VideoLandingPage({
                 </div>
               ) : !isPlaying ? (
                 <button
-                  onClick={() => setIsPlaying(true)}
+                  onClick={() => {
+                    if (videoData.cinematicEntranceUrl) {
+                      const audio = new Audio(videoData.cinematicEntranceUrl);
+                      audio.onended = () => setShowVideo(true);
+                      audio.play().catch(() => setShowVideo(true));
+                    }
+                    setIsPlaying(true);
+                  }}
                   className="w-full h-full relative group cursor-pointer"
                   aria-label="Play video"
                 >
@@ -185,7 +193,7 @@ export default function VideoLandingPage({
                   {/* Dark placeholder */}
                   <div className="w-full h-full bg-ink" />
                 </button>
-              ) : (
+              ) : showVideo ? (
                 <>
                   {videoData.soundscapeUrl && (
                     <DuckingAudio
@@ -204,6 +212,13 @@ export default function VideoLandingPage({
                     <track kind="captions" />
                   </video>
                 </>
+              ) : (
+                <div className="w-full h-full bg-ink flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-12 h-12 mx-auto rounded-full border-2 border-cream/30 border-t-cream animate-spin mb-3" />
+                    <p className="text-sm text-cream/60">Preparing cinematic experience...</p>
+                  </div>
+                </div>
               )}
             </div>
           </motion.div>
