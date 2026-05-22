@@ -1131,17 +1131,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                             </button>
                           ))}
                         </div>
-                        {detectingLanguage && (
-                          <span className="text-[10px] text-ink-faint animate-pulse mt-1 inline-block">
-                            Detecting language…
-                          </span>
-                        )}
-                        {detectedLanguage && !detectingLanguage && (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-warm mt-1">
-                            <span className="w-1 h-1 rounded-full bg-warm" />
-                            {detectedLanguage === "en" ? "English" : `${detectedLanguage.toUpperCase()} · page language`}
-                          </span>
-                        )}
                       </div>
 
                       {/* Voice agent FAB */}
@@ -1286,6 +1275,18 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     </div>
                   )}
                 </div>
+
+                {detectingLanguage && (
+                  <span className="text-[10px] text-ink-faint animate-pulse block text-center">
+                    Detecting language…
+                  </span>
+                )}
+                {detectedLanguage && !detectingLanguage && (
+                  <span className="flex items-center justify-center gap-1 text-[10px] text-warm mt-0.5">
+                    <span className="w-1 h-1 rounded-full bg-warm" />
+                    {detectedLanguage === "en" ? "Script will be in English" : `Script will be in ${detectedLanguage.toUpperCase()}`}
+                  </span>
+                )}
 
                 <button
                   onClick={handleEnrich}

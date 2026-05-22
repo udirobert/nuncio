@@ -1,265 +1,82 @@
 "use client";
 
-import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import Link from "next/link";
 import { Header } from "@/components/header";
-import { UrlForm } from "@/components/url-form";
-import { ProgressStepper } from "@/components/progress-stepper";
-import { ScriptReview } from "@/components/script-review";
-import { VideoPlayer } from "@/components/video-player";
-import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { ShowcaseStrip } from "@/components/landing/showcase-strip";
 import { VideoProof } from "@/components/landing/video-proof";
-import { generateVideo, continueAfterCoach, continueAfterProfilePicker, renderVideo, isDemoMode } from "@/lib/pipeline";
-import type { VideoCustomization, HeyGenAvatar, HeyGenVoice } from "@/lib/heygen";
 import { SHOWCASE_RECIPIENTS } from "@/lib/showcase";
-import type { PipelineState } from "@/lib/pipeline";
-import { AnglePicker } from "@/components/angle-picker";
-import { ProfilePicker } from "@/components/profile-picker";
-import type { IntentId } from "@/components/intent-chips";
 
-interface HomeClientProps {
-  initialAvatars?: HeyGenAvatar[];
-  initialVoices?: HeyGenVoice[];
-}
-
-export default function HomeClient({ initialAvatars, initialVoices }: HomeClientProps) {
-  const [state, setState] = useState<PipelineState>({
-    stage: "input",
-    steps: [],
-  });
-
-  async function handleSubmit(
-    urls: string[],
-    senderBrief?: string,
-    intent?: IntentId,
-  ) {
-    await generateVideo(urls, setState, senderBrief, intent);
-  }
-
-  function handleReset() {
-    setState({ stage: "input", steps: [] });
-  }
-
-  function handleEditScript(script: string) {
-    setState((prev) => ({ ...prev, script }));
-  }
-
-  async function handleRender(customization?: VideoCustomization) {
-    if (!state.script) return;
-    await renderVideo(
-      state.script,
-      state.assetUrls || [],
-      setState,
-      state.profile?.name,
-      customization,
-      {
-        profile: state.profile,
-        sources: state.sources,
-        canvas: state.canvas,
-        trace: state.trace,
-        share: state.share,
-      }
-    );
-  }
-
+export default function HomeClient() {
   return (
     <>
-      <Header stage={state.stage} isDemo={state.isDemo || isDemoMode()} />
+      <Header />
 
       <AnimatePresence mode="wait">
-        {state.stage === "input" && (
-          <motion.div
-            key="input"
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="flex-1 flex flex-col"
-          >
-            <Hero>
-              <UrlForm onSubmit={handleSubmit} />
-            </Hero>
-            <VideoProof />
-            <ShowcaseStrip items={SHOWCASE_RECIPIENTS} />
-            <HowItWorks />
-          </motion.div>
-        )}
-
-        {state.stage === "progress" && (
-          <motion.div
-            key="progress"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="flex-1 flex flex-col"
-          >
-            <ProgressStepper
-              steps={state.steps}
-              warnings={state.warnings}
-              urls={state.urls}
-              script={state.script}
-              recipientName={state.profile?.name}
+        <motion.div
+          key="input"
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.3 }}
+          className="flex-1 flex flex-col"
+        >
+          <section className="relative">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(circle at 50% 35%, rgba(255,255,255,0.7) 0%, rgba(250,249,246,0) 55%)",
+              }}
             />
-          </motion.div>
-        )}
-
-{state.stage === "coach" && state.profile && (
-           <motion.div
-             key="coach"
-             initial={{ opacity: 0 }}
-             animate={{ opacity: 1 }}
-             exit={{ opacity: 0, y: -20 }}
-             transition={{ duration: 0.3 }}
-             className="flex-1 flex flex-col"
-           >
-             <AnglePicker
-               profile={state.profile}
-               onConfirm={(selectedAngles) => {
-                 continueAfterCoach(
-                   setState,
-                   state.enrichedMarkdown,
-                   state.senderBrief,
-                   state.intent,
-                   selectedAngles
-                 );
-               }}
-               onSkip={() => {
-                 continueAfterCoach(
-                   setState,
-                   state.enrichedMarkdown,
-                   state.senderBrief,
-                   state.intent
-                 );
-               }}
-             />
-           </motion.div>
-         )}
-
-         {state.stage === "profilePicker" && (
-           <motion.div
-             key="profilePicker"
-             initial={{ opacity: 0 }}
-             animate={{ opacity: 1 }}
-             exit={{ opacity: 0, y: -20 }}
-             transition={{ duration: 0.3 }}
-             className="flex-1 flex flex-col"
-           >
-             <ProfilePicker
-               primaryUrl={state.urls?.[0] || ""}
-               discoveredProfiles={state.discoveredProfiles || []}
-               onConfirm={(profilesToEnrich) => {
-                 continueAfterProfilePicker(
-                   setState,
-                   profilesToEnrich,
-                   state.senderBrief,
-                   state.intent
-                 );
-               }}
-               onSkip={() => {
-                 continueAfterProfilePicker(
-                   setState,
-                   state.urls || [],
-                   state.senderBrief,
-                   state.intent
-                 );
-               }}
-             />
-           </motion.div>
-         )}
-
-         {state.stage === "review" && state.script && state.profile && (
-          <motion.div
-            key="review"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="flex-1 flex flex-col"
-          >
-            <ScriptReview
-              script={state.script}
-              profile={state.profile}
-              sources={state.sources}
-              canvas={state.canvas}
-              trace={state.trace}
-              urls={state.urls}
-              senderBrief={state.senderBrief}
-              onEdit={handleEditScript}
-              onRender={handleRender}
-              initialAvatars={initialAvatars}
-              initialVoices={initialVoices}
-            />
-          </motion.div>
-        )}
-
-        {state.stage === "done" && state.videoUrl && (
-          <motion.div
-            key="done"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-            className="flex-1 flex flex-col"
-          >
-            <VideoPlayer
-              videoUrl={state.videoUrl}
-              videoId={state.videoId}
-              shareId={state.share?.id}
-              canvas={state.canvas}
-              trace={state.trace}
-              captions={state.captions}
-              onReset={handleReset}
-              recipientName={state.profile?.name}
-            />
-          </motion.div>
-        )}
-
-        {state.stage === "error" && (
-          <motion.div
-            key="error"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.4 }}
-            className="flex-1 flex items-center justify-center px-6"
-          >
-            <div className="w-full max-w-[540px] text-center space-y-6">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                className="w-12 h-12 rounded-full bg-error-soft flex items-center justify-center mx-auto"
-              >
-                <svg viewBox="0 0 16 16" className="w-5 h-5 text-error" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <circle cx="8" cy="8" r="6" />
-                  <path d="M8 5v3.5M8 10.5v.5" />
-                </svg>
-              </motion.div>
-              <div>
-                <p className="text-sm text-ink-light mb-1">{state.error}</p>
-                <p className="text-xs text-ink-faint">
-                  This can happen with profile access issues, provider limits, or a dropped connection while rendering.
-                </p>
-              </div>
-              <div className="flex flex-wrap justify-center gap-3">
-                {state.error?.toLowerCase().includes("insufficient credits") && (
-                  <button
-                    onClick={() => window.location.assign("/pricing")}
-                    className="btn-press inline-flex items-center gap-2 rounded-2xl bg-ink px-5 py-3.5 text-sm font-medium text-cream hover:bg-ink-light transition-colors"
+            <div className="relative mx-auto flex w-full max-w-[640px] items-start justify-center pt-16 lg:pt-20 pb-12 lg:pb-16 px-6">
+              <div className="w-full max-w-[540px]">
+                <div className="mb-8 lg:mb-10">
+                  <motion.h1
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                    className="font-[family-name:var(--font-display)] text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[0.95] mb-3"
                   >
-                    Buy credits
-                  </button>
-                )}
-                <button
-                  onClick={handleReset}
-                  className="btn-press inline-flex items-center gap-2 rounded-2xl border border-cream-dark px-5 py-3.5 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+                    Send a video
+                    <br />
+                    <span className="italic">they&apos;ll actually watch</span>
+                  </motion.h1>
+                  <motion.p
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                    className="text-ink-muted text-[14px] leading-relaxed max-w-[380px]"
+                  >
+                    Paste their profile. We&apos;ll research them, write a personalised
+                    script, and build a creative canvas — in ~5 minutes.
+                  </motion.p>
+                </div>
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
                 >
-                  Try again
-                </button>
+                  <Link
+                    href="/studio"
+                    className="btn-press w-full rounded-2xl px-6 py-4 text-sm font-medium bg-ink text-cream shadow-xl shadow-ink/15 hover:shadow-2xl hover:shadow-ink/20 hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2"
+                  >
+                    Build a video
+                    <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M3 8h10M9 4l4 4-4 4" />
+                    </svg>
+                  </Link>
+                  <p className="text-center text-[11px] text-ink-faint mt-3">
+                    No account needed · ~5 minutes
+                  </p>
+                </motion.div>
               </div>
             </div>
-          </motion.div>
-        )}
+          </section>
+          <VideoProof />
+          <ShowcaseStrip items={SHOWCASE_RECIPIENTS} />
+          <HowItWorks />
+        </motion.div>
       </AnimatePresence>
     </>
   );

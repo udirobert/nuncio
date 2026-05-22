@@ -77,17 +77,6 @@ export function QuickInput({
                   </button>
                 ))}
               </div>
-              {detectingLanguage && (
-                <span className="text-[10px] text-ink-faint animate-pulse mt-1 inline-block">
-                  Detecting language…
-                </span>
-              )}
-              {detectedLanguage && !detectingLanguage && (
-                <span className="inline-flex items-center gap-1 text-[10px] text-warm mt-1">
-                  <span className="w-1 h-1 rounded-full bg-warm" />
-                  {detectedLanguage === "en" ? "English" : `${detectedLanguage.toUpperCase()} · page language`}
-                </span>
-              )}
             </div>
 
             <div>
@@ -118,6 +107,18 @@ export function QuickInput({
                 className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
               />
             </div>
+
+            {detectingLanguage && (
+              <span className="text-[10px] text-ink-faint animate-pulse inline-block">
+                Detecting language…
+              </span>
+            )}
+            {detectedLanguage && !detectingLanguage && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-warm">
+                <span className="w-1 h-1 rounded-full bg-warm" />
+                {detectedLanguage === "en" ? "Script will be in English" : `Script will be in ${detectedLanguage.toUpperCase()}`}
+              </span>
+            )}
 
             <button
               onClick={onEnrich}

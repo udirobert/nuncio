@@ -26,8 +26,7 @@ export function Header({ stage, isDemo }: HeaderProps) {
   const showStage = stage && stage !== "input" && stage !== "error";
 
   const NAV_LINKS = [
-    { label: "Video", href: "/", subtitle: "Quick render" },
-    { label: "Studio", href: "/studio", subtitle: "Canvas" },
+    { label: "Studio", href: "/studio", subtitle: "Build video" },
     { label: "Playbook", href: "/playbook" },
     { label: "Pricing", href: "/pricing" },
     { label: "Batch", href: "/batch" },
