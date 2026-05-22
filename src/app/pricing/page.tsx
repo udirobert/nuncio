@@ -18,16 +18,9 @@ const CREDIT_PACKS = [
   {
     id: "credits-500",
     label: "500 credits",
-    price: "$59",
+    price: "$99",
     priceId: process.env.NEXT_PUBLIC_STRIPE_CREDITS_500_PRICE_ID || "",
     note: "Best for founder-led prospecting.",
-  },
-  {
-    id: "credits-1000",
-    label: "1,000 credits",
-    price: "$99",
-    priceId: process.env.NEXT_PUBLIC_STRIPE_CREDITS_1000_PRICE_ID || "",
-    note: "Team volume and testing.",
   },
 ] as const;
 
@@ -321,7 +314,7 @@ function PricingContent() {
             One-time packs are useful while Stripe is in test mode and for users who need a few extra renders.
           </p>
         </div>
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
           {CREDIT_PACKS.map((pack) => (
             <button
               key={pack.id}
