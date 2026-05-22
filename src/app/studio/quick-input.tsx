@@ -12,6 +12,8 @@ interface QuickInputProps {
   setSenderBrief: (v: string) => void;
   onEnrich: () => void;
   onToggleMode: () => void;
+  detectedLanguage?: string | null;
+  detectingLanguage?: boolean;
 }
 
 export function QuickInput({
@@ -23,6 +25,8 @@ export function QuickInput({
   setSenderBrief,
   onEnrich,
   onToggleMode,
+  detectedLanguage,
+  detectingLanguage,
 }: QuickInputProps) {
   return (
     <motion.div
@@ -73,6 +77,17 @@ export function QuickInput({
                   </button>
                 ))}
               </div>
+              {detectingLanguage && (
+                <span className="text-[10px] text-ink-faint animate-pulse mt-1 inline-block">
+                  Detecting language…
+                </span>
+              )}
+              {detectedLanguage && !detectingLanguage && (
+                <span className="inline-flex items-center gap-1 text-[10px] text-warm mt-1">
+                  <span className="w-1 h-1 rounded-full bg-warm" />
+                  {detectedLanguage === "en" ? "English" : `${detectedLanguage.toUpperCase()} · page language`}
+                </span>
+              )}
             </div>
 
             <div>

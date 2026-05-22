@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import type { Profile } from "@/lib/claude";
-import { languageLabel } from "@/lib/languages";
+import { LANGUAGES, languageLabel } from "@/lib/languages";
 
 interface QuickReviewProps {
   profile: Profile | null;
@@ -14,6 +14,9 @@ interface QuickReviewProps {
   onBack: () => void;
   onToggleMode: () => void;
   regenerating: boolean;
+  translateEnabled: boolean;
+  onToggleTranslate: () => void;
+  onLanguageChange: (code: string) => void;
 }
 
 export function QuickReview({
@@ -25,6 +28,9 @@ export function QuickReview({
   onBack,
   onToggleMode,
   regenerating,
+  translateEnabled,
+  onToggleTranslate,
+  onLanguageChange,
 }: QuickReviewProps) {
   const [editing, setEditing] = useState(false);
   const [editedScript, setEditedScript] = useState(script);
@@ -139,6 +145,39 @@ export function QuickReview({
                       {hook}
                     </span>
                   ))}
+                </div>
+              )}
+              {profile.language && profile.language !== "en" && (
+                <div className="flex items-center justify-between pt-2 border-t border-cream-dark">
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={profile.language}
+                      onChange={(e) => onLanguageChange(e.target.value)}
+                      className="text-[11px] rounded-md border border-cream-dark px-2 py-1 bg-white text-ink focus:outline-none focus:ring-2 focus:ring-accent/30"
+                    >
+                      {LANGUAGES.map((l) => (
+                        <option key={l.code} value={l.code}>{l.label}</option>
+                      ))}
+                    </select>
+                    <span className="text-[10px] text-ink-faint">· auto-detected</span>
+                  </div>
+                  <label className="flex items-center gap-1.5 text-[10px] text-ink-faint cursor-pointer select-none">
+                    <span className={translateEnabled ? "text-warm" : "text-ink-faint"}>
+                      {translateEnabled ? `Translate` : `English`}
+                    </span>
+                    <button
+                      onClick={onToggleTranslate}
+                      className={`relative w-8 h-4 rounded-full transition-colors ${
+                        translateEnabled ? "bg-warm" : "bg-cream-dark"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform ${
+                          translateEnabled ? "translate-x-4" : ""
+                        }`}
+                      />
+                    </button>
+                  </label>
                 </div>
               )}
             </div>

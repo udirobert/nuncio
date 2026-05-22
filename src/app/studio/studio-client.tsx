@@ -383,6 +383,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [capturedEmail, setCapturedEmail] = useState("");
   const [shareUrl, setShareUrl] = useState("");
   const [captureIntent, setCaptureIntent] = useState<CaptureIntent | null>(null);
+  const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
+  const [detectingLanguage, setDetectingLanguage] = useState(false);
+  const [translateEnabled, setTranslateEnabled] = useState(true);
   const [voiceOverlayOpen, setVoiceOverlayOpen] = useState(false);
   const [captureEmail, setCaptureEmail] = useState("");
   const [captureHoneypot, setCaptureHoneypot] = useState("");
@@ -453,6 +456,38 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     }).catch(() => {});
   }, [searchParams]);
 
+  // Auto-detect language from URL
+  const urlRef = useRef(url);
+  urlRef.current = url;
+  useEffect(() => {
+    const currentUrl = urlRef.current;
+    if (!currentUrl.trim() || currentUrl.startsWith("__")) {
+      setDetectedLanguage(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setDetectingLanguage(true);
+      try {
+        const res = await fetch("/api/studio/language-detect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: currentUrl }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (urlRef.current === currentUrl) {
+            setDetectedLanguage(data.language);
+          }
+        }
+      } catch {
+        if (urlRef.current === currentUrl) setDetectedLanguage(null);
+      } finally {
+        if (urlRef.current === currentUrl) setDetectingLanguage(false);
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [url]);
+
   function saveSenderMemory() {
     const brief = senderBrief.trim();
     const name = senderName.trim();
@@ -513,6 +548,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           intent: archetype === "auto" ? undefined : undefined,
           archetype: archetype === "auto" ? undefined : archetype,
           scriptVariants: !quickMode,
+          language: translateEnabled ? (detectedLanguage || undefined) : "en",
         }),
       });
 
@@ -549,6 +585,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           archetype: archetype === "auto" ? undefined : archetype,
           profile: reviewProfile,
           scriptVariants: !quickMode,
+          language: translateEnabled ? (reviewProfile.language || undefined) : "en",
         }),
       });
       if (res.ok) {
@@ -1016,6 +1053,8 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               setSenderBrief={setSenderBrief}
               onEnrich={handleEnrich}
               onToggleMode={toggleMode}
+              detectedLanguage={detectedLanguage}
+              detectingLanguage={detectingLanguage}
             />
           ) : (
             <motion.div
@@ -1069,7 +1108,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                           className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
                           onKeyDown={(e) => e.key === "Enter" && handleEnrich()}
                         />
-                        <div className="flex flex-wrap gap-2 mt-2">
+                          <div className="flex flex-wrap gap-2 mt-2">
                           {[
                             { label: "Sundar Pichai", url: "https://linkedin.com/in/sundarpichai" },
                             { label: "Vercel CEO", url: "https://x.com/rauchg" },
@@ -1092,6 +1131,17 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                             </button>
                           ))}
                         </div>
+                        {detectingLanguage && (
+                          <span className="text-[10px] text-ink-faint animate-pulse mt-1 inline-block">
+                            Detecting language…
+                          </span>
+                        )}
+                        {detectedLanguage && !detectingLanguage && (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-warm mt-1">
+                            <span className="w-1 h-1 rounded-full bg-warm" />
+                            {detectedLanguage === "en" ? "English" : `${detectedLanguage.toUpperCase()} · page language`}
+                          </span>
+                        )}
                       </div>
 
                       {/* Voice agent FAB */}
@@ -1325,6 +1375,11 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               onBack={() => setStage("input")}
               onToggleMode={toggleMode}
               regenerating={reviewRegenerating}
+              translateEnabled={translateEnabled}
+              onToggleTranslate={() => setTranslateEnabled(!translateEnabled)}
+              onLanguageChange={(code) => {
+                setReviewProfile(prev => prev ? { ...prev, language: code } : prev);
+              }}
             />
           ) : (
             <motion.div
@@ -1453,10 +1508,29 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
                       {/* Language selector */}
                       <div>
-                        <label className="text-[10px] text-ink-faint block mb-2">
-                          Language
-                          <span className="ml-1.5 text-warm">(auto-detected)</span>
-                        </label>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-[10px] text-ink-faint block">
+                            Language
+                            <span className="ml-1.5 text-warm">(auto-detected)</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 text-[10px] text-ink-faint cursor-pointer select-none">
+                            <span className={translateEnabled ? "text-warm" : "text-ink-faint"}>
+                              {translateEnabled ? `Translate` : `English`}
+                            </span>
+                            <button
+                              onClick={() => setTranslateEnabled(!translateEnabled)}
+                              className={`relative w-8 h-4 rounded-full transition-colors ${
+                                translateEnabled ? "bg-warm" : "bg-cream-dark"
+                              }`}
+                            >
+                              <span
+                                className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform ${
+                                  translateEnabled ? "translate-x-4" : ""
+                                }`}
+                              />
+                            </button>
+                          </label>
+                        </div>
                         <select
                           value={reviewProfile.language || "en"}
                           onChange={(e) => setReviewProfile({ ...reviewProfile, language: e.target.value })}

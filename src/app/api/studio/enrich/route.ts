@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const { url, senderBrief, senderName, intent, archetype } = body;
   const clientProfile = body.profile as Profile | undefined;
+  const languageOverride = body.language as string | undefined;
 
   const subject = getCreditSubject(request);
   const researchCost = estimateCreditCost("profile.research");
@@ -56,6 +57,9 @@ export async function POST(request: NextRequest) {
 
     if (clientProfile) {
       profile = clientProfile;
+      if (languageOverride) {
+        profile.language = languageOverride;
+      }
     } else {
       if (!url) {
         return NextResponse.json({ error: "url is required" }, { status: 400 });
@@ -79,6 +83,10 @@ export async function POST(request: NextRequest) {
           { status: 422 }
         );
       }
+    }
+
+    if (languageOverride) {
+      profile.language = languageOverride;
     }
 
     let recentActivity: string | undefined;
