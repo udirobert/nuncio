@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
   }
 
-  const token = createMagicLinkToken(normalized);
+  const token = await createMagicLinkToken(normalized);
   const link = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/auth/verify?token=${token}`;
 
   sendMagicLinkEmail(normalized, link);

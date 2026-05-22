@@ -1,8 +1,21 @@
 import type { Batch, BatchJob, CreateBatchInput } from "./types";
+import { getBatchStorageProvider } from "@/lib/storage";
 
-const batches = new Map<string, Batch>();
+function extractName(url: string): string | undefined {
+  try {
+    const path = new URL(url).pathname;
+    const segments = path.split("/").filter(Boolean);
+    if (segments.length > 0) {
+      return segments[segments.length - 1].replace(/[-_]/g, " ");
+    }
+  } catch {
+    // ignore
+  }
+  return undefined;
+}
 
-export function createBatch(input: CreateBatchInput): Batch {
+export async function createBatch(input: CreateBatchInput): Promise<Batch> {
+  const provider = getBatchStorageProvider();
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
 
@@ -26,26 +39,28 @@ export function createBatch(input: CreateBatchInput): Batch {
     })),
   };
 
-  batches.set(id, batch);
+  await provider.create(batch);
   return batch;
 }
 
-export function getBatch(id: string): Batch | undefined {
-  return batches.get(id);
+export async function getBatch(id: string): Promise<Batch | undefined> {
+  const provider = getBatchStorageProvider();
+  const batch = await provider.get(id);
+  return batch || undefined;
 }
 
-export function listBatches(): Batch[] {
-  return Array.from(batches.values()).sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+export async function listBatches(): Promise<Batch[]> {
+  const provider = getBatchStorageProvider();
+  return provider.list();
 }
 
-export function updateJob(
+export async function updateJob(
   batchId: string,
   jobId: string,
   updates: Partial<BatchJob>,
-): void {
-  const batch = batches.get(batchId);
+): Promise<void> {
+  const provider = getBatchStorageProvider();
+  const batch = await provider.get(batchId);
   if (!batch) return;
   const job = batch.jobs.find((j) => j.id === jobId);
   if (!job) return;
@@ -53,28 +68,20 @@ export function updateJob(
   batch.completedCount = batch.jobs.filter((j) => j.status === "completed").length;
   batch.failedCount = batch.jobs.filter((j) => j.status === "failed").length;
   batch.updatedAt = new Date().toISOString();
+  await provider.update(batch);
 }
 
-export function deleteBatch(batchId: string): boolean {
-  return batches.delete(batchId);
+export async function deleteBatch(batchId: string): Promise<boolean> {
+  const provider = getBatchStorageProvider();
+  await provider.delete(batchId);
+  return true;
 }
 
-export function updateBatchStatus(batchId: string, status: Batch["status"]): void {
-  const batch = batches.get(batchId);
+export async function updateBatchStatus(batchId: string, status: Batch["status"]): Promise<void> {
+  const provider = getBatchStorageProvider();
+  const batch = await provider.get(batchId);
   if (!batch) return;
   batch.status = status;
   batch.updatedAt = new Date().toISOString();
-}
-
-function extractName(url: string): string | undefined {
-  try {
-    const path = new URL(url).pathname;
-    const segments = path.split("/").filter(Boolean);
-    if (segments.length > 0) {
-      return segments[segments.length - 1].replace(/[-_]/g, " ");
-    }
-  } catch {
-    // ignore
-  }
-  return undefined;
+  await provider.update(batch);
 }

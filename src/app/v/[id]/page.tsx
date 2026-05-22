@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import type { ShareRecord } from "@/lib/artifacts";
+import { DuckingAudio } from "@/components/ducking-audio";
 
 /**
  * Branded video landing page — /v/[id]
@@ -25,6 +26,7 @@ export default function VideoLandingPage({
   const [videoData, setVideoData] = useState<ShareRecord | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const hasVideoRef = useRef(false);
 
   useEffect(() => {
@@ -186,15 +188,13 @@ export default function VideoLandingPage({
               ) : (
                 <>
                   {videoData.soundscapeUrl && (
-                    <audio
-                      src={videoData.soundscapeUrl}
-                      autoPlay
-                      loop
-                      className="hidden"
-                      ref={(el) => { if (el) el.volume = 0.3; }}
+                    <DuckingAudio
+                      soundscapeUrl={videoData.soundscapeUrl}
+                      videoRef={videoRef}
                     />
                   )}
                   <video
+                    ref={videoRef}
                     src={videoData.videoUrl}
                     controls
                     autoPlay

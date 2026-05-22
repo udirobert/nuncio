@@ -97,10 +97,10 @@ See [`docs/CREDITS.md`](./CREDITS.md) for full cost model and provider pricing b
 - [x] Video link ("View") for completed jobs
 - [x] Error messages displayed inline per job
 - [x] Summary header (campaigns, profiles, completed, failed)
-- [ ] Email delivery integration (attach video link to outreach email)
-- [ ] CSV upload for batch URL import
-- [ ] Deduplication — don't regenerate if a video for that profile already exists within 30 days
-- [ ] Webhook on batch completion
+- [x] Email delivery integration (attach video link to outreach email)
+- [x] CSV upload for batch URL import
+- [x] Deduplication — don't regenerate if a video for that profile already exists within 30 days
+- [x] Webhook on batch completion
 
 ---
 
@@ -113,8 +113,8 @@ See [`docs/CREDITS.md`](./CREDITS.md) for full cost model and provider pricing b
 - [x] Soundscape generation integrated into Studio build pipeline
 - [x] Soundscape credit cost (1 credit per generation)
 - [x] TTS integration for voice-over (ElevenLabs Flash model)
-- [ ] Context-aware vibe generation — LLM picks soundscape prompt based on target industry
-- [ ] Layered audio player in `/v/[id]` with "ducking"
+- [x] Context-aware vibe generation — LLM picks soundscape prompt based on target industry
+- [x] Layered audio player in `/v/[id]` with "ducking"
 - [ ] Cinematic entrance — procedural SFX on video start
 - [ ] Script-triggered Foley — sound effects synced to script keywords
 
@@ -149,8 +149,8 @@ See [`docs/CREDITS.md`](./CREDITS.md) for full cost model and provider pricing b
 
 **Goal:** Make the system reliable and observable for paying users.
 
-- [ ] Persistent batch queue (database-backed, survive restarts)
-- [ ] Persistent magic link tokens (database or Redis)
+- [x] Persistent batch queue (database-backed, survive restarts)
+- [x] Persistent magic link tokens (database or Redis)
 - [ ] Error monitoring (Sentry or similar)
 - [x] User dashboard — account page with credit history, past videos, usage stats
 - [x] Onboarding flow — first-visit modal with guided tips
@@ -196,8 +196,8 @@ nodes, and vibe selection add significant cognitive overhead for new users.
 
 - **HeyGen generation time:** 60–180 seconds per video. Cannot be made faster.
 - **TinyFish login walls:** LinkedIn, Facebook, and some Twitter profiles require authentication.
-- **In-memory state:** Batch queue and magic link tokens are in-memory Maps — lost on server restart.
-  Acceptable for single-server deployment; needs database backing before horizontal scaling.
+- **In-memory state:** Batch queue and magic link tokens now persisted via file or Turso storage
+  providers (determined by `TURSO_DATABASE_URL`). Survives restarts. Ready for horizontal scaling.
 - **Stripe test mode:** All payments are in Stripe test mode. Switch to live mode before accepting
   real payments.
 

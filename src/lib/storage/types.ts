@@ -1,4 +1,5 @@
 import type { ShareRecord } from "@/lib/artifacts";
+import type { Batch } from "@/lib/batch/types";
 
 export type ShareRecordInput = Omit<ShareRecord, "id" | "createdAt">;
 
@@ -71,6 +72,33 @@ export interface CreditAccountSummary {
   workspace: WorkspaceAccount;
   balance: number;
   transactions: CreditTransactionRecord[];
+}
+
+export interface MagicLinkToken {
+  token: string;
+  email: string;
+  expiresAt: number;
+}
+
+export interface TokenStorageProvider {
+  readonly name: string;
+  create(email: string, expiresAt: number): Promise<string>;
+  consume(token: string): Promise<string | null>;
+}
+
+export interface BatchRecord {
+  id: string;
+  record_json: string;
+  created_at: string;
+}
+
+export interface BatchStorageProvider {
+  readonly name: string;
+  create(batch: Batch): Promise<void>;
+  get(id: string): Promise<Batch | null>;
+  list(): Promise<Batch[]>;
+  update(record: Batch): Promise<void>;
+  delete(id: string): Promise<void>;
 }
 
 export interface AccountStorageProvider {

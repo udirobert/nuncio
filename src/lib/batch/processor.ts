@@ -78,12 +78,12 @@ export async function processJob(
   const renderCost = estimateCreditCost("video.render");
   const totalCost = researchCost + scriptCost + soundscapeCost + renderCost;
 
-  updateJob(batch.id, job.id, { status: "processing", startedAt: new Date().toISOString() });
+  await updateJob(batch.id, job.id, { status: "processing", startedAt: new Date().toISOString() });
 
   try {
     const existingVideo = await findExistingVideo(job.url);
     if (existingVideo) {
-      updateJob(batch.id, job.id, {
+      await updateJob(batch.id, job.id, {
         status: "completed",
         videoId: existingVideo,
         completedAt: new Date().toISOString(),
@@ -123,14 +123,14 @@ export async function processJob(
 
     await commitCreditReservation(reservation.id);
 
-    updateJob(batch.id, job.id, {
+    await updateJob(batch.id, job.id, {
       status: "completed",
       videoId: video.videoId,
       completedAt: new Date().toISOString(),
     });
   } catch (error) {
     if (error instanceof InsufficientCreditsError) {
-      updateJob(batch.id, job.id, {
+      await updateJob(batch.id, job.id, {
         status: "failed",
         error: `Insufficient credits — ${error.required} required, ${error.available} available.`,
         completedAt: new Date().toISOString(),
@@ -139,7 +139,7 @@ export async function processJob(
     }
 
     const msg = error instanceof Error ? error.message : "Unknown error";
-    updateJob(batch.id, job.id, {
+    await updateJob(batch.id, job.id, {
       status: "failed",
       error: msg,
       completedAt: new Date().toISOString(),
@@ -149,23 +149,23 @@ export async function processJob(
 
 export async function processBatch(batchId: string, request: Request): Promise<void> {
   const { getBatch } = await import("./queue");
-  const batch = getBatch(batchId);
+  const batch = await getBatch(batchId);
   if (!batch) return;
 
-  updateBatchStatus(batchId, "running");
+  await updateBatchStatus(batchId, "running");
 
   for (const job of batch.jobs) {
     if (job.status !== "queued") continue;
     await processJob(job, batch, request);
   }
 
-  const updated = getBatch(batchId);
+  const updated = await getBatch(batchId);
   if (!updated) return;
 
   const hasFailed = updated.jobs.some((j) => j.status === "failed");
   const allDone = updated.jobs.every((j) => j.status === "completed" || j.status === "failed");
   if (allDone) {
-    updateBatchStatus(batchId, hasFailed ? "failed" : "completed");
+    await updateBatchStatus(batchId, hasFailed ? "failed" : "completed");
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://nuncio.persidian.com";
 

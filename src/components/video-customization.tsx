@@ -56,9 +56,10 @@ interface VideoCustomizationProps {
   onCustomize: (customization: VideoCustomization) => void;
   initialAvatars?: HeyGenAvatar[];
   initialVoices?: HeyGenVoice[];
+  recommendedVibeId?: string;
 }
 
-export function VideoCustomization({ onCustomize, initialAvatars, initialVoices }: VideoCustomizationProps) {
+export function VideoCustomization({ onCustomize, initialAvatars, initialVoices, recommendedVibeId }: VideoCustomizationProps) {
   const [avatars, setAvatars] = useState<HeyGenAvatar[]>(
     () => initialAvatars || readCache<HeyGenAvatar[]>(CACHE_KEY_AVATARS) || []
   );
@@ -74,15 +75,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices 
   const [backgroundColor, setBackgroundColor] = useState("#F5EDE3");
   const [customBg, setCustomBg] = useState("");
   const [aspectIndex, setAspectIndex] = useState(0);
-  const [vibeId, setVibeId] = useState<string>("tech-office");
-  
-  // Update vibeId when customization prop changes (from AI recommendation)
-  // This allows the Studio to "push" the recommended vibe into the component
-  useEffect(() => {
-    // We'll expose a way to set the internal state from the outside 
-    // or just rely on the parent managing the state. 
-    // For now, let's keep it simple and just use an effect if we detect a change.
-  }, []);
+  const [vibeId, setVibeId] = useState<string>(recommendedVibeId || "tech-office");
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
@@ -108,6 +101,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices 
           { id: "quiet-cafe", label: "Quiet Cafe", icon: "☕", description: "Warm, morning vibe" },
           { id: "startup-hustle", label: "Startup Hustle", icon: "🚀", description: "High-energy atmosphere" },
           { id: "zen-studio", label: "Zen Studio", icon: "🧘", description: "Calm, focused sanctuary" },
+          { id: "city-pulse", label: "City Pulse", icon: "🏙️", description: "Urban, dynamic energy" },
         ];
         setVibePresets(VIBES);
       } catch { /* noop */ }

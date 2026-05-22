@@ -1719,6 +1719,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                           onCustomize={handleCustomize}
                           initialAvatars={initialAvatars}
                           initialVoices={initialVoices}
+                          recommendedVibeId={buildResult?.recommendedVibeId}
                         />
                       </motion.div>
                     )}
