@@ -53,6 +53,10 @@ export function updateJob(
   batch.updatedAt = new Date().toISOString();
 }
 
+export function deleteBatch(batchId: string): boolean {
+  return batches.delete(batchId);
+}
+
 export function updateBatchStatus(batchId: string, status: Batch["status"]): void {
   const batch = batches.get(batchId);
   if (!batch) return;
