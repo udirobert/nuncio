@@ -4,8 +4,9 @@
 
 nuncio is in production. The core pipeline — enrichment → script → canvas → video — is live at
 [nuncio.persidian.com](https://nuncio.persidian.com) with credit enforcement, Stripe payments,
-magic-link auth, and batch campaign support. All provider integrations (TinyFish, Featherless,
-HeyGen, Melius, ElevenLabs, Speechmatics) are active.
+magic-link auth, batch campaign support, persistent state, cinematic soundscapes with ducking,
+recent activity/company enrichment, tone matching, script A/B variants, and sender brief memory.
+All provider integrations (TinyFish, Featherless, HeyGen, Melius, ElevenLabs, Speechmatics) are active.
 
 ---
 
@@ -151,7 +152,7 @@ See [`docs/CREDITS.md`](./CREDITS.md) for full cost model and provider pricing b
 
 - [x] Persistent batch queue (database-backed, survive restarts)
 - [x] Persistent magic link tokens (database or Redis)
-- [ ] Error monitoring (Sentry or similar)
+- [x] Error monitoring (Sentry — @sentry/nextjs v10 configured via instrumentation.ts + withSentryConfig)
 - [x] User dashboard — account page with credit history, past videos, usage stats
 - [x] Onboarding flow — first-visit modal with guided tips
 - [ ] Studio page simplification — progressive disclosure of Hook Engine complexity
@@ -182,9 +183,9 @@ history, usage stats, recent videos and batch campaigns. Onboarding modal guides
 users through the core flow. Pricing page and account menu link to dashboard. Cross-links
 between Studio and Batch improve discoverability.
 
-### System Architecture (8/10)
+### System Architecture (8.5/10)
 Clean separation of concerns, excellent fallback chains, production-grade credit reservation
-pattern. Weak spots: in-memory queues/tokens (lost on restart), no error monitoring.
+pattern. Batch queue and magic link tokens now persisted. Sentry error monitoring configured (requires SENTRY_DSN env var to activate).
 
 ### Intuitiveness (6/10)
 Core "paste URL → get video" is simple. Recent activity & company enrichment make the output
