@@ -10,7 +10,7 @@ import type { StudioBuildResult, StudioNode } from "@/lib/creative/melius-provid
 import type { VideoCustomization, HeyGenAvatar, HeyGenVoice } from "@/lib/heygen";
 import { VideoCustomization as VideoCustomizationComponent } from "@/components/video-customization";
 import { OnboardingModal } from "@/components/onboarding-modal";
-import { LANGUAGES, languageLabel } from "@/lib/languages";
+import { LANGUAGES } from "@/lib/languages";
 import { QuickInput } from "./quick-input";
 import { QuickReview } from "./quick-review";
 import { QuickProgress } from "./quick-progress";
@@ -387,6 +387,8 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [detectingLanguage, setDetectingLanguage] = useState(false);
   const [translateEnabled, setTranslateEnabled] = useState(true);
   const [voiceOverlayOpen, setVoiceOverlayOpen] = useState(false);
+  const [pipelineStep, setPipelineStep] = useState<"idle" | "enrich" | "synthesise" | "compose">("idle");
+  const [voicePopulatedFields, setVoicePopulatedFields] = useState<Set<string>>(new Set());
   const [captureEmail, setCaptureEmail] = useState("");
   const [captureHoneypot, setCaptureHoneypot] = useState("");
   const [captureError, setCaptureError] = useState("");
@@ -524,16 +526,20 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   }
 
   function handleVoiceComplete(profile: VoiceProfileResult) {
-    if (profile.url) setUrl(profile.url);
-    if (profile.senderName) setSenderName(profile.senderName);
-    if (profile.senderBrief) setSenderBrief(profile.senderBrief);
+    const populated = new Set<string>();
+    if (profile.url) { setUrl(profile.url); populated.add("url"); }
+    if (profile.senderName) { setSenderName(profile.senderName); populated.add("senderName"); }
+    if (profile.senderBrief) { setSenderBrief(profile.senderBrief); populated.add("senderBrief"); }
     if (profile.archetype) setArchetype(profile.archetype as ArchetypeSelection);
+    setVoicePopulatedFields(populated);
     setVoiceOverlayOpen(false);
+    setTimeout(() => setVoicePopulatedFields(new Set()), 3000);
   }
 
   async function handleEnrich() {
     if (!url.trim()) return;
     setStage("enriching");
+    setPipelineStep("enrich");
     setError("");
     saveSenderMemory();
 
@@ -553,20 +559,56 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Enrichment failed");
+        const body = await res.text();
+        let msg = "Enrichment failed";
+        try { const j = JSON.parse(body); msg = j.error || msg; } catch { /* */ }
+        throw new Error(msg);
       }
 
-      const data = await res.json();
-      setReviewProfile(data.profile);
-      setReviewScript(typeof data.script === "string" ? data.script : "");
-      setReviewScriptVariantA(data.scriptVariantA || null);
-      setReviewScriptVariantB(data.scriptVariantB || null);
-      setReviewSelectedVariant("a");
-      setReviewHook(data.hook);
-      setStage("review");
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+
+            if (event.phase) {
+              setPipelineStep(event.phase);
+            } else if (event.error) {
+              throw new Error(event.error);
+            } else if (event.type === "done") {
+              const data = event.result;
+              setReviewProfile(data.profile);
+              setReviewScript(typeof data.script === "string" ? data.script : "");
+              setReviewScriptVariantA(data.scriptVariantA || null);
+              setReviewScriptVariantB(data.scriptVariantB || null);
+              setReviewSelectedVariant("a");
+              setReviewHook(data.hook);
+              setPipelineStep("idle");
+              setStage("review");
+            }
+          } catch (err) {
+            if (err instanceof Error && err.message !== "Unexpected end of JSON input") {
+              throw err;
+            }
+          }
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Enrichment failed");
+      setPipelineStep("idle");
       setStage("error");
     }
   }
@@ -574,6 +616,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   async function handleRegenerate() {
     if (!reviewProfile) return;
     setReviewRegenerating(true);
+    setPipelineStep("compose");
     try {
       const res = await fetch("/api/studio/enrich", {
         method: "POST",
@@ -588,15 +631,42 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           language: translateEnabled ? (reviewProfile.language || undefined) : "en",
         }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setReviewScript(typeof data.script === "string" ? data.script : "");
-        setReviewScriptVariantA(data.scriptVariantA || null);
-        setReviewScriptVariantB(data.scriptVariantB || null);
-        setReviewSelectedVariant("a");
-        setReviewHook(data.hook);
+
+      if (!res.ok) return;
+
+      const reader = res.body?.getReader();
+      if (!reader) return;
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+            if (event.phase) {
+              setPipelineStep(event.phase);
+            } else if (event.type === "done") {
+              const data = event.result;
+              setReviewScript(typeof data.script === "string" ? data.script : "");
+              setReviewScriptVariantA(data.scriptVariantA || null);
+              setReviewScriptVariantB(data.scriptVariantB || null);
+              setReviewSelectedVariant("a");
+              setReviewHook(data.hook);
+            }
+          } catch { /* skip malformed */ }
+        }
       }
     } catch { /* keep current script */ }
+    setPipelineStep("idle");
     setReviewRegenerating(false);
   }
 
@@ -1055,6 +1125,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               onToggleMode={toggleMode}
               detectedLanguage={detectedLanguage}
               detectingLanguage={detectingLanguage}
+              voicePopulatedFields={voicePopulatedFields}
             />
           ) : (
             <motion.div
@@ -1105,9 +1176,17 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                           value={url}
                           onChange={(e) => setUrl(e.target.value)}
                           placeholder="https://linkedin.com/in/…"
-                          className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                          className={`w-full rounded-xl border bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voicePopulatedFields.has("url") ? "border-success/50" : "border-cream-dark"}`}
                           onKeyDown={(e) => e.key === "Enter" && handleEnrich()}
                         />
+                        {voicePopulatedFields.has("url") && (
+                          <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-success">
+                            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            Set by voice
+                          </span>
+                        )}
                           <div className="flex flex-wrap gap-2 mt-2">
                           {[
                             { label: "Sundar Pichai", url: "https://linkedin.com/in/sundarpichai" },
@@ -1137,13 +1216,14 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       <div className="flex items-center gap-2 pt-1">
                         <button
                           onClick={() => setVoiceOverlayOpen(true)}
-                          className="inline-flex items-center gap-1.5 text-[11px] text-accent hover:text-accent/80 transition-colors"
+                          className="inline-flex items-center gap-1.5 text-[11px] text-accent hover:text-accent/80 transition-colors group"
                         >
                           <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
                             <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
                             <path d="M3 8a5 5 0 0010 0M8 13v2" />
                           </svg>
                           Brief with voice
+                          <span className="text-[9px] text-ink-faint group-hover:text-accent transition-colors">— talk, don&apos;t type</span>
                         </button>
                       </div>
 
@@ -1151,30 +1231,46 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                         <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
                           Your name <span className="normal-case text-ink-faint">— how you sign off in the video</span>
                         </label>
-                        <input
-                          type="text"
-                          value={senderName}
-                          onChange={(e) => {
-                            setSenderName(e.target.value);
-                            if (typeof window !== "undefined") localStorage.setItem("nuncio_sender_name", e.target.value);
-                          }}
-                          placeholder="e.g. Udi"
-                          className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
-                        />
-                      </div>
+                          <input
+                            type="text"
+                            value={senderName}
+                            onChange={(e) => {
+                              setSenderName(e.target.value);
+                              if (typeof window !== "undefined") localStorage.setItem("nuncio_sender_name", e.target.value);
+                            }}
+                            placeholder="e.g. Udi"
+                            className={`w-full rounded-xl border bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voicePopulatedFields.has("senderName") ? "border-success/50" : "border-cream-dark"}`}
+                          />
+                          {voicePopulatedFields.has("senderName") && (
+                            <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-success">
+                              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                              Set by voice
+                            </span>
+                          )}
+                        </div>
 
-                      <div>
-                        <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
-                          Brief <span className="normal-case text-ink-faint">— optional, but the agent uses it</span>
-                        </label>
-                        <textarea
-                          value={senderBrief}
-                          onChange={(e) => setSenderBrief(e.target.value)}
-                          placeholder="What are you reaching out for? The more honest, the better."
-                          rows={2}
-                          className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
-                        />
-                      </div>
+                        <div>
+                          <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                            Brief <span className="normal-case text-ink-faint">— optional, but the agent uses it</span>
+                          </label>
+                          <textarea
+                            value={senderBrief}
+                            onChange={(e) => setSenderBrief(e.target.value)}
+                            placeholder="What are you reaching out for? The more honest, the better."
+                            rows={2}
+                            className={`w-full rounded-xl border bg-white px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voicePopulatedFields.has("senderBrief") ? "border-success/50" : "border-cream-dark"}`}
+                          />
+                          {voicePopulatedFields.has("senderBrief") && (
+                            <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-success">
+                              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                              Set by voice
+                            </span>
+                          )}
+                        </div>
 
                       {/* Advanced settings — collapsed by default */}
                       <div className="pt-2">
@@ -1344,22 +1440,73 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               key="enriching"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="px-6 pt-24 pb-16 max-w-2xl mx-auto text-center"
+              className="px-6 pt-24 pb-16 max-w-xl mx-auto"
             >
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15 mb-4">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-                <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
-                  Researching
-                </span>
+              <div className="text-center mb-10">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15 mb-4">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                  <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
+                    Researching
+                  </span>
+                </div>
+                <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight">
+                  Reading their profile
+                </h1>
+                <p className="text-sm text-ink-muted mt-2">
+                  Three agents working together to research and personalise your video.
+                </p>
               </div>
-              <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight">
-                Reading their profile
-              </h1>
-              <p className="text-sm text-ink-muted mt-2">
-                Enriching public data, synthesising profile, and drafting your script.
-              </p>
-              <div className="mt-8 flex justify-center">
-                <div className="w-8 h-8 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+
+              <div className="space-y-3">
+                {[
+                  { id: "enrich" as const, label: "Enrich", desc: "Fetching public data from their profile", tool: "tinyfish" },
+                  { id: "synthesise" as const, label: "Synthesise", desc: "Building a structured profile with Claude", tool: "claude" },
+                  { id: "compose" as const, label: "Compose", desc: "Drafting your personalised script", tool: "claude" },
+                ].map((step) => {
+                  const active = pipelineStep === step.id;
+                  const done = pipelineStep === "synthesise" && step.id === "enrich" ||
+                    pipelineStep === "compose" && (step.id === "enrich" || step.id === "synthesise");
+                  const complete = done;
+                  return (
+                    <div
+                      key={step.id}
+                      className={`flex items-center gap-4 rounded-xl border p-4 transition-all duration-500 ${
+                        active
+                          ? "border-accent/30 bg-accent-soft shadow-sm"
+                          : complete
+                            ? "border-cream-dark bg-cream-soft"
+                            : "border-cream-dark bg-white opacity-50"
+                      }`}
+                    >
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-mono font-medium transition-all duration-500">
+                        {complete ? (
+                          <svg className="w-4 h-4 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        ) : active ? (
+                          <div className="w-4 h-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+                        ) : (
+                          <span className="text-ink-faint">—</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-medium transition-colors ${
+                            active ? "text-accent" : complete ? "text-ink" : "text-ink-muted"
+                          }`}>
+                            {step.label}
+                          </span>
+                          <span className="text-[10px] font-mono text-ink-faint">{step.tool}</span>
+                        </div>
+                        <p className={`text-xs mt-0.5 transition-colors ${
+                          active || complete ? "text-ink-muted" : "text-ink-faint"
+                        }`}>
+                          {step.desc}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </motion.div>
           )}
@@ -1762,12 +1909,34 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 </svg>
               </div>
               <p className="text-sm text-ink-light">{error}</p>
-              <button
-                onClick={() => setStage("input")}
-                className="btn-press rounded-xl border border-cream-dark px-5 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
-              >
-                Try again
-              </button>
+              <div className="flex flex-wrap justify-center gap-2 pt-2">
+                <button
+                  onClick={() => setStage("input")}
+                  className="btn-press rounded-xl border border-cream-dark px-5 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+                >
+                  Try again
+                </button>
+                {error.toLowerCase().includes("login wall") || error.toLowerCase().includes("could not access") ? (
+                  <button
+                    onClick={() => { setUrl(""); setStage("input"); }}
+                    className="btn-press rounded-xl border border-cream-dark px-5 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+                  >
+                    Try a different URL
+                  </button>
+                ) : !quickMode ? (
+                  <button
+                    onClick={() => { toggleMode(); setStage("input"); }}
+                    className="btn-press rounded-xl border border-cream-dark px-5 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+                  >
+                    Switch to Quick mode
+                  </button>
+                ) : null}
+              </div>
+              {(error.toLowerCase().includes("login wall") || error.toLowerCase().includes("could not access")) && (
+                <p className="text-[11px] text-ink-faint">
+                  Tip: some platforms block automated access. Try a LinkedIn profile or public blog.
+                </p>
+              )}
             </motion.div>
           )}
 

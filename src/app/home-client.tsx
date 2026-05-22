@@ -2,13 +2,27 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/header";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { ShowcaseStrip } from "@/components/landing/showcase-strip";
 import { VideoProof } from "@/components/landing/video-proof";
 import { SHOWCASE_RECIPIENTS } from "@/lib/showcase";
 
+const PIPELINE_DEMO: { id: string; label: string; desc: string; tool: string }[] = [
+  { id: "enrich", label: "Enrich", desc: "Fetch public data from their profile", tool: "tinyfish" },
+  { id: "synthesise", label: "Synthesise", desc: "Build a structured profile with Claude", tool: "claude" },
+  { id: "compose", label: "Compose", desc: "Draft a personalised script", tool: "claude" },
+];
+
 export default function HomeClient() {
+  const [demoStep, setDemoStep] = useState(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDemoStep((s) => (s + 1) % (PIPELINE_DEMO.length + 1)), 2200);
+    return () => clearTimeout(t);
+  }, [demoStep]);
+
   return (
     <>
       <Header />
@@ -70,6 +84,52 @@ export default function HomeClient() {
                     No account needed · ~5 minutes
                   </p>
                 </motion.div>
+
+                <div className="mt-10 space-y-2">
+                  {PIPELINE_DEMO.map((step, i) => {
+                    const active = demoStep === i;
+                    const complete = demoStep > i;
+                    return (
+                      <div
+                        key={step.id}
+                        className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition-all duration-700 ${
+                          active
+                            ? "border-accent/20 bg-accent-soft shadow-sm"
+                            : complete
+                              ? "border-cream-dark bg-cream-soft"
+                              : "border-cream-dark bg-white opacity-40"
+                        }`}
+                      >
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-mono transition-all duration-700">
+                          {complete ? (
+                            <svg className="w-3.5 h-3.5 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          ) : active ? (
+                            <div className="w-3 h-3 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+                          ) : (
+                            <span className="text-ink-faint">{i + 1}</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-medium transition-colors ${
+                              active ? "text-accent" : complete ? "text-ink" : "text-ink-muted"
+                            }`}>
+                              {step.label}
+                            </span>
+                            <span className="text-[9px] font-mono text-ink-faint">{step.tool}</span>
+                          </div>
+                          <p className={`text-[11px] mt-px transition-colors ${
+                            active || complete ? "text-ink-muted" : "text-ink-faint"
+                          }`}>
+                            {step.desc}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </section>

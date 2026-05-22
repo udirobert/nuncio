@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "motion/react";
-import type { ArchetypeSelection } from "./studio-client";
 
 interface QuickInputProps {
   url: string;
@@ -14,6 +13,7 @@ interface QuickInputProps {
   onToggleMode: () => void;
   detectedLanguage?: string | null;
   detectingLanguage?: boolean;
+  voicePopulatedFields?: Set<string>;
 }
 
 export function QuickInput({
@@ -27,7 +27,13 @@ export function QuickInput({
   onToggleMode,
   detectedLanguage,
   detectingLanguage,
+  voicePopulatedFields = new Set(),
 }: QuickInputProps) {
+  const voiceFlash = (field: string) =>
+    voicePopulatedFields.has(field)
+      ? "ring-2 ring-success/30 border-success/50 bg-success-soft/30 transition-all duration-700"
+      : "";
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -60,9 +66,17 @@ export function QuickInput({
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://linkedin.com/in/…"
-                className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                className={`w-full rounded-xl border bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voiceFlash("url")} ${voicePopulatedFields.has("url") ? "border-success/50" : "border-cream-dark"}`}
                 onKeyDown={(e) => e.key === "Enter" && onEnrich()}
               />
+              {voicePopulatedFields.has("url") && (
+                <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-success">
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Set by voice
+                </span>
+              )}
               <div className="flex flex-wrap gap-2 mt-2">
                 {[
                   { label: "Try Sundar Pichai", url: "https://linkedin.com/in/sundarpichai" },
@@ -91,8 +105,16 @@ export function QuickInput({
                   if (typeof window !== "undefined") localStorage.setItem("nuncio_sender_name", e.target.value);
                 }}
                 placeholder="e.g. Udi"
-                className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                className={`w-full rounded-xl border bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voiceFlash("senderName")} ${voicePopulatedFields.has("senderName") ? "border-success/50" : "border-cream-dark"}`}
               />
+              {voicePopulatedFields.has("senderName") && (
+                <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-success">
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Set by voice
+                </span>
+              )}
             </div>
 
             <div>
@@ -104,8 +126,16 @@ export function QuickInput({
                 onChange={(e) => setSenderBrief(e.target.value)}
                 placeholder="e.g. I'm building a payments API and would love their perspective…"
                 rows={2}
-                className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                className={`w-full rounded-xl border bg-white px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voiceFlash("senderBrief")} ${voicePopulatedFields.has("senderBrief") ? "border-success/50" : "border-cream-dark"}`}
               />
+              {voicePopulatedFields.has("senderBrief") && (
+                <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-success">
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Set by voice
+                </span>
+              )}
             </div>
 
             {detectingLanguage && (
