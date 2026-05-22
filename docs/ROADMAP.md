@@ -124,12 +124,12 @@ See [`docs/CREDITS.md`](./CREDITS.md) for full cost model and provider pricing b
 
 **Goal:** Make the personalisation smarter.
 
-- [ ] Recent activity enrichment — pull last 10 tweets/posts, not just bio
-- [ ] Company enrichment — if LinkedIn shows a company, also enrich the company's website
-- [ ] Tone matching — analyse the target's writing style and adjust script tone to match
+- [x] Recent activity enrichment — pull last 10 tweets/posts, not just bio
+- [x] Company enrichment — if LinkedIn shows a company, also enrich the company's website
+- [x] Tone matching — analyse the target's writing style and adjust script tone to match
 - [ ] Multi-language delivery — auto-detect target's primary language, translate via HeyGen
-- [ ] Script A/B variants — generate 2 script options, let sender pick before rendering
-- [ ] Sender brief memory — remember past briefs so returning users don't re-enter context
+- [x] Script A/B variants — generate 2 script options, let sender pick before rendering (advanced mode only)
+- [x] Sender brief memory — remember past briefs via workspace account storage
 
 ---
 
@@ -186,9 +186,10 @@ between Studio and Batch improve discoverability.
 Clean separation of concerns, excellent fallback chains, production-grade credit reservation
 pattern. Weak spots: in-memory queues/tokens (lost on restart), no error monitoring.
 
-### Intuitiveness (5/10)
-Core "paste URL → get video" is simple. But Hook Engine archetypes, format decisioning, canvas
-nodes, and vibe selection add significant cognitive overhead for new users.
+### Intuitiveness (6/10)
+Core "paste URL → get video" is simple. Recent activity & company enrichment make the output
+more relevant with zero extra effort. Script A/B variants give power users control without
+cluttering the quick path. Sender brief memory removes friction for returning users.
 
 ---
 

@@ -81,7 +81,14 @@ AVAILABLE VIBES:
 export async function generateScript(
   profile: Profile,
   senderBrief?: string,
-  options?: { forceFallback?: boolean; intent?: IntentId; senderName?: string }
+  options?: {
+    forceFallback?: boolean;
+    intent?: IntentId;
+    senderName?: string;
+    recentActivity?: string;
+    companyContext?: string;
+    toneInstruction?: string;
+  }
 ): Promise<ScriptResult> {
   if (options?.forceFallback) {
     return { script: fallbackScript(profile, senderBrief), vibeId: "tech-office", vibeReasoning: "Fallback default." };
@@ -92,8 +99,12 @@ export async function generateScript(
     ? `The sender's name is ${options.senderName} — use it naturally in the opening.`
     : `Do NOT include a sender name or placeholder like "[Your Name]". Just start naturally without introducing yourself by name.`;
 
-  const systemPrompt = `You are an expert video script writer. Write a personalised 45-90 second video script (under 200 words) that is a direct message TO ${profile.name}. Address them by name. The sender is speaking directly to this person in a personalised video outreach. Reference at least 2 specific details from their profile. Write in first person as the sender, second person ("you") for the recipient. Be conversational and genuine — not salesy or generic. Never write about them in third person. Never use placeholder brackets like [Your Name] or [specific topic] — use ACTUAL details from the profile or omit. ${senderNameInstruction}${intentRubric ? `\n\n${intentRubric}` : ""}
+  const toneInstruction = options?.toneInstruction
+    ? `\nTONE: The target's natural communication style is "${profile.tone}". ${options.toneInstruction}`
+    : `\nTONE: Match the target's communication style (${profile.tone}). If they write formally in their profile, write formally. If they are conversational, mirror that energy. The script should feel like a genuine message from one human to another, not a corporate form letter.`;
 
+  const systemPrompt = `You are an expert video script writer. Write a personalised 45-90 second video script (under 200 words) that is a direct message TO ${profile.name}. Address them by name. The sender is speaking directly to this person in a personalised video outreach. Reference at least 2 specific details from their profile. Write in first person as the sender, second person ("you") for the recipient. Be conversational and genuine — not salesy or generic. Never write about them in third person. Never use placeholder brackets like [Your Name] or [specific topic] — use ACTUAL details from the profile or omit. ${senderNameInstruction}${intentRubric ? `\n\n${intentRubric}` : ""}
+${toneInstruction}
 ${VIBE_SYSTEM_CONTEXT}
 
 OUTPUT FORMAT (JSON):
@@ -104,7 +115,15 @@ OUTPUT FORMAT (JSON):
 }
 Respond ONLY with raw JSON. No markdown code blocks.`;
 
-  const userMessage = `Profile:\n${JSON.stringify(profile, null, 2)}\n\n${senderBrief ? `Sender brief: ${senderBrief}` : "Write a general introduction/outreach script."}`;
+  const contextBlocks = [`Profile:\n${JSON.stringify(profile, null, 2)}`];
+  if (options?.recentActivity) {
+    contextBlocks.push(`RECENT ACTIVITY:\n${options.recentActivity}`);
+  }
+  if (options?.companyContext) {
+    contextBlocks.push(`COMPANY CONTEXT:\n${options.companyContext}`);
+  }
+  const briefLine = senderBrief ? `\n\nSender brief: ${senderBrief}` : "\n\nWrite a general introduction/outreach script.";
+  const userMessage = contextBlocks.join("\n\n---\n\n") + briefLine;
 
   try {
     const text = await chatCompletion(systemPrompt, userMessage);
@@ -281,6 +300,115 @@ function inferName(lines: string[]): string | null {
   // Pattern 4: bare handle as last resort
   const handleLine = lines.find((line) => /^[a-zA-Z0-9_.-]{2,32}$/.test(line));
   return handleLine || null;
+}
+
+export interface ScriptVariants {
+  variantA: ScriptResult;
+  variantB: ScriptResult;
+}
+
+/**
+ * Generate 2 script variants for A/B comparison.
+ * Makes a single LLM call asking for both variants to save cost and time.
+ */
+export async function generateScriptVariants(
+  profile: Profile,
+  senderBrief?: string,
+  options?: {
+    intent?: IntentId;
+    senderName?: string;
+    recentActivity?: string;
+    companyContext?: string;
+  }
+): Promise<ScriptVariants> {
+  const intentRubric = options?.intent ? INTENT_RUBRICS[options.intent] : null;
+  const senderNameInstruction = options?.senderName
+    ? `The sender's name is ${options.senderName} — use it naturally in the opening.`
+    : `Do NOT include a sender name or placeholder like "[Your Name]". Just start naturally without introducing yourself by name.`;
+  const toneInstruction = `\nTONE: Match the target's communication style. If they write formally, write formally. If they are conversational, mirror that energy.`;
+
+  const systemPrompt = `You are an expert video script writer. Write TWO distinct personalised 45-90 second video scripts (each under 200 words) addressed TO ${profile.name}. The sender is speaking directly to this person in a personalised video outreach.
+
+Requirement for BOTH variants:
+- Address them by name
+- Reference at least 2 specific details from their profile
+- Write in first person as the sender, second person ("you") for the recipient
+- Be conversational and genuine — never salesy or generic
+- Never write about them in third person
+- Never use placeholder brackets
+${senderNameInstruction}
+${intentRubric ? `\n\n${intentRubric}` : ""}
+${toneInstruction}
+
+The TWO variants should have DIFFERENT approaches:
+- Variant A should be the primary recommended approach — confident, direct, natural.
+- Variant B should be a creative alternative — different angle, different hook, different energy.
+
+${VIBE_SYSTEM_CONTEXT}
+
+OUTPUT FORMAT (JSON):
+{
+  "variantA": {
+    "script": "The full script text for variant A.",
+    "vibeId": "The ID of the recommended vibe.",
+    "vibeReasoning": "1-sentence explanation."
+  },
+  "variantB": {
+    "script": "The full script text for variant B.",
+    "vibeId": "The ID of the recommended vibe.",
+    "vibeReasoning": "1-sentence explanation."
+  }
+}
+Respond ONLY with raw JSON. No markdown code blocks.`;
+
+  const contextBlocks = [`Profile:\n${JSON.stringify(profile, null, 2)}`];
+  if (options?.recentActivity) contextBlocks.push(`RECENT ACTIVITY:\n${options.recentActivity}`);
+  if (options?.companyContext) contextBlocks.push(`COMPANY CONTEXT:\n${options.companyContext}`);
+  const userMessage = contextBlocks.join("\n\n---\n\n") + `\n\nSender brief: ${senderBrief || "Write a general introduction/outreach script."}`;
+
+  try {
+    const text = await chatCompletion(systemPrompt, userMessage);
+    const parsed = parseScriptVariantsJson(text);
+    if (parsed) return parsed;
+  } catch (error) {
+    console.warn("[script] Script variants generation failed:", error);
+  }
+
+  const baseScript = fallbackScript(profile, senderBrief);
+  return {
+    variantA: { script: baseScript, vibeId: "tech-office", vibeReasoning: "Heuristic fallback." },
+    variantB: { script: baseScript.replace("Hey", "Hi there"), vibeId: "tech-office", vibeReasoning: "Heuristic fallback." },
+  };
+}
+
+function parseScriptVariantsJson(text: string): ScriptVariants | null {
+  const trimmed = text.trim();
+  const candidates = [
+    trimmed,
+    trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/)?.[1],
+    trimmed.match(/\{[\s\S]*\}/)?.[0],
+  ].filter(Boolean) as string[];
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed.variantA?.script && parsed.variantB?.script) {
+        return {
+          variantA: {
+            script: parsed.variantA.script,
+            vibeId: parsed.variantA.vibeId || "tech-office",
+            vibeReasoning: parsed.variantA.vibeReasoning || "",
+          },
+          variantB: {
+            script: parsed.variantB.script,
+            vibeId: parsed.variantB.vibeId || "tech-office",
+            vibeReasoning: parsed.variantB.vibeReasoning || "",
+          },
+        };
+      }
+    } catch { /* noop */ }
+  }
+  return null;
 }
 
 function fallbackScript(profile: Profile, senderBrief?: string): string {

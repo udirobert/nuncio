@@ -421,6 +421,146 @@ function extractHandle(url: string): string | null {
   }
 }
 
+export interface RecentActivityResult {
+  markdown: string;
+  source: "twitter" | "linkedin" | "github" | "web";
+  postCount: number;
+}
+
+/**
+ * Fetch recent public posts/activity for a social profile URL.
+ * Returns up to 10 recent posts with timestamps.
+ */
+export async function fetchRecentActivity(url: string): Promise<RecentActivityResult | null> {
+  const handle = extractHandle(url);
+  if (!handle) return null;
+
+  const host = new URL(url).hostname.replace(/^www\./, "");
+  const isTwitter = host.includes("x.com") || host.includes("twitter.com");
+  const isLinkedIn = host.includes("linkedin.com");
+
+  if (isTwitter) {
+    return fetchRecentTwitterActivity(handle);
+  }
+  if (isLinkedIn) {
+    return fetchRecentLinkedInActivity(handle);
+  }
+
+  return null;
+}
+
+async function fetchRecentTwitterActivity(handle: string): Promise<RecentActivityResult | null> {
+  const queries = [
+    `"@${handle}" OR "from:@${handle}" site:x.com`,
+    `"${handle}" site:x.com since:2025-01-01`,
+  ];
+
+  const allResults: SearchResult[] = [];
+  for (const query of queries) {
+    const results = await runSearch(query);
+    allResults.push(...results);
+  }
+
+  const seen = new Set<string>();
+  const unique = allResults.filter((r) => {
+    if (!r.snippet || seen.has(r.snippet)) return false;
+    seen.add(r.snippet);
+    return true;
+  }).slice(0, 10);
+
+  if (unique.length === 0) return null;
+
+  const markdown = [
+    `## Recent Activity for @${handle} (Twitter/X)`,
+    `The following are recent public posts and activity found for this handle:`,
+    "",
+    ...unique.map((r, i) => {
+      const date = r.url ? extractDateFromUrl(r.url) : "";
+      return `### Post ${i + 1}${date ? ` (${date})` : ""}\n${r.snippet || r.title || ""}\n${r.url ? `Source: ${r.url}` : ""}`;
+    }),
+  ].join("\n\n");
+
+  return { markdown, source: "twitter", postCount: unique.length };
+}
+
+async function fetchRecentLinkedInActivity(handle: string): Promise<RecentActivityResult | null> {
+  const queries = [
+    `"${handle}" site:linkedin.com/posts`,
+    `"${handle}" site:linkedin.com recently OR posted OR shared`,
+  ];
+
+  const allResults: SearchResult[] = [];
+  for (const query of queries) {
+    const results = await runSearch(query);
+    allResults.push(...results);
+  }
+
+  const seen = new Set<string>();
+  const unique = allResults.filter((r) => {
+    if (!r.snippet || seen.has(r.snippet)) return false;
+    seen.add(r.snippet);
+    return true;
+  }).slice(0, 10);
+
+  if (unique.length === 0) return null;
+
+  const markdown = [
+    `## Recent Activity for ${handle} (LinkedIn)`,
+    `The following are recent LinkedIn posts and activity found:`,
+    "",
+    ...unique.map((r, i) => {
+      return `### Post ${i + 1}\n${r.snippet || r.title || ""}\n${r.url ? `Source: ${r.url}` : ""}`;
+    }),
+  ].join("\n\n");
+
+  return { markdown, source: "linkedin", postCount: unique.length };
+}
+
+function extractDateFromUrl(url: string): string {
+  const match = url.match(/(\d{4})\/(\d{2})\/(\d{2})/);
+  if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+
+  const statusMatch = url.match(/\/status\/(\d+)/);
+  if (statusMatch) {
+    const ts = parseInt(statusMatch[1], 10);
+    if (!isNaN(ts)) {
+      const snowflakeDate = new Date((ts / 1000) + 1288834974657);
+      if (!isNaN(snowflakeDate.getTime())) {
+        return snowflakeDate.toISOString().split("T")[0];
+      }
+    }
+  }
+
+  return "";
+}
+
+/**
+ * Enrich a company website for additional context.
+ * Attempts to find and fetch the company's website and Crunchbase profile.
+ */
+export async function enrichCompany(companyName: string): Promise<string | null> {
+  const searchResults = await runSearch(`"${companyName}" company OR startup OR about OR "our team" OR we`);
+  if (searchResults.length === 0) return null;
+
+  const seen = new Set<string>();
+  const unique = searchResults
+    .filter((r) => {
+      if (!r.url || seen.has(r.url)) return false;
+      seen.add(r.url);
+      return true;
+    })
+    .slice(0, 5);
+
+  return [
+    `## Company Context: ${companyName}`,
+    `The following are search results and context about this company:`,
+    "",
+    ...unique.map((r, i) => {
+      return `### ${r.title || "Result " + (i + 1)}\n${r.snippet || ""}\n${r.url ? `Source: ${r.url}` : ""}`;
+    }),
+  ].join("\n\n");
+}
+
 function normaliseTinyFishItem(data: unknown):
   | { markdown?: string; text?: string; content?: string }
   | null {

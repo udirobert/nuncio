@@ -1,4 +1,4 @@
-import { enrich } from "@/lib/tinyfish";
+import { enrich, fetchRecentActivity, enrichCompany } from "@/lib/tinyfish";
 import { synthesise, generateScript } from "@/lib/claude";
 import { createVideo } from "@/lib/heygen";
 import {
@@ -111,8 +111,15 @@ export async function processJob(
       throw new Error("Could not identify a person from this profile");
     }
 
+    const activity = await fetchRecentActivity(job.url);
+    const companyContext = profile.company && profile.company !== "there"
+      ? await enrichCompany(profile.company)
+      : null;
+
     const scriptResult = await generateScript(profile, batch.senderBrief, {
       senderName: batch.senderName,
+      recentActivity: activity?.markdown,
+      companyContext: companyContext ?? undefined,
     });
 
     const video = await createVideo(

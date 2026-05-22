@@ -47,6 +47,8 @@ export interface WorkspaceAccount {
   stripeSubscriptionId?: string;
   stripePlanType?: string;
   plan?: "free" | "pro" | "studio";
+  lastSenderBrief?: string;
+  lastSenderName?: string;
   createdAt: string;
   updatedAt: string;
 }

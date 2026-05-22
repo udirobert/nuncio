@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { enrich } from "@/lib/tinyfish";
+import { enrich, fetchRecentActivity, enrichCompany } from "@/lib/tinyfish";
 import { synthesise, generateScript } from "@/lib/claude";
 import { MeliusProvider, resetMeliusSession } from "@/lib/creative/melius-provider";
 import type { StudioNode, StudioBuildResult } from "@/lib/creative/melius-provider";
@@ -113,11 +113,27 @@ export async function POST(request: NextRequest) {
             return;
           }
 
+          // 2.5 Recent activity enrichment
+          let recentActivity: string | undefined;
+          let companyContext: string | undefined;
+          if (url) {
+            send({ phase: "enrich", status: "Fetching recent activity...", detail: "Recent posts and mentions" });
+            const activity = await fetchRecentActivity(url);
+            if (activity) recentActivity = activity.markdown;
+          }
+          if (profile.company && profile.company !== "there") {
+            send({ phase: "enrich", status: "Gathering company context...", detail: profile.company });
+            const ctx = await enrichCompany(profile.company);
+            if (ctx) companyContext = ctx;
+          }
+
           // 3. Generate script
           send({ phase: "synthesise", status: "Drafting outreach script...", detail: "Conversational, < 90 seconds, specific" });
           scriptResult = await generateScript(profile, senderBrief, {
             intent: intent as Parameters<typeof generateScript>[2] extends { intent: infer I } ? I : undefined,
             senderName: typeof senderName === "string" ? senderName.trim() || undefined : undefined,
+            recentActivity,
+            companyContext,
           });
           script = scriptResult.script;
           // Store the vibeId in the session or send it as part of the phase metadata

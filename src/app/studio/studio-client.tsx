@@ -391,6 +391,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   // Review stage state
   const [reviewProfile, setReviewProfile] = useState<import("@/lib/claude").Profile | null>(null);
   const [reviewScript, setReviewScript] = useState("");
+  const [reviewScriptVariantA, setReviewScriptVariantA] = useState<string | null>(null);
+  const [reviewScriptVariantB, setReviewScriptVariantB] = useState<string | null>(null);
+  const [reviewSelectedVariant, setReviewSelectedVariant] = useState<"a" | "b">("a");
   const [reviewHook, setReviewHook] = useState<{ archetype: string; reasoning: string; concept: string; prompt: string; format: string; formatReasoning: string } | null>(null);
   const [reviewRegenerating, setReviewRegenerating] = useState(false);
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
@@ -431,7 +434,32 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     }
     const savedKey = localStorage.getItem("nuncio_melius_key");
     if (savedKey) setMeliusKey(savedKey);
+
+    // Load sender memory from server if authenticated
+    fetch("/api/account/brief").then((r) => r.json()).then((data) => {
+      if (data.senderName && !localStorage.getItem("nuncio_sender_name")) {
+        setSenderName(data.senderName);
+      }
+      if (data.senderBrief && !senderBrief) {
+        setSenderBrief(data.senderBrief);
+      }
+    }).catch(() => {});
   }, [searchParams]);
+
+  function saveSenderMemory() {
+    const brief = senderBrief.trim();
+    const name = senderName.trim();
+    if (!brief && !name) return;
+    fetch("/api/account/brief", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        senderBrief: brief || undefined,
+        senderName: name || undefined,
+      }),
+    }).catch(() => {});
+    if (name) localStorage.setItem("nuncio_sender_name", name);
+  }
 
   function connectMelius() {
     const key = meliusKeyInput.trim();
@@ -457,6 +485,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     if (!url.trim()) return;
     setStage("enriching");
     setError("");
+    saveSenderMemory();
 
     try {
       const res = await fetch("/api/studio/enrich", {
@@ -468,6 +497,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           senderBrief: senderBrief.trim() || undefined,
           intent: archetype === "auto" ? undefined : undefined,
           archetype: archetype === "auto" ? undefined : archetype,
+          scriptVariants: !quickMode,
         }),
       });
 
@@ -479,6 +509,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
       const data = await res.json();
       setReviewProfile(data.profile);
       setReviewScript(typeof data.script === "string" ? data.script : "");
+      setReviewScriptVariantA(data.scriptVariantA || null);
+      setReviewScriptVariantB(data.scriptVariantB || null);
+      setReviewSelectedVariant("a");
       setReviewHook(data.hook);
       setStage("review");
     } catch (err) {
@@ -500,11 +533,15 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           senderBrief: senderBrief.trim() || undefined,
           archetype: archetype === "auto" ? undefined : archetype,
           profile: reviewProfile,
+          scriptVariants: !quickMode,
         }),
       });
       if (res.ok) {
         const data = await res.json();
         setReviewScript(typeof data.script === "string" ? data.script : "");
+        setReviewScriptVariantA(data.scriptVariantA || null);
+        setReviewScriptVariantB(data.scriptVariantB || null);
+        setReviewSelectedVariant("a");
         setReviewHook(data.hook);
       }
     } catch { /* keep current script */ }
@@ -583,6 +620,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     setEdgeCount(0);
     setStage("building");
     setShowHookReasoning(false);
+    saveSenderMemory();
 
     try {
       const res = await fetch("/api/studio/build", {
@@ -1366,6 +1404,35 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       Regenerate
                     </button>
                   </div>
+
+                  {/* Variant picker */}
+                  {reviewScriptVariantA && reviewScriptVariantB && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setReviewSelectedVariant("a"); setReviewScript(reviewScriptVariantA); }}
+                        className={`flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
+                          reviewSelectedVariant === "a"
+                            ? "border-accent bg-accent-soft text-accent"
+                            : "border-cream-dark text-ink-muted hover:border-accent/30"
+                        }`}
+                      >
+                        Variant A
+                        {reviewScriptVariantA === reviewScript && " ✓"}
+                      </button>
+                      <button
+                        onClick={() => { setReviewSelectedVariant("b"); setReviewScript(reviewScriptVariantB); }}
+                        className={`flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
+                          reviewSelectedVariant === "b"
+                            ? "border-accent bg-accent-soft text-accent"
+                            : "border-cream-dark text-ink-muted hover:border-accent/30"
+                        }`}
+                      >
+                        Variant B
+                        {reviewScriptVariantB === reviewScript && " ✓"}
+                      </button>
+                    </div>
+                  )}
+
                   <textarea
                     value={reviewScript}
                     onChange={(e) => { setReviewScript(e.target.value); setTtsAudioUrl(null); }}

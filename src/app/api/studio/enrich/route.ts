@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { enrich } from "@/lib/tinyfish";
-import { synthesise, generateScript } from "@/lib/claude";
-import type { Profile, IntentId } from "@/lib/claude";
+import { enrich, fetchRecentActivity, enrichCompany } from "@/lib/tinyfish";
+import { synthesise, generateScript, generateScriptVariants } from "@/lib/claude";
+import type { Profile, IntentId, ScriptResult } from "@/lib/claude";
 import { chooseArchetype } from "@/lib/hooks/select";
 import { pickFormat, type HookArchetypeId } from "@/lib/hooks/archetypes";
 import {
@@ -17,6 +17,8 @@ import {
 export interface EnrichResponse {
   profile: Profile;
   script: string;
+  scriptVariantA?: string;
+  scriptVariantB?: string;
   vibeId: string;
   vibeReasoning: string;
   hook: {
@@ -79,10 +81,39 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const scriptResult = await generateScript(profile, senderBrief, {
+    let recentActivity: string | undefined;
+    let companyContext: string | undefined;
+
+    if (url) {
+      const activity = await fetchRecentActivity(url);
+      if (activity) recentActivity = activity.markdown;
+    }
+
+    if (profile.company && profile.company !== "there") {
+      const ctx = await enrichCompany(profile.company);
+      if (ctx) companyContext = ctx;
+    }
+
+    const scriptOptions = {
       intent: intent as IntentId | undefined,
       senderName: typeof senderName === "string" ? senderName.trim() || undefined : undefined,
-    });
+      recentActivity,
+      companyContext,
+    };
+
+    let scriptResult: ScriptResult;
+    let variantA: string | undefined;
+    let variantB: string | undefined;
+
+    const wantsVariants = body.scriptVariants === true;
+    if (wantsVariants) {
+      const variants = await generateScriptVariants(profile, senderBrief, scriptOptions);
+      scriptResult = variants.variantA;
+      variantA = variants.variantA.script;
+      variantB = variants.variantB.script;
+    } else {
+      scriptResult = await generateScript(profile, senderBrief, scriptOptions);
+    }
 
     const hookChoice = chooseArchetype(profile, senderBrief, archetype as HookArchetypeId | undefined);
     const hookFormat = pickFormat(profile);
@@ -92,6 +123,8 @@ export async function POST(request: NextRequest) {
     const response: EnrichResponse = {
       profile,
       script: scriptResult.script,
+      scriptVariantA: variantA,
+      scriptVariantB: variantB,
       vibeId: scriptResult.vibeId,
       vibeReasoning: scriptResult.vibeReasoning,
       hook: {
