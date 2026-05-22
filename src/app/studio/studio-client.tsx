@@ -365,6 +365,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     return true;
   });
   const [showProgressDetails, setShowProgressDetails] = useState(false);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [showAdvancedInput, setShowAdvancedInput] = useState(false);
+  const [scriptEditing, setScriptEditing] = useState(false);
   const [url, setUrl] = useState("");
   const [senderName, setSenderName] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem("nuncio_sender_name") || "";
@@ -1109,72 +1112,86 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                         />
                       </div>
 
-                      <div>
-                        <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
-                          Hook archetype
-                        </label>
-                        <div className="flex flex-wrap gap-2">
-                          {ARCHETYPE_OPTIONS.map((option) => (
-                            <div key={option.id} className="flex flex-col">
-                              <button
-                                onClick={() => setArchetype(option.id)}
-                                className={`rounded-md border px-2.5 py-1 text-[11px] transition-colors ${
-                                  archetype === option.id
-                                    ? "border-accent bg-accent-soft text-accent"
-                                    : "border-cream-dark/70 bg-white/60 text-ink-muted hover:border-accent/30 hover:text-accent"
-                                }`}
-                              >
-                                {option.label}
-                              </button>
-                              {archetype === option.id && (
-                                <span className="text-[10px] text-ink-muted mt-1 max-w-[160px] leading-relaxed">
-                                  {option.description}
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                      {/* Advanced settings — collapsed by default */}
+                      <div className="pt-2">
+                        <button
+                          onClick={() => setShowAdvancedInput(!showAdvancedInput)}
+                          className="text-[11px] text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5"
+                        >
+                          <svg viewBox="0 0 16 16" className={`w-3.5 h-3.5 transition-transform ${showAdvancedInput ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path d="M6 4l4 4-4 4" />
+                          </svg>
+                          Advanced settings
+                        </button>
 
-                      {/* Melius connection */}
-                      <div className="pt-1">
-                        {meliusKey ? (
-                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-success/20 bg-success-soft">
-                            <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                            <span className="text-[11px] font-medium text-success">Melius connected</span>
-                            <span className="text-[10px] text-ink-faint ml-1 font-mono">{meliusKey.slice(0, 10)}…</span>
-                            <button
-                              onClick={disconnectMelius}
-                              className="ml-auto text-[10px] text-ink-faint hover:text-error transition-colors"
-                            >
-                              Disconnect
-                            </button>
-                          </div>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => setShowMeliusConnect(!showMeliusConnect)}
-                              className="text-[11px] text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5"
-                            >
-                              <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                <path d="M6 3h4v2H6zM3 7h10v6H3z" />
-                                <path d="M8 5v2M5 10h6" />
-                              </svg>
-                              Connect your Melius account
-                              <span className="text-[9px] text-ink-faint/60 ml-1">optional</span>
-                            </button>
-                            {showMeliusConnect && (
-                              <div className="mt-2 p-3 rounded-lg border border-cream-dark bg-cream/30 space-y-2">
-                                <p className="text-[11px] text-ink-muted leading-relaxed">
-                                  Paste your Melius API key to build canvases in your own workspace. Generate a key in Melius → Team Settings → API keys.
-                                </p>
-                                <p className="text-[10px] text-ink-faint leading-relaxed">
-                                  Your key is stored in this browser only and sent over HTTPS to make Melius calls — never persisted on our servers.
-                                </p>
-                                <div className="flex gap-2">
-                                  <input
-                                    value={meliusKeyInput}
-                                    onChange={(e) => setMeliusKeyInput(e.target.value)}
+                        {showAdvancedInput && (
+                          <div className="mt-3 space-y-3 pl-4 border-l-2 border-cream-dark">
+                            <div>
+                              <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                                Hook archetype
+                              </label>
+                              <div className="flex flex-wrap gap-2">
+                                {ARCHETYPE_OPTIONS.map((option) => (
+                                  <div key={option.id} className="flex flex-col">
+                                    <button
+                                      onClick={() => setArchetype(option.id)}
+                                      className={`rounded-md border px-2.5 py-1 text-[11px] transition-colors ${
+                                        archetype === option.id
+                                          ? "border-accent bg-accent-soft text-accent"
+                                          : "border-cream-dark/70 bg-white/60 text-ink-muted hover:border-accent/30 hover:text-accent"
+                                      }`}
+                                    >
+                                      {option.label}
+                                    </button>
+                                    {archetype === option.id && (
+                                      <span className="text-[10px] text-ink-muted mt-1 max-w-[160px] leading-relaxed">
+                                        {option.description}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Melius connection */}
+                            <div>
+                              {meliusKey ? (
+                                <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-success/20 bg-success-soft">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                                  <span className="text-[11px] font-medium text-success">Melius connected</span>
+                                  <span className="text-[10px] text-ink-faint ml-1 font-mono">{meliusKey.slice(0, 10)}…</span>
+                                  <button
+                                    onClick={disconnectMelius}
+                                    className="ml-auto text-[10px] text-ink-faint hover:text-error transition-colors"
+                                  >
+                                    Disconnect
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => setShowMeliusConnect(!showMeliusConnect)}
+                                    className="text-[11px] text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5"
+                                  >
+                                    <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                      <path d="M6 3h4v2H6zM3 7h10v6H3z" />
+                                      <path d="M8 5v2M5 10h6" />
+                                    </svg>
+                                    Connect your Melius account
+                                    <span className="text-[9px] text-ink-faint/60 ml-1">optional</span>
+                                  </button>
+                                  {showMeliusConnect && (
+                                    <div className="mt-2 p-3 rounded-lg border border-cream-dark bg-cream/30 space-y-2">
+                                      <p className="text-[11px] text-ink-muted leading-relaxed">
+                                        Paste your Melius API key to build canvases in your own workspace. Generate a key in Melius → Team Settings → API keys.
+                                      </p>
+                                      <p className="text-[10px] text-ink-faint leading-relaxed">
+                                        Your key is stored in this browser only and sent over HTTPS to make Melius calls — never persisted on our servers.
+                                      </p>
+                                      <div className="flex gap-2">
+                                        <input
+                                          value={meliusKeyInput}
+                                          onChange={(e) => setMeliusKeyInput(e.target.value)}
                                     placeholder="mk_live_…"
                                     className="flex-1 rounded-lg border border-cream-dark bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
                                   />
@@ -1191,17 +1208,20 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                           </>
                         )}
                       </div>
+                    </div>
+                  )}
+                </div>
 
-                      <button
-                        onClick={handleEnrich}
-                        disabled={!url.trim()}
-                        className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
-                      >
-                        Research profile
-                        <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M3 8h10M9 4l4 4-4 4" />
-                        </svg>
-                      </button>
+                <button
+                  onClick={handleEnrich}
+                  disabled={!url.trim()}
+                  className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
+                >
+                  Research profile
+                  <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 8h10M9 4l4 4-4 4" />
+                  </svg>
+                </button>
                     </div>
                   </div>
 
@@ -1310,105 +1330,134 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               </p>
 
               <div className="space-y-6">
-                {/* Profile card */}
-                <div className="rounded-xl border border-cream-dark bg-white p-5 space-y-4">
-                  <div className="text-[10px] uppercase tracking-widest font-medium text-ink-muted">Profile</div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] text-ink-faint block mb-1">Name</label>
-                      <input
-                        type="text"
-                        value={reviewProfile.name}
-                        onChange={(e) => setReviewProfile({ ...reviewProfile, name: e.target.value })}
-                        className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-ink-faint block mb-1">Company</label>
-                      <input
-                        type="text"
-                        value={reviewProfile.company}
-                        onChange={(e) => setReviewProfile({ ...reviewProfile, company: e.target.value })}
-                        className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="text-[10px] text-ink-faint block mb-1">Role</label>
-                      <input
-                        type="text"
-                        value={reviewProfile.current_role}
-                        onChange={(e) => setReviewProfile({ ...reviewProfile, current_role: e.target.value })}
-                        className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Personalization hooks as chips */}
-                  <div>
-                    <label className="text-[10px] text-ink-faint block mb-2">Personalization hooks</label>
-                    <div className="flex flex-wrap gap-2">
-                      {reviewProfile.personalization_hooks.map((hook, i) => (
-                        <span
-                          key={i}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-accent/20 bg-accent-soft text-xs text-accent"
-                        >
-                          {hook}
-                          <button
-                            onClick={() => setReviewProfile({
-                              ...reviewProfile,
-                              personalization_hooks: reviewProfile.personalization_hooks.filter((_, j) => j !== i),
-                            })}
-                            className="text-accent/50 hover:text-accent"
-                          >
-                            &times;
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Tone selector */}
-                  <div>
-                    <label className="text-[10px] text-ink-faint block mb-2">Tone</label>
-                    <div className="flex gap-2">
-                      {(["conversational", "formal", "technical"] as const).map((t) => (
-                        <button
-                          key={t}
-                          onClick={() => setReviewProfile({ ...reviewProfile, tone: t })}
-                          className={`px-3 py-1.5 rounded-md border text-xs transition-colors ${
-                            reviewProfile.tone === t
-                              ? "border-accent bg-accent-soft text-accent"
-                              : "border-cream-dark text-ink-muted hover:border-accent/30"
-                          }`}
-                        >
-                          {t}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Language selector */}
-                  <div>
-                    <label className="text-[10px] text-ink-faint block mb-2">
-                      Language
-                      <span className="ml-1.5 text-warm">(auto-detected)</span>
-                    </label>
-                    <select
-                      value={reviewProfile.language || "en"}
-                      onChange={(e) => setReviewProfile({ ...reviewProfile, language: e.target.value })}
-                      className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-white"
+                {/* Profile card — collapsed by default */}
+                <div className="rounded-xl border border-cream-dark bg-white p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] uppercase tracking-widest font-medium text-ink-muted">Profile</div>
+                    <button
+                      onClick={() => setShowProfileEditor(!showProfileEditor)}
+                      className="text-[11px] text-accent hover:text-accent/80 transition-colors flex items-center gap-1"
                     >
-                      {LANGUAGES.map((l) => (
-                        <option key={l.code} value={l.code}>{l.label}</option>
-                      ))}
-                    </select>
+                      {showProfileEditor ? "Collapse" : "Edit details"}
+                      <svg viewBox="0 0 16 16" className={`w-3 h-3 transition-transform ${showProfileEditor ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M4 6l4 4 4-4" />
+                      </svg>
+                    </button>
                   </div>
+                  <div>
+                    <p className="text-sm text-ink font-medium">{reviewProfile.name}</p>
+                    <p className="text-xs text-ink-muted">
+                      {[reviewProfile.current_role, reviewProfile.company && `at ${reviewProfile.company}`].filter(Boolean).join(" ") || "No role detected"}
+                    </p>
+                  </div>
+
+                  {showProfileEditor && (
+                    <>
+                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-cream-dark">
+                        <div>
+                          <label className="text-[10px] text-ink-faint block mb-1">Name</label>
+                          <input
+                            type="text"
+                            value={reviewProfile.name}
+                            onChange={(e) => setReviewProfile({ ...reviewProfile, name: e.target.value })}
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-ink-faint block mb-1">Company</label>
+                          <input
+                            type="text"
+                            value={reviewProfile.company}
+                            onChange={(e) => setReviewProfile({ ...reviewProfile, company: e.target.value })}
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="text-[10px] text-ink-faint block mb-1">Role</label>
+                          <input
+                            type="text"
+                            value={reviewProfile.current_role}
+                            onChange={(e) => setReviewProfile({ ...reviewProfile, current_role: e.target.value })}
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-ink-faint block mb-2">Personalization hooks</label>
+                        <div className="flex flex-wrap gap-2">
+                          {reviewProfile.personalization_hooks.map((hook, i) => (
+                            <span
+                              key={i}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-accent/20 bg-accent-soft text-xs text-accent"
+                            >
+                              {hook}
+                              <button
+                                onClick={() => setReviewProfile({
+                                  ...reviewProfile,
+                                  personalization_hooks: reviewProfile.personalization_hooks.filter((_, j) => j !== i),
+                                })}
+                                className="text-accent/50 hover:text-accent"
+                              >
+                                &times;
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Tone selector */}
+                      <div>
+                        <label className="text-[10px] text-ink-faint block mb-2">Tone</label>
+                        <div className="flex gap-2">
+                          {(["conversational", "formal", "technical"] as const).map((t) => (
+                            <button
+                              key={t}
+                              onClick={() => setReviewProfile({ ...reviewProfile, tone: t })}
+                              className={`px-3 py-1.5 rounded-md border text-xs transition-colors ${
+                                reviewProfile.tone === t
+                                  ? "border-accent bg-accent-soft text-accent"
+                                  : "border-cream-dark text-ink-muted hover:border-accent/30"
+                              }`}
+                            >
+                              {t}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Language selector */}
+                      <div>
+                        <label className="text-[10px] text-ink-faint block mb-2">
+                          Language
+                          <span className="ml-1.5 text-warm">(auto-detected)</span>
+                        </label>
+                        <select
+                          value={reviewProfile.language || "en"}
+                          onChange={(e) => setReviewProfile({ ...reviewProfile, language: e.target.value })}
+                          className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-white"
+                        >
+                          {LANGUAGES.map((l) => (
+                            <option key={l.code} value={l.code}>{l.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Script */}
                 <div className="rounded-xl border border-cream-dark bg-white p-5 space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className="text-[10px] uppercase tracking-widest font-medium text-ink-muted">Script</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-[10px] uppercase tracking-widest font-medium text-ink-muted">Script</div>
+                      <button
+                        onClick={() => setScriptEditing(!scriptEditing)}
+                        className="text-[11px] text-accent hover:text-accent/80 transition-colors"
+                      >
+                        {scriptEditing ? "Done" : "Edit"}
+                      </button>
+                    </div>
                     <button
                       onClick={handleRegenerate}
                       disabled={reviewRegenerating}
@@ -1454,12 +1503,18 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     </div>
                   )}
 
-                  <textarea
-                    value={reviewScript}
-                    onChange={(e) => { setReviewScript(e.target.value); setTtsAudioUrl(null); }}
-                    rows={6}
-                    className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-accent/30"
-                  />
+                  {scriptEditing ? (
+                    <textarea
+                      value={reviewScript}
+                      onChange={(e) => { setReviewScript(e.target.value); setTtsAudioUrl(null); }}
+                      rows={6}
+                      className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-accent/30"
+                    />
+                  ) : (
+                    <div className="w-full rounded-lg border border-cream-dark/50 bg-cream/30 px-3 py-3 text-sm leading-relaxed text-ink whitespace-pre-wrap">
+                      {reviewScript}
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <p className="text-[11px] text-ink-faint">
                       {reviewScript.split(/\s+/).filter(Boolean).length} words · ~{Math.round(reviewScript.split(/\s+/).filter(Boolean).length / 2.5)}s at natural pace
@@ -1487,31 +1542,42 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   </div>
                 </div>
 
-                {/* Hook info */}
+                {/* Hook info — compact by default */}
                 {reviewHook && (
-                  <div className="rounded-xl border border-cream-dark bg-white p-5 space-y-2">
-                    <div className="text-[10px] uppercase tracking-widest font-medium text-ink-muted">Hook</div>
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-warm-soft border border-warm/20 text-[11px] text-warm font-medium">
-                        {reviewHook.archetype}
-                      </span>
-                      <span className="text-xs text-ink-muted">{reviewHook.format}</span>
-                    </div>
-                    <p className="text-xs text-ink-muted leading-relaxed">{reviewHook.reasoning}</p>
+                  <div className="rounded-xl border border-cream-dark bg-white">
+                    <button
+                      onClick={() => setShowHookReasoning(!showHookReasoning)}
+                      className="w-full flex items-center justify-between p-4 text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="px-2 py-0.5 rounded bg-warm-soft border border-warm/20 text-[11px] text-warm font-medium">
+                          {reviewHook.archetype}
+                        </span>
+                        <span className="text-xs text-ink-muted">{reviewHook.format}</span>
+                      </div>
+                      <svg viewBox="0 0 16 16" className={`w-3.5 h-3.5 text-ink-faint transition-transform ${showHookReasoning ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M4 6l4 4 4-4" />
+                      </svg>
+                    </button>
+                    {showHookReasoning && (
+                      <div className="px-4 pb-4">
+                        <p className="text-xs text-ink-muted leading-relaxed">{reviewHook.reasoning}</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Actions */}
-                <div className="flex gap-3">
+                {/* Actions — sticky */}
+                <div className="sticky bottom-4 z-10 flex gap-3 bg-gradient-to-t from-cream via-cream/95 to-transparent pt-6 pb-2 -mx-6 px-6">
                   <button
                     onClick={() => setStage("input")}
-                    className="flex-1 rounded-xl border border-cream-dark py-3 text-sm font-medium text-ink-muted hover:border-ink/30 transition-colors"
+                    className="flex-1 rounded-xl border border-cream-dark bg-white py-3 text-sm font-medium text-ink-muted hover:border-ink/30 transition-colors"
                   >
                     Back
                   </button>
                   <button
                     onClick={handleConfirmBuild}
-                    className="flex-[2] btn-press rounded-xl bg-ink text-cream py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
+                    className="flex-[2] btn-press rounded-xl bg-ink text-cream py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2 shadow-lg"
                   >
                     Build on Melius
                     <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
