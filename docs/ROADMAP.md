@@ -5,7 +5,10 @@
 nuncio is in production. The core pipeline — enrichment → script → canvas → video — is live at
 [nuncio.persidian.com](https://nuncio.persidian.com) with credit enforcement, Stripe payments,
 magic-link auth, batch campaign support, persistent state, cinematic soundscapes with ducking,
-recent activity/company enrichment, tone matching, script A/B variants, and sender brief memory.
+recent activity/company enrichment, tone matching, script A/B variants, sender brief memory,
+multi-language delivery, account dashboard, onboarding walkthrough, Sentry error monitoring,
+responsive email templates, and progressive disclosure studio UI.
+
 All provider integrations (TinyFish, Featherless, HeyGen, Melius, ElevenLabs, Speechmatics) are active.
 
 ---
@@ -116,8 +119,8 @@ See [`docs/CREDITS.md`](./CREDITS.md) for full cost model and provider pricing b
 - [x] TTS integration for voice-over (ElevenLabs Flash model)
 - [x] Context-aware vibe generation — LLM picks soundscape prompt based on target industry
 - [x] Layered audio player in `/v/[id]` with "ducking"
-- [ ] Cinematic entrance — procedural SFX on video start
-- [ ] Script-triggered Foley — sound effects synced to script keywords
+- [x] Cinematic entrance — 3s SFX on play click, generated via ElevenLabs per vibe
+- [x] Foley — sound effects generation is technically wired but not script-triggered
 
 ---
 
@@ -128,7 +131,7 @@ See [`docs/CREDITS.md`](./CREDITS.md) for full cost model and provider pricing b
 - [x] Recent activity enrichment — pull last 10 tweets/posts, not just bio
 - [x] Company enrichment — if LinkedIn shows a company, also enrich the company's website
 - [x] Tone matching — analyse the target's writing style and adjust script tone to match
-- [ ] Multi-language delivery — auto-detect target's primary language, translate via HeyGen
+- [x] Multi-language delivery — auto-detect target language from profile content, write script in that language, language selector in studio review, language badge on video page
 - [x] Script A/B variants — generate 2 script options, let sender pick before rendering (advanced mode only)
 - [x] Sender brief memory — remember past briefs via workspace account storage
 
@@ -151,46 +154,154 @@ See [`docs/CREDITS.md`](./CREDITS.md) for full cost model and provider pricing b
 **Goal:** Make the system reliable and observable for paying users.
 
 - [x] Persistent batch queue (database-backed, survive restarts)
-- [x] Persistent magic link tokens (database or Redis)
-- [x] Error monitoring (Sentry — @sentry/nextjs v10 configured via instrumentation.ts + withSentryConfig)
-- [x] User dashboard — account page with credit history, past videos, usage stats
-- [x] Onboarding flow — first-visit modal with guided tips
-- [ ] Studio page simplification — progressive disclosure of Hook Engine complexity
-- [ ] Responsive email templates for magic links
+- [ ] Persistent magic link tokens (database-backed) — currently in-memory `Map`
+- [x] Error monitoring (Sentry — @sentry/nextjs v10 via instrumentation.ts + withSentryConfig)
+- [x] User dashboard — `/dashboard` with credit history, past videos, usage stats, quick actions
+- [x] Onboarding flow — first-visit modal with guided tips, localStorage-tracked
+- [x] Cross-linking — Studio↔Batch links, Dashboard in header & account menu, post-login redirect
+- [x] `workspaceId` on share records — enables per-workspace video queries in dashboard
+- [x] `GET /api/videos/recent` — endpoint for per-workspace video listing
+- [x] Studio simplification — collapsible profile editor, read-only script preview by default, collapsible hook info, sticky build button, advanced settings behind toggle (quick mode)
+- [x] Responsive email templates — full `<html>` wrapper with `<style>` block and mobile-first media queries
+
+---
+
+## Phase 8 — Polish to 9/10
+
+**Goal:** Move from 7/10 product to 9/10 across architecture, UI/UX, and intuitiveness.
+
+Current scores: Product 7/10 · Architecture 7/10 · UI/UX 8/10 · Intuitiveness 6/10
+Target:  Product 9/10 · Architecture 9/10 · UI/UX 9/10 · Intuitiveness 9/10
+
+### A — Kill the God Component (Architecture)
+
+**Problem:** `studio-client.tsx` is 2300+ lines with 45 raw `useState` calls.
+
+**Solution:** Extract the 4 stage render blocks into standalone components in
+`src/components/studio/`, each with its own focused state. Replace raw state
+orchestration with `useReducer` defining a type-safe state machine:
+`input→enriching→review→building→ready→error`.
+
+**Effort:** 3-4 hours. Risk: moderate.
+
+### B — One Video Player (Architecture + UI/UX)
+
+**Problem:** `/v/[id]` and `VideoPlayer` (`src/components/video-player.tsx`) handle
+captions, language, and translation differently. The video page has an empty `<track>`;
+VideoPlayer has full VTT + TranslateButton.
+
+**Solution:** Delegate both to a shared `VideoPlayerCore` component. CaptionTrack,
+TranslateButton, and DuckingAudio live in the core; page-specific shells add
+cinematic entrance overlay and share-nuncio footer respectively.
+
+**Effort:** 2-3 hours. Risk: low.
+
+### C — Demystify the Nomenclature (Intuitiveness)
+
+| Term | Fix |
+|---|---|
+| "Build on Melius" | Change to **"Build video"** , add `(powered by Melius)` as tiny footnote |
+| "Hook" / "Archetype" | Show inline descriptions next to each archetype button |
+| "Soundscape" / "Vibe" / "Cinematic entrance" | Group into one **"Audio"** card with a single vibe selector |
+| Credits | Show cost breakdown as tooltip on build button: "11 credits: research (1) + script (1) + ..." |
+
+**Effort:** 1-2 hours. Risk: none.
+
+### D — Mobile Responsiveness Pass (UI/UX)
+
+**Test and fix on actual devices:**
+
+| Page | Likely issues |
+|---|---|
+| `/studio` | Grid breaks, canvas animation overflows, sticky button padding |
+| `/v/[id]` | Video controls on iOS Safari |
+| `/dashboard` | Cards stack, table wraps |
+| `/batch` | Job table scroll, progress bars |
+| Header nav | Links overflow — collapse to hamburger |
+
+**Effort:** 2-3 hours. Risk: low.
+
+### E — Email Gate UX (Product + Intuitiveness)
+
+**Problem:** Email capture dialog appears without context.
+
+**Fix:** Add explainer tooltip before modal: "We'll send the link to your email so
+you don't lose it." Update modal copy per intent. Show credit cost before render.
+
+**Effort:** 1 hour. Risk: none.
+
+### F — Use After Render (Product)
+
+**Problem:** No feedback after sending a video.
+
+**Add:** Lightweight view tracking on `/v/[id]` (`POST /api/share/[id]/viewed`),
+"watched" badges in studio/dashboard, and a resend follow-up option.
+
+**Effort:** 2-3 hours. Risk: low. **Highest-ROI missing feature** — turns nuncio
+from a video generator into an outreach platform.
+
+### G — Persistent Magic Link Tokens (Architecture)
+
+**Problem:** Magic link tokens in-memory (`Map`). Restart kills pending links.
+Can't scale to multi-instance.
+
+**Solution:** Implement `MagicLinkStorageProvider` following the same pattern as
+batch storage (file or Turso). TTL-based cleanup on read.
+
+**Effort:** 1-2 hours. Risk: low.
+
+### Effort Summary
+
+| Item | Hours | Impact | Risk |
+|---|---|---|---|
+| A — Kill the god component | 3-4 | Architecture +++ | Medium |
+| B — One video player | 2-3 | Architecture ++, UI/UX ++ | Low |
+| C — Demystify nomenclature | 1-2 | Intuitiveness +++ | None |
+| D — Mobile pass | 2-3 | UI/UX +++ | Low |
+| E — Email gate UX | 1 | Product ++, Intuitiveness ++ | None |
+| F — View tracking | 2-3 | Product +++ | Low |
+| G — Persistent magic links | 1-2 | Architecture ++ | Low |
+| **Total** | **14-21 hours** | | |
+
+### Suggested Order
+
+1. **C + E** (3 hours, zero risk, immediate perceptible improvement)
+2. **F** (3 hours, highest ROI feature)
+3. **D** (3 hours, catches real bugs)
+4. **A** (4 hours, foundational refactor — do before adding more features)
+5. **B** (3 hours, requires A to settle — studio ready stage touches extracted components)
+6. **G** (2 hours, low priority if single-instance)
 
 ---
 
 ## Product assessments
 
-### Design (8/10)
-Strong linear pipeline with smart fallbacks. Credit-as-single-currency model is well thought out.
-The `/dashboard` page unifies Studio and Batch into a single post-login experience with recent
-activity, credit balance, usage stats, and quick actions.
+### Product Design — 7/10
+Strong core insight: personalised video outreach at scale, gated by email capture.
+Hook engine archetypes are a real differentiator. The quick/advanced mode split
+covers both casual and power users. Weak spots: no post-send feedback loop
+(view tracking), email gate lacks context, and credit pricing is opaque at point
+of action.
 
-### UX improvements
+### System Architecture — 7/10
+Solid Next.js App Router layout. Clean `/api/studio/*` and `/api/batch/*`
+separation. SSE stream for build progress is elegant. Melius MCP integration
+is a neat abstraction. Weak spots: `studio-client.tsx` is a 2300-line god
+component, two diverged video players, magic link tokens in-memory, 45 raw
+`useState` calls with no state machine.
 
-- [x] Account dashboard (`/dashboard`) with credit history, usage stats, recent videos
-- [x] Onboarding modal (3 tips, localStorage-tracked, dismissible, replayable from account menu)
-- [x] Unified header navigation with Dashboard link
-- [x] Account menu includes Dashboard link and "Show tips" replay
-- [x] Cross-links between Studio and Batch pages
-- [x] `/api/videos/recent` endpoint for per-workspace video listing
-- [x] `workspaceId` tracking on share records for dashboard queries
+### UI/UX — 8/10
+Visually excellent — cream palette, motion design, cinematic entrance, animated
+canvas. Quick mode flow is clean and focused. Weak spots: mobile likely has
+layout issues, ready stage has too many buttons in advanced mode, the "Built on
+Melius" badge means nothing to new users.
 
-### UI/UX (7/10)
-Clean monochrome design, good motion polish. Account dashboard (`/dashboard`) shows credit
-history, usage stats, recent videos and batch campaigns. Onboarding modal guides first-time
-users through the core flow. Pricing page and account menu link to dashboard. Cross-links
-between Studio and Batch improve discoverability.
-
-### System Architecture (8.5/10)
-Clean separation of concerns, excellent fallback chains, production-grade credit reservation
-pattern. Batch queue and magic link tokens now persisted. Sentry error monitoring configured (requires SENTRY_DSN env var to activate).
-
-### Intuitiveness (6/10)
-Core "paste URL → get video" is simple. Recent activity & company enrichment make the output
-more relevant with zero extra effort. Script A/B variants give power users control without
-cluttering the quick path. Sender brief memory removes friction for returning users.
+### Intuitiveness — 6/10
+Core "paste URL → get video" is simple. Recent simplification work (collapsible
+sections, progressive disclosure) helped. Weak spots: "Melius" unexplained,
+"Soundscape vs Vibe vs Cinematic Entrance" is three names for one concept,
+archetype names lack descriptions, credit costs invisible until the reservation
+fails, email gate is abrupt.
 
 ---
 
@@ -198,8 +309,7 @@ cluttering the quick path. Sender brief memory removes friction for returning us
 
 - **HeyGen generation time:** 60–180 seconds per video. Cannot be made faster.
 - **TinyFish login walls:** LinkedIn, Facebook, and some Twitter profiles require authentication.
-- **In-memory state:** Batch queue and magic link tokens now persisted via file or Turso storage
-  providers (determined by `TURSO_DATABASE_URL`). Survives restarts. Ready for horizontal scaling.
+- **In-memory magic link tokens:** Pending persistent storage (tracked in Phase 8-G).
 - **Stripe test mode:** All payments are in Stripe test mode. Switch to live mode before accepting
   real payments.
 
@@ -207,6 +317,7 @@ cluttering the quick path. Sender brief memory removes friction for returning us
 
 ## Icebox (not planned, but noted)
 
+- Script-triggered Foley — sound effects synced to script keywords
 - Real-time streaming video generation
 - On-device voice cloning
 - Video personalisation with the target's own face/voice (deepfake — explicitly out of scope)
