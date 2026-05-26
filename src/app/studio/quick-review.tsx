@@ -135,18 +135,30 @@ export function QuickReview({
                   {languageLabel(profile.language)} · auto-detected
                 </span>
               )}
-              {profile.personalization_hooks && profile.personalization_hooks.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {profile.personalization_hooks.slice(0, 3).map((hook, i) => (
-                    <span
-                      key={i}
-                      className="text-[10px] px-2 py-0.5 rounded-full bg-accent-soft text-accent"
-                    >
-                      {hook}
-                    </span>
-                  ))}
-                </div>
-              )}
+            {profile.outreach_intent?.goal && (
+              <div className="rounded-xl border border-warm/20 bg-warm-soft/40 p-3">
+                <span className="text-[10px] uppercase tracking-widest text-warm font-medium">Outreach goal</span>
+                <p className="text-xs text-ink-muted mt-1">{profile.outreach_intent.goal}</p>
+                {profile.outreach_intent.desiredOutcome && (
+                  <p className="text-[11px] text-ink-faint mt-1">Desired outcome: {profile.outreach_intent.desiredOutcome}</p>
+                )}
+              </div>
+            )}
+            {profile.relevance_signals && profile.relevance_signals.length > 0 && (
+              <div className="space-y-2 pt-1">
+                <span className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">Why this person fits</span>
+                {profile.relevance_signals.slice(0, 3).map((signal, i) => (
+                  <div key={i} className="rounded-xl border border-accent/15 bg-accent-soft/30 p-3 space-y-1">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[11px] font-medium text-accent">{signal.label}</span>
+                      <span className="text-[10px] text-ink-faint uppercase">{signal.confidence}</span>
+                    </div>
+                    <p className="text-[11px] text-ink-muted">{signal.relevanceToOutreach}</p>
+                    <p className="text-[10px] text-ink-faint">{signal.evidence}</p>
+                  </div>
+                ))}
+              </div>
+            )}
               {profile.language && profile.language !== "en" && (
                 <div className="flex items-center justify-between pt-2 border-t border-cream-dark">
                   <div className="flex items-center gap-2">

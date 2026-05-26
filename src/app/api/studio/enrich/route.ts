@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { enrich, fetchRecentActivity, enrichCompany } from "@/lib/tinyfish";
 import { synthesise, generateScript, generateScriptVariants } from "@/lib/claude";
-import type { Profile, IntentId, ScriptResult } from "@/lib/claude";
+import type { Profile, IntentId, ScriptResult, SenderProfile, OutreachIntentProfile } from "@/lib/claude";
 import { chooseArchetype } from "@/lib/hooks/select";
 import { pickFormat, type HookArchetypeId } from "@/lib/hooks/archetypes";
 import {
@@ -30,6 +30,47 @@ export interface EnrichResponse {
   };
 }
 
+function cleanOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function cleanStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const cleaned = value
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean);
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
+function buildSenderProfile(body: Record<string, unknown>): SenderProfile | undefined {
+  const senderProfile: SenderProfile = {
+    business: cleanOptionalString(body.senderBusiness),
+    brand: cleanOptionalString(body.senderBrand),
+    personality: cleanOptionalString(body.senderPersonality),
+    audience: cleanOptionalString(body.senderAudience),
+    offer: cleanOptionalString(body.senderOffer),
+    proofPoints: cleanStringArray(body.senderProofPoints),
+  };
+
+  return Object.values(senderProfile).some(Boolean) ? senderProfile : undefined;
+}
+
+function buildOutreachIntent(body: Record<string, unknown>): OutreachIntentProfile | undefined {
+  const relationshipWarmth = body.relationshipWarmth;
+  const outreachIntent: OutreachIntentProfile = {
+    goal: cleanOptionalString(body.outreachGoal),
+    desiredOutcome: cleanOptionalString(body.desiredOutcome),
+    reasonForReachingOutNow: cleanOptionalString(body.reasonForReachingOutNow),
+    relationshipWarmth:
+      relationshipWarmth === "cold" || relationshipWarmth === "warm" || relationshipWarmth === "existing"
+        ? relationshipWarmth
+        : undefined,
+    tonePreference: cleanOptionalString(body.tonePreference),
+  };
+
+  return Object.values(outreachIntent).some(Boolean) ? outreachIntent : undefined;
+}
+
 export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
 
@@ -48,6 +89,8 @@ export async function POST(request: NextRequest) {
       try {
         const body = await request.json();
         const { url, senderBrief, senderName, intent, archetype } = body;
+        const senderProfile = buildSenderProfile(body as Record<string, unknown>);
+        const outreachIntent = buildOutreachIntent(body as Record<string, unknown>);
         const clientProfile = body.profile as Profile | undefined;
         const languageOverride = body.language as string | undefined;
 
@@ -91,7 +134,23 @@ export async function POST(request: NextRequest) {
 
           send({ phase: "synthesise" });
 
-          profile = await synthesise(markdown);
+          profile = await synthesise(markdown, {
+            senderContext: {
+              senderBrief: cleanOptionalString(senderBrief),
+              senderName: cleanOptionalString(senderName),
+              senderBusiness: senderProfile?.business,
+              senderBrand: senderProfile?.brand,
+              senderPersonality: senderProfile?.personality,
+              senderAudience: senderProfile?.audience,
+              senderOffer: senderProfile?.offer,
+              senderProofPoints: senderProfile?.proofPoints,
+              outreachGoal: outreachIntent?.goal,
+              desiredOutcome: outreachIntent?.desiredOutcome,
+              relationshipWarmth: outreachIntent?.relationshipWarmth,
+              reasonForReachingOutNow: outreachIntent?.reasonForReachingOutNow,
+              tonePreference: outreachIntent?.tonePreference,
+            },
+          });
 
           if (profile.name === "there") {
             send({ error: "Could not identify a person from this profile. Try a different URL or platform." });
@@ -102,6 +161,13 @@ export async function POST(request: NextRequest) {
 
         if (languageOverride) {
           profile.language = languageOverride;
+        }
+
+        if (senderProfile) {
+          profile.sender_profile = senderProfile;
+        }
+        if (outreachIntent) {
+          profile.outreach_intent = outreachIntent;
         }
 
         send({ phase: "compose" });
@@ -124,6 +190,11 @@ export async function POST(request: NextRequest) {
           senderName: typeof senderName === "string" ? senderName.trim() || undefined : undefined,
           recentActivity,
           companyContext,
+          senderProfile,
+          outreachIntent,
+          toneInstruction: outreachIntent?.tonePreference
+            ? `Honor this sender preference where it still feels natural: ${outreachIntent.tonePreference}.`
+            : undefined,
         };
 
         let scriptResult: ScriptResult;

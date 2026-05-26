@@ -376,6 +376,17 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     return "";
   });
   const [senderBrief, setSenderBrief] = useState("");
+  const [senderBusiness, setSenderBusiness] = useState("");
+  const [senderBrand, setSenderBrand] = useState("");
+  const [senderPersonality, setSenderPersonality] = useState("");
+  const [senderAudience, setSenderAudience] = useState("");
+  const [senderOffer, setSenderOffer] = useState("");
+  const [senderProofPoints, setSenderProofPoints] = useState("");
+  const [outreachGoal, setOutreachGoal] = useState("");
+  const [desiredOutcome, setDesiredOutcome] = useState("");
+  const [reasonForReachingOutNow, setReasonForReachingOutNow] = useState("");
+  const [relationshipWarmth, setRelationshipWarmth] = useState<"cold" | "warm" | "existing">("cold");
+  const [tonePreference, setTonePreference] = useState("");
   const [stage, setStage] = useState<StudioStage>("input");
   const [buildResult, setBuildResult] = useState<StudioBuildResult | null>(null);
   const [error, setError] = useState("");
@@ -500,6 +511,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
       body: JSON.stringify({
         senderBrief: brief || undefined,
         senderName: name || undefined,
+        senderBusiness: senderBusiness.trim() || undefined,
       }),
     }).catch(() => {});
     if (name) localStorage.setItem("nuncio_sender_name", name);
@@ -551,6 +563,20 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           url: url.trim(),
           senderName: senderName.trim() || undefined,
           senderBrief: senderBrief.trim() || undefined,
+          senderBusiness: senderBusiness.trim() || undefined,
+          senderBrand: senderBrand.trim() || undefined,
+          senderPersonality: senderPersonality.trim() || undefined,
+          senderAudience: senderAudience.trim() || undefined,
+          senderOffer: senderOffer.trim() || undefined,
+          senderProofPoints: senderProofPoints
+            .split("\n")
+            .map((value) => value.trim())
+            .filter(Boolean),
+          outreachGoal: outreachGoal.trim() || undefined,
+          desiredOutcome: desiredOutcome.trim() || undefined,
+          reasonForReachingOutNow: reasonForReachingOutNow.trim() || undefined,
+          relationshipWarmth,
+          tonePreference: tonePreference.trim() || undefined,
           intent: archetype === "auto" ? undefined : undefined,
           archetype: archetype === "auto" ? undefined : archetype,
           scriptVariants: !quickMode,
@@ -625,6 +651,20 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           url: url.trim(),
           senderName: senderName.trim() || undefined,
           senderBrief: senderBrief.trim() || undefined,
+          senderBusiness: senderBusiness.trim() || undefined,
+          senderBrand: senderBrand.trim() || undefined,
+          senderPersonality: senderPersonality.trim() || undefined,
+          senderAudience: senderAudience.trim() || undefined,
+          senderOffer: senderOffer.trim() || undefined,
+          senderProofPoints: senderProofPoints
+            .split("\n")
+            .map((value) => value.trim())
+            .filter(Boolean),
+          outreachGoal: outreachGoal.trim() || undefined,
+          desiredOutcome: desiredOutcome.trim() || undefined,
+          reasonForReachingOutNow: reasonForReachingOutNow.trim() || undefined,
+          relationshipWarmth,
+          tonePreference: tonePreference.trim() || undefined,
           archetype: archetype === "auto" ? undefined : archetype,
           profile: reviewProfile,
           scriptVariants: !quickMode,
@@ -1121,6 +1161,10 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               setSenderName={setSenderName}
               senderBrief={senderBrief}
               setSenderBrief={setSenderBrief}
+              senderBusiness={senderBusiness}
+              setSenderBusiness={setSenderBusiness}
+              outreachGoal={outreachGoal}
+              setOutreachGoal={setOutreachGoal}
               onEnrich={handleEnrich}
               onToggleMode={toggleMode}
               detectedLanguage={detectedLanguage}
@@ -1611,26 +1655,113 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                         </div>
                       </div>
 
-                      <div>
-                        <label className="text-[10px] text-ink-faint block mb-2">Personalization hooks</label>
-                        <div className="flex flex-wrap gap-2">
-                          {reviewProfile.personalization_hooks.map((hook, i) => (
-                            <span
-                              key={i}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-accent/20 bg-accent-soft text-xs text-accent"
-                            >
-                              {hook}
-                              <button
-                                onClick={() => setReviewProfile({
-                                  ...reviewProfile,
-                                  personalization_hooks: reviewProfile.personalization_hooks.filter((_, j) => j !== i),
-                                })}
-                                className="text-accent/50 hover:text-accent"
-                              >
-                                &times;
-                              </button>
-                            </span>
-                          ))}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-cream-dark">
+                        <div>
+                          <label className="text-[10px] text-ink-faint block mb-1">Your business</label>
+                          <input
+                            type="text"
+                            value={senderBusiness}
+                            onChange={(e) => setSenderBusiness(e.target.value)}
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-ink-faint block mb-1">Brand</label>
+                          <input
+                            type="text"
+                            value={senderBrand}
+                            onChange={(e) => setSenderBrand(e.target.value)}
+                            placeholder="e.g. thoughtful, technical, premium"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-ink-faint block mb-1">Personality</label>
+                          <input
+                            type="text"
+                            value={senderPersonality}
+                            onChange={(e) => setSenderPersonality(e.target.value)}
+                            placeholder="e.g. founder-led, direct, curious"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-ink-faint block mb-1">Audience / ICP</label>
+                          <input
+                            type="text"
+                            value={senderAudience}
+                            onChange={(e) => setSenderAudience(e.target.value)}
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] text-ink-faint block mb-1">Offer</label>
+                          <input
+                            type="text"
+                            value={senderOffer}
+                            onChange={(e) => setSenderOffer(e.target.value)}
+                            placeholder="What are you offering this person?"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-ink-faint block mb-1">Goal</label>
+                          <input
+                            type="text"
+                            value={outreachGoal}
+                            onChange={(e) => setOutreachGoal(e.target.value)}
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-ink-faint block mb-1">Desired outcome</label>
+                          <input
+                            type="text"
+                            value={desiredOutcome}
+                            onChange={(e) => setDesiredOutcome(e.target.value)}
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-ink-faint block mb-1">Relationship</label>
+                          <select
+                            value={relationshipWarmth}
+                            onChange={(e) => setRelationshipWarmth(e.target.value as "cold" | "warm" | "existing")}
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-white"
+                          >
+                            <option value="cold">Cold</option>
+                            <option value="warm">Warm</option>
+                            <option value="existing">Existing</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-ink-faint block mb-1">Tone preference</label>
+                          <input
+                            type="text"
+                            value={tonePreference}
+                            onChange={(e) => setTonePreference(e.target.value)}
+                            placeholder="e.g. warm, crisp, bold"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] text-ink-faint block mb-1">Why now</label>
+                          <textarea
+                            value={reasonForReachingOutNow}
+                            onChange={(e) => setReasonForReachingOutNow(e.target.value)}
+                            rows={2}
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] text-ink-faint block mb-1">Proof points</label>
+                          <textarea
+                            value={senderProofPoints}
+                            onChange={(e) => setSenderProofPoints(e.target.value)}
+                            rows={3}
+                            placeholder="One per line: traction, customers, credibility, outcomes"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30"
+                          />
                         </div>
                       </div>
 

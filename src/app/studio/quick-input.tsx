@@ -9,6 +9,10 @@ interface QuickInputProps {
   setSenderName: (v: string) => void;
   senderBrief: string;
   setSenderBrief: (v: string) => void;
+  senderBusiness: string;
+  setSenderBusiness: (v: string) => void;
+  outreachGoal: string;
+  setOutreachGoal: (v: string) => void;
   onEnrich: () => void;
   onToggleMode: () => void;
   detectedLanguage?: string | null;
@@ -23,6 +27,10 @@ export function QuickInput({
   setSenderName,
   senderBrief,
   setSenderBrief,
+  senderBusiness,
+  setSenderBusiness,
+  outreachGoal,
+  setOutreachGoal,
   onEnrich,
   onToggleMode,
   detectedLanguage,
@@ -136,6 +144,32 @@ export function QuickInput({
                   Set by voice
                 </span>
               )}
+            </div>
+
+            <div>
+              <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                Your business <span className="normal-case text-ink-faint">— what are you building or selling?</span>
+              </label>
+              <input
+                type="text"
+                value={senderBusiness}
+                onChange={(e) => setSenderBusiness(e.target.value)}
+                placeholder="e.g. AI outreach studio for personalised videos"
+                className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                Goal <span className="normal-case text-ink-faint">— what outcome do you want from this outreach?</span>
+              </label>
+              <input
+                type="text"
+                value={outreachGoal}
+                onChange={(e) => setOutreachGoal(e.target.value)}
+                placeholder="e.g. book a demo, get feedback, open a partnership conversation"
+                className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+              />
             </div>
 
             {detectingLanguage && (

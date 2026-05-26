@@ -1,5 +1,30 @@
 import { chatCompletion } from "@/lib/llm";
 
+export interface SenderProfile {
+  business?: string;
+  brand?: string;
+  personality?: string;
+  audience?: string;
+  offer?: string;
+  proofPoints?: string[];
+}
+
+export interface OutreachIntentProfile {
+  goal?: string;
+  desiredOutcome?: string;
+  reasonForReachingOutNow?: string;
+  relationshipWarmth?: "cold" | "warm" | "existing";
+  tonePreference?: string;
+}
+
+export interface RelevanceSignal {
+  label: string;
+  evidence: string;
+  relevanceToOutreach: string;
+  confidence: "high" | "medium" | "low";
+  source?: string;
+}
+
 export interface Profile {
   name: string;
   current_role: string;
@@ -9,6 +34,9 @@ export interface Profile {
   tone: "formal" | "conversational" | "technical";
   personalization_hooks: string[];
   language: string;
+  sender_profile?: SenderProfile;
+  outreach_intent?: OutreachIntentProfile;
+  relevance_signals?: RelevanceSignal[];
 }
 
 /**
@@ -16,15 +44,36 @@ export interface Profile {
  */
 export async function synthesise(
   enrichment: string[],
-  options?: { forceFallback?: boolean }
+  options?: {
+    forceFallback?: boolean;
+    senderContext?: {
+      senderBrief?: string;
+      senderName?: string;
+      senderBusiness?: string;
+      senderBrand?: string;
+      senderPersonality?: string;
+      senderAudience?: string;
+      senderOffer?: string;
+      senderProofPoints?: string[];
+      outreachGoal?: string;
+      desiredOutcome?: string;
+      relationshipWarmth?: "cold" | "warm" | "existing";
+      reasonForReachingOutNow?: string;
+      tonePreference?: string;
+    };
+  }
 ): Promise<Profile> {
   if (options?.forceFallback) {
     return fallbackProfile(enrichment);
   }
 
-  const systemPrompt = `You are a profile synthesis agent. Given enriched social profile data, produce a structured JSON profile. Respond ONLY with valid JSON matching this schema: { "name": string, "current_role": string, "company": string, "notable_work": string[], "interests": string[], "tone": "formal" | "conversational" | "technical", "personalization_hooks": string[], "language": string }. Do not fabricate information not present in the source data. Do not wrap in markdown code blocks. Output raw JSON only. IMPORTANT: The "name" field MUST be the PROFILE OWNER's real full name (first + last). The data starts with a Profile URL — that is the person you are profiling. Other people mentioned in search results are NOT the profile owner. If you cannot determine the profile owner's name, return "name": "". Never use generic labels like "Help Center", "User", "Profile", or other people's names. The "language" field should be the ISO 639-1 code of the primary language used in the profile content (e.g. "en", "es", "fr", "de", "ja", "zh", "pt", "ar", "hi", "it", "nl", "ko", "ru"). Default to "en" if uncertain.`;
+  const systemPrompt = `You are a profile synthesis agent. Given enriched social profile data, produce a structured JSON profile. Respond ONLY with valid JSON matching this schema: { "name": string, "current_role": string, "company": string, "notable_work": string[], "interests": string[], "tone": "formal" | "conversational" | "technical", "personalization_hooks": string[], "language": string, "sender_profile"?: { "business"?: string, "brand"?: string, "personality"?: string, "audience"?: string, "offer"?: string, "proofPoints"?: string[] }, "outreach_intent"?: { "goal"?: string, "desiredOutcome"?: string, "reasonForReachingOutNow"?: string, "relationshipWarmth"?: "cold" | "warm" | "existing", "tonePreference"?: string }, "relevance_signals"?: [{ "label": string, "evidence": string, "relevanceToOutreach": string, "confidence": "high" | "medium" | "low", "source"?: string }] }. Do not fabricate information not present in the source data. Do not wrap in markdown code blocks. Output raw JSON only. IMPORTANT: The "name" field MUST be the PROFILE OWNER's real full name (first + last). The data starts with a Profile URL — that is the person you are profiling. Other people mentioned in search results are NOT the profile owner. If you cannot determine the profile owner's name, return "name": "". Never use generic labels like "Help Center", "User", "Profile", or other people's names. The "language" field should be the ISO 639-1 code of the primary language used in the profile content (e.g. "en", "es", "fr", "de", "ja", "zh", "pt", "ar", "hi", "it", "nl", "ko", "ru"). Default to "en" if uncertain. When sender context is provided, infer a compact sender profile and 3-5 outreach relevance signals that connect the recipient's public context to the sender's actual reason for reaching out. Favor high-signal, recent, and credible connections over generic compliments.`;
 
-  const userMessage = `Synthesise the following enriched profile data into a structured profile. IMPORTANT: The profile owner is the person whose URL appears at the top — only extract THEIR name, role, and details. Other people mentioned in replies, comments, or articles are not the subject.\n\n${enrichment.join("\n\n---\n\n")}`;
+  const senderContextBlock = options?.senderContext
+    ? `\n\nSender context:\n${JSON.stringify(options.senderContext, null, 2)}`
+    : "";
+
+  const userMessage = `Synthesise the following enriched profile data into a structured profile. IMPORTANT: The profile owner is the person whose URL appears at the top — only extract THEIR name, role, and details. Other people mentioned in replies, comments, or articles are not the subject.${senderContextBlock}\n\n${enrichment.join("\n\n---\n\n")}`;
 
   try {
     const text = await chatCompletion(systemPrompt, userMessage);
@@ -90,6 +139,8 @@ export async function generateScript(
     companyContext?: string;
     toneInstruction?: string;
     language?: string;
+    senderProfile?: SenderProfile;
+    outreachIntent?: OutreachIntentProfile;
   }
 ): Promise<ScriptResult> {
   if (options?.forceFallback) {
@@ -110,7 +161,11 @@ export async function generateScript(
     ? `\nTONE: The target's natural communication style is "${profile.tone}". ${options.toneInstruction}`
     : `\nTONE: Match the target's communication style (${profile.tone}). If they write formally in their profile, write formally. If they are conversational, mirror that energy. The script should feel like a genuine message from one human to another, not a corporate form letter.`;
 
-  const systemPrompt = `You are an expert video script writer. Write a personalised 45-90 second video script (under 200 words) that is a direct message TO ${profile.name}. Address them by name. The sender is speaking directly to this person in a personalised video outreach. Reference at least 2 specific details from their profile. Write in first person as the sender, second person ("you") for the recipient. Be conversational and genuine — not salesy or generic. Never write about them in third person. Never use placeholder brackets like [Your Name] or [specific topic] — use ACTUAL details from the profile or omit. ${senderNameInstruction}${intentRubric ? `\n\n${intentRubric}` : ""}
+  const senderContextInstruction = options?.senderProfile || options?.outreachIntent
+    ? `\nSENDER CONTEXT: You have structured context about the sender's business, brand, audience, offer, personality, and outreach intent. Use it explicitly to connect the recipient's context to the actual ask. The script should make clear why this recipient is a fit for this outreach right now.`
+    : "";
+
+  const systemPrompt = `You are an expert video script writer. Write a personalised 45-90 second video script (under 200 words) that is a direct message TO ${profile.name}. Address them by name. The sender is speaking directly to this person in a personalised video outreach. Reference at least 2 specific details from their profile. Write in first person as the sender, second person ("you") for the recipient. Be conversational and genuine — not salesy or generic. Never write about them in third person. Never use placeholder brackets like [Your Name] or [specific topic] — use ACTUAL details from the profile or omit. ${senderNameInstruction}${intentRubric ? `\n\n${intentRubric}` : ""}${senderContextInstruction}
 ${toneInstruction}
 ${languageInstruction}
 ${VIBE_SYSTEM_CONTEXT}
@@ -124,6 +179,15 @@ OUTPUT FORMAT (JSON):
 Respond ONLY with raw JSON. No markdown code blocks.`;
 
   const contextBlocks = [`Profile:\n${JSON.stringify(profile, null, 2)}`];
+  if (options?.senderProfile) {
+    contextBlocks.push(`SENDER PROFILE:\n${JSON.stringify(options.senderProfile, null, 2)}`);
+  }
+  if (options?.outreachIntent) {
+    contextBlocks.push(`OUTREACH INTENT:\n${JSON.stringify(options.outreachIntent, null, 2)}`);
+  }
+  if (profile.relevance_signals && profile.relevance_signals.length > 0) {
+    contextBlocks.push(`RELEVANCE SIGNALS:\n${JSON.stringify(profile.relevance_signals, null, 2)}`);
+  }
   if (options?.recentActivity) {
     contextBlocks.push(`RECENT ACTIVITY:\n${options.recentActivity}`);
   }
@@ -225,6 +289,9 @@ function normaliseProfile(profile: Partial<Profile>): Profile {
       ? profile.personalization_hooks
       : [],
     language,
+    sender_profile: profile.sender_profile,
+    outreach_intent: profile.outreach_intent,
+    relevance_signals: Array.isArray(profile.relevance_signals) ? profile.relevance_signals : [],
   };
 }
 
@@ -260,6 +327,7 @@ function fallbackProfile(enrichment: string[]): Profile {
     tone: "conversational",
     personalization_hooks: hooks,
     language: langCode,
+    relevance_signals: [],
   };
 }
 
