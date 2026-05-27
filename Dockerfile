@@ -26,10 +26,13 @@ ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL} \
     NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST} \
     NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=${NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN}
 
+# Don't use standalone mode — our custom production server (src/server/production.ts)
+# needs programmatic next() which is incompatible with standalone output.
 RUN pnpm build
 
 # Stage 3: Production runner
 FROM node:22-alpine AS runner
+RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -41,13 +44,16 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 RUN mkdir -p /app/.data && chown nextjs:nodejs /app/.data
 
-# Copy built assets
+# Copy everything needed at runtime
 COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
+COPY --from=builder --chown=nextjs:nodejs /app/src ./src
 
 USER nextjs
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+# Start the custom production server (Next.js + Speech Engine WebSocket)
+CMD ["pnpm", "start"]
