@@ -42,26 +42,43 @@ The EXTRACT block must be valid JSON matching this schema:
 }
 `;
 
+/**
+ * Process a conversation turn in the voice agent.
+ *
+ * @param history - Full conversation history (accumulated across turns).
+ * @param userTranscript - The latest user utterance text.
+ * @returns Agent response text and extracted profile data.
+ */
 export async function processConversationTurn(
   history: ConversationTurn[],
   userTranscript: string
 ): Promise<{ agentResponse: string; extracted: VoiceExtractedProfile }> {
-  const conversationLines = history
+  // Build a compact conversation summary from history
+  // We use the last N turns to keep context window manageable
+  const recentTurns = history.slice(-6);
+  const conversationLines = recentTurns
     .map((t) => `${t.role === "user" ? "User" : "Agent"}: ${t.text}`)
     .join("\n");
 
-  const userMessage = `Previous conversation:\n${conversationLines}\n\nUser said: "${userTranscript}"\n\nRespond naturally, then include the EXTRACT block.`;
+  const userMessage = `Previous conversation:\n${conversationLines}\n\nUser said: "${userTranscript}"\n\nAdd the latest information to your EXTRACT block. Respond naturally first, then include the EXTRACT block.`;
 
-  const raw = await chatCompletion(SYSTEM_PROMPT, userMessage);
+  const raw = await chatCompletion(SYSTEM_PROMPT, userMessage, {
+    maxTokens: 1024,
+  });
 
-  const extractMatch = raw.match(/---EXTRACT---\s*(\{[\s\S]*?\})\s*---END---/);
+  const extractMatch = raw.match(
+    /---EXTRACT---\s*(\{[\s\S]*?\})\s*---END---/
+  );
+
   let extracted: VoiceExtractedProfile;
   let agentResponse: string;
 
   if (extractMatch) {
     try {
       extracted = JSON.parse(extractMatch[1]);
-      agentResponse = extracted.lastAgentMessage || raw.replace(/---EXTRACT---[\s\S]*$/, "").trim();
+      agentResponse =
+        extracted.lastAgentMessage ||
+        raw.replace(/---EXTRACT---[\s\S]*$/, "").trim();
     } catch {
       extracted = createDefaultExtract();
       agentResponse = raw.replace(/---EXTRACT---[\s\S]*$/, "").trim();
@@ -82,7 +99,9 @@ function createDefaultExtract(): VoiceExtractedProfile {
   };
 }
 
-export function formatProfileSummary(profile: VoiceExtractedProfile): string {
+export function formatProfileSummary(
+  profile: VoiceExtractedProfile
+): string {
   const parts: string[] = [];
   if (profile.name) parts.push(`Recipient: ${profile.name}`);
   if (profile.company) parts.push(`at ${profile.company}`);
