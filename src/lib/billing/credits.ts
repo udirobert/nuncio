@@ -10,7 +10,12 @@ export type CreditAction =
   | "video.render"
   | "video.translate"
   | "captions.generate"
-  | "preview.generate";
+  | "preview.generate"
+  // Phase 9: Premium research actions
+  | "research.deep"
+  | "research.premium"
+  | "angle.generation"
+  | "source.attribution";
 
 export type CreditTransactionType = "grant" | "debit" | "refund" | "adjustment";
 
@@ -54,6 +59,11 @@ const COSTS: Record<CreditAction, number> = {
   "video.translate": 2,
   "captions.generate": 1,
   "preview.generate": 0,
+  // Phase 9: Premium research
+  "research.deep": 3,        // Firecrawl + EXA deep research
+  "research.premium": 5,     // Full multi-provider research
+  "angle.generation": 1,     // Additional angle suggestions
+  "source.attribution": 0,   // Free (just a UI pass)
 };
 
 const ledger = new Map<string, LedgerState>();

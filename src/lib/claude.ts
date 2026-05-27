@@ -25,6 +25,23 @@ export interface RelevanceSignal {
   source?: string;
 }
 
+export interface TopicalAngle {
+  id: string;
+  label: string;
+  description: string;
+  evidence: string;
+  confidence: "high" | "medium" | "low";
+  relevanceToOutreach: string;
+  suggestedArchetype?: string;
+}
+
+export interface SourceAttribution {
+  factCount: number;
+  inferenceCount: number;
+  sourcesScanned: number;
+  providerBreakdown?: Record<string, number>;
+}
+
 export interface Profile {
   name: string;
   current_role: string;
@@ -37,6 +54,8 @@ export interface Profile {
   sender_profile?: SenderProfile;
   outreach_intent?: OutreachIntentProfile;
   relevance_signals?: RelevanceSignal[];
+  suggestedAngles?: TopicalAngle[];
+  sourceAttribution?: SourceAttribution;
 }
 
 /**
@@ -67,7 +86,7 @@ export async function synthesise(
     return fallbackProfile(enrichment);
   }
 
-  const systemPrompt = `You are a profile synthesis agent. Given enriched social profile data, produce a structured JSON profile. Respond ONLY with valid JSON matching this schema: { "name": string, "current_role": string, "company": string, "notable_work": string[], "interests": string[], "tone": "formal" | "conversational" | "technical", "personalization_hooks": string[], "language": string, "sender_profile"?: { "business"?: string, "brand"?: string, "personality"?: string, "audience"?: string, "offer"?: string, "proofPoints"?: string[] }, "outreach_intent"?: { "goal"?: string, "desiredOutcome"?: string, "reasonForReachingOutNow"?: string, "relationshipWarmth"?: "cold" | "warm" | "existing", "tonePreference"?: string }, "relevance_signals"?: [{ "label": string, "evidence": string, "relevanceToOutreach": string, "confidence": "high" | "medium" | "low", "source"?: string }] }. Do not fabricate information not present in the source data. Do not wrap in markdown code blocks. Output raw JSON only. IMPORTANT: The "name" field MUST be the PROFILE OWNER's real full name (first + last). The data starts with a Profile URL — that is the person you are profiling. Other people mentioned in search results are NOT the profile owner. If you cannot determine the profile owner's name, return "name": "". Never use generic labels like "Help Center", "User", "Profile", or other people's names. The "language" field should be the ISO 639-1 code of the primary language used in the profile content (e.g. "en", "es", "fr", "de", "ja", "zh", "pt", "ar", "hi", "it", "nl", "ko", "ru"). Default to "en" if uncertain. When sender context is provided, infer a compact sender profile and 3-5 outreach relevance signals that connect the recipient's public context to the sender's actual reason for reaching out. Favor high-signal, recent, and credible connections over generic compliments.`;
+  const systemPrompt = `You are a profile synthesis agent. Given enriched social profile data, produce a structured JSON profile. Respond ONLY with valid JSON matching this schema: { "name": string, "current_role": string, "company": string, "notable_work": string[], "interests": string[], "tone": "formal" | "conversational" | "technical", "personalization_hooks": string[], "language": string, "sender_profile"?: { "business"?: string, "brand"?: string, "personality"?: string, "audience"?: string, "offer"?: string, "proofPoints"?: string[] }, "outreach_intent"?: { "goal"?: string, "desiredOutcome"?: string, "reasonForReachingOutNow"?: string, "relationshipWarmth"?: "cold" | "warm" | "existing", "tonePreference"?: string }, "relevance_signals"?: [{ "label": string, "evidence": string, "relevanceToOutreach": string, "confidence": "high" | "medium" | "low", "source"?: string }], "suggestedAngles"?: [{ "id": string, "label": string, "description": string, "evidence": string, "confidence": "high" | "medium" | "low", "relevanceToOutreach": string, "suggestedArchetype"?: string }], "sourceAttribution"?: { "factCount": number, "inferenceCount": number, "sourcesScanned": number } }. Do not fabricate information not present in the source data. Do not wrap in markdown code blocks. Output raw JSON only. IMPORTANT: The "name" field MUST be the PROFILE OWNER's real full name (first + last). The data starts with a Profile URL — that is the person you are profiling. Other people mentioned in search results are NOT the profile owner. If you cannot determine the profile owner's name, return "name": "". Never use generic labels like "Help Center", "User", "Profile", or other people's names. The "language" field should be the ISO 639-1 code of the primary language used in the profile content (e.g. "en", "es", "fr", "de", "ja", "zh", "pt", "ar", "hi", "it", "nl", "ko", "ru"). Default to "en" if uncertain. When sender context is provided, infer a compact sender profile, 3-5 outreach relevance signals, and 2-4 suggested angles. Each angle should propose a distinct outreach approach backed by evidence from the profile data. Assign each angle a confidence label and suggest which hook archetype fits best (mirror, origin, inside_joke, future_cast, or day_in_the_life). Favor high-signal, recent, and credible connections over generic compliments. Populate sourceAttribution with the total number of factual findings vs inferences and the rough count of unique sources scanned.`;
 
   const senderContextBlock = options?.senderContext
     ? `\n\nSender context:\n${JSON.stringify(options.senderContext, null, 2)}`
@@ -188,6 +207,9 @@ Respond ONLY with raw JSON. No markdown code blocks.`;
   if (profile.relevance_signals && profile.relevance_signals.length > 0) {
     contextBlocks.push(`RELEVANCE SIGNALS:\n${JSON.stringify(profile.relevance_signals, null, 2)}`);
   }
+  if (profile.suggestedAngles && profile.suggestedAngles.length > 0) {
+    contextBlocks.push(`SUGGESTED ANGLES:\n${JSON.stringify(profile.suggestedAngles, null, 2)}`);
+  }
   if (options?.recentActivity) {
     contextBlocks.push(`RECENT ACTIVITY:\n${options.recentActivity}`);
   }
@@ -292,6 +314,8 @@ function normaliseProfile(profile: Partial<Profile>): Profile {
     sender_profile: profile.sender_profile,
     outreach_intent: profile.outreach_intent,
     relevance_signals: Array.isArray(profile.relevance_signals) ? profile.relevance_signals : [],
+    suggestedAngles: Array.isArray(profile.suggestedAngles) ? profile.suggestedAngles : [],
+    sourceAttribution: profile.sourceAttribution,
   };
 }
 

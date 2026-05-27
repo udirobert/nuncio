@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import type { Profile } from "@/lib/claude";
 import { LANGUAGES, languageLabel } from "@/lib/languages";
+import { AngleCards } from "@/components/angle-cards";
 
 interface QuickReviewProps {
   profile: Profile | null;
@@ -34,6 +35,9 @@ export function QuickReview({
 }: QuickReviewProps) {
   const [editing, setEditing] = useState(false);
   const [editedScript, setEditedScript] = useState(script);
+  const [selectedAngleId, setSelectedAngleId] = useState<string | undefined>(
+    profile?.suggestedAngles?.[0]?.id
+  );
   const currentScript = editing ? editedScript : script;
   const wordCount = currentScript.split(/\s+/).filter(Boolean).length;
 
@@ -144,7 +148,15 @@ export function QuickReview({
                 )}
               </div>
             )}
-            {profile.relevance_signals && profile.relevance_signals.length > 0 && (
+            {profile.suggestedAngles && profile.suggestedAngles.length > 0 ? (
+              <div className="pt-2">
+                <AngleCards
+                  angles={profile.suggestedAngles}
+                  selectedAngleId={selectedAngleId}
+                  onSelect={(angle) => setSelectedAngleId(angle.id)}
+                />
+              </div>
+            ) : profile.relevance_signals && profile.relevance_signals.length > 0 ? (
               <div className="space-y-2 pt-1">
                 <span className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">Why this person fits</span>
                 {profile.relevance_signals.slice(0, 3).map((signal, i) => (
@@ -158,7 +170,7 @@ export function QuickReview({
                   </div>
                 ))}
               </div>
-            )}
+            ) : null}
               {profile.language && profile.language !== "en" && (
                 <div className="flex items-center justify-between pt-2 border-t border-cream-dark">
                   <div className="flex items-center gap-2">

@@ -17,6 +17,9 @@ import { QuickProgress } from "./quick-progress";
 import { QuickReady } from "./quick-ready";
 import { VoiceOverlay } from "@/components/voice-overlay";
 import type { VoiceProfileResult } from "@/components/voice-overlay";
+import { DeepResearchToggle } from "@/components/deep-research-toggle";
+import { QualityLadder } from "@/components/quality-ladder";
+import type { QualityTierId, UserPlan } from "@/components/quality-ladder";
 
 export type StudioStage = "input" | "enriching" | "review" | "building" | "ready" | "error";
 export type ArchetypeSelection = "auto" | "mirror" | "origin" | "future_cast" | "inside_joke" | "day_in_the_life";
@@ -376,12 +379,30 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     return "";
   });
   const [senderBrief, setSenderBrief] = useState("");
-  const [senderBusiness, setSenderBusiness] = useState("");
-  const [senderBrand, setSenderBrand] = useState("");
-  const [senderPersonality, setSenderPersonality] = useState("");
-  const [senderAudience, setSenderAudience] = useState("");
-  const [senderOffer, setSenderOffer] = useState("");
-  const [senderProofPoints, setSenderProofPoints] = useState("");
+  const [senderBusiness, setSenderBusiness] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("nuncio_sender_business") || "";
+    return "";
+  });
+  const [senderBrand, setSenderBrand] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("nuncio_sender_brand") || "";
+    return "";
+  });
+  const [senderPersonality, setSenderPersonality] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("nuncio_sender_personality") || "";
+    return "";
+  });
+  const [senderAudience, setSenderAudience] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("nuncio_sender_audience") || "";
+    return "";
+  });
+  const [senderOffer, setSenderOffer] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("nuncio_sender_offer") || "";
+    return "";
+  });
+  const [senderProofPoints, setSenderProofPoints] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("nuncio_sender_proof_points") || "";
+    return "";
+  });
   const [outreachGoal, setOutreachGoal] = useState("");
   const [desiredOutcome, setDesiredOutcome] = useState("");
   const [reasonForReachingOutNow, setReasonForReachingOutNow] = useState("");
@@ -400,6 +421,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [voiceOverlayOpen, setVoiceOverlayOpen] = useState(false);
   const [pipelineStep, setPipelineStep] = useState<"idle" | "enrich" | "synthesise" | "compose">("idle");
   const [voicePopulatedFields, setVoicePopulatedFields] = useState<Set<string>>(new Set());
+  const [researchTier, setResearchTier] = useState<"quick" | "balanced" | "deep">("quick");
+  const [deepResearchEnabled, setDeepResearchEnabled] = useState(false);
+  const [userPlan, setUserPlan] = useState<UserPlan>("trial");
   const [captureEmail, setCaptureEmail] = useState("");
   const [captureHoneypot, setCaptureHoneypot] = useState("");
   const [captureError, setCaptureError] = useState("");
@@ -466,6 +490,27 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
       if (data.senderBrief && !senderBrief) {
         setSenderBrief(data.senderBrief);
       }
+      if (data.senderBusiness && !localStorage.getItem("nuncio_sender_business")) {
+        setSenderBusiness(data.senderBusiness);
+      }
+      if (data.senderBrand && !localStorage.getItem("nuncio_sender_brand")) {
+        setSenderBrand(data.senderBrand);
+      }
+      if (data.senderPersonality && !localStorage.getItem("nuncio_sender_personality")) {
+        setSenderPersonality(data.senderPersonality);
+      }
+      if (data.senderAudience && !localStorage.getItem("nuncio_sender_audience")) {
+        setSenderAudience(data.senderAudience);
+      }
+      if (data.senderOffer && !localStorage.getItem("nuncio_sender_offer")) {
+        setSenderOffer(data.senderOffer);
+      }
+      if (data.senderProofPoints && !localStorage.getItem("nuncio_sender_proof_points")) {
+        setSenderProofPoints(data.senderProofPoints);
+      }
+      if (data.plan) {
+        setUserPlan(data.plan as UserPlan);
+      }
     }).catch(() => {});
   }, [searchParams]);
 
@@ -504,17 +549,34 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   function saveSenderMemory() {
     const brief = senderBrief.trim();
     const name = senderName.trim();
-    if (!brief && !name) return;
+    const business = senderBusiness.trim();
+    const brand = senderBrand.trim();
+    const personality = senderPersonality.trim();
+    const audience = senderAudience.trim();
+    const offer = senderOffer.trim();
+    const proofPoints = senderProofPoints.trim();
+    if (!brief && !name && !business && !brand && !personality && !audience && !offer && !proofPoints) return;
     fetch("/api/account/brief", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         senderBrief: brief || undefined,
         senderName: name || undefined,
-        senderBusiness: senderBusiness.trim() || undefined,
+        senderBusiness: business || undefined,
+        senderBrand: brand || undefined,
+        senderPersonality: personality || undefined,
+        senderAudience: audience || undefined,
+        senderOffer: offer || undefined,
+        senderProofPoints: proofPoints || undefined,
       }),
     }).catch(() => {});
     if (name) localStorage.setItem("nuncio_sender_name", name);
+    if (business) localStorage.setItem("nuncio_sender_business", business);
+    if (brand) localStorage.setItem("nuncio_sender_brand", brand);
+    if (personality) localStorage.setItem("nuncio_sender_personality", personality);
+    if (audience) localStorage.setItem("nuncio_sender_audience", audience);
+    if (offer) localStorage.setItem("nuncio_sender_offer", offer);
+    if (proofPoints) localStorage.setItem("nuncio_sender_proof_points", proofPoints);
   }
 
   function connectMelius() {
@@ -580,6 +642,8 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           intent: archetype === "auto" ? undefined : undefined,
           archetype: archetype === "auto" ? undefined : archetype,
           scriptVariants: !quickMode,
+          researchTier: researchTier !== "quick" ? researchTier : undefined,
+          deepResearchEnabled: deepResearchEnabled || undefined,
           language: translateEnabled ? (detectedLanguage || undefined) : "en",
         }),
       });
@@ -1355,6 +1419,24 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                                   </div>
                                 ))}
                               </div>
+                            </div>
+
+                            {/* Quality ladder & deep research */}
+                            <div className="pt-2 border-t border-cream-dark">
+                              <QualityLadder
+                                currentTier={researchTier}
+                                onSelect={setResearchTier}
+                                userPlan={userPlan}
+                                compact
+                              />
+                            </div>
+                            <div>
+                              <DeepResearchToggle
+                                enabled={deepResearchEnabled}
+                                onToggle={setDeepResearchEnabled}
+                                userTier={userPlan}
+                                compact
+                              />
                             </div>
 
                             {/* Melius connection */}

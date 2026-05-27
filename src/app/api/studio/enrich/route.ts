@@ -12,6 +12,8 @@ import {
   InsufficientCreditsError,
   reserveCredits,
 } from "@/lib/billing/credits";
+import { ResearchOrchestrator } from "@/lib/research/orchestrator";
+import type { QualityTier } from "@/lib/research/types";
 
 export interface EnrichResponse {
   profile: Profile;
@@ -28,6 +30,9 @@ export interface EnrichResponse {
     format: string;
     formatReasoning: string;
   };
+  suggestedAngles?: import("@/lib/claude").TopicalAngle[];
+  sourceAttribution?: import("@/lib/claude").SourceAttribution;
+  researchTier?: "quick" | "balanced" | "deep";
 }
 
 function cleanOptionalString(value: unknown): string | undefined {
@@ -53,6 +58,24 @@ function buildSenderProfile(body: Record<string, unknown>): SenderProfile | unde
   };
 
   return Object.values(senderProfile).some(Boolean) ? senderProfile : undefined;
+}
+
+async function resolveUserPlan(
+  subject: import("@/lib/billing/credits").CreditSubject,
+  request: NextRequest
+): Promise<"trial" | "free" | "pro" | "studio"> {
+  if (subject.anonymous) return "trial";
+  try {
+    const { readAccountSession } = await import("@/lib/auth/session");
+    const session = readAccountSession(request);
+    if (!session) return "free";
+    const { getAccountStorageProvider } = await import("@/lib/storage");
+    const workspace = await getAccountStorageProvider().getWorkspace(session.workspaceId);
+    if (!workspace) return "free";
+    return (workspace.plan || "free") as "free" | "pro" | "studio";
+  } catch {
+    return "free";
+  }
 }
 
 function buildOutreachIntent(body: Record<string, unknown>): OutreachIntentProfile | undefined {
@@ -89,6 +112,8 @@ export async function POST(request: NextRequest) {
       try {
         const body = await request.json();
         const { url, senderBrief, senderName, intent, archetype } = body;
+        const researchTier = body.researchTier as string | undefined;
+        const deepResearchEnabled = body.deepResearchEnabled === true;
         const senderProfile = buildSenderProfile(body as Record<string, unknown>);
         const outreachIntent = buildOutreachIntent(body as Record<string, unknown>);
         const clientProfile = body.profile as Profile | undefined;
@@ -97,13 +122,16 @@ export async function POST(request: NextRequest) {
         const subject = getCreditSubject(request);
         const researchCost = estimateCreditCost("profile.research");
         const scriptCost = estimateCreditCost("script.generate");
-        const totalCost = researchCost + scriptCost;
+        const deepCost = deepResearchEnabled ? estimateCreditCost("research.deep") : 0;
+        const totalCost = researchCost + scriptCost + deepCost;
 
         const reservation = await reserveCredits({
           subject,
           action: "script.generate",
           amount: totalCost,
-          reason: "Research profile and generate script (studio)",
+          reason: deepResearchEnabled
+            ? "Deep research profile and generate script (studio)"
+            : "Research profile and generate script (studio)",
           provider: clientProfile ? "llm" : "tinyfish+llm",
         });
 
@@ -123,34 +151,82 @@ export async function POST(request: NextRequest) {
 
           send({ phase: "enrich" });
 
-          const enrichment_0 = await enrich([url], { discoverRelated: true });
-          const markdown = enrichment_0.filter((r) => r.success).map((r) => r.markdown);
+          // Phase 9: Use ResearchOrchestrator for deep/balanced research, fall back to TinyFish for quick
+          const effectiveTier: QualityTier = researchTier === "balanced" || researchTier === "deep"
+            ? researchTier
+            : "quick";
 
-          if (markdown.length === 0) {
-            send({ error: "Could not access profile. The page may be behind a login wall — try a different URL or platform." });
-            controller.close();
-            return;
-          }
-
-          send({ phase: "synthesise" });
-
-          profile = await synthesise(markdown, {
-            senderContext: {
+          if (effectiveTier !== "quick" || deepResearchEnabled) {
+            // Deep research path: use the orchestrator for multi-provider enrichment
+            const orchestrator = new ResearchOrchestrator({
+              qualityTier: effectiveTier,
+              userTier: subject.anonymous ? "trial" : (await resolveUserPlan(subject, request)) || "free",
+              enableDeepResearch: deepResearchEnabled,
               senderBrief: cleanOptionalString(senderBrief),
-              senderName: cleanOptionalString(senderName),
-              senderBusiness: senderProfile?.business,
-              senderBrand: senderProfile?.brand,
-              senderPersonality: senderProfile?.personality,
-              senderAudience: senderProfile?.audience,
-              senderOffer: senderProfile?.offer,
-              senderProofPoints: senderProfile?.proofPoints,
-              outreachGoal: outreachIntent?.goal,
-              desiredOutcome: outreachIntent?.desiredOutcome,
-              relationshipWarmth: outreachIntent?.relationshipWarmth,
-              reasonForReachingOutNow: outreachIntent?.reasonForReachingOutNow,
-              tonePreference: outreachIntent?.tonePreference,
-            },
-          });
+            });
+
+            const researchResult = await orchestrator.research(url);
+            const markdown = researchResult.sources
+              .filter((s) => s.content)
+              .map((s) => s.content || "")
+              .filter(Boolean);
+
+            if (markdown.length === 0) {
+              send({ error: "Could not access profile. Try a different URL or platform." });
+              controller.close();
+              return;
+            }
+
+            send({ phase: "synthesise" });
+
+            profile = await synthesise(markdown, {
+              senderContext: {
+                senderBrief: cleanOptionalString(senderBrief),
+                senderName: cleanOptionalString(senderName),
+                senderBusiness: senderProfile?.business,
+                senderBrand: senderProfile?.brand,
+                senderPersonality: senderProfile?.personality,
+                senderAudience: senderProfile?.audience,
+                senderOffer: senderProfile?.offer,
+                senderProofPoints: senderProfile?.proofPoints,
+                outreachGoal: outreachIntent?.goal,
+                desiredOutcome: outreachIntent?.desiredOutcome,
+                relationshipWarmth: outreachIntent?.relationshipWarmth,
+                reasonForReachingOutNow: outreachIntent?.reasonForReachingOutNow,
+                tonePreference: outreachIntent?.tonePreference,
+              },
+            });
+          } else {
+            // Quick path: existing TinyFish enrichment (preserved unchanged)
+            const enrichment_0 = await enrich([url], { discoverRelated: true });
+            const markdown = enrichment_0.filter((r) => r.success).map((r) => r.markdown);
+
+            if (markdown.length === 0) {
+              send({ error: "Could not access profile. The page may be behind a login wall — try a different URL or platform." });
+              controller.close();
+              return;
+            }
+
+            send({ phase: "synthesise" });
+
+            profile = await synthesise(markdown, {
+              senderContext: {
+                senderBrief: cleanOptionalString(senderBrief),
+                senderName: cleanOptionalString(senderName),
+                senderBusiness: senderProfile?.business,
+                senderBrand: senderProfile?.brand,
+                senderPersonality: senderProfile?.personality,
+                senderAudience: senderProfile?.audience,
+                senderOffer: senderProfile?.offer,
+                senderProofPoints: senderProfile?.proofPoints,
+                outreachGoal: outreachIntent?.goal,
+                desiredOutcome: outreachIntent?.desiredOutcome,
+                relationshipWarmth: outreachIntent?.relationshipWarmth,
+                reasonForReachingOutNow: outreachIntent?.reasonForReachingOutNow,
+                tonePreference: outreachIntent?.tonePreference,
+              },
+            });
+          }
 
           if (profile.name === "there") {
             send({ error: "Could not identify a person from this profile. Try a different URL or platform." });
@@ -175,14 +251,16 @@ export async function POST(request: NextRequest) {
         let recentActivity: string | undefined;
         let companyContext: string | undefined;
 
-        if (url) {
-          const activity = await fetchRecentActivity(url);
-          if (activity) recentActivity = activity.markdown;
-        }
-
-        if (profile.company && profile.company !== "there") {
-          const ctx = await enrichCompany(profile.company);
-          if (ctx) companyContext = ctx;
+        // Only fetch activity + company context for quick tier (deep/balanced already have it via orchestrator)
+        if (researchTier === "quick" || !researchTier) {
+          if (url) {
+            const activity = await fetchRecentActivity(url);
+            if (activity) recentActivity = activity.markdown;
+          }
+          if (profile.company && profile.company !== "there") {
+            const ctx = await enrichCompany(profile.company);
+            if (ctx) companyContext = ctx;
+          }
         }
 
         const scriptOptions = {
@@ -231,6 +309,11 @@ export async function POST(request: NextRequest) {
             format: hookFormat.label,
             formatReasoning: hookFormat.reasoning,
           },
+          suggestedAngles: profile.suggestedAngles && profile.suggestedAngles.length > 0
+            ? profile.suggestedAngles
+            : undefined,
+          sourceAttribution: profile.sourceAttribution,
+          researchTier: (researchTier as "quick" | "balanced" | "deep" | undefined) || "quick",
         };
 
         send({

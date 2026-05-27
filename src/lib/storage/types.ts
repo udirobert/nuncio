@@ -49,6 +49,12 @@ export interface WorkspaceAccount {
   plan?: "free" | "pro" | "studio";
   lastSenderBrief?: string;
   lastSenderName?: string;
+  senderBusiness?: string;
+  senderBrand?: string;
+  senderPersonality?: string;
+  senderAudience?: string;
+  senderOffer?: string;
+  senderProofPoints?: string;
   createdAt: string;
   updatedAt: string;
 }
