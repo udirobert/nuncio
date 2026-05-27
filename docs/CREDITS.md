@@ -6,14 +6,13 @@
 |--------|--------:|-------|
 | `profile.research` | 1 | TinyFish enrichment (free tier) |
 | `script.generate` | 1 | Featherless/Anthropic LLM call |
-| `canvas.build` | 1 | Melius MCP creative canvas |
 | `soundscape.generate` | 1 | ElevenLabs sound effects generation |
 | `video.render` | 8 | HeyGen Video Agent ($2/min × 30s = $1.00) |
 | `video.translate` | 2 | HeyGen translation ($2/min) |
 | `captions.generate` | 1 | Speechmatics transcription |
 | `preview.generate` | 0 | Free — LLM only, no external rendering |
 
-**Full pipeline:** 1 + 1 + 1 + 1 + 8 = **11 credits per 30s video**
+**Full pipeline:** 1 + 1 + 1 + 8 = **10 credits per 30s video**
 
 ## Provider Costs (as of May 2026)
 
@@ -21,14 +20,13 @@
 |----------|---------|-----:|------------|
 | **TinyFish** | Profile enrichment | $0 | Search and Fetch are free; Agent not used |
 | **Featherless** | LLM (DeepSeek V4 Flash, 284B) | $0.002/video | Flat $25-200/mo per API key (shared across users) |
-| **Melius** | Creative canvas | $0.05/video | $45/mo shared subscription |
 | **HeyGen** | Video Agent API | **$1.00/30s** | $2/min pay-as-you-go (dominant cost) |
 | **ElevenLabs** | Sound effects generation | **$0.12/gen** | $0.12/generation |
 | **Speechmatics** | Caption transcription | $0.002/video | $0.004/min; 480 min free/mo covers most usage |
 | **Resend** | Magic link email | $0 | Free tier covers low-volume auth emails |
 
 **Variable cost per video: ~$1.12** (HeyGen $1.00 + ElevenLabs $0.12 + negligible others)
-**Fixed shared costs: ~$245/mo** (Melius $45 + Featherless $200)
+**Fixed shared costs: ~$200/mo** (Featherless $200)
 
 ## Unit Economics
 
@@ -52,7 +50,6 @@ Each action's credit cost was chosen to cover its external API cost at the Pro M
 |--------|--------:|--------:|--------:|------:|
 | research | $0.00 | 1 | $0.20 | 100% |
 | script | $0.002 | 1 | $0.20 | ~99% |
-| canvas | $0.05 | 1 | $0.20 | ~75% |
 | soundscape | $0.12 | 1 | $0.20 | ~40% |
 | render | $1.00 | 8 | $1.56 | ~36% |
 | translate | $1.00 | 2 | $0.39 | **-61%** |

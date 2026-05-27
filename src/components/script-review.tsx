@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import type { Profile } from "@/lib/claude";
-import type { AgentTraceItem, CanvasProof } from "@/lib/artifacts";
+import type { AgentTraceItem } from "@/lib/artifacts";
 import type { VideoCustomization, HeyGenAvatar, HeyGenVoice } from "@/lib/heygen";
 import { VideoCustomization as VideoCustomizationComponent } from "@/components/video-customization";
 
@@ -19,7 +19,6 @@ interface ScriptReviewProps {
   script: string;
   profile: Profile;
   sources?: string[];
-  canvas?: CanvasProof;
   trace?: AgentTraceItem[];
   urls?: string[];
   senderBrief?: string;
@@ -59,7 +58,6 @@ export function ScriptReview({
   script,
   profile,
   sources,
-  canvas,
   trace,
   urls,
   senderBrief,
@@ -98,10 +96,10 @@ export function ScriptReview({
     return {
       researchCredits: sourceCount,
       scriptRequests: 1,
-      canvasSessions: canvas ? 1 : 0,
+      canvasSessions: 0,
       renderCredits: 5,
     };
-  }, [canvas, sources?.length, urls?.length]);
+  }, [sources?.length, urls?.length]);
 
   const [billingBalance, setBillingBalance] = useState<BillingBalance | null>(null);
   const hasInsufficientRenderCredits =
@@ -485,25 +483,17 @@ export function ScriptReview({
           </div>
         </motion.div>
 
-        {/* Agent trace + creative proof */}
-        {(trace?.length || canvas) && (
+        {/* Agent trace */}
+        {(trace?.length ?? 0) > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.45 }}
             className="rounded-2xl border border-cream-dark bg-cream-dark/25 p-4 mb-6"
           >
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
-                Agent trace
-              </p>
-              {canvas && (
-                <span className="rounded-full bg-white px-2.5 py-1 text-[10px] text-ink-faint border border-cream-dark">
-                  {canvas.provider === "melius" ? "Melius MCP" : `${canvas.provider} provider`}
-                  {` · ${canvas.assetCount} asset${canvas.assetCount === 1 ? "" : "s"}`}
-                </span>
-              )}
-            </div>
+            <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-3">
+              Agent trace
+            </p>
 
             {trace && trace.length > 0 && (
               <div className="space-y-2">
@@ -523,19 +513,7 @@ export function ScriptReview({
               </div>
             )}
 
-            {canvas?.canvasUrl && (
-              <a
-                href={canvas.canvasUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-flex items-center gap-1.5 text-xs text-accent hover:text-accent/80 transition-colors"
-              >
-                Open creative canvas
-                <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M6 3H3.5A1.5 1.5 0 002 4.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V10M9 2h5v5M8 8l6-6" />
-                </svg>
-              </a>
-            )}
+
           </motion.div>
         )}
 

@@ -17,7 +17,7 @@ Never commit `.env.local` or push secrets to your repository.
 
 ### API key hygiene
 
-- Each API key used by nuncio (TinyFish, Anthropic, Featherless, HeyGen, Melius, Speechmatics, Turso)
+- Each API key used by nuncio (TinyFish, Anthropic, Featherless, HeyGen, Speechmatics, Turso)
   grants access to a paid service. Treat them as credentials, not configuration.
 - Rotate keys if they are ever exposed in logs, error messages, or commit history.
 - The `NEXT_PUBLIC_*` prefix in Next.js exposes variables to the browser. Only use it for values
@@ -134,9 +134,6 @@ FEATHERLESS_API_KEY=
 HEYGEN_API_KEY=
 HEYGEN_AVATAR_ID=
 HEYGEN_VOICE_ID=
-
-# Melius — creative canvas MCP
-MELIUS_API_KEY=
 
 # Speechmatics — speech-to-text
 SPEECHMATICS_API_KEY=

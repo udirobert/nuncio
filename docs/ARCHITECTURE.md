@@ -26,22 +26,17 @@ User input (URLs)
               │
               ▼
 ┌─────────────────────────────┐
-│  4. Melius canvas           │  MCP agent creates project + assets
+│  4. ElevenLabs soundscape   │  Generative ambience per vibe preset
 └─────────────┬───────────────┘
               │
               ▼
 ┌─────────────────────────────┐
-│  5. ElevenLabs soundscape   │  Generative ambience per vibe preset
+│  5. HeyGen video render     │  Avatar V + voice clone
 └─────────────┬───────────────┘
               │
               ▼
 ┌─────────────────────────────┐
-│  6. HeyGen video render     │  Avatar V + voice clone
-└─────────────┬───────────────┘
-              │
-              ▼
-┌─────────────────────────────┐
-│  7. Speechmatics captions   │  Fire-and-forget transcription
+│  6. Speechmatics captions   │  Fire-and-forget transcription
 └─────────────┬───────────────┘
               │
               ▼
@@ -115,31 +110,15 @@ cinematic hook video.
 **Format decisioning:** `pickFormat(profile)` selects 9:16 vs 16:9, captions on/off, target
 duration based on profile signals.
 
-**Hook video:** Generated via fal.ai video endpoints with a Melius video node fallback.
+**Hook video:** Generated via fal.ai video endpoints.
 
 See `docs/HOOK_ENGINE.md` and `src/lib/hooks/`.
 
 ---
 
-## Stage 4 — Melius canvas
-
-**Purpose:** Organise the creative output into a persistent, downloadable project canvas via the
-Melius MCP server.
-
-**Agent actions:** project_create → canvas_create → bulk_create_nodes → bulk_run_start →
-bulk_run_wait → bulk_run_download
-
-**Creative provider abstraction:** `MeliusProvider` (full MCP) with `LocalProvider` fallback
-(Fal image generation if `MELIUS_API_KEY` is not set).
-
-**Non-blocking:** Canvas creation failures don't block the pipeline — the video continues without
-it.
-
-See `src/lib/creative/` and `src/lib/melius.ts`.
-
 ---
 
-## Stage 5 — ElevenLabs soundscape
+## Stage 4 — ElevenLabs soundscape
 
 **Purpose:** Add generative ambient audio beneath the video for a cinematic feel.
 
@@ -241,7 +220,6 @@ See `src/lib/billing/credits.ts` and `docs/CREDITS.md`.
 |---|---|---|
 | `/api/enrich` | POST | Accepts `{ urls }`, returns enriched markdown |
 | `/api/script` | POST | Accepts `{ enrichment, senderBrief }`, returns `{ profile, script }` |
-| `/api/canvas` | POST | Accepts `{ profile, script }`, creates Melius canvas |
 | `/api/soundscape` | POST | Generates ElevenLabs ambient audio from vibe/context |
 | `/api/video` | POST | Triggers HeyGen render with credit reservation |
 | `/api/video/[id]` | GET | Polls HeyGen status |
@@ -258,12 +236,8 @@ See `src/lib/billing/credits.ts` and `docs/CREDITS.md`.
 | Route | Method | Description |
 |---|---|---|
 | `/api/studio/enrich` | POST | Enrich + script + hook + soundscape in one call (with credit enforcement) |
-| `/api/studio/iterate` | POST | Re-iterate canvas with edits |
-| `/api/studio/hook/regenerate` | POST | Re-generate hook video (preserves archetype) |
-| `/api/studio/build` | POST | Full pipeline: enrich → script → hook → canvas → soundscape → render |
+| `/api/studio/build` | POST | Full pipeline: enrich → script → hook → soundscape → render |
 | `/api/studio/email` | POST | Email capture for share delivery |
-| `/api/studio/export` | POST | Export project artifacts |
-| `/api/studio/canvas/[id]` | GET | Canvas state |
 
 ### Batch
 
@@ -321,13 +295,11 @@ See `src/lib/billing/credits.ts` and `docs/CREDITS.md`.
     │                              │
     │                    Hook Engine (archetype + format + video)
     │                              │
-    │                    Melius MCP agent
-    │                              │
-    │                    ElevenLabs soundscape
+│                    ElevenLabs soundscape
     │                              │
     │                    HeyGen render
     │                              │
-    └──────────────────→ { videoUrl, canvasUrl, captions }
+    └──────────────────→ { videoUrl, captions }
 ```
 
 ---
@@ -353,7 +325,6 @@ VENICE_API_KEY=
 FEATHERLESS_API_KEY=
 
 # Optional but recommended
-MELIUS_API_KEY=
 SPEECHMATICS_API_KEY=
 ELEVENLABS_API_KEY=
 RESEND_API_KEY=
@@ -384,7 +355,6 @@ NUNCIO_TRIAL_CREDITS=10
 | TinyFish | Login wall / 403 on profile | Discard junk, run multi-phase search fallback. If all fail, show clear error. |
 | Synthesis | Name not identifiable | Early exit with "Could not identify a person" error |
 | LLM | Rate limit | Provider fallback chain (Anthropic → Google → Venice → Featherless) |
-| Melius | Canvas creation fails | Fall through to local provider — pipeline continues |
 | HeyGen Video Agent | API unavailable | Automatic fallback to direct `/v2/video/generate` |
 | HeyGen | Timeout (>5 min) | Surface error, preserve script for retry |
 | Speechmatics | Transcription fails | Non-blocking — degrades gracefully to text-only |
@@ -397,11 +367,6 @@ NUNCIO_TRIAL_CREDITS=10
 ### Retry logic (`src/lib/retry.ts`)
 All external API calls use `fetchWithRetry()` — exponential backoff with configurable max
 attempts, initial delay, and retryable status codes (429, 500, 502, 503, 504).
-
-### Creative provider abstraction (`src/lib/creative/`)
-Melius integration behind a `CreativeProvider` interface:
-- `MeliusProvider` — full MCP integration
-- `LocalProvider` — metadata fallback, optionally generating images through Fal
 
 ### Storage providers (`src/lib/storage/`)
 - `FileShareStorageProvider` — default local/Vultr fallback

@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Header } from "@/components/header";
-import type { StudioBuildResult, StudioNode } from "@/lib/creative/melius-provider";
 import type { VideoCustomization, HeyGenAvatar, HeyGenVoice } from "@/lib/heygen";
 import { VideoCustomization as VideoCustomizationComponent } from "@/components/video-customization";
 import { OnboardingModal } from "@/components/onboarding-modal";
@@ -19,7 +18,7 @@ import { VoiceOverlay } from "@/components/voice-overlay";
 import type { VoiceProfileResult } from "@/components/voice-overlay";
 import { DeepResearchToggle } from "@/components/deep-research-toggle";
 import { QualityLadder } from "@/components/quality-ladder";
-import type { QualityTierId, UserPlan } from "@/components/quality-ladder";
+import type { UserPlan } from "@/components/quality-ladder";
 
 export type StudioStage = "input" | "enriching" | "review" | "building" | "ready" | "error";
 export type ArchetypeSelection = "auto" | "mirror" | "origin" | "future_cast" | "inside_joke" | "day_in_the_life";
@@ -49,7 +48,7 @@ const INTENT_META: Record<CaptureIntent, {
         <line x1="12" y1="15" x2="12" y2="3" />
       </svg>
     ),
-    label: "Download canvas",
+    label: "Download video",
     chipClass: "bg-warm-soft border-warm/20 text-warm",
     iconClass: "bg-warm text-white",
   },
@@ -61,7 +60,7 @@ const INTENT_META: Record<CaptureIntent, {
         <line x1="12" y1="2" x2="12" y2="15" />
       </svg>
     ),
-    label: "Share campaign",
+    label: "Share video",
     chipClass: "bg-success-soft border-success/20 text-success",
     iconClass: "bg-success text-white",
   },
@@ -76,288 +75,9 @@ const ARCHETYPE_OPTIONS: { id: ArchetypeSelection; label: string; description: s
   { id: "day_in_the_life", label: "Day-in-life", description: "A vignette of their daily workflow or creative process." },
 ];
 
-interface AgentLogEntry {
-  id: string;
-  phase: "enrich" | "synthesise" | "canvas" | "nodes" | "edges" | "generate";
-  tool?: string;
-  message: string;
-  detail?: string;
-  ts: number;
-}
-
-const DEMO_CANVAS_ID = "demo-canvas-001";
-
-const DEMO_NODES: StudioNode[] = [
-  { id: "n1", label: "Profile Summary", type: "custom_text", status: "complete", prompt: "Sundar Pichai — CEO of Google and Alphabet. IIT Kharagpur → Stanford → McKinsey → Google (2004). Led Chrome, Android, AI. Calm operator, long-horizon thinker, frames AI as foundational technology." },
-  { id: "n2", label: "Script", type: "custom_text", status: "complete", prompt: "Hi Sundar — I built nuncio because I kept watching outreach automation strip the human signal out of every message. So I flipped it: an agent reads your work, then briefs Melius to build the canvas a human would have built…" },
-  { id: "n3", label: "Visual Direction", type: "custom_text", status: "complete", prompt: "Tone: calm, thoughtful, technically credible. Palette: muted indigo / warm neutrals. Avoid stock corporate. Avoid faces. 16:9. Subtle motion only." },
-  { id: "n4", label: "Outreach Objective", type: "custom_text", status: "complete", prompt: "Pitch nuncio as an example of agent-orchestrated Melius workflows. Ask: would Google ship something built this way?" },
-  { id: "n5", label: "Video Background", type: "image", status: "complete", prompt: "Cinematic 16:9 background — soft gradient mesh in indigo and warm taupe, faint hex grid, abstract glow suggesting AI infrastructure. No text. No faces." },
-  { id: "n6", label: "Video Thumbnail", type: "image", status: "complete", prompt: "16:9 thumbnail — minimal, single warm light source, slight grain. Implies a personalised message ready to play." },
-  { id: "n7", label: "Hook Concept", type: "custom_text", status: "complete", prompt: "Mirror hook for Sundar Pichai: reimagine Google's AI infrastructure as a quiet cinematic product surface coming alive." },
-  { id: "n8", label: "Hook Cinematic", type: "video", status: "complete", prompt: "Generate a 3-second cinematic outreach hook. Mirror archetype. No readable text. No logos. 16:9.", outputUrl: "/onee-yekeh-demo.mp4" },
-];
-
-const DEMO_BUILD_RESULT: StudioBuildResult = {
-  projectId: "demo-project-001",
-  canvasId: DEMO_CANVAS_ID,
-  canvasUrl: "https://app.melius.com/canvas/demo",
-  nodes: DEMO_NODES,
-  hook: {
-    archetype: "Mirror",
-    reasoning: "The recipient has a visible company and product surface, so mirroring the work creates the most specific opening shot.",
-    tier: "trial",
-    remainingFree: 0,
-    canRegenerate: false,
-    watermark: true,
-    status: "complete",
-    format: "16:9 · 45s · landscape · captions off",
-    formatReasoning: "The demo target reads as an executive/product audience, so a polished landscape format keeps the walkthrough presentation-ready.",
-    outputUrl: "/onee-yekeh-demo.mp4",
-  },
-};
-
-const DEMO_LAYOUT_NODES: {
-  x: number; y: number; w: number; h: number;
-  label: string;
-  type: "custom_text" | "image" | "video";
-  edgesIn?: number[];
-}[] = [
-  { x: 20,  y: 20,  w: 360, h: 140, label: "Profile Summary",    type: "custom_text" },
-  { x: 20,  y: 175, w: 360, h: 200, label: "Script",             type: "custom_text" },
-  { x: 20,  y: 390, w: 360, h: 140, label: "Visual Direction",   type: "custom_text" },
-  { x: 20,  y: 545, w: 360, h: 100, label: "Outreach Objective", type: "custom_text" },
-  { x: 420, y: 20,  w: 360, h: 230, label: "Video Background",   type: "image", edgesIn: [0, 2] },
-  { x: 420, y: 265, w: 360, h: 230, label: "Video Thumbnail",    type: "image", edgesIn: [0, 2] },
-  { x: 820, y: 20,  w: 360, h: 150, label: "Hook Concept",       type: "custom_text" },
-  { x: 820, y: 190, w: 360, h: 230, label: "Hook Cinematic",     type: "video", edgesIn: [2, 6] },
-];
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Animated mini-canvas — visual recap of what the agent built
+// Studio Client Props
 // ─────────────────────────────────────────────────────────────────────────────
-function AgentCanvas({
-  appearedCount,
-  edgeCount,
-  scale = 1,
-  showCursor = false,
-  cursorTarget,
-}: {
-  appearedCount: number;
-  edgeCount: number;
-  scale?: number;
-  showCursor?: boolean;
-  cursorTarget?: { x: number; y: number };
-}) {
-  const allEdges = DEMO_LAYOUT_NODES.flatMap((n, ti) =>
-    (n.edgesIn || []).map((si) => ({ source: si, target: ti }))
-  );
-  const visibleEdges = allEdges.slice(0, edgeCount);
-
-  return (
-    <div className="w-full h-full bg-[#e8e4dd] relative overflow-hidden">
-      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-25">
-        <defs>
-          <pattern id="agent-grid" width={20 * scale} height={20 * scale} patternUnits="userSpaceOnUse">
-            <path d={`M ${20 * scale} 0 L 0 0 0 ${20 * scale}`} fill="none" stroke="#8b7f6f" strokeWidth="0.5" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#agent-grid)" />
-      </svg>
-
-      <div className="absolute top-3 left-3 bg-white/90 backdrop-blur rounded-lg px-2.5 py-1 shadow-sm border border-cream-dark z-30">
-        <span className="text-[10px] font-mono text-ink-faint">melius canvas</span>
-      </div>
-
-      {/* Edges */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
-        {visibleEdges.map((e, i) => {
-          const s = DEMO_LAYOUT_NODES[e.source];
-          const t = DEMO_LAYOUT_NODES[e.target];
-          const sx = (s.x + s.w) * scale;
-          const sy = (s.y + s.h / 2) * scale;
-          const tx = t.x * scale;
-          const ty = (t.y + t.h / 2) * scale;
-          const mx = (sx + tx) / 2;
-          return (
-            <motion.path
-              key={`${e.source}-${e.target}`}
-              d={`M ${sx} ${sy} C ${mx} ${sy}, ${mx} ${ty}, ${tx} ${ty}`}
-              fill="none"
-              stroke="#4A3AFF"
-              strokeWidth="1.5"
-              strokeDasharray="4 4"
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 0.6 }}
-              transition={{ duration: 0.6, delay: i * 0.05, ease: "easeOut" }}
-            />
-          );
-        })}
-      </svg>
-
-      {/* Nodes */}
-      {DEMO_LAYOUT_NODES.slice(0, appearedCount).map((n, idx) => (
-        <motion.div
-          key={n.label}
-          initial={{ opacity: 0, scale: 0.92, y: 8 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0 }}
-          className="absolute rounded-xl border-2 border-white/80 bg-white/95 shadow-sm backdrop-blur flex flex-col overflow-hidden z-20"
-          style={{
-            left: n.x * scale,
-            top: n.y * scale,
-            width: n.w * scale,
-            height: n.h * scale,
-          }}
-        >
-          <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-cream-dark/40">
-            <div className={`w-2 h-2 rounded-full ${n.type === "image" ? "bg-warm" : n.type === "video" ? "bg-success" : "bg-accent"}`} />
-            <span className="text-[9px] font-mono text-ink-faint uppercase">{n.type}</span>
-            <span className="text-[10px] font-medium text-ink ml-auto truncate">{n.label}</span>
-          </div>
-          <div className="flex-1 flex items-center justify-center px-3 py-2">
-            {n.type === "image" || n.type === "video" ? (
-              <div className={`w-full h-full rounded-lg flex items-center justify-center relative overflow-hidden ${
-                n.type === "video"
-                  ? "bg-gradient-to-br from-ink via-accent to-warm"
-                  : "bg-gradient-to-br from-accent-soft via-cream to-warm-soft"
-              }`}>
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                  initial={{ x: "-100%" }}
-                  animate={{ x: "100%" }}
-                  transition={{ duration: 2.2, repeat: Infinity, ease: "linear", delay: idx * 0.3 }}
-                />
-                {n.type === "video" ? (
-                  <svg viewBox="0 0 24 24" className="w-7 h-7 text-white/70 relative" fill="currentColor">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                ) : (
-                  <svg viewBox="0 0 24 24" className="w-6 h-6 text-ink-faint/40 relative" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <rect x="2" y="2" width="20" height="20" rx="2" />
-                    <circle cx="8.5" cy="8.5" r="1.5" />
-                    <path d="M21 15l-5-5L5 21" />
-                  </svg>
-                )}
-              </div>
-            ) : (
-              <div className="w-full h-full rounded bg-cream/50 flex items-center justify-center">
-                <div className="w-full space-y-1.5 px-1">
-                  <div className="h-1.5 bg-ink-faint/15 rounded animate-pulse" />
-                  <div className="h-1.5 bg-ink-faint/15 rounded w-3/4 animate-pulse" style={{ animationDelay: "0.1s" }} />
-                  <div className="h-1.5 bg-ink-faint/15 rounded w-1/2 animate-pulse" style={{ animationDelay: "0.2s" }} />
-                  <div className="h-1.5 bg-ink-faint/15 rounded w-2/3 animate-pulse" style={{ animationDelay: "0.3s" }} />
-                </div>
-              </div>
-            )}
-          </div>
-        </motion.div>
-      ))}
-
-      {/* Agent cursor */}
-      {showCursor && cursorTarget && (
-        <motion.div
-          className="absolute z-40 pointer-events-none"
-          animate={{
-            left: cursorTarget.x * scale,
-            top: cursorTarget.y * scale,
-          }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <div className="relative">
-            <svg viewBox="0 0 24 24" className="w-5 h-5 text-accent drop-shadow" fill="currentColor">
-              <path d="M5 3l14 9-6 1.5L11 21 5 3z" />
-            </svg>
-            <div className="absolute left-5 top-5 whitespace-nowrap bg-accent text-white text-[9px] font-mono px-1.5 py-0.5 rounded-md shadow">
-              agent
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </div>
-  );
-}
-
-function AmbientCanvasLoop() {
-  const [tick, setTick] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0.38);
-
-  useEffect(() => {
-    const id = setInterval(() => setTick((t) => (t + 1) % 18), 700);
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const observer = new ResizeObserver((entries) => {
-      const { width } = entries[0].contentRect;
-      setScale(Math.min(width / 1240, 0.55));
-    });
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  const appearedCount = Math.min(8, Math.max(0, tick));
-  const edgeCount = tick >= 8 ? Math.min(6, tick - 8) : 0;
-  const targetIdx = Math.min(7, tick);
-  const target = DEMO_LAYOUT_NODES[targetIdx];
-  const cursorTarget = { x: target.x + target.w / 2, y: target.y + 20 };
-
-  return (
-    <div
-      ref={containerRef}
-      className="w-full rounded-2xl border border-cream-dark bg-white overflow-hidden shadow-[0_2px_30px_-12px_rgba(74,58,255,0.18)]"
-      style={{ height: 680 * scale + 16 }}
-    >
-      <div className="w-full h-full relative">
-        <AgentCanvas
-          appearedCount={appearedCount}
-          edgeCount={edgeCount}
-          scale={scale}
-          showCursor
-          cursorTarget={cursorTarget}
-        />
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Agent log script
-// ─────────────────────────────────────────────────────────────────────────────
-const AGENT_SCRIPT: Omit<AgentLogEntry, "id" | "ts">[] = [
-  { phase: "enrich",     tool: "tinyfish.enrich",            message: "Reading public profile",                detail: "Fetching markdown + discovering related URLs" },
-  { phase: "enrich",     tool: "tinyfish.enrich",            message: "Parsing surface signals",               detail: "Role · company · notable work · interests · tone" },
-  { phase: "synthesise", tool: "claude.synthesise",          message: "Compressing into a profile object",     detail: "Structured JSON, tone classified" },
-  { phase: "synthesise", tool: "claude.generateScript",      message: "Drafting outreach script",              detail: "Conversational, < 90 seconds, specific" },
-  { phase: "canvas",     tool: "melius.createCanvas",        message: "Opening a fresh Melius canvas",         detail: "MCP session initialised" },
-  { phase: "canvas",     tool: "melius.claimPresence",       message: "Claiming agent presence",               detail: "(0, 0) — 880 × 600 viewport" },
-  { phase: "canvas",     tool: "melius.planLayout",          message: "Planning node layout",                  detail: "8 nodes · dynamic positions" },
-  { phase: "nodes",      tool: "create_custom_text_node",    message: "Placing Profile Summary",               detail: "node_type: custom_text" },
-  { phase: "nodes",      tool: "create_custom_text_node",    message: "Placing Script",                        detail: "node_type: custom_text" },
-  { phase: "nodes",      tool: "create_custom_text_node",    message: "Placing Visual Direction",              detail: "node_type: custom_text" },
-  { phase: "nodes",      tool: "create_custom_text_node",    message: "Placing Outreach Objective",            detail: "node_type: custom_text" },
-  { phase: "nodes",      tool: "create_image_node",          message: "Placing Video Background",              detail: "node_type: image · prompt seeded" },
-  { phase: "nodes",      tool: "create_image_node",          message: "Placing Video Thumbnail",               detail: "node_type: image · prompt seeded" },
-  { phase: "nodes",      tool: "create_custom_text_node",    message: "Placing Hook Concept",                  detail: "node_type: custom_text · archetype reasoning" },
-  { phase: "nodes",      tool: "create_video_node",          message: "Placing Hook Cinematic",                detail: "node_type: video · Melius generation" },
-  { phase: "edges",      tool: "bulk_create_edges",          message: "Wiring node connections",               detail: "Context flows between nodes" },
-  { phase: "canvas",     tool: "create_group_node",          message: "Grouping into workspace",               detail: "Single draggable workspace" },
-  { phase: "canvas",     tool: "add_comment",                message: "Leaving an audit comment",              detail: "Future humans will know an agent did this" },
-  { phase: "generate",   tool: "run_start",                  message: "Starting image generation",             detail: "Background + Thumbnail via Melius" },
-  { phase: "generate",   tool: "run_start",                  message: "Starting hook video generation",        detail: "Via Melius video node" },
-  { phase: "generate",   tool: "release_presence",           message: "Handing the canvas to you",             detail: "Open in Melius to iterate" },
-];
-
-const PHASE_META: Record<AgentLogEntry["phase"], { label: string; color: string }> = {
-  enrich:     { label: "Enrich",     color: "text-accent" },
-  synthesise: { label: "Synthesise", color: "text-accent" },
-  canvas:     { label: "Canvas",     color: "text-warm" },
-  nodes:      { label: "Nodes",      color: "text-warm" },
-  edges:      { label: "Edges",      color: "text-warm" },
-  generate:   { label: "Generate",   color: "text-success" },
-};
 
 interface StudioClientProps {
   initialAvatars?: HeyGenAvatar[];
@@ -373,12 +93,36 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [showAdvancedInput, setShowAdvancedInput] = useState(false);
   const [scriptEditing, setScriptEditing] = useState(false);
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = sessionStorage.getItem("nuncio_studio_bridge");
+        if (stored) {
+          const data = JSON.parse(stored);
+          sessionStorage.removeItem("nuncio_studio_bridge");
+          return data.url || "";
+        }
+      } catch { /* ignore */ }
+    }
+    return "";
+  });
   const [senderName, setSenderName] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem("nuncio_sender_name") || "";
     return "";
   });
-  const [senderBrief, setSenderBrief] = useState("");
+  const [senderBrief, setSenderBrief] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = sessionStorage.getItem("nuncio_studio_bridge");
+        if (stored) {
+          const data = JSON.parse(stored);
+          sessionStorage.removeItem("nuncio_studio_bridge");
+          return data.brief || "";
+        }
+      } catch { /* ignore */ }
+    }
+    return "";
+  });
   const [senderBusiness, setSenderBusiness] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem("nuncio_sender_business") || "";
     return "";
@@ -409,7 +153,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [relationshipWarmth, setRelationshipWarmth] = useState<"cold" | "warm" | "existing">("cold");
   const [tonePreference, setTonePreference] = useState("");
   const [stage, setStage] = useState<StudioStage>("input");
-  const [buildResult, setBuildResult] = useState<StudioBuildResult | null>(null);
+  const [buildResult, setBuildResult] = useState<{ soundscapeUrl?: string; cinematicEntranceUrl?: string; recommendedVibeId?: string } | null>(null);
   const [error, setError] = useState("");
   const [archetype, setArchetype] = useState<ArchetypeSelection>("auto");
   const [capturedEmail, setCapturedEmail] = useState("");
@@ -450,44 +194,18 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [audioMemoUrl, setAudioMemoUrl] = useState<string | null>(null);
   const [audioMemoLoading, setAudioMemoLoading] = useState(false);
 
-  // Melius connection
-  const [meliusKey, setMeliusKey] = useState<string>("");
-  const [meliusKeyInput, setMeliusKeyInput] = useState("");
-  const [showMeliusConnect, setShowMeliusConnect] = useState(false);
-
-  // Building stage state
-  const [logIndex, setLogIndex] = useState(0);
-  const [appearedCount, setAppearedCount] = useState(0);
-  const [edgeCount, setEdgeCount] = useState(0);
-  const [cursorTarget, setCursorTarget] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
-
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    if (searchParams.get("demo") === "true") {
-      setBuildResult(DEMO_BUILD_RESULT); // eslint-disable-line react-hooks/set-state-in-effect
-      setStage("ready");
-    }
-    try {
-      const stored = sessionStorage.getItem("nuncio_studio_bridge");
-      if (stored) {
-        const data = JSON.parse(stored);
-        if (data.url) setUrl(data.url);
-        if (data.brief) setSenderBrief(data.brief);
-        sessionStorage.removeItem("nuncio_studio_bridge");
-      }
-    } catch {
-      // ignore parse errors
-    }
-    const savedKey = localStorage.getItem("nuncio_melius_key");
-    if (savedKey) setMeliusKey(savedKey);
+  const senderBriefRef = useRef(senderBrief);
+  senderBriefRef.current = senderBrief;
 
+  useEffect(() => {
     // Load sender memory from server if authenticated
     fetch("/api/account/brief").then((r) => r.json()).then((data) => {
       if (data.senderName && !localStorage.getItem("nuncio_sender_name")) {
         setSenderName(data.senderName);
       }
-      if (data.senderBrief && !senderBrief) {
+      if (data.senderBrief && !senderBriefRef.current) {
         setSenderBrief(data.senderBrief);
       }
       if (data.senderBusiness && !localStorage.getItem("nuncio_sender_business")) {
@@ -577,20 +295,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     if (audience) localStorage.setItem("nuncio_sender_audience", audience);
     if (offer) localStorage.setItem("nuncio_sender_offer", offer);
     if (proofPoints) localStorage.setItem("nuncio_sender_proof_points", proofPoints);
-  }
-
-  function connectMelius() {
-    const key = meliusKeyInput.trim();
-    if (!key.startsWith("mk_")) return;
-    localStorage.setItem("nuncio_melius_key", key);
-    setMeliusKey(key);
-    setMeliusKeyInput("");
-    setShowMeliusConnect(false);
-  }
-
-  function disconnectMelius() {
-    localStorage.removeItem("nuncio_melius_key");
-    setMeliusKey("");
   }
 
   function toggleMode() {
@@ -842,46 +546,11 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   async function handleConfirmBuild() {
     if (!reviewProfile || !reviewScript) return;
     saveSenderMemory();
-
-    if (quickMode) {
-      // Quick mode: render HeyGen video directly — no Melius canvas
-      setStage("building");
-      await handleRenderVideo(capturedEmail);
-      return;
-    }
-
-    // Advanced mode: show canvas-ready state
-    // The build endpoint was deprecated; for now advanced falls through
-    // to the same video render path. The canvas visualization is shown
-    // as an informative animation.
-    setLogIndex(0);
-    setAppearedCount(0);
-    setEdgeCount(0);
     setStage("building");
     setShowHookReasoning(false);
-
-    // Simulate canvas build phases for the visual animation
-    const phases = [
-      { phase: "synthesise", delay: 400 },
-      { phase: "canvas", delay: 800 },
-      { phase: "nodes", delay: 1200 },
-      { phase: "edges", delay: 2000 },
-    ];
-    for (const p of phases) {
-      await new Promise((r) => setTimeout(r, p.delay));
-      setLogIndex((i) => i + 1);
-      if (p.phase === "nodes") {
-        setAppearedCount(8);
-      } else if (p.phase === "edges") {
-        setEdgeCount(6);
-      }
-    }
-
-    await new Promise((r) => setTimeout(r, 600));
-    setStage("ready");
-
-    // Start rendering the video immediately
     await handleRenderVideo(capturedEmail);
+    setBuildResult({});
+    setStage("ready");
   }
 
   function openCapture(intent: CaptureIntent) {
@@ -892,7 +561,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
   async function handleEmailCapture(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!buildResult) return;
 
     setCaptureLoading(true);
     setCaptureError("");
@@ -905,14 +573,8 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           honeypot: captureHoneypot,
           profile: reviewProfile,
           language: reviewProfile?.language || "en",
-          buildResult: {
-            projectId: buildResult.projectId,
-            canvasId: buildResult.canvasId,
-            canvasUrl: buildResult.canvasUrl,
-            hook: buildResult.hook,
-            soundscapeUrl: buildResult.soundscapeUrl,
-            cinematicEntranceUrl: buildResult.cinematicEntranceUrl,
-          },
+          soundscapeUrl: buildResult?.soundscapeUrl,
+          cinematicEntranceUrl: buildResult?.cinematicEntranceUrl,
         }),
       });
       const data = await res.json();
@@ -939,7 +601,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   }
 
   async function handleShareClick() {
-    if (!buildResult) return;
     if (!capturedEmail || !shareUrl) {
       openCapture("share");
       return;
@@ -948,59 +609,23 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   }
 
   async function handleDownloadClick() {
-    if (!buildResult) return;
     if (!capturedEmail) {
       openCapture("download");
       return;
     }
-    try {
-      const res = await fetch("/api/studio/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ canvasId: buildResult.canvasId }),
-      });
-      const data = await res.json();
-      if (res.ok && data.downloadUrl) {
-        window.open(data.downloadUrl, "_blank", "noopener,noreferrer");
-        return;
-      }
-    } catch {
-      // fall through
+    if (videoRenderResult?.videoUrl) {
+      window.open(videoRenderResult.videoUrl, "_blank", "noopener,noreferrer");
     }
-    openDownloadTarget();
   }
 
   async function handleRenderVideo(email = capturedEmail) {
-    if (!buildResult || videoRendering === "rendering") return;
+    if (!reviewScript || videoRendering === "rendering") return;
     if (!email) {
       openCapture("render");
       return;
     }
 
-    if (buildResult.canvasId === DEMO_CANVAS_ID) {
-      setVideoRendering("rendering");
-      setCaptureIntent(null);
-      await new Promise((r) => setTimeout(r, 3000));
-      setVideoRenderResult({ videoUrl: "/onee-yekeh-demo.mp4", videoId: "demo-video" });
-      setVideoComposed(true);
-      setVideoRendering("done");
-      return;
-    }
-
-    const scriptNode = buildResult.nodes.find((n) => n.label === "Script" && n.type === "custom_text");
-    if (!scriptNode?.prompt) {
-      setVideoRendering("failed");
-      setCaptureError("No script found in this build — try building again.");
-      return;
-    }
-
-    const profileNode = buildResult.nodes.find((n) => n.label === "Profile Summary" && n.type === "custom_text");
-    const recipientName = profileNode?.prompt?.split("—")[0]?.trim() || undefined;
-
-    const assetUrls = buildResult.nodes
-      .filter((n) => n.outputUrl && (n.type === "image" || n.type === "video"))
-      .map((n) => n.outputUrl!)
-      .filter(Boolean);
+    const recipientName = reviewProfile?.name;
 
     setVideoRendering("rendering");
     setCaptureIntent(null);
@@ -1010,8 +635,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          script: scriptNode.prompt,
-          assetUrls,
+          script: reviewScript,
           recipientName,
           customization: videoCustomization,
         }),
@@ -1045,25 +669,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         throw new Error("Video render timed out — it may still be running.");
       }
 
-      const hookUrl = buildResult.hook?.outputUrl;
-      let finalUrl = videoUrl;
-      if (hookUrl && hookUrl !== videoUrl) {
-        try {
-          const composeRes = await fetch("/api/compose", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ hookUrl, bodyUrl: videoUrl }),
-          });
-          const composeData = await composeRes.json();
-          if (composeData.composedUrl) {
-            finalUrl = composeData.composedUrl;
-            setVideoComposed(true);
-          }
-        } catch {
-          console.warn("[studio] Hook composition failed, showing body-only");
-        }
-      }
-      setVideoRenderResult({ videoUrl: finalUrl, videoId });
+      setVideoRenderResult({ videoUrl, videoId });
       setVideoRendering("done");
     } catch (err) {
       setVideoRendering("failed");
@@ -1077,65 +683,10 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   }
 
   function openDownloadTarget() {
-    const hookUrl = buildResult?.hook?.outputUrl;
-    if (hookUrl) {
-      window.open(hookUrl, "_blank", "noopener,noreferrer");
+    if (videoRenderResult?.videoUrl) {
+      window.open(videoRenderResult.videoUrl, "_blank", "noopener,noreferrer");
     }
   }
-
-  // Poll Melius for node generation status
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
-  const isReady = stage === "ready";
-  const canvasId = buildResult?.canvasId;
-
-  useEffect(() => {
-    if (!isReady || !canvasId || canvasId === DEMO_CANVAS_ID) return;
-
-    pollRef.current = setInterval(async () => {
-      try {
-        const pollUrl = meliusKey
-          ? `/api/studio/canvas/${canvasId}?key=${encodeURIComponent(meliusKey)}`
-          : `/api/studio/canvas/${canvasId}`;
-        const res = await fetch(pollUrl);
-        if (!res.ok) return;
-        const data = await res.json();
-
-        setBuildResult((prev) => {
-          if (!prev) return prev;
-          const merged = prev.nodes.map((n) => {
-            const updated = data.nodes.find((u: { id: string }) => u.id === n.id);
-            return updated ? { ...n, status: updated.status, outputUrl: updated.outputUrl } : n;
-          });
-          const done = merged.every((n) => n.status === "complete" || n.status === "failed");
-          if (done && pollRef.current) {
-            clearInterval(pollRef.current);
-            pollRef.current = null;
-          }
-          return { ...prev, nodes: merged };
-        });
-      } catch {
-        // ignore poll errors
-      }
-    }, 5000);
-
-    return () => {
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
-    };
-  }, [isReady, canvasId, meliusKey]);
-
-  const nodeStats = useMemo(() => {
-    if (!buildResult) return { text: 0, image: 0, video: 0, complete: 0, total: 0 };
-    return {
-      text: buildResult.nodes.filter((n) => n.type === "custom_text").length,
-      image: buildResult.nodes.filter((n) => n.type === "image").length,
-      video: buildResult.nodes.filter((n) => n.type === "video").length,
-      complete: buildResult.nodes.filter((n) => n.status === "complete").length,
-      total: buildResult.nodes.length,
-    };
-  }, [buildResult]);
 
   const handleCustomize = useCallback((c: VideoCustomization) => {
     setVideoCustomization(c);
@@ -1199,7 +750,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       <span className="text-ink-muted">Get personalised creative.</span>
                     </h1>
                     <p className="text-ink-muted text-base max-w-md leading-relaxed">
-                      Drop in a profile URL. A nuncio agent reads the human, generates a personalised outreach script, cinematic images, and a hook video — all powered by Melius under the hood.
+                      Drop in a profile URL. A nuncio agent reads the human, generates a personalised outreach script, and renders a custom video for you.
                     </p>
                     <Link
                       href="/batch"
@@ -1232,22 +783,15 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                           {[
                             { label: "Sundar Pichai", url: "https://linkedin.com/in/sundarpichai" },
                             { label: "Vercel CEO", url: "https://x.com/rauchg" },
-                            { label: "Demo canvas", url: "__demo__" },
+                            { label: "Sundar Pichai", url: "https://linkedin.com/in/sundarpichai" },
+                            { label: "Vercel CEO", url: "https://x.com/rauchg" },
                           ].map((example) => (
                             <button
                               key={example.label}
-                              onClick={() => {
-                                if (example.url === "__demo__") {
-                                  setBuildResult(DEMO_BUILD_RESULT);
-                                  setShowHookReasoning(false);
-                                  setStage("ready");
-                                } else {
-                                  setUrl(example.url);
-                                }
-                              }}
+                              onClick={() => setUrl(example.url)}
                               className="text-[11px] text-ink-muted hover:text-accent transition-colors px-2.5 py-1 rounded-md border border-cream-dark/70 hover:border-accent/30 bg-white/60"
                             >
-                              {example.url === "__demo__" ? "▶ " : "Try "}{example.label}
+                              Try {example.label}
                             </button>
                           ))}
                         </div>
@@ -1372,64 +916,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                               />
                             </div>
 
-                            {/* Melius connection */}
-                            <div>
-                              {meliusKey ? (
-                                <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-success/20 bg-success-soft">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                                  <span className="text-[11px] font-medium text-success">Melius connected</span>
-                                  <span className="text-[10px] text-ink-faint ml-1 font-mono">{meliusKey.slice(0, 10)}…</span>
-                                  <button
-                                    onClick={disconnectMelius}
-                                    className="ml-auto text-[10px] text-ink-faint hover:text-error transition-colors"
-                                  >
-                                    Disconnect
-                                  </button>
-                                </div>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={() => setShowMeliusConnect(!showMeliusConnect)}
-                                    className="text-[11px] text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5"
-                                  >
-                                    <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                      <path d="M6 3h4v2H6zM3 7h10v6H3z" />
-                                      <path d="M8 5v2M5 10h6" />
-                                    </svg>
-                                    Connect your Melius account
-                                    <span className="text-[9px] text-ink-faint/60 ml-1">optional</span>
-                                  </button>
-                                  {showMeliusConnect && (
-                                    <div className="mt-2 p-3 rounded-lg border border-cream-dark bg-cream/30 space-y-2">
-                                      <p className="text-[11px] text-ink-muted leading-relaxed">
-                                        Paste your Melius API key to build canvases in your own workspace. Generate a key in Melius → Team Settings → API keys.
-                                      </p>
-                                      <p className="text-[10px] text-ink-faint leading-relaxed">
-                                        Your key is stored in this browser only and sent over HTTPS to make Melius calls — never persisted on our servers.
-                                      </p>
-                                      <div className="flex gap-2">
-                                        <input
-                                          value={meliusKeyInput}
-                                          onChange={(e) => setMeliusKeyInput(e.target.value)}
-                                    placeholder="mk_live_…"
-                                    className="flex-1 rounded-lg border border-cream-dark bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
-                                  />
-                                  <button
-                                    onClick={connectMelius}
-                                    disabled={!meliusKeyInput.trim().startsWith("mk_")}
-                                    className="rounded-lg bg-accent text-white px-3 py-2 text-xs font-medium disabled:opacity-40 hover:bg-accent/90 transition-colors"
-                                  >
-                                    Connect
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        )}
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
 
                 {detectingLanguage && (
                   <span className="text-[10px] text-ink-faint animate-pulse block text-center">
@@ -1453,43 +942,24 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     <path d="M3 8h10M9 4l4 4-4 4" />
                   </svg>
                 </button>
-                    </div>
                   </div>
+                </div>
 
-                  <div className="hidden md:block">
-                    <AmbientCanvasLoop />
-                    <p className="text-[11px] text-ink-faint text-center mt-3 font-mono">
-                      ↑ live preview · what the agent builds on Melius
-                    </p>
+                <div className="hidden md:block">
+                    <div className="rounded-2xl border border-cream-dark bg-gradient-to-br from-accent-soft/20 to-white p-8 text-center">
+                      <div className="w-16 h-16 rounded-2xl bg-accent-soft mx-auto mb-4 flex items-center justify-center">
+                        <svg viewBox="0 0 24 24" className="w-8 h-8 text-accent" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </div>
+                      <p className="text-sm text-ink-muted leading-relaxed">
+                        Drop a URL. Get a personalised video. Share the link.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </section>
 
-              <section className="px-6 pb-24 max-w-6xl mx-auto">
-                <div className="text-center mb-10">
-                  <p className="text-[10px] uppercase tracking-widest font-medium text-ink-faint">
-                    How the agent works
-                  </p>
-                  <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-tight mt-2">
-                    From profile to creative canvas
-                  </h2>
-                </div>
-                <div className="grid md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-                  {[
-                    { num: "01", title: "Reads the human", desc: "Claude reads every relevant signal from the enriched profile markdown.", tool: "tinyfish · claude" },
-                    { num: "02", title: "Plans the canvas", desc: "Melius plans an 8-node canvas: text, image, and video nodes arranged as a pipeline.", tool: "melius.planLayout" },
-                    { num: "03", title: "Builds on Melius", desc: "Bulk-create nodes with agent-presence so a human can step in and refine anytime.", tool: "bulk_create_nodes · bulk_create_edges" },
-                    { num: "04", title: "Delivers creative", desc: "Run image generation and hook video, then hand the finished canvas to you.", tool: "run_start · bulk_run_download" },
-                  ].map((item) => (
-                    <div key={item.num} className="rounded-2xl border border-cream-dark bg-white p-5 space-y-3 hover:shadow-md transition-shadow group">
-                      <span className="text-[11px] font-mono text-accent font-medium">{item.num}</span>
-                      <h3 className="font-[family-name:var(--font-display)] text-lg">{item.title}</h3>
-                      <p className="text-xs text-ink-muted leading-relaxed">{item.desc}</p>
-                      <span className="text-[9px] font-mono text-ink-faint">{item.tool}</span>
-                    </div>
-                  ))}
-                </div>
-              </section>
             </motion.div>
           ))}
 
@@ -1990,54 +1460,11 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               onToggleDetails={() => setShowProgressDetails(!showProgressDetails)}
             />
           ) : (
-            <motion.div
-              key="building"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="px-6 pt-24 pb-16 max-w-7xl mx-auto"
-            >
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15 mb-4">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-                  <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
-                    Agent working on Melius
-                  </span>
-                </div>
-                <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight">
-                  Building your canvas
-                </h1>
-                <p className="text-sm text-ink-muted mt-2">
-                  The agent is placing nodes and wiring your creative on Melius.
-                </p>
-              </div>
-
-              {logIndex <= 4 ? (
-                <div className="max-w-2xl mx-auto w-full mt-4">
-                  <AgentLogPanel logIndex={logIndex} />
-                </div>
-              ) : (
-                <div className="grid lg:grid-cols-[1.4fr,1fr] gap-6">
-                  <div className="rounded-2xl border border-cream-dark bg-white overflow-hidden shadow-[0_2px_40px_-16px_rgba(74,58,255,0.25)]">
-                    <div style={{ height: 680 * 0.52 }} className="relative">
-                      <AgentCanvas
-                        appearedCount={appearedCount}
-                        edgeCount={edgeCount}
-                        scale={0.52}
-                        showCursor
-                        cursorTarget={cursorTarget}
-                      />
-                    </div>
-                    <div className="flex items-center gap-4 px-4 py-2.5 border-t border-cream-dark text-[11px] font-mono text-ink-faint">
-                      <span><span className="text-ink">{appearedCount}</span>/8 nodes</span>
-                      <span><span className="text-ink">{edgeCount}</span>/6 edges</span>
-                      <span className="ml-auto">{Math.min(100, Math.round((logIndex / AGENT_SCRIPT.length) * 100))}%</span>
-                    </div>
-                  </div>
-
-                  <AgentLogPanel logIndex={logIndex} />
-                </div>
-              )}
-            </motion.div>
+            <QuickProgress
+              key="quick-progress"
+              showDetails={showProgressDetails}
+              onToggleDetails={() => setShowProgressDetails(!showProgressDetails)}
+            />
           ))}
 
           {/* ─── ERROR ────────────────────────────────────────────────── */}
@@ -2136,32 +1563,11 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     Quick mode
                   </button>
                   <p className="text-sm text-ink">
-                    {nodeStats.complete === nodeStats.total ? (
-                      <>All <span className="font-medium">{nodeStats.total} assets</span> generated.</>
-                    ) : (
-                      <><span className="font-medium">{nodeStats.complete}/{nodeStats.total}</span> assets generated — images and video are still rendering…</>
-                    )}
+                    {videoRendering === "done"
+                      ? <>Video rendered successfully.</>
+                      : <>Rendering in progress…</>}
                   </p>
                 </div>
-
-                {buildResult.hook && (
-                  <div className="flex flex-wrap items-center gap-2 text-[10px] font-medium">
-                    <span className="rounded-full border border-accent/20 bg-white px-2.5 py-1 text-accent">
-                      {buildResult.hook.archetype} · {buildResult.hook.format}
-                    </span>
-                    {buildResult.hook.status === "generating" && (
-                      <span className="rounded-full border border-warm/20 bg-warm-soft px-2.5 py-1 text-warm animate-pulse">
-                        generating…
-                      </span>
-                    )}
-                    <button
-                      onClick={() => setShowHookReasoning((v) => !v)}
-                      className="rounded-full border border-accent/20 bg-white px-2.5 py-1 text-accent hover:bg-accent-soft transition-colors"
-                    >
-                      why this hook?
-                    </button>
-                  </div>
-                )}
 
                 <div className="border-t border-cream-dark/50 pt-4 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
@@ -2185,15 +1591,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                         <path d="M4 10l4 4 4-4M8 2v10" />
                       </svg>
                       Share
-                    </button>
-
-                    <button
-                      onClick={handleDownloadClick}
-                      disabled={nodeStats.complete < nodeStats.total}
-                      title={nodeStats.complete < nodeStats.total ? "Waiting for all assets to finish generating…" : undefined}
-                      className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-2.5 text-xs font-medium text-ink-muted hover:bg-cream-dark/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      Export ZIP
                     </button>
 
                     <div className="flex-1" />
@@ -2233,22 +1630,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       )}
                       {audioMemoUrl ? "Memo ready" : "Audio memo"}
                     </button>
-
-                    {buildResult.userOwned && buildResult.canvasUrl && (
-                      <a
-                        href={buildResult.canvasUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 rounded-lg border border-cream-dark px-2 py-1.5 text-[11px] text-ink-faint hover:text-ink-muted hover:bg-cream-dark/30 transition-colors"
-                        title="Open canvas in Melius editor"
-                      >
-                        <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <path d="M6 3h4v2H6zM3 7h10v6H3z" />
-                          <path d="M8 5v2M5 10h6" />
-                        </svg>
-                        Canvas
-                      </a>
-                    )}
 
                     <div className="flex-1" />
 
@@ -2325,38 +1706,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 </div>
               </div>
 
-              {/* Hook reasoning */}
-              {buildResult.hook && showHookReasoning && (
-                <motion.div
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="rounded-xl border border-accent/15 bg-white p-4 text-sm text-ink-muted leading-relaxed"
-                >
-                  <span className="text-[10px] uppercase tracking-widest font-semibold text-accent block mb-1">
-                    Agent reasoning
-                  </span>
-                  <p>{buildResult.hook.reasoning}</p>
-                  {buildResult.hook.formatReasoning && (
-                    <p className="mt-2">{buildResult.hook.formatReasoning}</p>
-                  )}
-                </motion.div>
-              )}
-
-              {/* Generated outputs */}
-              <div className="space-y-4">
-                {/* Visual outputs: images + hook video */}
-                <OutputGrid nodes={buildResult.nodes} hookStatus={buildResult.hook?.status} />
-
-                {/* Script */}
-                <ScriptCard nodes={buildResult.nodes} />
-
-                {/* Context nodes */}
-                <ContextNodes nodes={buildResult.nodes} />
-              </div>
-
               {/* Video result */}
               {videoRenderResult && videoRendering === "done" && (
-                <VideoResultSection videoUrl={videoRenderResult.videoUrl} composed={videoComposed} />
+                <VideoResultSection videoUrl={videoRenderResult.videoUrl} />
               )}
             </motion.div>
           ))}
@@ -2403,7 +1755,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     transition={{ delay: 0.1, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                     className="font-[family-name:var(--font-display)] text-3xl tracking-tight"
                   >
-                    {captureIntent === "download" ? "Export canvas" : captureIntent === "share" ? "Share video" : "Render video"}
+                    {captureIntent === "download" ? "Download video" : captureIntent === "share" ? "Share video" : "Render video"}
                   </motion.h2>
                 </div>
                 <button
@@ -2420,7 +1772,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 transition={{ delay: 0.18, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                 className="text-sm text-ink-muted leading-relaxed mb-5"
               >
-                {captureIntent === "download" && "Enter your email and we'll send you a ZIP of your creative canvas."}
+                {captureIntent === "download" && "Enter your email and we'll send you a download link for your video."}
                 {captureIntent === "share" && "Enter your email and we'll send you a shareable link you can copy."}
                 {captureIntent === "render" && "Enter your email and we'll render your video. We'll notify you when it's ready."}
               </motion.p>
@@ -2463,7 +1815,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   disabled={captureLoading || !captureEmail.trim()}
                   className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors"
                 >
-                  {captureLoading ? "Processing…" : captureIntent === "download" ? "Export canvas" : captureIntent === "share" ? "Get share link" : "Render video"}
+                  {captureLoading ? "Processing…" : captureIntent === "download" ? "Download video" : captureIntent === "share" ? "Get share link" : "Render video"}
                 </button>
               </motion.form>
             </motion.div>
@@ -2486,210 +1838,7 @@ export default StudioClient;
 // Sub-components
 // ─────────────────────────────────────────────────────────────────────────────
 
-function AgentLogPanel({ logIndex }: { logIndex: number }) {
-  return (
-    <div className="rounded-2xl border border-cream-dark bg-ink text-cream overflow-hidden flex flex-col shadow-[0_4px_30px_-10px_rgba(0,0,0,0.3)] min-h-[220px]">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-black/10">
-        <div className="flex gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-error/70" />
-          <span className="w-2.5 h-2.5 rounded-full bg-warm/70" />
-          <span className="w-2.5 h-2.5 rounded-full bg-success/70" />
-        </div>
-        <span className="text-[10px] font-mono text-cream/50 ml-2">agent.log · mcp tool calls</span>
-        <div className="ml-auto flex items-center gap-1.5 text-[9px] font-mono text-accent-soft/80 uppercase">
-          <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-          <span>Live</span>
-        </div>
-      </div>
-      <div className="flex-1 px-5 py-4 space-y-2 overflow-y-auto max-h-[500px] font-mono text-[11px]">
-        {AGENT_SCRIPT.slice(0, logIndex).map((entry, i) => {
-          const meta = PHASE_META[entry.phase];
-          const isLatest = i === logIndex - 1;
-          return (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.25 }}
-              className="space-y-0.5"
-            >
-              <div className="flex items-baseline gap-2">
-                <span className={`text-[9px] uppercase tracking-wider ${meta.color} w-16 shrink-0`}>
-                  {meta.label}
-                </span>
-                <span className="text-cream/50 text-[10px]">→</span>
-                <span className="text-cream/90">
-                  {entry.message}
-                  {isLatest && <span className="ml-1 animate-pulse">▍</span>}
-                </span>
-              </div>
-              {entry.tool && (
-                <div className="flex items-baseline gap-2 pl-[72px]">
-                  <span className="text-cream/30">$</span>
-                  <span className="text-accent-soft/80 truncate">{entry.tool}</span>
-                </div>
-              )}
-              {entry.detail && (
-                <div className="pl-[72px] text-cream/40 text-[10px]">
-                  {entry.detail}
-                </div>
-              )}
-            </motion.div>
-          );
-        })}
-        {logIndex === 0 && (
-          <div className="text-cream/30 text-center py-6 animate-pulse font-mono text-[11px]">
-            Initialising agent...
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function OutputGrid({ nodes, hookStatus }: { nodes: StudioNode[]; hookStatus?: string }) {
-  const imageNodes = nodes.filter((n) => n.type === "image");
-  const videoNode = nodes.find((n) => n.type === "video");
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {imageNodes.map((node) => (
-        <div key={node.id} className="rounded-xl border border-cream-dark bg-white overflow-hidden">
-          <div className="aspect-video bg-cream/50 relative">
-            {node.outputUrl ? (
-              <img
-                src={node.outputUrl}
-                alt={node.label}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <div className="text-center space-y-2">
-                  <div className="w-6 h-6 rounded-full border-2 border-accent/30 border-t-accent animate-spin mx-auto" />
-                  <span className="text-[10px] text-ink-faint">Generating…</span>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="px-3 py-2 flex items-center justify-between">
-            <span className="text-xs font-medium text-ink truncate">{node.label}</span>
-            <span className="text-[10px] text-ink-faint">{statusIcon(node.status)}</span>
-          </div>
-        </div>
-      ))}
-
-      {videoNode && (
-        <div className="rounded-xl border border-cream-dark bg-white overflow-hidden">
-          <div className="aspect-video bg-ink relative">
-            {videoNode.outputUrl ? (
-              <video
-                src={videoNode.outputUrl}
-                className="w-full h-full object-cover"
-                muted
-                loop
-                autoPlay
-                playsInline
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <div className="text-center space-y-2">
-                  {hookStatus === "generating" ? (
-                    <>
-                      <div className="w-6 h-6 rounded-full border-2 border-accent/30 border-t-accent animate-spin mx-auto" />
-                      <span className="text-[10px] text-cream/60">Generating hook video…</span>
-                    </>
-                  ) : (
-                    <span className="text-[10px] text-cream/40">Video pending</span>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="px-3 py-2 flex items-center justify-between">
-            <span className="text-xs font-medium text-ink truncate">{videoNode.label}</span>
-            <span className="text-[10px] text-ink-faint">{statusIcon(videoNode.status)}</span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ScriptCard({ nodes }: { nodes: StudioNode[] }) {
-  const scriptNode = nodes.find((n) => n.label === "Script" && n.type === "custom_text");
-  const profileNode = nodes.find((n) => n.label === "Profile Summary" && n.type === "custom_text");
-
-  if (!scriptNode?.prompt) return null;
-
-  return (
-    <div className="rounded-xl border border-cream-dark bg-white p-5 space-y-3">
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] uppercase tracking-widest font-medium text-accent">Script</span>
-        {profileNode?.prompt && (
-          <span className="text-[10px] text-ink-faint">
-            — for {String(profileNode.prompt).split("—")[0]?.trim() || "recipient"}
-          </span>
-        )}
-      </div>
-      <p className="text-sm text-ink leading-relaxed whitespace-pre-wrap">{scriptNode.prompt}</p>
-    </div>
-  );
-}
-
-function ContextNodes({ nodes }: { nodes: StudioNode[] }) {
-  const [expanded, setExpanded] = useState(false);
-  const contextNodes = nodes.filter(
-    (n) => n.type === "custom_text" && n.label !== "Script"
-  );
-  if (contextNodes.length === 0) return null;
-
-  return (
-    <div className="rounded-xl border border-cream-dark bg-white overflow-hidden">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-5 py-3 hover:bg-cream/30 transition-colors"
-      >
-        <span className="text-[10px] uppercase tracking-widest font-medium text-ink-muted">
-          Context nodes ({contextNodes.length})
-        </span>
-        <svg
-          viewBox="0 0 16 16"
-          className={`w-3.5 h-3.5 text-ink-faint transition-transform ${expanded ? "rotate-180" : ""}`}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <path d="M4 6l4 4 4-4" />
-        </svg>
-      </button>
-      {expanded && (
-        <div className="border-t border-cream-dark divide-y divide-cream-dark/50">
-          {contextNodes.map((node) => (
-            <div key={node.id} className="px-5 py-3 space-y-1">
-              <span className="text-[10px] font-medium text-ink-muted uppercase tracking-wide">
-                {node.label}
-              </span>
-              <p className="text-xs text-ink leading-relaxed whitespace-pre-wrap">
-                {node.prompt || "—"}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function statusIcon(status: StudioNode["status"]) {
-  switch (status) {
-    case "complete": return <span className="text-success">✓</span>;
-    case "generating": return <span className="animate-pulse text-accent">◌</span>;
-    case "failed": return <span className="text-error">✗</span>;
-    default: return <span className="text-ink-faint">○</span>;
-  }
-}
-
-function VideoResultSection({ videoUrl, composed }: { videoUrl: string; composed?: boolean }) {
+function VideoResultSection({ videoUrl }: { videoUrl: string }) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -2713,7 +1862,7 @@ function VideoResultSection({ videoUrl, composed }: { videoUrl: string; composed
           </div>
           <div>
             <h3 className="text-sm font-medium text-ink">HeyGen video ready</h3>
-            <p className="text-xs text-ink-muted">{composed ? "Hook + body composed from your Melius canvas" : "Rendered from your Melius canvas"}</p>
+            <p className="text-xs text-ink-muted">Personalised video rendered for your recipient</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

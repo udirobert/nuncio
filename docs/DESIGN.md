@@ -92,14 +92,14 @@ The happy path is: enter URLs → review script → render video → copy link. 
 │                                              │
 │  [Video player — 16:9]                       │
 │                                              │
-│  [Copy link]  [Download]  [Open in Melius]   │
+│  [Copy link]  [Download]                            │
 │                                              │
 │  Generate another →                          │
 └──────────────────────────────────────────────┘
 ```
 
 - Autoplay muted on arrival (user unmutes to watch)
-- Three CTAs: copy shareable link, download mp4, open full Melius canvas
+- Two CTAs: copy shareable link, download mp4
 - "Generate another" resets to step 1 with fields cleared
 
 ---
@@ -124,7 +124,7 @@ The happy path is: enter URLs → review script → render video → copy link. 
 ### Video player
 - Native `<video>` element, no third-party player for MVP
 - 16:9 aspect ratio
-- Poster frame: first frame of video or Melius-generated thumbnail
+- Poster frame: first frame of video
 
 ### Error states
 - Inline, not modal

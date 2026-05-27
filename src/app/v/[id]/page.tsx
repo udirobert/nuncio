@@ -242,7 +242,7 @@ export default function VideoLandingPage({
           )}
 
           {/* CTA section — the growth mechanic */}
-          {(videoData.trace?.length || videoData.canvas) && (
+          {(videoData.trace?.length ?? 0) > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -259,16 +259,7 @@ export default function VideoLandingPage({
                   </p>
                 ))}
               </div>
-              {videoData.canvas?.canvasUrl && (
-                <a
-                  href={videoData.canvas.canvasUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 inline-flex text-xs text-accent hover:text-accent/80 transition-colors"
-                >
-                  View creative canvas →
-                </a>
-              )}
+
             </motion.div>
           )}
 

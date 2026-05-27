@@ -6,14 +6,6 @@ export interface AgentTraceItem {
   status?: "complete" | "warning" | "pending";
 }
 
-export interface CanvasProof {
-  canvasId: string;
-  provider: string;
-  assetCount: number;
-  canvasUrl?: string;
-  exportUrl?: string;
-}
-
 export interface ShareRecord {
   id: string;
   videoUrl?: string;
@@ -25,7 +17,6 @@ export interface ShareRecord {
   createdAt: string;
   profile?: Profile;
   sources?: string[];
-  canvas?: CanvasProof;
   trace?: AgentTraceItem[];
   proof?: {
     provider: string;
@@ -48,10 +39,9 @@ export function buildAgentTrace(input: {
   profile?: Profile;
   sources?: string[];
   senderBrief?: string;
-  canvas?: CanvasProof;
   videoId?: string;
 }): AgentTraceItem[] {
-  const { profile, sources = [], senderBrief, canvas, videoId } = input;
+  const { profile, sources = [], senderBrief, videoId } = input;
   const trace: AgentTraceItem[] = [];
 
   if (sources.length > 0) {
@@ -88,20 +78,6 @@ export function buildAgentTrace(input: {
       label: "Chose delivery tone",
       detail: `${profile.tone || "conversational"}${senderBrief ? " with sender brief constraints" : " from profile context"}`,
       status: "complete",
-    });
-  }
-
-  if (canvas) {
-    const generatedAssets = canvas.assetCount > 0;
-    trace.push({
-      label:
-        canvas.provider === "melius"
-          ? "Created Melius creative canvas"
-          : canvas.provider === "fal"
-            ? "Generated Fal creative assets"
-            : "Created local creative session",
-      detail: `${canvas.assetCount} generated asset${canvas.assetCount === 1 ? "" : "s"}${canvas.canvasUrl ? " with persistent canvas URL" : ""}`,
-      status: canvas.provider === "melius" || generatedAssets ? "complete" : "warning",
     });
   }
 

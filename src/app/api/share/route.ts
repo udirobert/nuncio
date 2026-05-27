@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createShareRecord } from "@/lib/share-store";
-import type { CanvasProof, AgentTraceItem } from "@/lib/artifacts";
+import type { AgentTraceItem } from "@/lib/artifacts";
 import type { Profile } from "@/lib/claude";
 import { readAccountSession } from "@/lib/auth/session";
 
@@ -13,7 +13,6 @@ export async function POST(request: NextRequest) {
     senderName,
     profile,
     sources,
-    canvas,
     trace,
     privacy,
     industry,
@@ -25,7 +24,6 @@ export async function POST(request: NextRequest) {
     senderName?: string;
     profile?: Profile;
     sources?: string[];
-    canvas?: CanvasProof;
     trace?: AgentTraceItem[];
     privacy?: "public" | "private";
     industry?: string;
@@ -47,7 +45,6 @@ export async function POST(request: NextRequest) {
     senderName,
     profile,
     sources,
-    canvas,
     trace,
     privacy: privacy || "public",
     industry,

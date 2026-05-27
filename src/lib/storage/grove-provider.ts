@@ -42,13 +42,6 @@ function buildRedactedProof(record: ShareRecord) {
       videoId: record.videoId,
       hasVideoUrl: Boolean(record.videoUrl),
     },
-    canvas: record.canvas
-      ? {
-          provider: record.canvas.provider,
-          canvasUrl: record.canvas.canvasUrl,
-          assetCount: record.canvas.assetCount,
-        }
-      : undefined,
     sources: record.sources?.map((source) => safeHost(source)),
     trace: record.trace?.map((item) => ({
       label: item.label,

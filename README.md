@@ -13,7 +13,7 @@ No templates. No mail merge. A video that sounds like you wrote it for them spec
 1. **Enrich** — TinyFish fetches and cleans each social profile in parallel, with search augmentation for JS-disabled pages.
 2. **Coach** — The agent surfaces 4 candidate personalisation angles from the profile, shows what it skipped and why, and lets the user pick 1–2 to focus the script.
 3. **Synthesise** — The LLM (Claude or Featherless/Qwen3) merges the enriched data + selected angles + sender brief into a personalised video script.
-4. **Compose** — The creative provider (Melius MCP or Fal fallback) generates supporting visuals and organises all assets in a persistent canvas.
+4. **Compose** — The creative provider generates supporting visuals and organises all assets for the video.
 5. **Render** — HeyGen's Video Agent composes a structured 3-scene video with Avatar V and a cloned voice, following HeyGen Skills prompt guidelines.
 6. **Deliver** — The finished video is served on a branded landing page (`/v/[id]`) with sharing mechanics, captions via Speechmatics, and optional translation to 8+ languages.
 
@@ -29,8 +29,7 @@ Total time from input to video: ~5 minutes.
 | Intelligence | [Anthropic Claude](https://anthropic.com) or [Google Gemini 3.1](https://aistudio.google.com) |
 | Fallback Intelligence | [Featherless AI](https://featherless.ai) (Qwen3/DeepSeek) |
 | Speech | [Speechmatics](https://speechmatics.com) — voice input, captions, quality check |
-| Creative canvas | [Melius](https://melius.com) MCP server (with local fallback) |
-| Image generation | [Fal](https://fal.ai) FLUX — creative assets when Melius is not configured |
+| Creative canvas | Local provider (image generation via Fal) |
 | Video generation | [HeyGen](https://heygen.com) Video Agent API, Avatar V |
 | Voice | HeyGen Voice Clone |
 | Translation | HeyGen Video Translate + Lipsync |
@@ -63,7 +62,6 @@ FEATHERLESS_API_KEY=        # open-weight LLM fallback (Qwen3, DeepSeek)
 HEYGEN_API_KEY=
 HEYGEN_AVATAR_ID=
 HEYGEN_VOICE_ID=
-MELIUS_API_KEY=
 FAL_KEY=
 SPEECHMATICS_API_KEY=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -108,7 +106,6 @@ nuncio was built across multiple hackathons simultaneously:
 - **HeyGen Hackathon** — Video Agent API, Avatar V, Voice Clone, Video Translate
 - **Milan AI Week / AI Agent Olympics** (lablab.ai) — agentic workflow + enterprise utility
 - **TechEx Intelligent Enterprise Solutions** (lablab.ai) — enterprise sales automation
-- **Melius Challenge** (Contra) — MCP-native creative agent demonstration
 
 See [`docs/HACKATHON.md`](./docs/HACKATHON.md) for per-submission framing and pitch notes.
 
@@ -161,12 +158,7 @@ nuncio/
 │       ├── rate-limit.ts         # Per-IP sliding window
 │       ├── retry.ts              # Exponential backoff
 │       ├── demo.ts               # Cached demo data
-│       ├── melius.ts             # Creative session orchestration
-│       └── creative/
-│           ├── types.ts          # Provider interface
-│           ├── index.ts          # Factory (auto-selects provider)
-│           ├── melius-provider.ts
-│           └── local-provider.ts
+│       └── elevenlabs.ts           # Cinematic soundscape generation
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── DESIGN.md

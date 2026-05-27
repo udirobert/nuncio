@@ -4,14 +4,13 @@ import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ShareNuncio } from "@/components/share-nuncio";
-import type { AgentTraceItem, CanvasProof } from "@/lib/artifacts";
+import type { AgentTraceItem } from "@/lib/artifacts";
 
 interface VideoPlayerProps {
   videoUrl: string;
   videoId?: string;
   shareId?: string;
   soundscapeUrl?: string;
-  canvas?: CanvasProof;
   trace?: AgentTraceItem[];
   captions?: Caption[];
   onReset: () => void;
@@ -177,7 +176,6 @@ export function VideoPlayer({
   videoId,
   shareId,
   soundscapeUrl: propSoundscapeUrl,
-  canvas,
   trace,
   captions: propCaptions,
   onReset,
@@ -521,7 +519,7 @@ export function VideoPlayer({
         </motion.div>
 
         {/* Proof strip */}
-        {(shareId || canvas || trace?.length) && (
+        {(shareId || trace?.length) && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -536,21 +534,6 @@ export function VideoPlayer({
                 <span className="rounded-full bg-success-soft px-2.5 py-1 text-[10px] text-success border border-success/10">
                   Share page /v/{shareId}
                 </span>
-              )}
-              {canvas && (
-                <span className="rounded-full bg-cream-dark px-2.5 py-1 text-[10px] text-ink-faint border border-cream-dark">
-                  {canvas.provider === "melius" ? "Melius MCP" : canvas.provider} · {canvas.assetCount} assets
-                </span>
-              )}
-              {canvas?.canvasUrl && (
-                <a
-                  href={canvas.canvasUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-full bg-accent-soft px-2.5 py-1 text-[10px] text-accent border border-accent/10 hover:bg-accent-soft/70 transition-colors"
-                >
-                  Open canvas →
-                </a>
               )}
             </div>
             {trace && trace.length > 0 && (

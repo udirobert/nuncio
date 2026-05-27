@@ -70,16 +70,9 @@ Runs the real pipeline and saves a reusable submission artifact under `artifacts
 Useful flags:
 
 ```bash
-GOLDEN_SKIP_CANVAS=1      # skip Melius/Fal creative stage
 GOLDEN_SKIP_VIDEO=1       # skip HeyGen render and use sample video for share-page proof
 GOLDEN_VIDEO_TIMEOUT_MS=600000
 GOLDEN_SENDER_BRIEF="..."
-```
-
-For Melius debugging, keep generation bounded:
-
-```bash
-MELIUS_RUN_TIMEOUT_SECONDS=30
 ```
 
 HeyGen tracking follows the current v3 flow: create a Video Agent session, poll the session until a `video_id` exists, then poll `/v3/videos/{video_id}` until `completed` with `video_url`.

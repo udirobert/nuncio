@@ -9,7 +9,6 @@ const PROVIDER_LABELS: Record<string, string> = {
   exa: "EXA",
   "web-search": "Web Search",
   claude: "Claude",
-  melius: "Melius",
 };
 
 const PROVIDER_COLORS: Record<string, string> = {

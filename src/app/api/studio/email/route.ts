@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createShareRecord } from "@/lib/share-store";
-import type { StudioBuildResult } from "@/lib/creative/melius-provider";
 import type { Profile } from "@/lib/claude";
 import { accountCookieOptions, ACCOUNT_COOKIE, createAccountSessionCookie } from "@/lib/auth/session";
 import { ensureTrialCredits, upsertBillingAccount } from "@/lib/billing/accounts";
@@ -20,7 +19,7 @@ export async function POST(request: NextRequest) {
     }: {
       email?: string;
       honeypot?: string;
-      buildResult?: Pick<StudioBuildResult, "canvasId" | "canvasUrl" | "projectId" | "hook" | "soundscapeUrl" | "cinematicEntranceUrl">;
+      buildResult?: { soundscapeUrl?: string; cinematicEntranceUrl?: string };
       profile?: Profile;
       language?: string;
     } = body;
@@ -40,9 +39,7 @@ export async function POST(request: NextRequest) {
     });
     await ensureTrialCredits({ user, workspace });
 
-    const recipientName = profile?.name || buildResult?.hook?.archetype
-      ? `${buildResult!.hook!.archetype} hook recipient`
-      : "Studio campaign";
+    const recipientName = profile?.name || "Studio campaign";
 
     const record = await createShareRecord({
       videoUrl: "",
@@ -52,27 +49,12 @@ export async function POST(request: NextRequest) {
       profile: profile || undefined,
       language: language || profile?.language || "en",
       recipientName,
-      canvas: buildResult?.canvasId
-        ? {
-            canvasId: buildResult.canvasId,
-            provider: "melius",
-            assetCount: 1,
-            canvasUrl: buildResult.canvasUrl,
-          }
-        : undefined,
       trace: [
         {
           label: "Captured email after Studio preview",
           detail: "Unlocked 2 additional hook generations and campaign link delivery.",
           status: "complete",
         },
-        ...(buildResult?.hook
-          ? [{
-              label: "Hook Engine tier",
-              detail: `${buildResult.hook.tier} · ${buildResult.hook.archetype}`,
-              status: "complete" as const,
-            }]
-          : []),
       ],
       privacy: "private",
       videoStyle: "hook-engine",

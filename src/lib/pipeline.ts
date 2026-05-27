@@ -1,5 +1,5 @@
 import type { Profile } from "@/lib/claude";
-import type { AgentTraceItem, CanvasProof, ShareRecord } from "@/lib/artifacts";
+import type { AgentTraceItem, ShareRecord } from "@/lib/artifacts";
 import type { VideoCustomization } from "@/lib/heygen";
 import { buildAgentTrace } from "@/lib/artifacts";
 import {
@@ -37,7 +37,6 @@ export interface PipelineState {
   senderBrief?: string;
   intent?: string;
   assetUrls?: string[];
-  canvas?: CanvasProof;
   trace?: AgentTraceItem[];
   videoUrl?: string;
   videoId?: string;
@@ -50,7 +49,6 @@ export interface PipelineState {
 const INITIAL_STEPS: StepState[] = [
   { id: "enrich", label: "Fetching profiles", status: "pending", creditLabel: "TinyFish credits" },
   { id: "script", label: "Analysing context", status: "pending", creditLabel: "LLM tokens" },
-  { id: "canvas", label: "Composing visuals", status: "pending", creditLabel: "Melius MCP" },
   { id: "video", label: "Rendering video", status: "pending", creditLabel: "1 HeyGen credit" },
 ];
 
@@ -129,10 +127,6 @@ export async function generateVideo(
 
       await demoDelay(1500);
       updateStep(setState, "script", { status: "complete", elapsed: 1.5 });
-      updateStep(setState, "canvas", { status: "active" });
-
-      await demoDelay(1000);
-      updateStep(setState, "canvas", { status: "complete", elapsed: 1.0 });
 
       setState((prev) => ({
         ...prev,
@@ -141,16 +135,10 @@ export async function generateVideo(
         script: DEMO_SCRIPT,
         sources: DEMO_SOURCES,
         assetUrls: [],
-        canvas: {
-          canvasId: "demo-canvas",
-          provider: "demo",
-          assetCount: 0,
-        },
         trace: buildAgentTrace({
           profile: DEMO_PROFILE,
           sources: DEMO_SOURCES,
           senderBrief,
-          canvas: { canvasId: "demo-canvas", provider: "demo", assetCount: 0 },
         }),
       }));
       return;
@@ -289,38 +277,11 @@ export async function continueAfterCoach(
       status: "complete",
       elapsed: (Date.now() - scriptStart) / 1000,
     });
-    updateStep(setState, "canvas", { status: "active" });
-
-    // Stage 3: Canvas
-    const canvasStart = Date.now();
-    const canvasRes = await fetch("/api/canvas", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profile, script }),
-    });
-
-    let assetUrls: string[] = [];
-    let canvas: CanvasProof | undefined;
-    if (canvasRes.ok) {
-      const canvasData = await canvasRes.json();
-      assetUrls = canvasData.assetUrls || [];
-      canvas = {
-        canvasId: canvasData.canvasId,
-        provider: canvasData.provider,
-        assetCount: canvasData.assetCount ?? assetUrls.length,
-        canvasUrl: canvasData.canvasUrl,
-        exportUrl: canvasData.exportUrl,
-      };
-    }
-    // Canvas is non-blocking — continue even if it fails
-
-    updateStep(setState, "canvas", {
-      status: "complete",
-      elapsed: (Date.now() - canvasStart) / 1000,
-    });
+    // Stage 3: Creative assets (skipped — no separate canvas step)
+    const assetUrls: string[] = [];
 
     // Pause at script review before rendering video
-    const trace = buildAgentTrace({ profile, senderBrief: enhancedBrief, canvas });
+    const trace = buildAgentTrace({ profile, senderBrief: enhancedBrief });
 
     // Create share record early (before video renders) so user can view it during render
     // Default to public (free tier), pro users can toggle to private
@@ -333,7 +294,6 @@ export async function continueAfterCoach(
           videoUrl: "",
           recipientName: profile?.name,
           profile,
-          canvas,
           trace,
           privacy: "public",
           industry: detectIndustry(profile),
@@ -353,7 +313,6 @@ export async function continueAfterCoach(
       profile,
       script,
       assetUrls,
-      canvas,
       trace,
       share: earlyShare,
     }));
@@ -380,7 +339,6 @@ export async function renderVideo(
   context?: {
     profile?: Profile;
     sources?: string[];
-    canvas?: CanvasProof;
     trace?: AgentTraceItem[];
     share?: ShareRecord;
   }
@@ -398,7 +356,6 @@ export async function renderVideo(
       const trace = buildAgentTrace({
         profile: context?.profile,
         sources: context?.sources,
-        canvas: context?.canvas,
         videoId: "demo-video",
       });
 
@@ -428,7 +385,7 @@ export async function renderVideo(
               recipientName,
               profile: context?.profile,
               sources: context?.sources,
-              canvas: context?.canvas,
+  
               trace,
             }),
           });
@@ -523,7 +480,6 @@ export async function renderVideo(
     const trace = buildAgentTrace({
       profile: context?.profile,
       sources: context?.sources,
-      canvas: context?.canvas,
       videoId,
     });
 
@@ -569,7 +525,7 @@ export async function renderVideo(
             recipientName,
             profile: context?.profile,
             sources: context?.sources,
-            canvas: context?.canvas,
+
             trace,
           }),
         });
