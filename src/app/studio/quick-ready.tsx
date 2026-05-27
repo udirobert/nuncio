@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import type { StudioBuildResult } from "@/lib/creative/melius-provider";
 
 interface QuickReadyProps {
-  buildResult: StudioBuildResult | null;
   videoUrl?: string;
   videoRendering: "idle" | "rendering" | "done" | "failed";
   videoComposed: boolean;
+  script?: string;
   onRenderVideo: () => void;
   onShare: () => void;
   onDownload: () => void;
@@ -18,10 +17,10 @@ interface QuickReadyProps {
 }
 
 export function QuickReady({
-  buildResult,
   videoUrl,
   videoRendering,
   videoComposed,
+  script,
   onRenderVideo,
   onShare,
   onDownload,
@@ -30,9 +29,6 @@ export function QuickReady({
   shareUrl,
 }: QuickReadyProps) {
   const [copied, setCopied] = useState(false);
-  const scriptNode = buildResult?.nodes?.find(
-    (n) => n.label === "Script" && n.type === "custom_text"
-  );
 
   async function copyLink() {
     if (shareUrl) {
@@ -108,7 +104,7 @@ export function QuickReady({
               ) : (
                 <>
                   <p className="text-sm text-ink-muted">
-                    The creative canvas is built. Ready to render the video.
+                    Video is built and ready to render.
                   </p>
                   <button
                     onClick={onRenderVideo}
@@ -122,60 +118,75 @@ export function QuickReady({
           )}
 
           {showVideo && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={copyLink}
-                className="btn-press flex-1 rounded-xl bg-ink text-cream py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
-              >
-                {copied ? (
-                  <>
-                    <svg viewBox="0 0 16 16" className="w-4 h-4" fill="currentColor">
-                      <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z" />
-                    </svg>
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M5 11v-7a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1z" />
-                      <path d="M3 13V5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2H3z" />
-                    </svg>
-                    Copy link
-                  </>
-                )}
-              </button>
-              <button
-                onClick={onDownload}
-                className="btn-press flex-1 rounded-xl border border-cream-dark py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
-              >
-                <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M8 1v9M4 6l4 4 4-4" />
-                  <path d="M2 12v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" />
-                </svg>
-                Download
-              </button>
-              <button
-                onClick={onShare}
-                className="btn-press flex-1 rounded-xl border border-cream-dark py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
-              >
-                <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M4 12v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2" />
-                  <path d="M8 1v9M4 6l4 4 4-4" />
-                </svg>
-                Share
-              </button>
-            </div>
-          )}
+            <>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={copyLink}
+                  className="btn-press flex-1 rounded-xl bg-ink text-cream py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
+                >
+                  {copied ? (
+                    <>
+                      <svg viewBox="0 0 16 16" className="w-4 h-4" fill="currentColor">
+                        <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z" />
+                      </svg>
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M5 11v-7a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1z" />
+                        <path d="M3 13V5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2H3z" />
+                      </svg>
+                      Copy link
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={onDownload}
+                  className="btn-press flex-1 rounded-xl border border-cream-dark py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M8 1v9M4 6l4 4 4-4" />
+                    <path d="M2 12v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" />
+                  </svg>
+                  Download
+                </button>
+                <button
+                  onClick={onShare}
+                  className="btn-press flex-1 rounded-xl border border-cream-dark py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M4 12v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2" />
+                    <path d="M8 1v9M4 6l4 4 4-4" />
+                  </svg>
+                  Share
+                </button>
+              </div>
 
-          {showVideo && (
-            <div className="rounded-2xl border border-cream-dark bg-white p-5 space-y-2">
-              <span className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
-                Script
-              </span>
-              <p className="text-sm text-ink-muted leading-relaxed whitespace-pre-wrap">
-                {scriptNode?.prompt || "No script available"}
-              </p>
-            </div>
+              {script && (
+                <div className="rounded-2xl border border-cream-dark bg-white p-5 space-y-2">
+                  <span className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+                    Script
+                  </span>
+                  <p className="text-sm text-ink-muted leading-relaxed whitespace-pre-wrap">
+                    {script}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-center">
+                <button
+                  onClick={onShare}
+                  className="btn-press rounded-xl border border-cream-dark px-6 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M3 3h10v10H3z" />
+                    <path d="M8 6v4M6 8h4" />
+                  </svg>
+                  Create share page
+                </button>
+              </div>
+            </>
           )}
 
           <div className="text-center">

@@ -25,7 +25,7 @@ export async function detectLanguageFromUrl(url: string): Promise<string | null>
       signal: AbortSignal.timeout(5000),
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (compatible; nuncio-bot/1.0; +https://nuncio.com)",
+          "Mozilla/5.0 (compatible; nuncio-bot/1.0)",
         Accept: "text/html",
       },
     });

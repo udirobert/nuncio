@@ -841,114 +841,47 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
   async function handleConfirmBuild() {
     if (!reviewProfile || !reviewScript) return;
+    saveSenderMemory();
+
+    if (quickMode) {
+      // Quick mode: render HeyGen video directly — no Melius canvas
+      setStage("building");
+      await handleRenderVideo(capturedEmail);
+      return;
+    }
+
+    // Advanced mode: show canvas-ready state
+    // The build endpoint was deprecated; for now advanced falls through
+    // to the same video render path. The canvas visualization is shown
+    // as an informative animation.
     setLogIndex(0);
     setAppearedCount(0);
     setEdgeCount(0);
     setStage("building");
     setShowHookReasoning(false);
-    saveSenderMemory();
 
-    try {
-      const res = await fetch("/api/studio/build", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: url.trim(),
-          senderName: senderName.trim() || undefined,
-          senderBrief: senderBrief.trim() || undefined,
-          email: capturedEmail || undefined,
-          archetype: archetype === "auto" ? undefined : archetype,
-          meliusApiKey: meliusKey || undefined,
-          profile: reviewProfile,
-          script: reviewScript,
-          hook: reviewHook,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Build failed");
+    // Simulate canvas build phases for the visual animation
+    const phases = [
+      { phase: "synthesise", delay: 400 },
+      { phase: "canvas", delay: 800 },
+      { phase: "nodes", delay: 1200 },
+      { phase: "edges", delay: 2000 },
+    ];
+    for (const p of phases) {
+      await new Promise((r) => setTimeout(r, p.delay));
+      setLogIndex((i) => i + 1);
+      if (p.phase === "nodes") {
+        setAppearedCount(8);
+      } else if (p.phase === "edges") {
+        setEdgeCount(6);
       }
-
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("Failed to read stream");
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let currentLogIndex = 0;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (!line.trim() || !line.startsWith("data: ")) continue;
-          try {
-            const data = JSON.parse(line.slice(6));
-
-            if (data.error) throw new Error(data.error);
-
-            if (data.phase) {
-              currentLogIndex++;
-              setLogIndex(currentLogIndex);
-
-              if (data.phase === "nodes") {
-                setAppearedCount((c) => Math.min(8, c + 1));
-                const targetIdx = Math.min(7, appearedCount);
-                const t = DEMO_LAYOUT_NODES[targetIdx];
-                setCursorTarget({ x: t.x + t.w / 2, y: t.y + 20 });
-              } else if (data.phase === "edges") {
-                setEdgeCount((c) => Math.min(6, c + 1));
-              }
-            }
-
-            if (data.canvas) {
-              setBuildResult((prev) => ({
-                ...prev,
-                ...data.canvas,
-                nodes: prev?.nodes || [],
-              } as StudioBuildResult));
-            }
-
-            if (data.node) {
-              setBuildResult((prev) => {
-                if (!prev) return prev;
-                const exists = prev.nodes.find(n => n.id === data.node.id);
-                if (exists) {
-                  return { ...prev, nodes: prev.nodes.map(n => n.id === data.node.id ? { ...n, ...data.node } : n) };
-                }
-                return { ...prev, nodes: [...prev.nodes, data.node] };
-              });
-            }
-
-            if (data.type === "done") {
-              const result = data.result as StudioBuildResult;
-              setBuildResult(result);
-              
-              // Apply AI recommended vibe to the customization state
-              if (result.recommendedVibeId) {
-                setVideoCustomization(prev => ({
-                  ...prev,
-                  soundscapeVibe: result.recommendedVibeId
-                }));
-              }
-              
-              setStage("ready");
-              return;
-            }
-          } catch (e) {
-            console.error("Stream parse error:", e, line);
-          }
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-      setStage("error");
     }
+
+    await new Promise((r) => setTimeout(r, 600));
+    setStage("ready");
+
+    // Start rendering the video immediately
+    await handleRenderVideo(capturedEmail);
   }
 
   function openCapture(intent: CaptureIntent) {
@@ -2157,7 +2090,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           {stage === "ready" && buildResult && (quickMode ? (
             <QuickReady
               key="quick-ready"
-              buildResult={buildResult}
               videoUrl={videoRenderResult?.videoUrl}
               videoRendering={videoRendering}
               videoComposed={videoComposed}
