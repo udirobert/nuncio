@@ -14,11 +14,7 @@ export async function GET(request: NextRequest) {
   }
 
   const session = readAccountSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const clientId = getClientId(request) || session.userId;
+  const clientId = getClientId(request) || session?.userId || "guest";
   const limit = checkRateLimit(clientId, "voice-token", {
     maxRequests: 10,
     windowSeconds: 60,
