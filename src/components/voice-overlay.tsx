@@ -109,9 +109,10 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
         throw new Error("Voice agent not configured");
       }
 
+      console.log("[voice] starting session with agentId:", agentId);
       const conversation = await Conversation.startSession({
         agentId,
-        connectionType: "webrtc",
+        connectionType: "websocket",
         overrides: {
           agent: {
             firstMessage: "Hi! I’m your nuncio agent. Tell me who you want to reach, why now, and what tone you want.",
