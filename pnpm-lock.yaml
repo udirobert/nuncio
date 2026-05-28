@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@elevenlabs/client':
-        specifier: 1.9.0
-        version: 1.9.0(@types/dom-mediacapture-record@1.0.22)
+        specifier: 1.8.1
+        version: 1.8.1(@types/dom-mediacapture-record@1.0.22)
       '@elevenlabs/elevenlabs-js':
         specifier: 2.49.1
         version: 2.49.1
@@ -186,8 +186,8 @@ packages:
   '@bufbuild/protobuf@1.10.1':
     resolution: {integrity: sha512-wJ8ReQbHxsAfXhrf9ixl0aYbZorRuOWpBNzm8pL8ftmSxQx/wnJD5Eg861NwJU/czy2VXFIebCeZnZrI9rktIQ==}
 
-  '@elevenlabs/client@1.9.0':
-    resolution: {integrity: sha512-czkbwUv7n18DoH5L9YdAKr0ATlcPSYNxhVQTfnFvAUdijvWfhwn8Ct0WHbPxX1oGwH6s1hMbPPAK+CUURHyowg==}
+  '@elevenlabs/client@1.8.1':
+    resolution: {integrity: sha512-2TL2aNh+CYRXKU2kOfduDYazE7QoHPevKKNjcM5YXodODfYR6jfUEb6dcnQ8XqGhrHK34BQ9TUhCvzl9STV4DA==}
 
   '@elevenlabs/elevenlabs-js@2.49.1':
     resolution: {integrity: sha512-ctwKJaF+ZU3auuuVQK/UBYz5Qev1pqDrnV+BktM+vRvtyt9s1vJvHydCODuj9/uObp8BST2+a5/zu1uShd+ryQ==}
@@ -3991,7 +3991,7 @@ snapshots:
 
   '@bufbuild/protobuf@1.10.1': {}
 
-  '@elevenlabs/client@1.9.0(@types/dom-mediacapture-record@1.0.22)':
+  '@elevenlabs/client@1.8.1(@types/dom-mediacapture-record@1.0.22)':
     dependencies:
       '@elevenlabs/types': 0.14.0
       livekit-client: 2.16.1(@types/dom-mediacapture-record@1.0.22)

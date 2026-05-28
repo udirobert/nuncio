@@ -54,6 +54,26 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
     }
   }, [transcripts]);
 
+  // Catch SDK internal unhandled rejections (e.g. WebRTC data channel errors)
+  useEffect(() => {
+    function handleUnhandledRejection(e: PromiseRejectionEvent) {
+      const reason = e.reason;
+      if (typeof reason === "object" && reason !== null) {
+        const msg = reason.message || reason.toString?.() || "Voice connection error";
+        if (msg.includes("error_type") || msg.includes("DataChannel") || msg.includes("webrtc") || msg.includes("room")) {
+          e.preventDefault();
+          console.warn("[voice-overlay] Caught SDK error:", reason);
+          setError("Voice connection interrupted. Please try again.");
+          setStatus("error");
+          conversationRef.current?.endSession().catch(() => {});
+          conversationRef.current = null;
+        }
+      }
+    }
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+    return () => window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+  }, []);
+
   function handleClose() {
     conversationRef.current?.endSession().catch(() => {});
     conversationRef.current = null;
@@ -128,12 +148,21 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
           setModeDisplay(mode);
           setStatus(mode === "speaking" ? "speaking" : "listening");
         },
-        onError: (msg) => {
-          setError(msg);
+        onError: (msg: unknown) => {
+          const text = typeof msg === "string" ? msg : msg instanceof Error ? msg.message : JSON.stringify(msg);
+          setError(text || "Voice connection error");
           setStatus("error");
         },
         onDisconnect: () => {
-          setStatus((current) => current === "captured" ? "captured" : "idle");
+          setStatus((current) => {
+            if (current === "captured") return "captured";
+            // If we were connecting/listening/speaking, an unexpected disconnect is an error
+            if (current === "connecting" || current === "listening" || current === "speaking") {
+              setError("Connection closed unexpectedly. Please try again.");
+              return "error";
+            }
+            return "idle";
+          });
         },
       });
 
