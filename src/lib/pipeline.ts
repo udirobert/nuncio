@@ -438,7 +438,10 @@ export async function renderVideo(
 
     // Poll for completion
     let videoUrl: string | undefined;
-    while (!videoUrl) {
+    let attempts = 0;
+    const maxAttempts = 60;
+    while (!videoUrl && attempts < maxAttempts) {
+      attempts++;
       await new Promise((r) => setTimeout(r, 5000));
 
       let statusRes: Response;
@@ -470,6 +473,10 @@ export async function renderVideo(
       } else if (status.status === "failed") {
         throw new Error(status.failureMessage || status.error || "Video generation failed");
       }
+    }
+
+    if (!videoUrl) {
+      throw new Error("Video render timed out — it may still be running.");
     }
 
     updateStep(setState, "video", {

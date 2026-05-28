@@ -13,6 +13,7 @@ import { LANGUAGES } from "@/lib/languages";
 import { QuickInput } from "./quick-input";
 import { QuickReview } from "./quick-review";
 import { QuickProgress } from "./quick-progress";
+import type { QuickProgressStep } from "./quick-progress";
 import { QuickReady } from "./quick-ready";
 import { VoiceOverlay } from "@/components/voice-overlay";
 import type { VoiceProfileResult } from "@/components/voice-overlay";
@@ -174,6 +175,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [captureLoading, setCaptureLoading] = useState(false);
   const [showHookReasoning, setShowHookReasoning] = useState(false);
   const [videoRendering, setVideoRendering] = useState<"idle" | "rendering" | "done" | "failed">("idle");
+  const [buildStep, setBuildStep] = useState<QuickProgressStep>("enrich");
+  const [buildStartedAt, setBuildStartedAt] = useState<number | null>(null);
+  const [buildElapsedSeconds, setBuildElapsedSeconds] = useState(0);
   const [videoRenderResult, setVideoRenderResult] = useState<{ videoUrl: string; videoId: string } | null>(null);
   const [videoComposed, setVideoComposed] = useState(false);
   const [videoCustomization, setVideoCustomization] = useState<VideoCustomization | undefined>();
@@ -198,6 +202,16 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
   const senderBriefRef = useRef(senderBrief);
   senderBriefRef.current = senderBrief;
+
+  useEffect(() => {
+    if (stage !== "building" || !buildStartedAt) {
+      return;
+    }
+    const interval = setInterval(() => {
+      setBuildElapsedSeconds(Math.floor((Date.now() - buildStartedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [buildStartedAt, stage]);
 
   useEffect(() => {
     // Load sender memory from server if authenticated
@@ -545,10 +559,21 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
   async function handleConfirmBuild() {
     if (!reviewProfile || !reviewScript) return;
+    if (!capturedEmail) {
+      openCapture("render");
+      return;
+    }
     saveSenderMemory();
     setStage("building");
+    setBuildStep("build");
+    setBuildStartedAt(Date.now());
+    setBuildElapsedSeconds(0);
     setShowHookReasoning(false);
-    await handleRenderVideo(capturedEmail);
+    const rendered = await handleRenderVideo(capturedEmail);
+    if (!rendered) {
+      setStage("error");
+      return;
+    }
     setBuildResult({});
     setStage("ready");
   }
@@ -619,16 +644,17 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   }
 
   async function handleRenderVideo(email = capturedEmail) {
-    if (!reviewScript || videoRendering === "rendering") return;
+    if (!reviewScript || videoRendering === "rendering") return false;
     if (!email) {
       openCapture("render");
-      return;
+      return false;
     }
 
     const recipientName = reviewProfile?.name;
 
     setVideoRendering("rendering");
     setCaptureIntent(null);
+    setBuildStep("render");
 
     try {
       const res = await fetch("/api/video", {
@@ -671,9 +697,13 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
       setVideoRenderResult({ videoUrl, videoId });
       setVideoRendering("done");
+      return true;
     } catch (err) {
+      const message = err instanceof Error ? err.message : "Video render failed";
       setVideoRendering("failed");
-      setCaptureError(err instanceof Error ? err.message : "Video render failed");
+      setCaptureError(message);
+      setError(message);
+      return false;
     }
   }
 
@@ -1458,12 +1488,18 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               key="quick-progress"
               showDetails={showProgressDetails}
               onToggleDetails={() => setShowProgressDetails(!showProgressDetails)}
+              currentStep={buildStep}
+              elapsedSeconds={buildElapsedSeconds}
+              videoRendering={videoRendering}
             />
           ) : (
             <QuickProgress
               key="quick-progress"
               showDetails={showProgressDetails}
               onToggleDetails={() => setShowProgressDetails(!showProgressDetails)}
+              currentStep={buildStep}
+              elapsedSeconds={buildElapsedSeconds}
+              videoRendering={videoRendering}
             />
           ))}
 

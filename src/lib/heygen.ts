@@ -269,13 +269,35 @@ export async function getVideoStatus(videoId: string): Promise<VideoStatus> {
   }
 
   const videoStatus = await getDirectVideoStatus(videoId);
-  if (videoStatus) return videoStatus;
+  if (videoStatus) {
+    console.info("[heygen] direct video status", {
+      requestedId: videoId,
+      status: videoStatus.status,
+      hasVideoUrl: Boolean(videoStatus.videoUrl),
+      failureMessage: videoStatus.failureMessage,
+    });
+    return videoStatus;
+  }
 
   const sessionStatus = await getVideoAgentSessionStatus(videoId);
   if (sessionStatus) {
+    console.info("[heygen] video agent session status", {
+      requestedId: videoId,
+      sessionId: sessionStatus.sessionId,
+      videoId: sessionStatus.videoId,
+      status: sessionStatus.status,
+      failureMessage: sessionStatus.failureMessage,
+    });
     if (sessionStatus.videoId && sessionStatus.videoId !== videoId) {
       const resolvedVideo = await getDirectVideoStatus(sessionStatus.videoId);
       if (resolvedVideo) {
+        console.info("[heygen] resolved agent video status", {
+          requestedId: videoId,
+          resolvedVideoId: sessionStatus.videoId,
+          status: resolvedVideo.status,
+          hasVideoUrl: Boolean(resolvedVideo.videoUrl),
+          failureMessage: resolvedVideo.failureMessage,
+        });
         return { ...resolvedVideo, sessionId: videoId, videoId: sessionStatus.videoId };
       }
     }
@@ -294,6 +316,11 @@ async function getDirectVideoStatus(videoId: string): Promise<VideoStatus | null
 
   const data = await response.json();
   const payload = data.data || data;
+  console.info("[heygen] raw direct status", {
+    videoId,
+    rawStatus: payload.status,
+    hasVideoUrl: Boolean(payload.video_url || payload.videoUrl),
+  });
   return {
     status: normaliseStatus(payload.status),
     videoUrl: payload.video_url || payload.videoUrl || undefined,
@@ -311,6 +338,11 @@ async function getVideoAgentSessionStatus(sessionId: string): Promise<VideoStatu
 
   const data = await response.json();
   const payload = data.data || data;
+  console.info("[heygen] raw agent session status", {
+    sessionId,
+    rawStatus: payload.status,
+    videoId: payload.video_id || payload.videoId || undefined,
+  });
   return {
     status: normaliseStatus(payload.status),
     videoId: payload.video_id || payload.videoId || undefined,
@@ -326,7 +358,14 @@ function normaliseStatus(status: unknown): VideoStatus["status"] {
   if (status === "failed" || status === "error") {
     return "failed";
   }
-  if (status === "processing" || status === "in_progress" || status === "running") {
+  if (
+    status === "processing" ||
+    status === "in_progress" ||
+    status === "running" ||
+    status === "queued" ||
+    status === "generating" ||
+    status === "rendering"
+  ) {
     return "processing";
   }
   return "pending";
