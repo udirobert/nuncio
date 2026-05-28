@@ -162,7 +162,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [captureIntent, setCaptureIntent] = useState<CaptureIntent | null>(null);
   const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
   const [detectingLanguage, setDetectingLanguage] = useState(false);
-  const [translateEnabled, setTranslateEnabled] = useState(true);
+  const [translateEnabled, setTranslateEnabled] = useState(false);
   const [voiceOverlayOpen, setVoiceOverlayOpen] = useState(false);
   const [voiceBrief, setVoiceBrief] = useState<VoiceProfileResult | null>(null);
   const [pipelineStep, setPipelineStep] = useState<"idle" | "enrich" | "synthesise" | "compose">("idle");
@@ -748,8 +748,11 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               setOutreachGoal={setOutreachGoal}
               onEnrich={handleEnrich}
               onToggleMode={toggleMode}
+              onOpenVoice={() => setVoiceOverlayOpen(true)}
               detectedLanguage={detectedLanguage}
               detectingLanguage={detectingLanguage}
+              translateEnabled={translateEnabled}
+              onToggleTranslate={() => setTranslateEnabled(!translateEnabled)}
               voicePopulatedFields={voicePopulatedFields}
             />
           ) : (
@@ -761,8 +764,8 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               transition={{ duration: 0.35 }}
             >
               <section className="relative px-6 pt-24 pb-16">
-                <div className="max-w-6xl mx-auto grid md:grid-cols-[1.05fr,1fr] gap-12 items-center">
-                  <div className="space-y-7">
+                <div className="max-w-lg mx-auto space-y-8">
+                  <div className="space-y-7 text-center">
                     <div className="flex items-center justify-between">
                       <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15">
                         <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
@@ -782,7 +785,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       <br />
                       <span className="text-ink-muted">Get personalised creative.</span>
                     </h1>
-                    <p className="text-ink-muted text-base max-w-md leading-relaxed">
+                    <p className="text-ink-muted text-base max-w-md mx-auto leading-relaxed">
                       Drop in a profile URL. A nuncio agent reads the human, generates a personalised outreach script, and renders a custom video for you.
                     </p>
                     <Link
@@ -792,7 +795,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       Need to reach multiple people? Try Batch →
                     </Link>
 
-                    <div className="space-y-3 max-w-md">
+                    <div className="space-y-3 text-left">
                       <div className="rounded-2xl border border-accent/20 bg-gradient-to-br from-accent-soft/60 via-white to-warm-soft/30 p-4 shadow-sm space-y-3">
                         <div className="flex items-start gap-3">
                           <div className="relative w-11 h-11 rounded-2xl bg-accent text-white flex items-center justify-center shadow-sm shrink-0">
@@ -1023,10 +1026,21 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   </span>
                 )}
                 {detectedLanguage && !detectingLanguage && (
-                  <span className="flex items-center justify-center gap-1 text-[10px] text-warm mt-0.5">
-                    <span className="w-1 h-1 rounded-full bg-warm" />
-                    {detectedLanguage === "en" ? "Script will be in English" : `Script will be in ${detectedLanguage.toUpperCase()}`}
-                  </span>
+                  <div className="rounded-xl border border-warm/20 bg-warm-soft/40 p-3 flex items-center justify-between gap-3">
+                    <span className="text-[11px] text-ink-muted">
+                      {detectedLanguage === "en" ? "English detected." : `${detectedLanguage.toUpperCase()} detected. Script stays English unless you choose otherwise.`}
+                    </span>
+                    {detectedLanguage !== "en" && (
+                      <button
+                        onClick={() => setTranslateEnabled(!translateEnabled)}
+                        className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-medium transition-colors ${
+                          translateEnabled ? "bg-warm text-white" : "bg-white text-warm border border-warm/20"
+                        }`}
+                      >
+                        {translateEnabled ? `Using ${detectedLanguage.toUpperCase()}` : `Use ${detectedLanguage.toUpperCase()}`}
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 <button
@@ -1034,26 +1048,13 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   disabled={!url.trim()}
                   className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
                 >
-                  Research profile
+                  Research & write script
                   <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M3 8h10M9 4l4 4-4 4" />
                   </svg>
                 </button>
                   </div>
                 </div>
-
-                <div className="hidden md:block">
-                    <div className="rounded-2xl border border-cream-dark bg-gradient-to-br from-accent-soft/20 to-white p-8 text-center">
-                      <div className="w-16 h-16 rounded-2xl bg-accent-soft mx-auto mb-4 flex items-center justify-center">
-                        <svg viewBox="0 0 24 24" className="w-8 h-8 text-accent" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      </div>
-                      <p className="text-sm text-ink-muted leading-relaxed">
-                        Drop a URL. Get a personalised video. Share the link.
-                      </p>
-                    </div>
-                  </div>
                 </div>
               </section>
 
@@ -1177,10 +1178,10 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 </button>
               </div>
               <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight">
-                Confirm before building
+                Review the script
               </h1>
               <p className="text-sm text-ink-muted mt-2 mb-8">
-                Edit anything below, then hit Build to generate the canvas.
+                Edit anything below, then build the final video.
               </p>
 
               <div className="space-y-6">
@@ -1539,7 +1540,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     onClick={handleConfirmBuild}
                     className="flex-[2] btn-press rounded-xl bg-ink text-cream py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2 shadow-lg"
                   >
-                    Build video
+                    Build final video
                     <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M3 8h10M9 4l4 4-4 4" />
                     </svg>

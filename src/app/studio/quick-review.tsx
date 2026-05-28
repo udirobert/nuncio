@@ -70,10 +70,13 @@ export function QuickReview({
 
           <div>
             <h2 className="font-[family-name:var(--font-display)] text-2xl text-ink">
-              Script for {profile?.name || "your recipient"}
+              Review the script
             </h2>
+            <p className="text-sm text-ink-muted mt-1">
+              For {profile?.name || "your recipient"}. Edit or regenerate before building the video.
+            </p>
             {senderName && (
-              <p className="text-sm text-ink-muted mt-1">
+              <p className="text-xs text-ink-faint mt-1">
                 Signing off as {senderName}
               </p>
             )}
@@ -211,7 +214,7 @@ export function QuickReview({
             onClick={onBuild}
             className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
           >
-            Build video
+            Build final video
             <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 8h10M9 4l4 4-4 4" />
             </svg>

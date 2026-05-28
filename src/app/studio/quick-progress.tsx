@@ -14,19 +14,19 @@ interface QuickProgressProps {
 }
 
 const STEPS = [
-  { id: "enrich", label: "Reading profile" },
+  { id: "enrich", label: "Researching recipient" },
   { id: "script", label: "Writing script" },
-  { id: "build", label: "Building creative" },
+  { id: "build", label: "Preparing creative" },
   { id: "render", label: "Rendering video" },
 ];
 
 const MOMENTS = [
   "Finding the sharpest personal hook",
-  "Trimming the script so it feels human",
-  "Choosing a clean creative direction",
+  "Checking the script sounds natural out loud",
+  "Preparing the video scene and voice",
   "Sending the render job to HeyGen",
-  "Checking the video room lights",
-  "Waiting for the final MP4 to land",
+  "Keeping this page live while the MP4 cooks",
+  "Moving you forward automatically when it lands",
 ];
 
 function formatElapsed(seconds: number) {
@@ -78,10 +78,10 @@ export function QuickProgress({
             </span>
           </div>
           <h2 className="font-[family-name:var(--font-display)] text-2xl text-ink">
-            Building your video
+            Building the final video
           </h2>
           <p className="text-sm text-ink-muted">
-            Usually takes about 90 seconds. You have waited {formatElapsed(elapsedSeconds)}.
+            Usually takes 60–90 seconds. You have waited {formatElapsed(elapsedSeconds)}.
           </p>
         </div>
 
@@ -160,7 +160,7 @@ export function QuickProgress({
           >
             <p className="text-xs font-medium text-ink">What is happening now</p>
             <p className="text-xs leading-relaxed text-ink-muted">
-              The agent has prepared the profile and script, then starts a HeyGen render job. We check every few seconds and will move you forward automatically when the MP4 is ready.
+              Nuncio has your brief and script. This step prepares the video creative, starts the HeyGen render, checks status every few seconds, and moves you forward automatically when the MP4 is ready.
             </p>
           </motion.div>
         )}
