@@ -164,6 +164,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [detectingLanguage, setDetectingLanguage] = useState(false);
   const [translateEnabled, setTranslateEnabled] = useState(true);
   const [voiceOverlayOpen, setVoiceOverlayOpen] = useState(false);
+  const [voiceBrief, setVoiceBrief] = useState<VoiceProfileResult | null>(null);
   const [pipelineStep, setPipelineStep] = useState<"idle" | "enrich" | "synthesise" | "compose">("idle");
   const [voicePopulatedFields, setVoicePopulatedFields] = useState<Set<string>>(new Set());
   const [researchTier, setResearchTier] = useState<"quick" | "balanced" | "deep">("quick");
@@ -323,6 +324,8 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     if (profile.senderName) { setSenderName(profile.senderName); populated.add("senderName"); }
     if (profile.senderBrief) { setSenderBrief(profile.senderBrief); populated.add("senderBrief"); }
     if (profile.archetype) setArchetype(profile.archetype as ArchetypeSelection);
+    if (profile.tone) setTonePreference(profile.tone);
+    setVoiceBrief(profile);
     setVoicePopulatedFields(populated);
     setVoiceOverlayOpen(false);
     setTimeout(() => setVoicePopulatedFields(new Set()), 3000);
@@ -790,6 +793,85 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     </Link>
 
                     <div className="space-y-3 max-w-md">
+                      <div className="rounded-2xl border border-accent/20 bg-gradient-to-br from-accent-soft/60 via-white to-warm-soft/30 p-4 shadow-sm space-y-3">
+                        <div className="flex items-start gap-3">
+                          <div className="relative w-11 h-11 rounded-2xl bg-accent text-white flex items-center justify-center shadow-sm shrink-0">
+                            <span className="absolute inset-0 rounded-2xl bg-accent animate-ping opacity-15" />
+                            <svg viewBox="0 0 16 16" className="relative w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.6">
+                              <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
+                              <path d="M3 8a5 5 0 0010 0M8 13v2" />
+                            </svg>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium text-ink">Talk to your video agent</p>
+                              <span className="rounded-full bg-white/70 border border-accent/15 px-2 py-0.5 text-[9px] uppercase tracking-widest text-accent">
+                                Speech Engine
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+                              Say who you want to reach and why. Nuncio interviews you, extracts the brief, then fills this studio for you.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setVoiceOverlayOpen(true)}
+                          className="btn-press w-full rounded-xl bg-accent text-white py-3 text-sm font-medium hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"
+                        >
+                          Start voice brief
+                          <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 8h10M9 4l4 4-4 4" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {voiceBrief && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="rounded-2xl border border-success/20 bg-success-soft/40 p-4 space-y-3"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-medium text-ink">Voice brief captured</p>
+                              <p className="text-xs text-ink-muted">Review the extracted campaign context before researching.</p>
+                            </div>
+                            <button
+                              onClick={() => setVoiceOverlayOpen(true)}
+                              className="text-[11px] text-success hover:text-success/80 transition-colors"
+                            >
+                              Re-record
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            {voiceBrief.name && (
+                              <div className="rounded-xl bg-white/70 border border-success/10 p-2">
+                                <span className="block text-[9px] uppercase tracking-widest text-ink-faint">Recipient</span>
+                                <span className="text-ink">{voiceBrief.name}</span>
+                              </div>
+                            )}
+                            {(voiceBrief.company || voiceBrief.role) && (
+                              <div className="rounded-xl bg-white/70 border border-success/10 p-2">
+                                <span className="block text-[9px] uppercase tracking-widest text-ink-faint">Context</span>
+                                <span className="text-ink">{[voiceBrief.role, voiceBrief.company].filter(Boolean).join(" · ")}</span>
+                              </div>
+                            )}
+                            {voiceBrief.tone && (
+                              <div className="rounded-xl bg-white/70 border border-success/10 p-2">
+                                <span className="block text-[9px] uppercase tracking-widest text-ink-faint">Tone</span>
+                                <span className="text-ink capitalize">{voiceBrief.tone}</span>
+                              </div>
+                            )}
+                            {voiceBrief.archetype && (
+                              <div className="rounded-xl bg-white/70 border border-success/10 p-2">
+                                <span className="block text-[9px] uppercase tracking-widest text-ink-faint">Hook</span>
+                                <span className="text-ink">{ARCHETYPE_OPTIONS.find((option) => option.id === voiceBrief.archetype)?.label || voiceBrief.archetype}</span>
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+
                       <div>
                         <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
                           Profile URL
@@ -825,21 +907,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                             </button>
                           ))}
                         </div>
-                      </div>
-
-                      {/* Voice agent FAB */}
-                      <div className="flex items-center gap-2 pt-1">
-                        <button
-                          onClick={() => setVoiceOverlayOpen(true)}
-                          className="inline-flex items-center gap-1.5 text-[11px] text-accent hover:text-accent/80 transition-colors group"
-                        >
-                          <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
-                            <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
-                            <path d="M3 8a5 5 0 0010 0M8 13v2" />
-                          </svg>
-                          Brief with voice
-                          <span className="text-[9px] text-ink-faint group-hover:text-accent transition-colors">— talk, don&apos;t type</span>
-                        </button>
                       </div>
 
                       <div>
