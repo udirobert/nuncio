@@ -1,19 +1,14 @@
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  const wsUrl = process.env.VOICE_PUBLIC_URL;
-  const voiceServerPort = process.env.VOICE_SERVER_PORT || "3001";
+  const agentId = process.env.SPEECH_ENGINE_ID;
 
-  if (!wsUrl) {
+  if (!agentId) {
     return NextResponse.json(
-      { error: "Voice server not configured — set VOICE_PUBLIC_URL" },
+      { error: "Speech engine not configured — set SPEECH_ENGINE_ID" },
       { status: 501 }
     );
   }
 
-  return NextResponse.json({
-    wsUrl: `${wsUrl.replace(/\/$/, "")}/api/voice/ws`,
-    port: voiceServerPort,
-    status: "available",
-  });
+  return NextResponse.json({ agentId });
 }

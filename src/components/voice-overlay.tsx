@@ -67,21 +67,19 @@ export function VoiceOverlay({ open, onClose, onComplete }: VoiceOverlayProps) {
     setTranscripts([{ role: "agent", text: "Hi! I’m your nuncio agent. Tell me who you want to reach, why now, and what tone you want." }]);
 
     try {
-      const tokenRes = await fetch("/api/studio/voice/token");
-      if (!tokenRes.ok) {
-        const body = await tokenRes.json().catch(() => ({}));
-        throw new Error(body.error || "Voice server unavailable");
+      const initRes = await fetch("/api/studio/voice/init");
+      if (!initRes.ok) {
+        throw new Error("Voice server unavailable");
       }
+      const initData = await initRes.json();
+      const agentId = initData.agentId;
 
-      const tokenData = await tokenRes.json();
-      const conversationToken = tokenData.conversation_token || tokenData.token;
-
-      if (!conversationToken) {
-        throw new Error("No conversation token received");
+      if (!agentId) {
+        throw new Error("Voice agent not configured");
       }
 
       const conversation = await Conversation.startSession({
-        conversationToken,
+        agentId,
         connectionType: "webrtc",
         overrides: {
           agent: {

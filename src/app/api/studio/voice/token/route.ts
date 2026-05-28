@@ -28,14 +28,12 @@ export async function GET(request: NextRequest) {
 
   try {
     const res = await fetch(
-      `https://api.elevenlabs.io/v1/convai/conversation/token`,
+      `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${encodeURIComponent(SPEECH_ENGINE_ID)}`,
       {
-        method: "POST",
+        method: "GET",
         headers: {
           "xi-api-key": ELEVENLABS_API_KEY,
-          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ agent_id: SPEECH_ENGINE_ID }),
       }
     );
 
