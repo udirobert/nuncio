@@ -23,7 +23,7 @@ import type { UserPlan } from "@/components/quality-ladder";
 
 export type StudioStage = "input" | "enriching" | "review" | "building" | "ready" | "error";
 export type ArchetypeSelection = "auto" | "mirror" | "origin" | "future_cast" | "inside_joke" | "day_in_the_life";
-type CaptureIntent = "share" | "download" | "render";
+type CaptureIntent = "share" | "download" | "render" | "saveBrief";
 
 const INTENT_META: Record<CaptureIntent, {
   icon: ReactNode;
@@ -64,6 +64,16 @@ const INTENT_META: Record<CaptureIntent, {
     label: "Share video",
     chipClass: "bg-success-soft border-success/20 text-success",
     iconClass: "bg-success text-white",
+  },
+  saveBrief: {
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+      </svg>
+    ),
+    label: "Save brief",
+    chipClass: "bg-accent-soft border-accent/20 text-accent",
+    iconClass: "bg-accent text-white",
   },
 };
 
@@ -170,6 +180,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [researchTier, setResearchTier] = useState<"quick" | "balanced" | "deep">("quick");
   const [deepResearchEnabled, setDeepResearchEnabled] = useState(false);
   const [userPlan, setUserPlan] = useState<UserPlan>("trial");
+  const [session, setSession] = useState<{ authenticated: boolean; email?: string; balance?: number } | null>(null);
   const [captureEmail, setCaptureEmail] = useState("");
   const [captureHoneypot, setCaptureHoneypot] = useState("");
   const [captureError, setCaptureError] = useState("");
@@ -215,36 +226,49 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   }, [buildStartedAt, stage]);
 
   useEffect(() => {
-    // Load sender memory from server if authenticated
-    fetch("/api/account/brief").then((r) => r.json()).then((data) => {
-      if (data.senderName && !localStorage.getItem("nuncio_sender_name")) {
-        setSenderName(data.senderName);
-      }
-      if (data.senderBrief && !senderBriefRef.current) {
-        setSenderBrief(data.senderBrief);
-      }
-      if (data.senderBusiness && !localStorage.getItem("nuncio_sender_business")) {
-        setSenderBusiness(data.senderBusiness);
-      }
-      if (data.senderBrand && !localStorage.getItem("nuncio_sender_brand")) {
-        setSenderBrand(data.senderBrand);
-      }
-      if (data.senderPersonality && !localStorage.getItem("nuncio_sender_personality")) {
-        setSenderPersonality(data.senderPersonality);
-      }
-      if (data.senderAudience && !localStorage.getItem("nuncio_sender_audience")) {
-        setSenderAudience(data.senderAudience);
-      }
-      if (data.senderOffer && !localStorage.getItem("nuncio_sender_offer")) {
-        setSenderOffer(data.senderOffer);
-      }
-      if (data.senderProofPoints && !localStorage.getItem("nuncio_sender_proof_points")) {
-        setSenderProofPoints(data.senderProofPoints);
-      }
-      if (data.plan) {
-        setUserPlan(data.plan as UserPlan);
-      }
-    }).catch(() => {});
+    // Load auth session and sender memory from server
+    fetch("/api/account/session")
+      .then((r) => r.json())
+      .then((s) => {
+        setSession(s);
+        if (s.authenticated && s.email) {
+          setCapturedEmail(s.email);
+        }
+      })
+      .catch(() => setSession({ authenticated: false }));
+
+    fetch("/api/account/brief")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.senderName && !localStorage.getItem("nuncio_sender_name")) {
+          setSenderName(data.senderName);
+        }
+        if (data.senderBrief && !senderBriefRef.current) {
+          setSenderBrief(data.senderBrief);
+        }
+        if (data.senderBusiness && !localStorage.getItem("nuncio_sender_business")) {
+          setSenderBusiness(data.senderBusiness);
+        }
+        if (data.senderBrand && !localStorage.getItem("nuncio_sender_brand")) {
+          setSenderBrand(data.senderBrand);
+        }
+        if (data.senderPersonality && !localStorage.getItem("nuncio_sender_personality")) {
+          setSenderPersonality(data.senderPersonality);
+        }
+        if (data.senderAudience && !localStorage.getItem("nuncio_sender_audience")) {
+          setSenderAudience(data.senderAudience);
+        }
+        if (data.senderOffer && !localStorage.getItem("nuncio_sender_offer")) {
+          setSenderOffer(data.senderOffer);
+        }
+        if (data.senderProofPoints && !localStorage.getItem("nuncio_sender_proof_points")) {
+          setSenderProofPoints(data.senderProofPoints);
+        }
+        if (data.plan) {
+          setUserPlan(data.plan as UserPlan);
+        }
+      })
+      .catch(() => {});
   }, [searchParams]);
 
   // Auto-detect language from URL
@@ -329,6 +353,22 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     setVoicePopulatedFields(populated);
     setVoiceOverlayOpen(false);
     setTimeout(() => setVoicePopulatedFields(new Set()), 3000);
+  }
+
+  function handleVoiceRequestSave(profile: VoiceProfileResult) {
+    // Store the brief temporarily, then show email capture
+    const populated = new Set<string>();
+    if (profile.url) populated.add("url");
+    if (profile.senderName) populated.add("senderName");
+    if (profile.senderBrief) populated.add("senderBrief");
+    setVoiceBrief(profile);
+    setVoicePopulatedFields(populated);
+    setVoiceOverlayOpen(false);
+    setTimeout(() => setVoicePopulatedFields(new Set()), 3000);
+    // Open email capture with "saveBrief" context
+    setCaptureIntent("saveBrief" as CaptureIntent);
+    setCaptureError("");
+    setCaptureEmail("");
   }
 
   async function handleEnrich() {
@@ -620,6 +660,16 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         openDownloadTarget();
       } else if (captureIntent === "render") {
         await handleRenderVideo(data.email);
+      } else if (captureIntent === "saveBrief") {
+        // Fill studio from the voice brief that was captured
+        const profile = voiceBrief;
+        if (profile) {
+          if (profile.url) setUrl(profile.url);
+          if (profile.senderName) setSenderName(profile.senderName);
+          if (profile.senderBrief) setSenderBrief(profile.senderBrief);
+          if (profile.archetype) setArchetype(profile.archetype as ArchetypeSelection);
+          if (profile.tone) setTonePreference(profile.tone);
+        }
       }
     } catch (err) {
       setCaptureError(err instanceof Error ? err.message : "Something went wrong");
@@ -1529,22 +1579,30 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 )}
 
                 {/* Actions — sticky */}
-                <div className="sticky bottom-4 z-10 flex gap-3 bg-gradient-to-t from-cream via-cream/95 to-transparent pt-6 pb-2 -mx-6 px-6">
-                  <button
-                    onClick={() => setStage("input")}
-                    className="flex-1 rounded-xl border border-cream-dark bg-white py-3 text-sm font-medium text-ink-muted hover:border-ink/30 transition-colors"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={handleConfirmBuild}
-                    className="flex-[2] btn-press rounded-xl bg-ink text-cream py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2 shadow-lg"
-                  >
-                    Build final video
-                    <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M3 8h10M9 4l4 4-4 4" />
-                    </svg>
-                  </button>
+                <div className="sticky bottom-4 z-10 bg-gradient-to-t from-cream via-cream/95 to-transparent pt-6 pb-2 -mx-6 px-6 space-y-2">
+                  {session?.authenticated && typeof session.balance === "number" && (
+                    <div className="flex items-center justify-between text-[11px] text-ink-faint">
+                      <span>{session.balance} credits remaining</span>
+                      <span>Render costs 8 credits</span>
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setStage("input")}
+                      className="flex-1 rounded-xl border border-cream-dark bg-white py-3 text-sm font-medium text-ink-muted hover:border-ink/30 transition-colors"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={handleConfirmBuild}
+                      className="flex-[2] btn-press rounded-xl bg-ink text-cream py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2 shadow-lg"
+                    >
+                      Build final video
+                      <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 8h10M9 4l4 4-4 4" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -1859,7 +1917,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     transition={{ delay: 0.1, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                     className="font-[family-name:var(--font-display)] text-3xl tracking-tight"
                   >
-                    {captureIntent === "download" ? "Download video" : captureIntent === "share" ? "Share video" : "Render video"}
+                    {captureIntent === "download" ? "Download video" : captureIntent === "share" ? "Share video" : captureIntent === "saveBrief" ? "Save your brief" : "Render video"}
                   </motion.h2>
                 </div>
                 <button
@@ -1879,6 +1937,12 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 {captureIntent === "download" && "Enter your email and we'll send you a download link for your video."}
                 {captureIntent === "share" && "Enter your email and we'll send you a shareable link you can copy."}
                 {captureIntent === "render" && "Enter your email and we'll render your video. We'll notify you when it's ready."}
+                {captureIntent === "saveBrief" && "Enter your email to save this brief to your account. We'll also send you a shareable link."}
+                {!session?.authenticated && (
+                  <span className="block mt-2 text-xs text-accent">
+                    Free account includes 10 starter credits. Go Pro for 200 credits/month.
+                  </span>
+                )}
               </motion.p>
 
               <motion.form
@@ -1919,7 +1983,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   disabled={captureLoading || !captureEmail.trim()}
                   className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors"
                 >
-                  {captureLoading ? "Processing…" : captureIntent === "download" ? "Download video" : captureIntent === "share" ? "Get share link" : "Render video"}
+                  {captureLoading ? "Processing…" : captureIntent === "download" ? "Download video" : captureIntent === "share" ? "Get share link" : captureIntent === "saveBrief" ? "Save brief" : "Render video"}
                 </button>
               </motion.form>
             </motion.div>
@@ -1931,6 +1995,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         open={voiceOverlayOpen}
         onClose={() => setVoiceOverlayOpen(false)}
         onComplete={handleVoiceComplete}
+        onRequestSave={session?.authenticated ? undefined : handleVoiceRequestSave}
       />
     </>
   );

@@ -19,6 +19,8 @@ interface VoiceOverlayProps {
   open: boolean;
   onClose: () => void;
   onComplete: (profile: VoiceProfileResult) => void;
+  /** If provided, called instead of onComplete when profile is captured. Parent can show email capture, then call onComplete. */
+  onRequestSave?: (profile: VoiceProfileResult) => void;
 }
 
 type Status = "idle" | "connecting" | "listening" | "speaking" | "captured" | "error";
@@ -34,12 +36,15 @@ const FIELD_LABELS: Record<keyof VoiceProfileResult, string> = {
   tone: "Tone",
 };
 
-export function VoiceOverlay({ open, onClose, onComplete }: VoiceOverlayProps) {
+export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: VoiceOverlayProps) {
   const [status, setStatus] = useState<Status>("idle");
   const [modeDisplay, setModeDisplay] = useState<string>("");
   const [transcripts, setTranscripts] = useState<{ role: "user" | "agent"; text: string }[]>([]);
   const [error, setError] = useState("");
   const [capturedProfile, setCapturedProfile] = useState<VoiceProfileResult | null>(null);
+  const [saveEmail, setSaveEmail] = useState("");
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const conversationRef = useRef<Awaited<ReturnType<typeof Conversation.startSession>> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -57,12 +62,18 @@ export function VoiceOverlay({ open, onClose, onComplete }: VoiceOverlayProps) {
     setTranscripts([]);
     setError("");
     setCapturedProfile(null);
+    setSaveEmail("");
+    setSaveLoading(false);
+    setSaveError("");
     onClose();
   }
 
   const startVoice = useCallback(async () => {
     setError("");
     setCapturedProfile(null);
+    setSaveEmail("");
+    setSaveLoading(false);
+    setSaveError("");
     setStatus("connecting");
     setTranscripts([{ role: "agent", text: "Hi! I’m your nuncio agent. Tell me who you want to reach, why now, and what tone you want." }]);
 
@@ -96,7 +107,13 @@ export function VoiceOverlay({ open, onClose, onComplete }: VoiceOverlayProps) {
                 setCapturedProfile(profile);
                 setStatus("captured");
                 setTranscripts((prev) => [...prev, { role: "agent", text: "Got it — I captured the brief and I’m filling the studio now." }]);
-                setTimeout(() => onComplete(profile), 1000);
+                setTimeout(() => {
+                  if (onRequestSave) {
+                    onRequestSave(profile);
+                  } else {
+                    onComplete(profile);
+                  }
+                }, 1000);
               } catch {
                 /* ignore */
               }
