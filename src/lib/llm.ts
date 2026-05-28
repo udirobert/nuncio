@@ -9,7 +9,7 @@
  * an Anthropic key (which is harder to get for hackathon participants).
  */
 
-import { fetchWithRetry } from "@/lib/retry";
+import { fetchWithRetry } from "./retry";
 
 type Provider = "anthropic" | "google" | "venice" | "featherless";
 

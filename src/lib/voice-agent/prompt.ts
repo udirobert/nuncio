@@ -1,4 +1,4 @@
-import { chatCompletion } from "@/lib/llm";
+import { chatCompletion } from "../llm";
 import type { VoiceExtractedProfile, ConversationTurn } from "./types";
 
 const SYSTEM_PROMPT = `You are the voice agent for nuncio — a personalised video outreach platform. Your job is to have a natural, warm conversation with the user and help them set up a video campaign.
