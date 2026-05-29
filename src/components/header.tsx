@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
@@ -24,6 +25,18 @@ const STAGE_LABELS: Record<PipelineState["stage"], string> = {
 export function Header({ stage, isDemo }: HeaderProps) {
   const pathname = usePathname();
   const showStage = stage && stage !== "input" && stage !== "error";
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/account/session")
+      .then((r) => r.json())
+      .then((s) => {
+        if (s.authenticated && typeof s.balance === "number") {
+          setCreditBalance(s.balance);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const NAV_LINKS = [
     { label: "Studio", href: "/studio", subtitle: "Build video" },
@@ -77,6 +90,19 @@ export function Header({ stage, isDemo }: HeaderProps) {
             );
           })}
         </nav>
+
+          {creditBalance !== null && (
+            <Link
+              href="/pricing"
+              className={`text-[10px] font-bold tabular-nums px-2 py-0.5 rounded-md transition-colors ${
+                creditBalance < 11
+                  ? "bg-warm-soft text-warm hover:bg-warm-soft/80"
+                  : "bg-cream-dark text-ink-muted hover:bg-cream-dark/80"
+              }`}
+            >
+              {creditBalance} cr
+            </Link>
+          )}
 
           <AccountMenu />
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import { Header } from "@/components/header";
@@ -92,17 +92,35 @@ const PLAN_TIERS = [
 const FAQS = [
   { q: "What are Nuncio credits?", a: "Credits are the single balance used for research, script generation, canvas creation, rendering, translation, captions, and delivery." },
   { q: "Can I cancel anytime?", a: "Absolutely. Cancel through your dashboard in one click. No long-term commitments." },
-  { q: "How many credits does a video use?", a: "A full video costs 11 credits: 1 for research, 1 for script, 1 for canvas, 1 for soundscape, and 8 for rendering." },
+  { q: "How many credits does a video use?", a: "A typical Quick-mode video costs ~11 credits total: 1 for research, 1 for script, 1 for canvas, 1 for soundscape, and 8 for rendering. Deep research or translation add a few more." },
   { q: "Do you offer agency plans?", a: "We do. Studio is for teams that need higher monthly volume, shared credits, brand review, and usage reporting." },
+];
+
+const CREDIT_COSTS = [
+  { action: "Research (Quick)", cost: "1" },
+  { action: "Research (Deep)", cost: "3–5" },
+  { action: "Script generation", cost: "1" },
+  { action: "Canvas / creative", cost: "1" },
+  { action: "Soundscape", cost: "1" },
+  { action: "Video render", cost: "8" },
+  { action: "Translation", cost: "2" },
+  { action: "Captions", cost: "1" },
 ];
 
 function PricingContent() {
   const [loading, setLoading] = useState<string | null>(null);
   const [annual, setAnnual] = useState(true);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [account, setAccount] = useState<{ authenticated: boolean; balance?: number; plan?: string } | null>(null);
   const searchParams = useSearchParams();
-  const success = searchParams.get("success");
   const canceled = searchParams.get("canceled");
+
+  useEffect(() => {
+    fetch("/api/account/session")
+      .then((r) => r.json())
+      .then(setAccount)
+      .catch(() => {});
+  }, []);
 
   const currentPriceId = annual ? ANNUAL_PRICE_ID : MONTHLY_PRICE_ID;
 
@@ -141,27 +159,36 @@ function PricingContent() {
           Scale your impact,<br />not your costs.
         </h1>
         <p className="text-ink-muted text-base max-w-lg mx-auto">
-          Buy one Nuncio credit balance and spend it across research, scripts, creative canvases, renders, translations, captions, and delivery.
+          One credit balance. Spend it across research, scripts, creative canvases, renders, translations, captions, and delivery.
         </p>
       </motion.div>
 
+      {/* Account status banner */}
+      {account?.authenticated && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-md mx-auto mb-10 rounded-2xl border border-cream-dark bg-white p-4 flex items-center justify-between gap-4"
+        >
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">Your account</p>
+            <p className="text-2xl font-[family-name:var(--font-display)] text-ink mt-1">
+              {account.balance ?? 0} <span className="text-sm text-ink-muted font-normal">credits</span>
+            </p>
+          </div>
+          <div className="text-right">
+            <span className={`inline-block text-[10px] uppercase tracking-widest font-bold px-2.5 py-1 rounded-md ${
+              account.plan === "pro" || account.plan === "studio"
+                ? "bg-accent-soft text-accent"
+                : "bg-cream-dark text-ink-faint"
+            }`}>
+              {account.plan || "free"}
+            </span>
+          </div>
+        </motion.div>
+      )}
+
       <AnimatePresence>
-        {success && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="max-w-2xl mx-auto mb-12 p-6 rounded-2xl bg-success-soft border border-success/20 text-center"
-          >
-            <div className="w-12 h-12 rounded-full bg-success flex items-center justify-center mx-auto mb-4">
-              <svg viewBox="0 0 16 16" className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M3.5 8l3 3 6-6" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-ink mb-1">Welcome to the Pro family!</h3>
-            <p className="text-sm text-ink-muted">Your subscription is active. Monthly Nuncio credits are now available in your workspace.</p>
-          </motion.div>
-        )}
         {canceled && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -296,10 +323,11 @@ function PricingContent() {
       </div>
 
       <motion.section
+        id="packs"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25 }}
-        className="mt-10 rounded-2xl border border-cream-dark bg-white p-5"
+        className="mt-10 rounded-2xl border border-cream-dark bg-white p-5 scroll-mt-24"
       >
         <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
@@ -311,7 +339,7 @@ function PricingContent() {
             </h2>
           </div>
           <p className="max-w-md text-sm text-ink-muted">
-            One-time packs are useful while Stripe is in test mode and for users who need a few extra renders.
+            One-time credit packs. No subscription required — buy what you need for your next campaign.
           </p>
         </div>
         <div className="mt-5 grid gap-3 md:grid-cols-2">
@@ -333,6 +361,39 @@ function PricingContent() {
             </button>
           ))}
         </div>
+      </motion.section>
+
+      {/* Cost breakdown */}
+      <motion.section
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="mt-10 rounded-2xl border border-cream-dark bg-white p-5"
+      >
+        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between mb-5">
+          <div>
+            <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
+              Credit costs
+            </span>
+            <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl tracking-tight">
+              Know exactly what you spend.
+            </h2>
+          </div>
+          <p className="max-w-md text-sm text-ink-muted">
+            A typical Quick-mode video costs ~11 credits. Deep research adds 2–4 more.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          {CREDIT_COSTS.map((item) => (
+            <div key={item.action} className="rounded-xl border border-cream-dark p-3 text-center">
+              <p className="font-[family-name:var(--font-display)] text-2xl text-ink">{item.cost}</p>
+              <p className="text-[11px] text-ink-muted mt-1">{item.action}</p>
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-ink-faint mt-3 text-center">
+          Total for a complete Quick video: ~11 credits · Balanced: ~16 · Deep: ~19
+        </p>
       </motion.section>
 
       {/* Trust badges */}
@@ -362,16 +423,6 @@ function PricingContent() {
           Cancel with 1-click
         </span>
       </motion.div>
-
-      {/* Test mode notice */}
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        className="text-center text-[10px] font-medium text-warm bg-warm-soft/50 border border-warm/10 rounded-full px-4 py-1.5 w-fit mx-auto mt-8"
-      >
-        Public Beta — Use test card 4242 4242 4242 4242
-      </motion.p>
 
       {/* FAQ */}
       <motion.div

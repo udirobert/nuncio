@@ -166,6 +166,17 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [stage, setStage] = useState<StudioStage>("input");
   const [buildResult, setBuildResult] = useState<{ soundscapeUrl?: string; cinematicEntranceUrl?: string; recommendedVibeId?: string } | null>(null);
   const [error, setError] = useState("");
+  const [purchasedPlan, setPurchasedPlan] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    const plan = params.get("purchased");
+    if (plan) {
+      params.delete("purchased");
+      const cleanUrl = params.toString() ? `${window.location.pathname}?${params}` : window.location.pathname;
+      window.history.replaceState({}, "", cleanUrl);
+    }
+    return plan;
+  });
   const [archetype, setArchetype] = useState<ArchetypeSelection>("auto");
   const [capturedEmail, setCapturedEmail] = useState("");
   const [shareUrl, setShareUrl] = useState("");
@@ -186,6 +197,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [captureError, setCaptureError] = useState("");
   const [captureLoading, setCaptureLoading] = useState(false);
   const [showHookReasoning, setShowHookReasoning] = useState(false);
+  const [insufficientCredits, setInsufficientCredits] = useState<{ required: number; available: number } | null>(null);
   const [videoRendering, setVideoRendering] = useState<"idle" | "rendering" | "done" | "failed">("idle");
   const [buildStep, setBuildStep] = useState<QuickProgressStep>("enrich");
   const [buildStartedAt, setBuildStartedAt] = useState<number | null>(null);
@@ -228,6 +240,16 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     }, 1000);
     return () => clearInterval(interval);
   }, [buildStartedAt, stage]);
+
+  const purchasedPlanRef = useRef(purchasedPlan);
+  purchasedPlanRef.current = purchasedPlan;
+  useEffect(() => {
+    // Auto-dismiss post-checkout toast
+    if (purchasedPlanRef.current) {
+      const timer = setTimeout(() => setPurchasedPlan(null), 6000);
+      return () => clearTimeout(timer);
+    }
+  }, []);  
 
   useEffect(() => {
     // Load auth session and sender memory from server
@@ -441,6 +463,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
             if (event.phase) {
               setPipelineStep(event.phase);
+            } else if (event.insufficientCredits) {
+              setInsufficientCredits({ required: event.requiredCredits, available: event.availableCredits });
+              throw new Error(event.error);
             } else if (event.error) {
               throw new Error(event.error);
             } else if (event.type === "done") {
@@ -452,6 +477,10 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               setReviewSelectedVariant("a");
               setReviewHook(data.hook);
               if (data.recentActivity) setRecentActivity(data.recentActivity);
+              // Refresh balance from server after credits were spent
+              if (typeof event.creditsBalance === "number") {
+                setSession((prev) => prev ? { ...prev, balance: event.creditsBalance } : prev);
+              }
               setPipelineStep("idle");
               setStage("review");
             }
@@ -800,6 +829,37 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
       <OnboardingModal />
 
       <main className="flex-1 w-full">
+        {/* Post-checkout success toast */}
+        <AnimatePresence>
+          {purchasedPlan && (
+            <motion.div
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              className="max-w-md mx-auto mt-4 mb-2 px-6"
+            >
+              <div className="rounded-xl bg-success-soft border border-success/20 px-4 py-3 flex items-center gap-3">
+                <div className="w-6 h-6 rounded-full bg-success flex items-center justify-center shrink-0">
+                  <svg viewBox="0 0 12 12" className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M2.5 6l2.5 2.5 4.5-5" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-ink">Credits added!</p>
+                  <p className="text-[11px] text-ink-muted">
+                    {purchasedPlan.includes("credit") ? "Your credit pack" : "Your Pro subscription"} is active. Start building.
+                  </p>
+                </div>
+                <button onClick={() => setPurchasedPlan(null)} className="text-ink-faint hover:text-ink transition-colors shrink-0">
+                  <svg viewBox="0 0 12 12" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M3 3l6 6M9 3l-6 6" />
+                  </svg>
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <AnimatePresence mode="wait">
           {/* ─── INPUT ────────────────────────────────────────────────── */}
           {stage === "input" && (quickMode ? (
@@ -1122,6 +1182,17 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     <path d="M3 8h10M9 4l4 4-4 4" />
                   </svg>
                 </button>
+                {session?.authenticated && typeof session.balance === "number" && (
+                  <div className="flex items-center justify-between text-[10px] text-ink-faint mt-1.5 px-1">
+                    <span>
+                      Estimated cost: {researchTier === "deep" ? "~11" : researchTier === "balanced" ? "~8" : "~3"} credits
+                      {" · "}Full video: {researchTier === "deep" ? "~19" : researchTier === "balanced" ? "~16" : "~11"}
+                    </span>
+                    <span className={session.balance < 11 ? "text-warm font-medium" : ""}>
+                      {session.balance} available
+                    </span>
+                  </div>
+                )}
                   </div>
                 </div>
                 </div>
@@ -1637,9 +1708,19 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 {/* Actions — sticky */}
                 <div className="sticky bottom-4 z-10 bg-gradient-to-t from-cream via-cream/95 to-transparent pt-6 pb-2 -mx-6 px-6 space-y-2">
                   {session?.authenticated && typeof session.balance === "number" && (
-                    <div className="flex items-center justify-between text-[11px] text-ink-faint">
-                      <span>{session.balance} credits remaining</span>
-                      <span>Render costs 8 credits</span>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-ink-faint">{session.balance} credits remaining</span>
+                        <span className="text-ink-faint">Render: 8 · Soundscape: 1</span>
+                      </div>
+                      {session.balance < 9 && (
+                        <div className="flex items-center justify-between rounded-lg bg-warm-soft/50 border border-warm/15 px-3 py-2">
+                          <span className="text-[11px] text-warm font-medium">Low balance — you need 9 credits to render</span>
+                          <a href="/pricing" className="text-[10px] text-accent font-bold uppercase tracking-widest hover:text-accent/80 transition-colors">
+                            Top up
+                          </a>
+                        </div>
+                      )}
                     </div>
                   )}
                   <div className="flex gap-3">
@@ -1691,40 +1772,80 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               animate={{ opacity: 1, y: 0 }}
               className="max-w-md mx-auto pt-32 px-6 text-center space-y-4"
             >
-              <div className="w-12 h-12 rounded-full bg-error-soft flex items-center justify-center mx-auto">
-                <svg viewBox="0 0 16 16" className="w-5 h-5 text-error" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <circle cx="8" cy="8" r="6" />
-                  <path d="M8 5v3.5M8 10.5v.5" />
-                </svg>
-              </div>
-              <p className="text-sm text-ink-light">{error}</p>
-              <div className="flex flex-wrap justify-center gap-2 pt-2">
-                <button
-                  onClick={() => setStage("input")}
-                  className="btn-press rounded-xl border border-cream-dark px-5 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
-                >
-                  Try again
-                </button>
-                {error.toLowerCase().includes("login wall") || error.toLowerCase().includes("could not access") ? (
+              {insufficientCredits ? (
+                <>
+                  <div className="w-12 h-12 rounded-full bg-warm-soft flex items-center justify-center mx-auto">
+                    <svg viewBox="0 0 16 16" className="w-5 h-5 text-warm" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M8 1v6M8 9v.5" />
+                      <path d="M1.5 12.5L8 1.5l6.5 11H1.5z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-ink">Not enough credits</h3>
+                  <p className="text-sm text-ink-muted">
+                    This action needs <span className="font-semibold text-ink">{insufficientCredits.required} credits</span> but you have <span className="font-semibold text-ink">{insufficientCredits.available}</span>.
+                  </p>
+                  <div className="rounded-xl border border-cream-dark bg-white p-4 space-y-3 text-left">
+                    <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">Top up options</p>
+                    <a
+                      href="/pricing"
+                      className="btn-press flex items-center justify-between rounded-xl bg-ink text-cream px-4 py-3 text-sm font-medium hover:bg-ink-light transition-colors"
+                    >
+                      <span>Get Pro — 200 credits/month</span>
+                      <span className="text-cream/60">$39/mo</span>
+                    </a>
+                    <a
+                      href="/pricing#packs"
+                      className="btn-press flex items-center justify-between rounded-xl border border-cream-dark px-4 py-3 text-sm font-medium text-ink hover:bg-cream-dark/30 transition-colors"
+                    >
+                      <span>Buy a credit pack</span>
+                      <span className="text-ink-faint">from $15</span>
+                    </a>
+                  </div>
                   <button
-                    onClick={() => { setUrl(""); setStage("input"); }}
-                    className="btn-press rounded-xl border border-cream-dark px-5 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+                    onClick={() => { setInsufficientCredits(null); setStage("input"); }}
+                    className="text-[11px] text-ink-faint hover:text-accent transition-colors"
                   >
-                    Try a different URL
+                    Back to studio
                   </button>
-                ) : !quickMode ? (
-                  <button
-                    onClick={() => { toggleMode(); setStage("input"); }}
-                    className="btn-press rounded-xl border border-cream-dark px-5 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
-                  >
-                    Switch to Quick mode
-                  </button>
-                ) : null}
-              </div>
-              {(error.toLowerCase().includes("login wall") || error.toLowerCase().includes("could not access")) && (
-                <p className="text-[11px] text-ink-faint">
-                  Tip: some platforms block automated access. Try a LinkedIn profile or public blog.
-                </p>
+                </>
+              ) : (
+                <>
+                  <div className="w-12 h-12 rounded-full bg-error-soft flex items-center justify-center mx-auto">
+                    <svg viewBox="0 0 16 16" className="w-5 h-5 text-error" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <circle cx="8" cy="8" r="6" />
+                      <path d="M8 5v3.5M8 10.5v.5" />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-ink-light">{error}</p>
+                  <div className="flex flex-wrap justify-center gap-2 pt-2">
+                    <button
+                      onClick={() => setStage("input")}
+                      className="btn-press rounded-xl border border-cream-dark px-5 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+                    >
+                      Try again
+                    </button>
+                    {error.toLowerCase().includes("login wall") || error.toLowerCase().includes("could not access") ? (
+                      <button
+                        onClick={() => { setUrl(""); setStage("input"); }}
+                        className="btn-press rounded-xl border border-cream-dark px-5 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+                      >
+                        Try a different URL
+                      </button>
+                    ) : !quickMode ? (
+                      <button
+                        onClick={() => { toggleMode(); setStage("input"); }}
+                        className="btn-press rounded-xl border border-cream-dark px-5 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+                      >
+                        Switch to Quick mode
+                      </button>
+                    ) : null}
+                  </div>
+                  {(error.toLowerCase().includes("login wall") || error.toLowerCase().includes("could not access")) && (
+                    <p className="text-[11px] text-ink-faint">
+                      Tip: some platforms block automated access. Try a LinkedIn profile or public blog.
+                    </p>
+                  )}
+                </>
               )}
             </motion.div>
           )}

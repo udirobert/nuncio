@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${APP_URL}/pricing?success=true&plan=${planType}`,
+      success_url: `${APP_URL}/studio?purchased=${planType}`,
       cancel_url: `${APP_URL}/pricing?canceled=true`,
       ...(stripeCustomerId
         ? { customer: stripeCustomerId }
