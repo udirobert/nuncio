@@ -278,6 +278,13 @@ async function createVideoDirect(
     ];
   }
 
+  // Add callback URL for webhook-based completion if PUBLIC_URL is set
+  const publicUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL;
+  if (publicUrl) {
+    const base = publicUrl.startsWith("http") ? publicUrl : `https://${publicUrl}`;
+    payload.callback_url = `${base}/api/webhook/heygen`;
+  }
+
   const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v2/video/generate`, {
     method: "POST",
     headers: heygenHeaders({

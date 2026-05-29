@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { trackWaitScreenComposerOpened, trackWaitScreenDraftSaved, trackWaitScreenQuizOpened, trackWaitScreenAiDraftGenerated } from "@/lib/analytics";
 
 export type QuickProgressStep = "enrich" | "script" | "build" | "render";
 
@@ -221,7 +222,10 @@ export function QuickProgress({
               onClick={() => {
                 const opening = !showComposer;
                 setShowComposer(opening);
-                if (opening && !draftMessage) fetchSuggestion(selectedChannel);
+                if (opening) {
+                  trackWaitScreenComposerOpened();
+                  if (!draftMessage) fetchSuggestion(selectedChannel);
+                }
               }}
               className="w-full flex items-center justify-between"
             >
@@ -276,7 +280,7 @@ export function QuickProgress({
                       <p className="text-xs text-ink-light leading-relaxed whitespace-pre-wrap">{suggestedDraft}</p>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => setDraftMessage(suggestedDraft)}
+                          onClick={() => { setDraftMessage(suggestedDraft); trackWaitScreenAiDraftGenerated({ channel: selectedChannel, accepted: true }); }}
                           className="text-[11px] text-accent font-medium hover:text-accent/80 transition-colors"
                         >
                           Use this
@@ -311,7 +315,7 @@ export function QuickProgress({
 
                   {draftMessage.length > 10 && onDraftReady && (
                     <button
-                      onClick={() => onDraftReady({ channel: selectedChannel, message: draftMessage })}
+                      onClick={() => { onDraftReady({ channel: selectedChannel, message: draftMessage }); trackWaitScreenDraftSaved({ channel: selectedChannel, usedAiSuggestion: draftMessage === suggestedDraft }); }}
                       className="text-[11px] text-accent font-medium hover:text-accent/80 transition-colors"
                     >
                       \u2713 Save draft
@@ -332,7 +336,7 @@ export function QuickProgress({
             className="rounded-2xl border border-warm/20 bg-white p-4 space-y-3"
           >
             <button
-              onClick={() => setShowQuiz(!showQuiz)}
+              onClick={() => { const opening = !showQuiz; setShowQuiz(opening); if (opening) trackWaitScreenQuizOpened(); }}
               className="w-full flex items-center justify-between"
             >
               <div className="flex items-center gap-2">

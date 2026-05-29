@@ -58,9 +58,10 @@ interface VideoCustomizationProps {
   initialVoices?: HeyGenVoice[];
   recommendedVibeId?: string;
   suggestedLanguage?: string;
+  script?: string;
 }
 
-export function VideoCustomization({ onCustomize, initialAvatars, initialVoices, recommendedVibeId, suggestedLanguage }: VideoCustomizationProps) {
+export function VideoCustomization({ onCustomize, initialAvatars, initialVoices, recommendedVibeId, suggestedLanguage, script }: VideoCustomizationProps) {
   const [avatars, setAvatars] = useState<HeyGenAvatar[]>(
     () => initialAvatars || readCache<HeyGenAvatar[]>(CACHE_KEY_AVATARS) || []
   );
@@ -85,11 +86,24 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
   const [previewingVibeId, setPreviewingVibeId] = useState<string | null>(null);
   const [vibeLoading, setVibeLoading] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
-  const [photoAvatarId, setPhotoAvatarId] = useState<string | null>(null);
-  const [photoAvatarStatus, setPhotoAvatarStatus] = useState<"idle" | "uploading" | "processing" | "ready" | "failed">("idle");
+  const [photoAvatarId, setPhotoAvatarId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("nuncio_photo_avatar_id");
+  });
+  const [photoAvatarStatus, setPhotoAvatarStatus] = useState<"idle" | "uploading" | "processing" | "ready" | "failed">(() => {
+    if (typeof window === "undefined") return "idle";
+    return localStorage.getItem("nuncio_photo_avatar_id") ? "ready" : "idle";
+  });
   const [voiceCloneUploading, setVoiceCloneUploading] = useState(false);
-  const [clonedVoiceId, setClonedVoiceId] = useState<string | null>(null);
-  const [voiceCloneStatus, setVoiceCloneStatus] = useState<"idle" | "uploading" | "processing" | "ready" | "failed">("idle");
+  const [clonedVoiceId, setClonedVoiceId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("nuncio_cloned_voice_id");
+  });
+  const [voiceCloneStatus, setVoiceCloneStatus] = useState<"idle" | "uploading" | "processing" | "ready" | "failed">(() => {
+    if (typeof window === "undefined") return "idle";
+    return localStorage.getItem("nuncio_cloned_voice_id") ? "ready" : "idle";
+  });
+  const [scriptAuditionLoading, setScriptAuditionLoading] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -217,6 +231,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
           if (status.status === "completed") {
             clearInterval(poll);
             setPhotoAvatarStatus("ready");
+            localStorage.setItem("nuncio_photo_avatar_id", result.avatarId);
             // Add to avatars list and select it
             setAvatars((prev) => [
               { avatar_id: result.avatarId, avatar_name: "My Photo", gender: "unknown", preview_image_url: status.previewImageUrl || dataUrl },
@@ -272,6 +287,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
           if (status.status === "complete") {
             clearInterval(poll);
             setVoiceCloneStatus("ready");
+            localStorage.setItem("nuncio_cloned_voice_id", result.voiceId);
             // Add to voices list and select it
             setVoices((prev) => [
               { voice_id: result.voiceId, name: "My Voice", gender: "unknown" },
@@ -322,6 +338,23 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
       animate={{ opacity: 1, y: 0 }}
       className="rounded-2xl border border-cream-dark bg-white p-5 space-y-4"
     >
+      {/* Persistent processing status banner */}
+      {(photoAvatarStatus === "processing" || voiceCloneStatus === "processing") && (
+        <div className="rounded-xl bg-accent-soft/30 border border-accent/15 px-4 py-3 flex items-center gap-3">
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent" />
+          </span>
+          <p className="text-[11px] text-ink-muted">
+            {photoAvatarStatus === "processing" && voiceCloneStatus === "processing"
+              ? "Your photo avatar (~5 min) and voice clone (~2 min) are training..."
+              : photoAvatarStatus === "processing"
+                ? "Your photo avatar is training — this takes about 5 minutes..."
+                : "Your voice clone is training — this takes about 2 minutes..."}
+          </p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <svg viewBox="0 0 16 16" className="w-4 h-4 text-accent" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -532,6 +565,42 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
             <p className="text-[10px] text-accent/70 animate-pulse">
               Playing {playingVoice.name}…
             </p>
+          )}
+          {/* Script audition — hear selected voice reading actual script */}
+          {script && selectedVoice && (
+            <button
+              onClick={async () => {
+                if (scriptAuditionLoading) return;
+                // Stop any current playback
+                audioRef.current?.pause();
+                setPlayingVoiceId(null);
+                setScriptAuditionLoading(true);
+                try {
+                  const previewText = script.slice(0, 200) + (script.length > 200 ? "..." : "");
+                  const res = await fetch("/api/tts", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: previewText, voiceId: selectedVoice.voice_id }),
+                  });
+                  if (res.ok) {
+                    const { audio } = await res.json();
+                    const el = new Audio(audio);
+                    el.onended = () => setPlayingVoiceId(null);
+                    audioRef.current = el;
+                    setPlayingVoiceId(selectedVoice.voice_id);
+                    el.play().catch(() => {});
+                  }
+                } catch { /* noop */ }
+                setScriptAuditionLoading(false);
+              }}
+              disabled={scriptAuditionLoading}
+              className="text-[11px] text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1.5 transition-colors"
+            >
+              <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M4 3l9 5-9 5V3z" />
+              </svg>
+              {scriptAuditionLoading ? "Generating preview..." : "Preview with your script"}
+            </button>
           )}
           {/* Use your voice */}
           <div className="flex items-center gap-2 pt-1">

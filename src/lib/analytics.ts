@@ -125,3 +125,31 @@ export function trackCaptionsGenerated() {
   if (!isReady()) return;
   posthog.capture("captions_generated");
 }
+
+// ─── Wait screen engagement ─────────────────────────────────────────────────
+
+export function trackWaitScreenComposerOpened() {
+  if (!isReady()) return;
+  posthog.capture("wait_composer_opened");
+}
+
+export function trackWaitScreenDraftSaved(props: {
+  channel: string;
+  usedAiSuggestion: boolean;
+}) {
+  if (!isReady()) return;
+  posthog.capture("wait_draft_saved", props);
+}
+
+export function trackWaitScreenQuizOpened() {
+  if (!isReady()) return;
+  posthog.capture("wait_quiz_opened");
+}
+
+export function trackWaitScreenAiDraftGenerated(props: {
+  channel: string;
+  accepted: boolean;
+}) {
+  if (!isReady()) return;
+  posthog.capture("wait_ai_draft_generated", props);
+}

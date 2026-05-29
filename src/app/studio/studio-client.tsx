@@ -790,6 +790,16 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
       setVideoRenderResult({ videoUrl, videoId });
       setVideoRendering("done");
 
+      // Flash document title for tabbed-away users
+      const originalTitle = document.title;
+      document.title = "✅ Video ready! — Nuncio";
+      const titleTimer = setInterval(() => {
+        document.title = document.title === originalTitle ? "✅ Video ready! — Nuncio" : originalTitle;
+      }, 1500);
+      const stopFlash = () => { clearInterval(titleTimer); document.title = originalTitle; };
+      window.addEventListener("focus", stopFlash, { once: true });
+      setTimeout(stopFlash, 30000);
+
       // Notify user if they tabbed away
       if (typeof Notification !== "undefined" && Notification.permission === "granted" && document.hidden) {
         new Notification("Your video is ready!", {
@@ -1699,6 +1709,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                           initialVoices={initialVoices}
                           recommendedVibeId={buildResult?.recommendedVibeId}
                           suggestedLanguage={detectedLanguage || undefined}
+                          script={reviewScript || undefined}
                         />
                       </motion.div>
                     )}
@@ -1876,6 +1887,8 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               }}
               onToggleMode={toggleMode}
               shareUrl={shareUrl}
+              draftMessage={draftMessage}
+              recipientName={reviewProfile?.name}
             />
           ) : (
             <motion.div
