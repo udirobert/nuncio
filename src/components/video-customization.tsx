@@ -57,9 +57,10 @@ interface VideoCustomizationProps {
   initialAvatars?: HeyGenAvatar[];
   initialVoices?: HeyGenVoice[];
   recommendedVibeId?: string;
+  suggestedLanguage?: string;
 }
 
-export function VideoCustomization({ onCustomize, initialAvatars, initialVoices, recommendedVibeId }: VideoCustomizationProps) {
+export function VideoCustomization({ onCustomize, initialAvatars, initialVoices, recommendedVibeId, suggestedLanguage }: VideoCustomizationProps) {
   const [avatars, setAvatars] = useState<HeyGenAvatar[]>(
     () => initialAvatars || readCache<HeyGenAvatar[]>(CACHE_KEY_AVATARS) || []
   );
@@ -83,9 +84,17 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
   const [vibePresets, setVibePresets] = useState<{ id: string; label: string; icon: string; description: string }[]>([]);
   const [previewingVibeId, setPreviewingVibeId] = useState<string | null>(null);
   const [vibeLoading, setVibeLoading] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoAvatarId, setPhotoAvatarId] = useState<string | null>(null);
+  const [photoAvatarStatus, setPhotoAvatarStatus] = useState<"idle" | "uploading" | "processing" | "ready" | "failed">("idle");
+  const [voiceCloneUploading, setVoiceCloneUploading] = useState(false);
+  const [clonedVoiceId, setClonedVoiceId] = useState<string | null>(null);
+  const [voiceCloneStatus, setVoiceCloneStatus] = useState<"idle" | "uploading" | "processing" | "ready" | "failed">("idle");
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const voiceInputRef = useRef<HTMLInputElement | null>(null);
 
   // Fetch Vibe presets on mount
   useEffect(() => {
@@ -159,9 +168,139 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
     setVibeLoading(false);
   }
 
-  const uniqueVoices = voices.filter(
-    (v, i, a) => a.findIndex((x) => x.voice_id === v.voice_id) === i
-  );
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setPhotoUploading(true);
+    setPhotoAvatarStatus("uploading");
+
+    try {
+      // Upload to our asset endpoint first to get a URL
+      const formData = new FormData();
+      formData.append("file", file);
+      const uploadRes = await fetch("/api/heygen/avatar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl: URL.createObjectURL(file), // We'll use a data URL approach
+          name: "My Photo Avatar",
+        }),
+      });
+
+      // For now, convert to base64 data URL and send directly
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = reader.result as string;
+        const res = await fetch("/api/heygen/avatar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl: dataUrl, name: "My Photo Avatar" }),
+        });
+
+        if (!res.ok) {
+          setPhotoAvatarStatus("failed");
+          setPhotoUploading(false);
+          return;
+        }
+
+        const result = await res.json();
+        setPhotoAvatarId(result.avatarId);
+        setPhotoAvatarStatus("processing");
+        setPhotoUploading(false);
+
+        // Poll for completion
+        const poll = setInterval(async () => {
+          const statusRes = await fetch(`/api/heygen/avatar?id=${result.avatarId}`);
+          if (!statusRes.ok) return;
+          const status = await statusRes.json();
+          if (status.status === "completed") {
+            clearInterval(poll);
+            setPhotoAvatarStatus("ready");
+            // Add to avatars list and select it
+            setAvatars((prev) => [
+              { avatar_id: result.avatarId, avatar_name: "My Photo", gender: "unknown", preview_image_url: status.previewImageUrl || dataUrl },
+              ...prev,
+            ]);
+            setAvatarIndex(0);
+          } else if (status.status === "failed") {
+            clearInterval(poll);
+            setPhotoAvatarStatus("failed");
+          }
+        }, 5000);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setPhotoAvatarStatus("failed");
+      setPhotoUploading(false);
+    }
+  }
+
+  async function handleVoiceCloneUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setVoiceCloneUploading(true);
+    setVoiceCloneStatus("uploading");
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = reader.result as string;
+        const res = await fetch("/api/heygen/voice-clone", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ audioUrl: dataUrl, name: "My Voice" }),
+        });
+
+        if (!res.ok) {
+          setVoiceCloneStatus("failed");
+          setVoiceCloneUploading(false);
+          return;
+        }
+
+        const result = await res.json();
+        setClonedVoiceId(result.voiceId);
+        setVoiceCloneStatus("processing");
+        setVoiceCloneUploading(false);
+
+        // Poll for completion
+        const poll = setInterval(async () => {
+          const statusRes = await fetch(`/api/heygen/voice-clone?id=${result.voiceId}`);
+          if (!statusRes.ok) return;
+          const status = await statusRes.json();
+          if (status.status === "complete") {
+            clearInterval(poll);
+            setVoiceCloneStatus("ready");
+            // Add to voices list and select it
+            setVoices((prev) => [
+              { voice_id: result.voiceId, name: "My Voice", gender: "unknown" },
+              ...prev,
+            ]);
+            setVoiceIndex(0);
+          } else if (status.status === "failed") {
+            clearInterval(poll);
+            setVoiceCloneStatus("failed");
+          }
+        }, 5000);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setVoiceCloneStatus("failed");
+      setVoiceCloneUploading(false);
+    }
+  }
+
+  const uniqueVoices = voices
+    .filter((v, i, a) => a.findIndex((x) => x.voice_id === v.voice_id) === i)
+    .sort((a, b) => {
+      // Sort matching language voices to the top
+      if (!suggestedLanguage) return 0;
+      const lang = suggestedLanguage.toLowerCase();
+      const aMatch = a.language?.toLowerCase().includes(lang) ? 1 : 0;
+      const bMatch = b.language?.toLowerCase().includes(lang) ? 1 : 0;
+      return bMatch - aMatch;
+    });
 
   const selectedAvatar = avatars[avatarIndex];
   const selectedVoice = voices[voiceIndex];
@@ -294,6 +433,34 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
               )}
             </p>
           )}
+          {/* Use your photo */}
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => photoInputRef.current?.click()}
+              disabled={photoUploading || photoAvatarStatus === "processing"}
+              className="text-[11px] text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1 transition-colors"
+            >
+              <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="2" y="3" width="12" height="10" rx="2" />
+                <circle cx="5.5" cy="6.5" r="1.5" />
+                <path d="M14 11l-3-3-2 2-3-3-4 4" />
+              </svg>
+              {photoAvatarStatus === "processing" ? "Processing..." : photoUploading ? "Uploading..." : "Use your photo"}
+            </button>
+            {photoAvatarStatus === "ready" && (
+              <span className="text-[10px] text-success">Ready</span>
+            )}
+            {photoAvatarStatus === "failed" && (
+              <span className="text-[10px] text-error">Failed</span>
+            )}
+          </div>
         </div>
       )}
 
@@ -366,6 +533,33 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
               Playing {playingVoice.name}…
             </p>
           )}
+          {/* Use your voice */}
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              ref={voiceInputRef}
+              type="file"
+              accept="audio/*"
+              onChange={handleVoiceCloneUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => voiceInputRef.current?.click()}
+              disabled={voiceCloneUploading || voiceCloneStatus === "processing"}
+              className="text-[11px] text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1 transition-colors"
+            >
+              <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
+                <path d="M3 8a5 5 0 0010 0M8 13v2" />
+              </svg>
+              {voiceCloneStatus === "processing" ? "Cloning..." : voiceCloneUploading ? "Uploading..." : "Use your voice"}
+            </button>
+            {voiceCloneStatus === "ready" && (
+              <span className="text-[10px] text-success">Ready</span>
+            )}
+            {voiceCloneStatus === "failed" && (
+              <span className="text-[10px] text-error">Failed</span>
+            )}
+          </div>
         </div>
       )}
 

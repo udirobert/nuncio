@@ -1578,6 +1578,43 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   </div>
                 )}
 
+                {/* Avatar & Voice customization */}
+                <div className="border-t border-cream-dark/50 pt-4 mt-4">
+                  <button
+                    onClick={() => setShowCustomization(!showCustomization)}
+                    className="w-full flex items-center justify-between text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <svg viewBox="0 0 16 16" className="w-4 h-4 text-accent" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <circle cx="8" cy="5" r="3" />
+                        <path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5" />
+                      </svg>
+                      <span className="text-xs font-medium text-ink">Customize avatar & voice</span>
+                    </div>
+                    <svg viewBox="0 0 16 16" className={`w-3.5 h-3.5 text-ink-faint transition-transform ${showCustomization ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M4 6l4 4 4-4" />
+                    </svg>
+                  </button>
+                  <AnimatePresence>
+                    {showCustomization && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden mt-3"
+                      >
+                        <VideoCustomizationComponent
+                          onCustomize={handleCustomize}
+                          initialAvatars={initialAvatars}
+                          initialVoices={initialVoices}
+                          recommendedVibeId={buildResult?.recommendedVibeId}
+                          suggestedLanguage={detectedLanguage || undefined}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
                 {/* Actions — sticky */}
                 <div className="sticky bottom-4 z-10 bg-gradient-to-t from-cream via-cream/95 to-transparent pt-6 pb-2 -mx-6 px-6 space-y-2">
                   {session?.authenticated && typeof session.balance === "number" && (
@@ -1836,35 +1873,18 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   </div>
                 )}
 
-                {/* Video customization */}
+                {/* Re-render with different customization */}
                 <div className="border-t border-cream-dark/50 pt-3">
                   <button
-                    onClick={() => setShowCustomization(!showCustomization)}
+                    onClick={() => { setShowCustomization(true); setStage("review"); }}
                     className="text-[11px] text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5"
                   >
                     <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <circle cx="8" cy="8" r="3" />
-                      <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" />
+                      <circle cx="8" cy="5" r="3" />
+                      <path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5" />
                     </svg>
-                    {showCustomization ? "Hide video customization" : "Customize avatar & voice"}
+                    Change avatar or voice & re-render
                   </button>
-                  <AnimatePresence>
-                    {showCustomization && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="overflow-hidden mt-3"
-                      >
-                        <VideoCustomizationComponent
-                          onCustomize={handleCustomize}
-                          initialAvatars={initialAvatars}
-                          initialVoices={initialVoices}
-                          recommendedVibeId={buildResult?.recommendedVibeId}
-                        />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </div>
               </div>
 

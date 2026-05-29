@@ -19,6 +19,8 @@ export interface HeyGenAvatar {
   gender: string;
   preview_image_url: string;
   preview_video_url?: string;
+  default_voice_id?: string;
+  tags?: string[];
 }
 
 export interface HeyGenVoice {
@@ -62,7 +64,7 @@ export async function createVideo(
 
   // Try Video Agent API first (preferred for hackathon judging)
   try {
-    return await createVideoViaAgent(script, recipientName);
+    return await createVideoViaAgent(script, recipientName, customization);
   } catch (error) {
     console.warn("[heygen] Video Agent failed, falling back to direct API:", error);
     return await createVideoDirect(script, assetUrls, customization);
@@ -78,21 +80,31 @@ export async function createVideo(
  */
 async function createVideoViaAgent(
   script: string,
-  recipientName?: string
+  recipientName?: string,
+  customization?: VideoCustomization
 ): Promise<VideoResult> {
   // Build a structured Video Agent prompt following HeyGen Skills best practices
-  const agentPrompt = buildVideoAgentPrompt(script, recipientName);
+  const agentPrompt = buildVideoAgentPrompt(script, recipientName, customization);
+
+  const body: Record<string, unknown> = {
+    prompt: agentPrompt,
+    mode: "generate",
+    incognito_mode: true,
+  };
+
+  // Pass avatar_id and voice_id directly — the Video Agent API accepts these
+  const avatarId = customization?.avatarId || HEYGEN_AVATAR_ID;
+  if (avatarId) body.avatar_id = avatarId;
+
+  const voiceId = customization?.voiceId || HEYGEN_VOICE_ID;
+  if (voiceId) body.voice_id = voiceId;
 
   const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/video-agents`, {
     method: "POST",
     headers: heygenHeaders({
       "Content-Type": "application/json",
     }),
-    body: JSON.stringify({
-      prompt: agentPrompt,
-      mode: "generate",
-      incognito_mode: true,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -106,28 +118,91 @@ async function createVideoViaAgent(
   return { videoId, sessionId };
 }
 
-/**
- * Fetch available avatars from HeyGen.
- */
-export async function getAvatars(): Promise<HeyGenAvatar[]> {
-  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v2/avatars`, {
-    headers: heygenHeaders(),
-  });
-  if (!response.ok) throw new Error("Failed to fetch avatars");
-  const data = await response.json();
-  return data.data?.avatars || data.data || [];
+export interface AvatarFilter {
+  avatar_type?: "studio_avatar" | "digital_twin" | "photo_avatar";
+  ownership?: "public" | "private";
+  gender?: string;
+  limit?: number;
 }
 
 /**
- * Fetch available voices from HeyGen.
+ * Fetch available avatar looks from HeyGen v3 API.
+ * Returns looks (outfits/styles) with preview images/videos and tags.
  */
-export async function getVoices(): Promise<HeyGenVoice[]> {
-  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v2/voices`, {
+export async function getAvatars(filter?: AvatarFilter): Promise<HeyGenAvatar[]> {
+  const params = new URLSearchParams();
+  if (filter?.avatar_type) params.set("avatar_type", filter.avatar_type);
+  if (filter?.ownership) params.set("ownership", filter.ownership);
+  if (filter?.gender) params.set("gender", filter.gender);
+  params.set("limit", String(filter?.limit || 30));
+
+  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/avatars/looks?${params}`, {
     headers: heygenHeaders(),
   });
-  if (!response.ok) throw new Error("Failed to fetch voices");
+  if (!response.ok) {
+    // Fallback to v2 if v3 fails
+    const v2Response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v2/avatars`, {
+      headers: heygenHeaders(),
+    });
+    if (!v2Response.ok) throw new Error("Failed to fetch avatars");
+    const v2Data = await v2Response.json();
+    return v2Data.data?.avatars || v2Data.data || [];
+  }
   const data = await response.json();
-  return data.data?.voices || data.data || [];
+  const looks = data.data || [];
+  // Normalise v3 look fields to our interface
+  return looks.map((look: Record<string, unknown>) => ({
+    avatar_id: look.id || look.avatar_id,
+    avatar_name: (look.name as string) || "Avatar",
+    gender: (look.gender as string) || "unknown",
+    preview_image_url: (look.preview_image_url as string) || "",
+    preview_video_url: (look.preview_video_url as string) || undefined,
+    default_voice_id: (look.default_voice_id as string) || undefined,
+    tags: (look.tags as string[]) || [],
+  }));
+}
+
+export interface VoiceFilter {
+  language?: string;
+  gender?: string;
+  type?: "public" | "private";
+  engine?: string;
+  limit?: number;
+}
+
+/**
+ * Fetch available voices from HeyGen v3 API.
+ * Supports filtering by language, gender, engine.
+ */
+export async function getVoices(filter?: VoiceFilter): Promise<HeyGenVoice[]> {
+  const params = new URLSearchParams();
+  if (filter?.language) params.set("language", filter.language);
+  if (filter?.gender) params.set("gender", filter.gender);
+  if (filter?.type) params.set("type", filter.type);
+  if (filter?.engine) params.set("engine", filter.engine);
+  params.set("limit", String(filter?.limit || 20));
+
+  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/voices?${params}`, {
+    headers: heygenHeaders(),
+  });
+  if (!response.ok) {
+    // Fallback to v2 if v3 fails
+    const v2Response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v2/voices`, {
+      headers: heygenHeaders(),
+    });
+    if (!v2Response.ok) throw new Error("Failed to fetch voices");
+    const v2Data = await v2Response.json();
+    return v2Data.data?.voices || v2Data.data || [];
+  }
+  const data = await response.json();
+  const voices = data.data || [];
+  return voices.map((v: Record<string, unknown>) => ({
+    voice_id: v.voice_id || v.id,
+    name: (v.name as string) || "Voice",
+    gender: (v.gender as string) || "unknown",
+    language: (v.language as string) || undefined,
+    preview_audio: (v.preview_audio_url as string) || (v.preview_audio as string) || undefined,
+  }));
 }
 
 export interface VideoCustomization {
@@ -402,4 +477,126 @@ export async function translateVideo(
   return {
     translationId: data.data?.video_translate_id || data.data?.id,
   };
+}
+
+// ─── Phase 3: Personal Identity ──────────────────────────────────────────────
+
+export interface PhotoAvatarResult {
+  avatarId: string;
+  groupId: string;
+  status: "processing" | "completed" | "failed";
+  previewImageUrl?: string;
+}
+
+/**
+ * Create a Photo Avatar from a single headshot image.
+ * Returns immediately with a processing status — poll via getAvatarStatus().
+ */
+export async function createPhotoAvatar(
+  imageUrl: string,
+  name?: string
+): Promise<PhotoAvatarResult> {
+  if (!HEYGEN_API_KEY) throw new Error("HEYGEN_API_KEY is not configured");
+
+  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/avatars`, {
+    method: "POST",
+    headers: heygenHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({
+      type: "photo",
+      image_url: imageUrl,
+      name: name || "My Avatar",
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Photo Avatar creation failed: ${response.status} — ${error}`);
+  }
+
+  const data = await response.json();
+  const item = data.data || data;
+  return {
+    avatarId: item.avatar_item_id || item.look_id || item.id,
+    groupId: item.avatar_group_id || item.group_id || "",
+    status: item.status === "completed" ? "completed" : "processing",
+    previewImageUrl: item.preview_image_url || imageUrl,
+  };
+}
+
+/**
+ * Get avatar training/processing status.
+ */
+export async function getAvatarStatus(avatarId: string): Promise<{ status: "processing" | "completed" | "failed"; previewImageUrl?: string }> {
+  if (!HEYGEN_API_KEY) throw new Error("HEYGEN_API_KEY is not configured");
+
+  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/avatars/looks/${avatarId}`, {
+    headers: heygenHeaders(),
+  });
+
+  if (!response.ok) {
+    return { status: "processing" };
+  }
+
+  const data = await response.json();
+  const look = data.data || data;
+  const status = look.status === "completed" ? "completed" : look.status === "failed" ? "failed" : "processing";
+  return { status, previewImageUrl: look.preview_image_url || undefined };
+}
+
+export interface VoiceCloneResult {
+  voiceId: string;
+  status: "processing" | "complete" | "failed";
+  name?: string;
+}
+
+/**
+ * Clone a voice from an audio file URL.
+ * Returns immediately — poll via getVoiceCloneStatus().
+ */
+export async function cloneVoice(
+  audioUrl: string,
+  name?: string
+): Promise<VoiceCloneResult> {
+  if (!HEYGEN_API_KEY) throw new Error("HEYGEN_API_KEY is not configured");
+
+  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/voices/clone`, {
+    method: "POST",
+    headers: heygenHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({
+      audio_url: audioUrl,
+      name: name || "My Voice",
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Voice clone failed: ${response.status} — ${error}`);
+  }
+
+  const data = await response.json();
+  const item = data.data || data;
+  return {
+    voiceId: item.voice_clone_id || item.voice_id || item.id,
+    status: item.status === "complete" ? "complete" : "processing",
+    name: name || "My Voice",
+  };
+}
+
+/**
+ * Get voice clone processing status.
+ */
+export async function getVoiceCloneStatus(voiceId: string): Promise<{ status: "processing" | "complete" | "failed" }> {
+  if (!HEYGEN_API_KEY) throw new Error("HEYGEN_API_KEY is not configured");
+
+  const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/voices/${voiceId}`, {
+    headers: heygenHeaders(),
+  });
+
+  if (!response.ok) {
+    return { status: "processing" };
+  }
+
+  const data = await response.json();
+  const voice = data.data || data;
+  return { status: voice.status === "complete" ? "complete" : voice.status === "failed" ? "failed" : "processing" };
 }
