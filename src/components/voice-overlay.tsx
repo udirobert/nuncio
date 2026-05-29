@@ -95,7 +95,7 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
     setSaveLoading(false);
     setSaveError("");
     setStatus("connecting");
-    setTranscripts([{ role: "agent", text: "Hi! I’m your nuncio agent. Tell me who you want to reach, why now, and what tone you want." }]);
+    setTranscripts([]);
 
     try {
       const tokenRes = await fetch("/api/studio/voice/token");
@@ -110,14 +110,9 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
         throw new Error("No signed URL received from voice server");
       }
 
-      console.log("[voice] starting session with signedUrl");
+      console.log("[voice] starting session with signedUrl:", signedUrl.substring(0, 60) + "...");
       const conversation = await Conversation.startSession({
         signedUrl,
-        overrides: {
-          agent: {
-            firstMessage: "Hi! I’m your nuncio agent. Tell me who you want to reach, why now, and what tone you want.",
-          },
-        },
         onMessage: (msg) => {
           if (msg.role === "agent") {
             const text = msg.message;
