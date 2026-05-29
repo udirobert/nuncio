@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
 export type QuickProgressStep = "enrich" | "script" | "build" | "render";
@@ -68,6 +68,36 @@ export function QuickProgress({
   const [selectedChannel, setSelectedChannel] = useState("email");
   const [draftMessage, setDraftMessage] = useState("");
   const [showQuiz, setShowQuiz] = useState(false);
+  const [suggestedDraft, setSuggestedDraft] = useState("");
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const suggestionFetchedRef = useRef<string | null>(null);
+
+  const fetchSuggestion = useCallback(async (channel: string) => {
+    if (!waitContext?.recipientName) return;
+    if (suggestionFetchedRef.current === channel) return;
+    suggestionFetchedRef.current = channel;
+    setSuggestionLoading(true);
+    setSuggestedDraft("");
+    try {
+      const res = await fetch("/api/studio/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channel,
+          recipientName: waitContext.recipientName,
+          senderName: waitContext.senderName,
+          script: waitContext.script,
+          recentActivity: waitContext.recentActivity,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSuggestedDraft(data.draft || "");
+      }
+    } catch { /* noop */ }
+    setSuggestionLoading(false);
+  }, [waitContext]);
+
   const activeIndex = Math.max(0, STEPS.findIndex((step) => step.id === currentStep));
   const progress = useMemo(() => {
     const base = (activeIndex / STEPS.length) * 100;
@@ -188,7 +218,11 @@ export function QuickProgress({
             className="rounded-2xl border border-accent/20 bg-white p-4 space-y-3"
           >
             <button
-              onClick={() => setShowComposer(!showComposer)}
+              onClick={() => {
+                const opening = !showComposer;
+                setShowComposer(opening);
+                if (opening && !draftMessage) fetchSuggestion(selectedChannel);
+              }}
               className="w-full flex items-center justify-between"
             >
               <div className="flex items-center gap-2">
@@ -217,7 +251,7 @@ export function QuickProgress({
                     {MESSAGE_CHANNELS.map((ch) => (
                       <button
                         key={ch.id}
-                        onClick={() => setSelectedChannel(ch.id)}
+                        onClick={() => { setSelectedChannel(ch.id); suggestionFetchedRef.current = null; setSuggestedDraft(""); if (!draftMessage) fetchSuggestion(ch.id); }}
                         className={`rounded-lg border px-2.5 py-1.5 text-[11px] transition-all ${
                           selectedChannel === ch.id
                             ? "border-accent bg-accent-soft/40 text-accent font-medium"
@@ -228,6 +262,34 @@ export function QuickProgress({
                       </button>
                     ))}
                   </div>
+
+                  {/* AI suggestion */}
+                  {suggestionLoading && (
+                    <div className="flex items-center gap-2 text-[11px] text-ink-faint animate-pulse">
+                      <span className="inline-block w-3 h-3 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
+                      Drafting a suggestion...
+                    </div>
+                  )}
+                  {suggestedDraft && !draftMessage && (
+                    <div className="rounded-xl border border-accent/15 bg-accent-soft/20 p-3 space-y-2">
+                      <p className="text-[10px] uppercase tracking-widest text-accent/70 font-medium">AI suggestion</p>
+                      <p className="text-xs text-ink-light leading-relaxed whitespace-pre-wrap">{suggestedDraft}</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setDraftMessage(suggestedDraft)}
+                          className="text-[11px] text-accent font-medium hover:text-accent/80 transition-colors"
+                        >
+                          Use this
+                        </button>
+                        <button
+                          onClick={() => { suggestionFetchedRef.current = null; fetchSuggestion(selectedChannel); }}
+                          className="text-[11px] text-ink-faint hover:text-ink-muted transition-colors"
+                        >
+                          Regenerate
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Draft textarea */}
                   <textarea
