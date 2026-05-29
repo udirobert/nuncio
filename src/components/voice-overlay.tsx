@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Conversation } from "@elevenlabs/client";
 
@@ -23,28 +23,31 @@ interface VoiceOverlayProps {
   onRequestSave?: (profile: VoiceProfileResult) => void;
 }
 
-type Status = "idle" | "connecting" | "listening" | "speaking" | "captured" | "error";
+type Status = "idle" | "connecting" | "listening" | "speaking" | "extracting" | "editing" | "error";
 
-const FIELD_LABELS: Record<keyof VoiceProfileResult, string> = {
-  name: "Recipient",
-  company: "Company",
-  role: "Role",
-  url: "Profile URL",
-  senderName: "Sender",
-  senderBrief: "Brief",
-  archetype: "Hook",
-  tone: "Tone",
-};
+interface ChecklistField {
+  key: keyof VoiceProfileResult;
+  label: string;
+  required: boolean;
+}
+
+const CHECKLIST_FIELDS: ChecklistField[] = [
+  { key: "name", label: "Recipient", required: true },
+  { key: "company", label: "Company", required: false },
+  { key: "senderName", label: "Your name", required: true },
+  { key: "senderBrief", label: "Reason", required: true },
+  { key: "tone", label: "Tone", required: false },
+  { key: "url", label: "Profile link", required: false },
+];
 
 export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: VoiceOverlayProps) {
   const [status, setStatus] = useState<Status>("idle");
-  const [modeDisplay, setModeDisplay] = useState<string>("");
   const [transcripts, setTranscripts] = useState<{ role: "user" | "agent"; text: string }[]>([]);
   const [error, setError] = useState("");
-  const [capturedProfile, setCapturedProfile] = useState<VoiceProfileResult | null>(null);
-  const [saveEmail, setSaveEmail] = useState("");
-  const [saveLoading, setSaveLoading] = useState(false);
-  const [saveError, setSaveError] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [editProfile, setEditProfile] = useState<VoiceProfileResult>({});
+  const [extracting, setExtracting] = useState(false);
+  const [turnCount, setTurnCount] = useState(0);
   const conversationRef = useRef<Awaited<ReturnType<typeof Conversation.startSession>> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -54,7 +57,7 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
     }
   }, [transcripts]);
 
-  // Catch SDK internal unhandled rejections (e.g. WebRTC data channel errors)
+  // Catch SDK internal unhandled rejections
   useEffect(() => {
     function handleUnhandledRejection(e: PromiseRejectionEvent) {
       const reason = e.reason;
@@ -78,24 +81,20 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
     conversationRef.current?.endSession().catch(() => {});
     conversationRef.current = null;
     setStatus("idle");
-    setModeDisplay("");
     setTranscripts([]);
     setError("");
-    setCapturedProfile(null);
-    setSaveEmail("");
-    setSaveLoading(false);
-    setSaveError("");
+    setLinkUrl("");
+    setEditProfile({});
+    setTurnCount(0);
     onClose();
   }
 
   const startVoice = useCallback(async () => {
     setError("");
-    setCapturedProfile(null);
-    setSaveEmail("");
-    setSaveLoading(false);
-    setSaveError("");
+    setEditProfile({});
     setStatus("connecting");
     setTranscripts([]);
+    setTurnCount(0);
 
     try {
       const tokenRes = await fetch("/api/studio/voice/token");
@@ -110,38 +109,18 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
         throw new Error("No signed URL received from voice server");
       }
 
-      console.log("[voice] starting session with signedUrl:", signedUrl.substring(0, 60) + "...");
+      console.log("[voice] starting session with signedUrl");
       const conversation = await Conversation.startSession({
         signedUrl,
         onMessage: (msg) => {
           if (msg.role === "agent") {
-            const text = msg.message;
-            if (text.includes("[SYSTEM] PROFILE_READY:")) {
-              const jsonStr = text.split("PROFILE_READY:")[1].trim();
-              try {
-                const profile = JSON.parse(jsonStr);
-                setCapturedProfile(profile);
-                setStatus("captured");
-                setTranscripts((prev) => [...prev, { role: "agent", text: "Got it — I captured the brief and I’m filling the studio now." }]);
-                setTimeout(() => {
-                  if (onRequestSave) {
-                    onRequestSave(profile);
-                  } else {
-                    onComplete(profile);
-                  }
-                }, 1000);
-              } catch {
-                /* ignore */
-              }
-              return;
-            }
-            setTranscripts((prev) => [...prev, { role: "agent", text }]);
+            setTranscripts((prev) => [...prev, { role: "agent", text: msg.message }]);
           } else {
             setTranscripts((prev) => [...prev, { role: "user", text: msg.message }]);
+            setTurnCount((c) => c + 1);
           }
         },
         onModeChange: ({ mode }) => {
-          setModeDisplay(mode);
           setStatus(mode === "speaking" ? "speaking" : "listening");
         },
         onError: (msg: unknown) => {
@@ -151,11 +130,11 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
         },
         onDisconnect: () => {
           setStatus((current) => {
-            if (current === "captured") return "captured";
-            // If we were connecting/listening/speaking, an unexpected disconnect is an error
+            if (current === "editing" || current === "extracting") return current;
             if (current === "connecting" || current === "listening" || current === "speaking") {
-              setError("Connection closed unexpectedly. Please try again.");
-              return "error";
+              // Agent ended the conversation naturally — trigger extraction
+              handleExtract();
+              return "extracting";
             }
             return "idle";
           });
@@ -168,20 +147,56 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
       setError(err instanceof Error ? err.message : "Could not connect");
       setStatus("error");
     }
-  }, [onComplete]);
-
-  const stopVoice = useCallback(() => {
-    conversationRef.current?.endSession().catch(() => {});
-    conversationRef.current = null;
-    setStatus("idle");
-    setModeDisplay("");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const capturedFields = capturedProfile
-    ? (Object.entries(capturedProfile) as [keyof VoiceProfileResult, string | undefined][])
-        .filter(([key, value]) => Boolean(value) && key in FIELD_LABELS)
-        .slice(0, 6)
-    : [];
+  async function handleExtract() {
+    setExtracting(true);
+    setStatus("extracting");
+    // End the conversation if still active
+    conversationRef.current?.endSession().catch(() => {});
+    conversationRef.current = null;
+
+    try {
+      const res = await fetch("/api/studio/voice/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript: transcripts, linkUrl: linkUrl.trim() || undefined }),
+      });
+
+      if (!res.ok) throw new Error("Extraction failed");
+      const profile = await res.json();
+
+      // Merge link URL
+      if (linkUrl.trim()) profile.url = linkUrl.trim();
+
+      setEditProfile(profile);
+      setStatus("editing");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not extract brief");
+      setStatus("error");
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  function handleConfirm() {
+    const profile = { ...editProfile };
+    if (linkUrl.trim() && !profile.url) profile.url = linkUrl.trim();
+
+    if (onRequestSave) {
+      onRequestSave(profile);
+    } else {
+      onComplete(profile);
+    }
+    handleClose();
+  }
+
+  // Heuristic detection of mentioned fields from transcript
+  const detectedFields = useDetectedFields(transcripts, linkUrl);
+
+  const isActive = status === "listening" || status === "speaking" || status === "connecting";
+  const showDoneButton = isActive && turnCount >= 2;
 
   return (
     <AnimatePresence>
@@ -197,141 +212,394 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.96 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="w-full max-w-3xl rounded-3xl border border-cream-dark bg-white shadow-[0_24px_80px_-24px_rgba(0,0,0,0.35)] overflow-hidden"
+            className="w-full max-w-3xl rounded-3xl border border-cream-dark bg-white shadow-[0_24px_80px_-24px_rgba(0,0,0,0.35)] overflow-hidden max-h-[90vh] flex flex-col"
           >
-            <div className="grid md:grid-cols-[0.9fr,1.1fr]">
-              <div className="relative bg-gradient-to-br from-accent-soft via-white to-warm-soft p-6 flex flex-col justify-between min-h-[360px]">
-                <button
-                  onClick={handleClose}
-                  className="absolute top-4 right-4 p-1.5 rounded-lg text-ink-faint hover:text-ink hover:bg-white/50 transition-colors"
-                >
-                  <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M4 4l8 8M12 4l-8 8" />
-                  </svg>
-                </button>
+            {/* ─── EDITING STATE ─── */}
+            {status === "editing" ? (
+              <EditCard
+                profile={editProfile}
+                onChange={setEditProfile}
+                linkUrl={linkUrl}
+                onLinkChange={setLinkUrl}
+                onConfirm={handleConfirm}
+                onRedo={() => { setEditProfile({}); setStatus("idle"); }}
+                onClose={handleClose}
+              />
+            ) : (
+              /* ─── CONVERSATION STATE ─── */
+              <div className="grid md:grid-cols-[1fr,1.2fr] flex-1 min-h-0">
+                {/* Left panel — mic + progress */}
+                <div className="relative bg-gradient-to-br from-accent-soft via-white to-warm-soft p-5 flex flex-col justify-between min-h-[340px]">
+                  <button
+                    onClick={handleClose}
+                    className="absolute top-3 right-3 p-1.5 rounded-lg text-ink-faint hover:text-ink hover:bg-white/50 transition-colors z-10"
+                  >
+                    <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M4 4l8 8M12 4l-8 8" />
+                    </svg>
+                  </button>
 
-                <div className="space-y-3 pr-8">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-accent/15 bg-white/70 px-3 py-1">
-                    <span className={`w-1.5 h-1.5 rounded-full ${
-                      status === "error" ? "bg-error" :
-                      status === "captured" ? "bg-success" :
-                      status === "idle" ? "bg-ink-faint" :
-                      "bg-accent animate-pulse"
-                    }`} />
-                    <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
-                      ElevenLabs Speech Engine
-                    </span>
+                  {/* Header */}
+                  <div className="space-y-2 pr-8">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-accent/15 bg-white/70 px-2.5 py-0.5">
+                      <span className={`w-1.5 h-1.5 rounded-full ${
+                        status === "error" ? "bg-error" :
+                        status === "extracting" ? "bg-warm animate-pulse" :
+                        isActive ? "bg-accent animate-pulse" :
+                        "bg-ink-faint"
+                      }`} />
+                      <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
+                        Voice brief
+                      </span>
+                    </div>
+                    <p className="text-sm text-ink-muted leading-relaxed">
+                      Tell me who to reach, why, and your name. I&apos;ll fill the studio.
+                    </p>
                   </div>
-                  <h2 className="font-[family-name:var(--font-display)] text-3xl text-ink leading-tight">
-                    Brief your video agent by voice.
-                  </h2>
-                  <p className="text-sm text-ink-muted leading-relaxed">
-                    Speak naturally. Nuncio listens, asks follow-ups, extracts the campaign brief, then fills Studio automatically.
-                  </p>
-                </div>
 
-                <div className="flex flex-col items-center gap-4">
-                  <div className={`relative w-32 h-32 rounded-full flex items-center justify-center ${
-                    status === "speaking" ? "bg-warm-soft" :
-                    status === "listening" ? "bg-success-soft" :
-                    status === "captured" ? "bg-success-soft" :
-                    status === "error" ? "bg-error-soft" :
-                    "bg-accent-soft"
-                  }`}>
-                    {(status === "listening" || status === "speaking" || status === "connecting") && (
-                      <>
-                        <span className="absolute inset-0 rounded-full bg-accent/10 animate-ping" />
-                        <span className="absolute inset-4 rounded-full bg-accent/10 animate-pulse" />
-                      </>
-                    )}
-                    <button
-                      onClick={status === "idle" || status === "error" || status === "captured" ? startVoice : stopVoice}
-                      disabled={status === "connecting"}
-                      className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-lg disabled:opacity-40 ${
-                        status !== "idle" && status !== "error" && status !== "captured"
-                          ? "bg-error text-white hover:bg-error/90"
-                          : "bg-accent text-white hover:bg-accent/90"
-                      }`}
-                    >
-                      {status !== "idle" && status !== "error" && status !== "captured" ? (
-                        <svg viewBox="0 0 16 16" className="w-6 h-6" fill="currentColor">
-                          <rect x="5" y="2" width="6" height="12" rx="1" />
-                        </svg>
-                      ) : (
-                        <svg viewBox="0 0 16 16" className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
-                          <path d="M3 8a5 5 0 0010 0M8 13v2" />
-                        </svg>
+                  {/* Mic button */}
+                  <div className="flex flex-col items-center gap-3 my-4">
+                    <div className={`relative w-24 h-24 rounded-full flex items-center justify-center ${
+                      status === "speaking" ? "bg-warm-soft" :
+                      status === "listening" ? "bg-success-soft" :
+                      status === "error" ? "bg-error-soft" :
+                      "bg-accent-soft"
+                    }`}>
+                      {isActive && (
+                        <>
+                          <span className="absolute inset-0 rounded-full bg-accent/10 animate-ping" />
+                          <span className="absolute inset-3 rounded-full bg-accent/10 animate-pulse" />
+                        </>
                       )}
-                    </button>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-ink">
-                      {status === "idle" && "Ready when you are"}
-                      {status === "connecting" && "Connecting voice session…"}
+                      <button
+                        onClick={status === "idle" || status === "error" ? startVoice : undefined}
+                        disabled={status === "connecting" || status === "extracting"}
+                        className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg disabled:opacity-40 ${
+                          isActive
+                            ? "bg-accent text-white"
+                            : "bg-accent text-white hover:bg-accent/90"
+                        }`}
+                      >
+                        {status === "extracting" ? (
+                          <svg viewBox="0 0 16 16" className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <circle cx="8" cy="8" r="6" strokeDasharray="24" strokeDashoffset="8" />
+                          </svg>
+                        ) : (
+                          <svg viewBox="0 0 16 16" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
+                            <path d="M3 8a5 5 0 0010 0M8 13v2" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-ink-muted text-center">
+                      {status === "idle" && "Tap to start"}
+                      {status === "connecting" && "Connecting..."}
                       {status === "listening" && "Listening"}
                       {status === "speaking" && "Agent speaking"}
-                      {status === "captured" && "Brief captured"}
-                      {status === "error" && "Could not connect"}
-                    </p>
-                    <p className="text-xs text-ink-muted">
-                      {error || (modeDisplay ? `Mode: ${modeDisplay}` : "Try: “I want to reach Maya about her AI workflow post…”")}
+                      {status === "extracting" && "Extracting brief..."}
+                      {status === "error" && (error || "Connection error")}
                     </p>
                   </div>
-                </div>
-              </div>
 
-              <div className="p-5 space-y-4">
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-ink-faint">Live transcript</p>
-                  <p className="text-sm text-ink-muted">Your voice becomes structured context for the video.</p>
-                </div>
-                <div ref={scrollRef} className="h-64 overflow-y-auto space-y-2 rounded-2xl border border-cream-dark bg-cream/40 p-3">
-                  {transcripts.length === 0 && (
-                    <p className="text-xs text-ink-faint text-center py-20">
-                      Press the mic to start a natural briefing conversation.
-                    </p>
-                  )}
-                  {transcripts.map((t, i) => (
-                    <div key={i} className={`flex ${t.role === "user" ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[82%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                        t.role === "user"
-                          ? "bg-accent text-white rounded-br-sm"
-                          : "bg-white border border-cream-dark text-ink rounded-bl-sm"
-                      }`}>
-                        {t.text}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="rounded-2xl border border-cream-dark p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-ink">Extracted brief</p>
-                    <span className="text-[10px] text-ink-faint">
-                      {capturedFields.length > 0 ? `${capturedFields.length} fields` : "waiting"}
-                    </span>
-                  </div>
-                  {capturedFields.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-2">
-                      {capturedFields.map(([key, value]) => (
-                        <div key={key} className="rounded-xl bg-success-soft/40 border border-success/10 p-2">
-                          <span className="block text-[9px] uppercase tracking-widest text-ink-faint">{FIELD_LABELS[key]}</span>
-                          <span className="text-xs text-ink line-clamp-2">{value}</span>
+                  {/* Progress checklist */}
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">Gathering</p>
+                    {CHECKLIST_FIELDS.map((field) => {
+                      const detected = detectedFields.has(field.key);
+                      return (
+                        <div key={field.key} className="flex items-center gap-2">
+                          <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                            detected ? "border-success bg-success/10" : "border-cream-dark"
+                          }`}>
+                            {detected && (
+                              <svg viewBox="0 0 12 12" className="w-2 h-2 text-success" fill="currentColor">
+                                <path d="M10.28 2.22a.75.75 0 0 1 0 1.06l-6 6a.75.75 0 0 1-1.06 0l-3-3a.75.75 0 0 1 1.06-1.06L3.75 7.69l5.47-5.47a.75.75 0 0 1 1.06 0z" />
+                              </svg>
+                            )}
+                          </span>
+                          <span className={`text-xs ${detected ? "text-ink" : "text-ink-faint"}`}>
+                            {field.label}
+                            {field.required && !detected && <span className="text-accent ml-0.5">*</span>}
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-ink-muted">
-                      Once the agent has enough info, the brief appears here and Studio fills itself.
-                    </p>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Right panel — transcript + link + done */}
+                <div className="p-4 flex flex-col min-h-0">
+                  {/* Transcript */}
+                  <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 rounded-2xl border border-cream-dark bg-cream/40 p-3 min-h-[180px] max-h-[280px]">
+                    {transcripts.length === 0 && (
+                      <p className="text-xs text-ink-faint text-center py-16">
+                        Press the mic to begin your voice brief.
+                      </p>
+                    )}
+                    {transcripts.map((t, i) => (
+                      <div key={i} className={`flex ${t.role === "user" ? "justify-end" : "justify-start"}`}>
+                        <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                          t.role === "user"
+                            ? "bg-accent text-white rounded-br-sm"
+                            : "bg-white border border-cream-dark text-ink rounded-bl-sm"
+                        }`}>
+                          {t.text}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Link paste input */}
+                  <div className="mt-3">
+                    <label className="text-[10px] uppercase tracking-widest text-ink-faint font-medium block mb-1">
+                      Paste profile link (optional)
+                    </label>
+                    <input
+                      type="url"
+                      value={linkUrl}
+                      onChange={(e) => setLinkUrl(e.target.value)}
+                      placeholder="https://linkedin.com/in/..."
+                      className="w-full rounded-xl border border-cream-dark bg-cream/30 px-3 py-2 text-sm text-ink placeholder:text-ink-faint/50 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/30"
+                    />
+                  </div>
+
+                  {/* Done button */}
+                  {showDoneButton && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-3"
+                    >
+                      <button
+                        onClick={handleExtract}
+                        disabled={extracting}
+                        className="w-full btn-press rounded-xl bg-ink text-cream py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2 disabled:opacity-40"
+                      >
+                        {extracting ? "Extracting..." : "Done \u2014 fill studio"}
+                        {!extracting && (
+                          <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 8h10M9 4l4 4-4 4" />
+                          </svg>
+                        )}
+                      </button>
+                    </motion.div>
+                  )}
+
+                  {/* Idle/error retry */}
+                  {status === "error" && (
+                    <button
+                      onClick={startVoice}
+                      className="mt-3 w-full rounded-xl border border-cream-dark py-2.5 text-sm font-medium text-ink-muted hover:border-ink/30 transition-colors"
+                    >
+                      Try again
+                    </button>
                   )}
                 </div>
               </div>
-            </div>
+            )}
           </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
   );
+}
+
+// ─── Edit Card (post-extraction) ──────────────────────────────────────────────
+
+interface EditCardProps {
+  profile: VoiceProfileResult;
+  onChange: (p: VoiceProfileResult) => void;
+  linkUrl: string;
+  onLinkChange: (v: string) => void;
+  onConfirm: () => void;
+  onRedo: () => void;
+  onClose: () => void;
+}
+
+function EditCard({ profile, onChange, linkUrl, onLinkChange, onConfirm, onRedo, onClose }: EditCardProps) {
+  function updateField(key: keyof VoiceProfileResult, value: string) {
+    onChange({ ...profile, [key]: value });
+  }
+
+  const toneOptions = ["conversational", "formal", "technical"];
+  const archetypeOptions = [
+    { id: "auto", label: "Auto" },
+    { id: "mirror", label: "Mirror" },
+    { id: "origin", label: "Origin" },
+    { id: "future_cast", label: "Future-cast" },
+    { id: "inside_joke", label: "Inside joke" },
+    { id: "day_in_the_life", label: "Day-in-life" },
+  ];
+
+  return (
+    <div className="p-6 space-y-5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-success" />
+          <h3 className="font-[family-name:var(--font-display)] text-xl text-ink">
+            Review your brief
+          </h3>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1.5 rounded-lg text-ink-faint hover:text-ink hover:bg-cream/60 transition-colors"
+        >
+          <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M4 4l8 8M12 4l-8 8" />
+          </svg>
+        </button>
+      </div>
+
+      <p className="text-sm text-ink-muted">
+        Edit any fields below before filling the studio. Fix transcription errors here.
+      </p>
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        <EditField label="Recipient name" value={profile.name || ""} onChange={(v) => updateField("name", v)} />
+        <EditField label="Company" value={profile.company || ""} onChange={(v) => updateField("company", v)} />
+        <EditField label="Role" value={profile.role || ""} onChange={(v) => updateField("role", v)} />
+        <EditField label="Your name" value={profile.senderName || ""} onChange={(v) => updateField("senderName", v)} />
+      </div>
+
+      <EditField
+        label="Reason for outreach"
+        value={profile.senderBrief || ""}
+        onChange={(v) => updateField("senderBrief", v)}
+        multiline
+      />
+
+      <EditField
+        label="Profile link"
+        value={profile.url || linkUrl}
+        onChange={(v) => { updateField("url", v); onLinkChange(v); }}
+        placeholder="https://linkedin.com/in/..."
+      />
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <label className="text-[10px] uppercase tracking-widest text-ink-faint font-medium block mb-1">Tone</label>
+          <select
+            value={profile.tone || "conversational"}
+            onChange={(e) => updateField("tone", e.target.value)}
+            className="w-full rounded-xl border border-cream-dark px-3 py-2 text-sm text-ink bg-white focus:outline-none focus:ring-2 focus:ring-accent/30"
+          >
+            {toneOptions.map((t) => (
+              <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-widest text-ink-faint font-medium block mb-1">Hook style</label>
+          <select
+            value={profile.archetype || "auto"}
+            onChange={(e) => updateField("archetype", e.target.value)}
+            className="w-full rounded-xl border border-cream-dark px-3 py-2 text-sm text-ink bg-white focus:outline-none focus:ring-2 focus:ring-accent/30"
+          >
+            {archetypeOptions.map((a) => (
+              <option key={a.id} value={a.id}>{a.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="flex gap-3 pt-2">
+        <button
+          onClick={onRedo}
+          className="flex-1 rounded-xl border border-cream-dark py-3 text-sm font-medium text-ink-muted hover:border-ink/30 transition-colors"
+        >
+          Re-do conversation
+        </button>
+        <button
+          onClick={onConfirm}
+          className="flex-[2] btn-press rounded-xl bg-ink text-cream py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2 shadow-lg"
+        >
+          Fill studio
+          <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 8h10M9 4l4 4-4 4" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Edit Field ───────────────────────────────────────────────────────────────
+
+function EditField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  multiline,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  multiline?: boolean;
+}) {
+  const cls = "w-full rounded-xl border border-cream-dark px-3 py-2 text-sm text-ink placeholder:text-ink-faint/50 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/30 bg-white";
+  return (
+    <div>
+      <label className="text-[10px] uppercase tracking-widest text-ink-faint font-medium block mb-1">{label}</label>
+      {multiline ? (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          rows={2}
+          className={cls + " resize-none"}
+        />
+      ) : (
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={cls}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Heuristic field detection ────────────────────────────────────────────────
+
+function useDetectedFields(
+  transcripts: { role: "user" | "agent"; text: string }[],
+  linkUrl: string
+): Set<keyof VoiceProfileResult> {
+  return useMemo(() => {
+    const fields = new Set<keyof VoiceProfileResult>();
+    const fullText = transcripts.map((t) => t.text).join(" ").toLowerCase();
+    const userText = transcripts.filter((t) => t.role === "user").map((t) => t.text).join(" ");
+
+    // Name detection: agent confirms a name like "So [Name]..." or user mentions a person
+    if (/\b(reaching out to|video for|message to|contact)\b/i.test(fullText) && /[A-Z][a-z]+ [A-Z][a-z]+/.test(userText)) {
+      fields.add("name");
+    }
+    // Company
+    if (/\b(works at|at |company|platform|team at)\b/i.test(fullText) && userText.length > 20) {
+      fields.add("company");
+    }
+    // Sender name: "my name is" or agent confirms sender
+    if (/\b(my name is|i'm |i am |call me)\b/i.test(userText.toLowerCase())) {
+      fields.add("senderName");
+    }
+    // Brief/reason
+    if (/\b(because|want to|reaching out|program|partnership|introduce|follow up|pitch)\b/i.test(userText.toLowerCase())) {
+      fields.add("senderBrief");
+    }
+    // Tone
+    if (/\b(formal|casual|warm|friendly|technical|professional|conversational|partner-to-partner|founder)\b/i.test(fullText)) {
+      fields.add("tone");
+    }
+    // URL
+    if (linkUrl.trim() || /https?:\/\//i.test(userText)) {
+      fields.add("url");
+    }
+
+    return fields;
+  }, [transcripts, linkUrl]);
 }
