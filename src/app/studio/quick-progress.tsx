@@ -5,12 +5,21 @@ import { AnimatePresence, motion } from "motion/react";
 
 export type QuickProgressStep = "enrich" | "script" | "build" | "render";
 
+export interface WaitContext {
+  recipientName?: string;
+  senderName?: string;
+  script?: string;
+  recentActivity?: string;
+}
+
 interface QuickProgressProps {
   showDetails: boolean;
   onToggleDetails: () => void;
   currentStep: QuickProgressStep;
   elapsedSeconds: number;
   videoRendering?: "idle" | "rendering" | "done" | "failed";
+  waitContext?: WaitContext;
+  onDraftReady?: (draft: { channel: string; message: string }) => void;
 }
 
 const STEPS = [
@@ -25,8 +34,10 @@ const MOMENTS = [
   "Checking the script sounds natural out loud",
   "Preparing the video scene and voice",
   "Sending the render job to HeyGen",
-  "Keeping this page live while the MP4 cooks",
-  "Moving you forward automatically when it lands",
+  "HeyGen is rendering your avatar — usually 2–3 minutes",
+  "You can tab away — we will move you forward automatically",
+  "Great time to draft the message that will accompany your video",
+  "Almost there — your personalised video is being finalised",
 ];
 
 function formatElapsed(seconds: number) {
@@ -36,14 +47,27 @@ function formatElapsed(seconds: number) {
   return `${minutes}:${String(remainder).padStart(2, "0")}`;
 }
 
+const MESSAGE_CHANNELS = [
+  { id: "email", label: "Email", icon: "\u2709\uFE0F", placeholder: "Subject line and body..." },
+  { id: "linkedin", label: "LinkedIn DM", icon: "\uD83D\uDCBC", placeholder: "Hey [Name], I put something together for you..." },
+  { id: "twitter", label: "Tweet / DM", icon: "\uD83D\uDC26", placeholder: "Short and punchy..." },
+  { id: "whatsapp", label: "WhatsApp", icon: "\uD83D\uDCAC", placeholder: "Quick personal note..." },
+];
+
 export function QuickProgress({
   showDetails,
   onToggleDetails,
   currentStep,
   elapsedSeconds,
   videoRendering = "idle",
+  waitContext,
+  onDraftReady,
 }: QuickProgressProps) {
   const [momentIndex, setMomentIndex] = useState(0);
+  const [showComposer, setShowComposer] = useState(false);
+  const [selectedChannel, setSelectedChannel] = useState("email");
+  const [draftMessage, setDraftMessage] = useState("");
+  const [showQuiz, setShowQuiz] = useState(false);
   const activeIndex = Math.max(0, STEPS.findIndex((step) => step.id === currentStep));
   const progress = useMemo(() => {
     const base = (activeIndex / STEPS.length) * 100;
@@ -81,7 +105,10 @@ export function QuickProgress({
             Building the final video
           </h2>
           <p className="text-sm text-ink-muted">
-            Usually takes 60–90 seconds. You have waited {formatElapsed(elapsedSeconds)}.
+            Usually takes 2–3 minutes. You have waited {formatElapsed(elapsedSeconds)}.
+          </p>
+          <p className="text-[11px] text-ink-faint mt-1">
+            You can leave this tab open and come back — we will notify you when it is ready.
           </p>
         </div>
 
@@ -151,6 +178,136 @@ export function QuickProgress({
             );
           })}
         </div>
+
+        {/* ─── Message Composer ──────────────────────────── */}
+        {currentStep === "render" && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="rounded-2xl border border-accent/20 bg-white p-4 space-y-3"
+          >
+            <button
+              onClick={() => setShowComposer(!showComposer)}
+              className="w-full flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm">\u270D\uFE0F</span>
+                <span className="text-xs font-medium text-ink">Draft your send message</span>
+              </div>
+              <span className="text-[10px] text-accent font-medium">
+                {showComposer ? "Collapse" : "While you wait"}
+              </span>
+            </button>
+
+            <AnimatePresence>
+              {showComposer && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden space-y-3"
+                >
+                  <p className="text-[11px] text-ink-muted">
+                    Write the message that will accompany your video. We will save it for when the video is ready.
+                  </p>
+
+                  {/* Channel selector */}
+                  <div className="flex gap-1.5 flex-wrap">
+                    {MESSAGE_CHANNELS.map((ch) => (
+                      <button
+                        key={ch.id}
+                        onClick={() => setSelectedChannel(ch.id)}
+                        className={`rounded-lg border px-2.5 py-1.5 text-[11px] transition-all ${
+                          selectedChannel === ch.id
+                            ? "border-accent bg-accent-soft/40 text-accent font-medium"
+                            : "border-cream-dark text-ink-muted hover:border-ink-faint/30"
+                        }`}
+                      >
+                        {ch.icon} {ch.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Draft textarea */}
+                  <textarea
+                    value={draftMessage}
+                    onChange={(e) => setDraftMessage(e.target.value)}
+                    placeholder={MESSAGE_CHANNELS.find((c) => c.id === selectedChannel)?.placeholder || "Write your message..."}
+                    className="w-full h-24 rounded-xl border border-cream-dark bg-cream/30 p-3 text-sm text-ink placeholder:text-ink-faint/60 resize-none focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all"
+                  />
+
+                  {/* Tips based on context */}
+                  {waitContext?.recipientName && (
+                    <div className="rounded-lg bg-cream-dark/30 p-2.5">
+                      <p className="text-[10px] text-ink-faint">
+                        <span className="font-medium">Tip:</span> Mention why now is the right time to reach {waitContext.recipientName}.
+                        {waitContext.recentActivity && " You could reference their recent activity."}
+                      </p>
+                    </div>
+                  )}
+
+                  {draftMessage.length > 10 && onDraftReady && (
+                    <button
+                      onClick={() => onDraftReady({ channel: selectedChannel, message: draftMessage })}
+                      className="text-[11px] text-accent font-medium hover:text-accent/80 transition-colors"
+                    >
+                      \u2713 Save draft
+                    </button>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
+
+        {/* ─── Recipient Quiz (from recent activity) ──────── */}
+        {currentStep === "render" && waitContext?.recentActivity && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="rounded-2xl border border-warm/20 bg-white p-4 space-y-3"
+          >
+            <button
+              onClick={() => setShowQuiz(!showQuiz)}
+              className="w-full flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm">\uD83E\uDDE0</span>
+                <span className="text-xs font-medium text-ink">
+                  How well do you know {waitContext.recipientName || "them"}?
+                </span>
+              </div>
+              <span className="text-[10px] text-warm font-medium">
+                {showQuiz ? "Collapse" : "Quick quiz"}
+              </span>
+            </button>
+
+            <AnimatePresence>
+              {showQuiz && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="rounded-lg bg-warm-soft/30 p-3 space-y-2">
+                    <p className="text-[11px] text-ink-muted leading-relaxed">
+                      Based on their recent public activity:
+                    </p>
+                    <div className="text-xs text-ink-light leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto">
+                      {waitContext.recentActivity.slice(0, 600)}
+                    </div>
+                    <p className="text-[10px] text-ink-faint pt-1">
+                      Use these insights to personalise your send message above.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
 
         {showDetails && (
           <motion.div

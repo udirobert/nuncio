@@ -33,6 +33,7 @@ export interface EnrichResponse {
   suggestedAngles?: import("@/lib/claude").TopicalAngle[];
   sourceAttribution?: import("@/lib/claude").SourceAttribution;
   researchTier?: "quick" | "balanced" | "deep";
+  recentActivity?: string;
 }
 
 function cleanOptionalString(value: unknown): string | undefined {
@@ -314,6 +315,7 @@ export async function POST(request: NextRequest) {
             : undefined,
           sourceAttribution: profile.sourceAttribution,
           researchTier: (researchTier as "quick" | "balanced" | "deep" | undefined) || "quick",
+          recentActivity,
         };
 
         send({

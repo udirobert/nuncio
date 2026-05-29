@@ -195,6 +195,10 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [videoCustomization, setVideoCustomization] = useState<VideoCustomization | undefined>();
   const [showCustomization, setShowCustomization] = useState(false);
 
+  // Wait screen context
+  const [recentActivity, setRecentActivity] = useState<string | undefined>();
+  const [draftMessage, setDraftMessage] = useState<{ channel: string; message: string } | null>(null);
+
   // Review stage state
   const [reviewProfile, setReviewProfile] = useState<import("@/lib/claude").Profile | null>(null);
   const [reviewScript, setReviewScript] = useState("");
@@ -447,6 +451,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               setReviewScriptVariantB(data.scriptVariantB || null);
               setReviewSelectedVariant("a");
               setReviewHook(data.hook);
+              if (data.recentActivity) setRecentActivity(data.recentActivity);
               setPipelineStep("idle");
               setStage("review");
             }
@@ -709,6 +714,11 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     setCaptureIntent(null);
     setBuildStep("render");
 
+    // Request notification permission so we can ping users who tab away
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+
     try {
       const res = await fetch("/api/video", {
         method: "POST",
@@ -750,6 +760,15 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
       setVideoRenderResult({ videoUrl, videoId });
       setVideoRendering("done");
+
+      // Notify user if they tabbed away
+      if (typeof Notification !== "undefined" && Notification.permission === "granted" && document.hidden) {
+        new Notification("Your video is ready!", {
+          body: `Video for ${reviewProfile?.name || "your recipient"} has finished rendering.`,
+          icon: "/icon-192.png",
+        });
+      }
+
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Video render failed";
@@ -1646,7 +1665,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           ))}
 
           {/* ─── BUILDING ─────────────────────────────────────────────── */}
-          {stage === "building" && (quickMode ? (
+          {stage === "building" && (
             <QuickProgress
               key="quick-progress"
               showDetails={showProgressDetails}
@@ -1654,17 +1673,15 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               currentStep={buildStep}
               elapsedSeconds={buildElapsedSeconds}
               videoRendering={videoRendering}
+              waitContext={{
+                recipientName: reviewProfile?.name,
+                senderName: senderName || undefined,
+                script: reviewScript || undefined,
+                recentActivity,
+              }}
+              onDraftReady={(draft) => setDraftMessage(draft)}
             />
-          ) : (
-            <QuickProgress
-              key="quick-progress"
-              showDetails={showProgressDetails}
-              onToggleDetails={() => setShowProgressDetails(!showProgressDetails)}
-              currentStep={buildStep}
-              elapsedSeconds={buildElapsedSeconds}
-              videoRendering={videoRendering}
-            />
-          ))}
+          )}
 
           {/* ─── ERROR ────────────────────────────────────────────────── */}
           {stage === "error" && (
@@ -1870,6 +1887,30 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                         <path d="M8 2v9M4.5 7.5L8 11l3.5-3.5M2 14h12" />
                       </svg>
                     </a>
+                  </div>
+                )}
+
+                {/* Saved draft message */}
+                {draftMessage && (
+                  <div className="border-t border-cream-dark/50 pt-3 space-y-2">
+                    <p className="text-[10px] uppercase tracking-widest font-medium text-ink-faint">
+                      Your {draftMessage.channel} draft
+                    </p>
+                    <div className="rounded-lg bg-cream-dark/30 p-3 text-xs text-ink-light leading-relaxed whitespace-pre-wrap">
+                      {draftMessage.message}
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(draftMessage.message);
+                      }}
+                      className="text-[11px] text-accent hover:text-accent/80 transition-colors flex items-center gap-1"
+                    >
+                      <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <rect x="5" y="5" width="8" height="8" rx="1.5" />
+                        <path d="M3 11V3h8" />
+                      </svg>
+                      Copy to clipboard
+                    </button>
                   </div>
                 )}
 
