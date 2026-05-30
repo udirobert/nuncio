@@ -62,8 +62,12 @@ export function sendMagicLinkEmail(email: string, link: string): void {
       <a href="${link}" class="btn">Sign in to nuncio</a>
       <p class="subtle">If you didn't request this, you can safely ignore this email.</p>
     `),
-  }).then(() => {
-    console.log(`[email] Magic link sent to ${email}`);
+  }).then((result) => {
+    if (result.error) {
+      console.error(`[email] Resend error for ${email}:`, result.error);
+    } else {
+      console.log(`[email] Magic link sent to ${email}, id=${result.data?.id}`);
+    }
   }).catch((err) => {
     console.error(`[email] Failed to send magic link to ${email}:`, err);
   });
