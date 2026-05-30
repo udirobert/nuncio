@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 
-const FROM = process.env.RESEND_FROM || "nuncio <login@nuncio.persidian.com>";
+const FROM = process.env.RESEND_FROM || "nuncio <login@persidian.com>";
 
 function getClient(): Resend | null {
   const key = process.env.RESEND_API_KEY;
