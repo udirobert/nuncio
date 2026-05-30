@@ -13,7 +13,8 @@ export async function POST(request: NextRequest) {
   }
 
   const token = await createMagicLinkToken(normalized);
-  const link = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/auth/verify?token=${token}`;
+  const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const link = `${appUrl}/api/auth/verify?token=${token}`;
 
   sendMagicLinkEmail(normalized, link);
 
