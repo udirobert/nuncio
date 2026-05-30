@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
         const userId = session.metadata?.userId || "";
         const email = session.customer_details?.email || session.customer_email;
 
-        console.log(`[webhook] Checkout completed: customer=${customerId}, plan=${planType}`);
+        console.log(`[webhook] Checkout completed: customer=${customerId}, plan=${planType}, workspace=${workspaceId}, userId=${userId}, email=${email}, purchaseType=${purchaseType}`);
 
         if (workspaceId) {
           const workspace = await attachStripeCustomerToWorkspace({

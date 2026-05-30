@@ -19,9 +19,17 @@ export async function POST(request: NextRequest) {
 
     const checkoutMode = mode === "payment" ? "payment" : "subscription";
     const accountSession = readAccountSession(request);
-    const summary = accountSession
-      ? await getAccountStorageProvider().getCreditSummary(accountSession.workspaceId)
-      : null;
+
+    if (!accountSession) {
+      return NextResponse.json(
+        { error: "Please sign in before purchasing" },
+        { status: 401 }
+      );
+    }
+
+    console.log(`[checkout] Starting: plan=${planType}, mode=${checkoutMode}, workspace=${accountSession.workspaceId}, email=${accountSession.email}`);
+
+    const summary = await getAccountStorageProvider().getCreditSummary(accountSession.workspaceId);
     const stripeCustomerId = summary?.workspace.stripeCustomerId;
 
     // Create a Checkout Session
@@ -38,23 +46,21 @@ export async function POST(request: NextRequest) {
       cancel_url: `${APP_URL}/pricing?canceled=true`,
       ...(stripeCustomerId
         ? { customer: stripeCustomerId }
-        : accountSession?.email
-          ? { customer_email: accountSession.email }
-          : {}),
-      client_reference_id: accountSession?.workspaceId,
+        : { customer_email: accountSession.email }),
+      client_reference_id: accountSession.workspaceId,
       metadata: {
         planType,
         purchaseType: checkoutMode === "payment" ? "credit_pack" : "subscription",
-        workspaceId: accountSession?.workspaceId || "",
-        userId: accountSession?.userId || "",
+        workspaceId: accountSession.workspaceId,
+        userId: accountSession.userId,
       },
       ...(checkoutMode === "subscription"
         ? {
             subscription_data: {
               metadata: {
                 planType,
-                workspaceId: accountSession?.workspaceId || "",
-                userId: accountSession?.userId || "",
+                workspaceId: accountSession.workspaceId,
+                userId: accountSession.userId,
               },
             },
           }

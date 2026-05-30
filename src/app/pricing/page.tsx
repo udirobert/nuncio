@@ -136,8 +136,13 @@ function PricingContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ priceId, planType, mode }),
       });
-      const { url } = await res.json();
-      if (url) window.location.assign(url);
+      if (res.status === 401) {
+        window.location.assign(`/login?next=${encodeURIComponent("/pricing")}`);
+        return;
+      }
+      const data = await res.json();
+      if (data.url) window.location.assign(data.url);
+      else if (data.error) alert(data.error);
     } catch {
       alert("Checkout failed. Please try again.");
     } finally {
