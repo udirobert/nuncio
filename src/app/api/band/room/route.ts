@@ -24,9 +24,9 @@ function getAgents(): AgentSpec[] {
 }
 
 export async function POST(request: NextRequest) {
-  const apiKey = process.env.BAND_API_KEY;
+  const apiKey = process.env.BAND_RESEARCHER_API_KEY || process.env.BAND_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: "BAND_API_KEY not configured" }, { status: 503 });
+    return NextResponse.json({ error: "Band API key not configured" }, { status: 503 });
   }
 
   const agents = getAgents();

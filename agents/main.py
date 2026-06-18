@@ -31,18 +31,22 @@ def _env(key: str) -> str:
 
 
 def _create_agents() -> list[Agent]:
-    api_key = _env("BAND_API_KEY")
+    shared_key = os.environ.get("BAND_API_KEY", "")
 
     specs = [
-        ("researcher", "BAND_RESEARCHER_AGENT_ID", ResearcherAdapter),
-        ("copywriter", "BAND_COPYWRITER_AGENT_ID", CopywriterAdapter),
-        ("reviewer", "BAND_REVIEWER_AGENT_ID", ReviewerAdapter),
-        ("producer", "BAND_PRODUCER_AGENT_ID", ProducerAdapter),
+        ("researcher", "BAND_RESEARCHER_AGENT_ID", "BAND_RESEARCHER_API_KEY", ResearcherAdapter),
+        ("copywriter", "BAND_COPYWRITER_AGENT_ID", "BAND_COPYWRITER_API_KEY", CopywriterAdapter),
+        ("reviewer", "BAND_REVIEWER_AGENT_ID", "BAND_REVIEWER_API_KEY", ReviewerAdapter),
+        ("producer", "BAND_PRODUCER_AGENT_ID", "BAND_PRODUCER_API_KEY", ProducerAdapter),
     ]
 
     agents = []
-    for label, env_key, adapter_cls in specs:
-        agent_id = _env(env_key)
+    for label, id_key, key_env, adapter_cls in specs:
+        agent_id = _env(id_key)
+        api_key = os.environ.get(key_env) or shared_key
+        if not api_key:
+            logger.error("No API key for %s (set %s or BAND_API_KEY)", label, key_env)
+            sys.exit(1)
         agent = Agent.create(
             adapter=adapter_cls(),
             agent_id=agent_id,
