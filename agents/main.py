@@ -7,6 +7,10 @@ import logging
 import os
 import sys
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from band.agent import Agent
 
 from nuncio_agents.researcher import ResearcherAdapter
