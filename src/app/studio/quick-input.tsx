@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "motion/react";
 
 interface QuickInputProps {
@@ -43,6 +44,8 @@ export function QuickInput({
   onToggleTranslate,
   voicePopulatedFields = new Set(),
 }: QuickInputProps) {
+  const [moreOpen, setMoreOpen] = useState(false);
+
   const voiceFlash = (field: string) =>
     voicePopulatedFields.has(field)
       ? "ring-2 ring-success/30 border-success/50 bg-success-soft/30 transition-all duration-700"
@@ -81,36 +84,39 @@ export function QuickInput({
           </div>
 
           <div className="space-y-4">
-            <div className="rounded-2xl border border-accent/20 bg-gradient-to-br from-accent-soft/60 via-white to-warm-soft/30 p-4 shadow-sm space-y-3 text-left">
+            <div className="rounded-2xl border-2 border-accent/25 bg-gradient-to-br from-accent-soft/70 via-white to-warm-soft/40 p-5 shadow-sm space-y-4 text-left">
               <div className="flex items-start gap-3">
-                <div className="relative w-10 h-10 rounded-2xl bg-accent text-white flex items-center justify-center shadow-sm shrink-0">
+                <div className="relative w-12 h-12 rounded-2xl bg-accent text-white flex items-center justify-center shadow-sm shrink-0">
                   <span className="absolute inset-0 rounded-2xl bg-accent animate-ping opacity-15" />
-                  <svg viewBox="0 0 16 16" className="relative w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.6">
+                  <svg viewBox="0 0 16 16" className="relative w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.6">
                     <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
                     <path d="M3 8a5 5 0 0010 0M8 13v2" />
                   </svg>
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-ink">Talk to your video agent</p>
+                    <p className="text-base font-medium text-ink">Talk to your video agent</p>
                     <span className="rounded-full bg-white/70 border border-accent/15 px-2 py-0.5 text-[9px] uppercase tracking-widest text-accent">
                       Speech Engine
                     </span>
                   </div>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                    Skip the form. Tell Nuncio who you want to reach and it will fill the brief for you.
+                  <p className="mt-1 text-sm leading-relaxed text-ink-muted">
+                    Tell Nuncio who you want to reach and it will fill the brief for you.
                   </p>
                 </div>
               </div>
               <button
                 onClick={onOpenVoice}
-                className="btn-press w-full rounded-xl bg-accent text-white py-3 text-sm font-medium hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"
+                className="btn-press w-full rounded-xl bg-accent text-white py-3.5 text-sm font-medium hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"
               >
                 Start voice brief
                 <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M3 8h10M9 4l4 4-4 4" />
                 </svg>
               </button>
+              <p className="text-[11px] text-ink-faint text-center">
+                or paste a profile URL below
+              </p>
             </div>
 
             <div>
@@ -172,51 +178,70 @@ export function QuickInput({
               )}
             </div>
 
-            <div>
-              <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
-                Context <span className="normal-case text-ink-faint">— what are you reaching out about?</span>
-              </label>
-              <textarea
-                value={senderBrief}
-                onChange={(e) => setSenderBrief(e.target.value)}
-                placeholder="e.g. I'm building a payments API and would love their perspective…"
-                rows={2}
-                className={`w-full rounded-xl border bg-white px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voiceFlash("senderBrief")} ${voicePopulatedFields.has("senderBrief") ? "border-success/50" : "border-cream-dark"}`}
-              />
-              {voicePopulatedFields.has("senderBrief") && (
-                <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-success">
-                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  Set by voice
-                </span>
+            <div className="rounded-2xl border border-cream-dark/70 bg-white/60 overflow-hidden">
+              <button
+                onClick={() => setMoreOpen(!moreOpen)}
+                className="w-full flex items-center justify-between px-5 py-3 text-left"
+              >
+                <span className="text-xs font-medium text-ink-muted">More context (optional)</span>
+                <svg
+                  viewBox="0 0 16 16"
+                  className={`w-3 h-3 text-ink-faint transition-transform ${moreOpen ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M4 6l4 4 4-4" />
+                </svg>
+              </button>
+              {moreOpen && (
+                <div className="px-5 pb-4 space-y-3 border-t border-cream-dark/50 pt-3">
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                      Context <span className="normal-case text-ink-faint">— what are you reaching out about?</span>
+                    </label>
+                    <textarea
+                      value={senderBrief}
+                      onChange={(e) => setSenderBrief(e.target.value)}
+                      placeholder="e.g. I'm building a payments API and would love their perspective…"
+                      rows={2}
+                      className={`w-full rounded-xl border bg-white px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voiceFlash("senderBrief")} ${voicePopulatedFields.has("senderBrief") ? "border-success/50" : "border-cream-dark"}`}
+                    />
+                    {voicePopulatedFields.has("senderBrief") && (
+                      <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-success">
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        Set by voice
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                      Your business <span className="normal-case text-ink-faint">— what are you building or selling?</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={senderBusiness}
+                      onChange={(e) => setSenderBusiness(e.target.value)}
+                      placeholder="e.g. AI outreach studio for personalised videos"
+                      className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                      Goal <span className="normal-case text-ink-faint">— what outcome do you want from this outreach?</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={outreachGoal}
+                      onChange={(e) => setOutreachGoal(e.target.value)}
+                      placeholder="e.g. book a demo, get feedback, open a partnership conversation"
+                      className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                    />
+                  </div>
+                </div>
               )}
-            </div>
-
-            <div>
-              <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
-                Your business <span className="normal-case text-ink-faint">— what are you building or selling?</span>
-              </label>
-              <input
-                type="text"
-                value={senderBusiness}
-                onChange={(e) => setSenderBusiness(e.target.value)}
-                placeholder="e.g. AI outreach studio for personalised videos"
-                className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
-                Goal <span className="normal-case text-ink-faint">— what outcome do you want from this outreach?</span>
-              </label>
-              <input
-                type="text"
-                value={outreachGoal}
-                onChange={(e) => setOutreachGoal(e.target.value)}
-                placeholder="e.g. book a demo, get feedback, open a partnership conversation"
-                className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
-              />
             </div>
 
             {detectingLanguage && (

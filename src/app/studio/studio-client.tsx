@@ -402,7 +402,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     setCaptureEmail("");
   }
 
-  async function handleEnrich() {
+  async function handleEnrich(resumeFromSession?: string) {
     if (!url.trim()) return;
 
     const demoAgents = typeof window !== "undefined" && (
@@ -456,6 +456,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         body: JSON.stringify({
           url: url.trim(),
           sessionId,
+          resumeSessionId: resumeFromSession,
           senderName: senderName.trim() || undefined,
           senderBrief: senderBrief.trim() || undefined,
           senderBusiness: senderBusiness.trim() || undefined,
@@ -1024,7 +1025,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               setSenderBusiness={setSenderBusiness}
               outreachGoal={outreachGoal}
               setOutreachGoal={setOutreachGoal}
-              onEnrich={handleEnrich}
+              onEnrich={() => handleEnrich()}
               onToggleMode={toggleMode}
               onOpenVoice={() => setVoiceOverlayOpen(true)}
               detectedLanguage={detectedLanguage}
@@ -1322,7 +1323,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 )}
 
                 <button
-                  onClick={handleEnrich}
+                  onClick={() => handleEnrich()}
                   disabled={!url.trim()}
                   className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
                 >
@@ -1999,11 +2000,23 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   </div>
                   <p className="text-sm text-ink-light">{error}</p>
                   <div className="flex flex-wrap justify-center gap-2 pt-2">
+                    {bandSessionId && (
+                      <button
+                        onClick={() => handleEnrich(bandSessionId)}
+                        className="btn-press rounded-xl bg-ink text-cream px-5 py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center gap-2"
+                      >
+                        <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M2 8a6 6 0 0111.5-2.5M14 8a6 6 0 01-11.5 2.5" />
+                          <path d="M14 2v4h-4M2 14v-4h4" />
+                        </svg>
+                        Retry from checkpoint
+                      </button>
+                    )}
                     <button
                       onClick={() => setStage("input")}
                       className="btn-press rounded-xl border border-cream-dark px-5 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
                     >
-                      Try again
+                      Start over
                     </button>
                     {error.toLowerCase().includes("login wall") || error.toLowerCase().includes("could not access") ? (
                       <button

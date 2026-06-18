@@ -38,10 +38,10 @@ const AGENT_META: Record<BandAgent, { label: string; icon: string; color: string
 };
 
 const PIPELINE_STEPS = [
-  { id: "researcher", label: "Research" },
-  { id: "copywriter", label: "Script" },
-  { id: "reviewer", label: "Review" },
-  { id: "producer", label: "Render" },
+  { id: "researcher", label: "Research", avgSeconds: 20 },
+  { id: "copywriter", label: "Script", avgSeconds: 12 },
+  { id: "reviewer", label: "Review", avgSeconds: 3 },
+  { id: "producer", label: "Render", avgSeconds: 75 },
 ] as const;
 
 function formatElapsed(seconds: number) {
@@ -235,6 +235,17 @@ export function CollaborativeSession({
     return thoughts.length > 0 ? thoughts[thoughts.length - 1].agent : null;
   })();
 
+  const currentStepIndex = PIPELINE_STEPS.findIndex(
+    (step) => !completedAgents.has(step.id),
+  );
+  const currentStepNumber = currentStepIndex === -1
+    ? PIPELINE_STEPS.length
+    : currentStepIndex + 1;
+  const remainingSeconds = currentStepIndex === -1
+    ? 0
+    : PIPELINE_STEPS.slice(currentStepIndex).reduce((sum, s) => sum + s.avgSeconds, 0);
+  const hasProgress = completedAgents.size > 0;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = message.trim();
@@ -263,7 +274,17 @@ export function CollaborativeSession({
                 Collaborative Session
               </span>
             </div>
-            <span className="text-xs text-ink-faint tabular-nums">{formatElapsed(elapsed)}</span>
+            <div className="flex items-center gap-3">
+              {hasProgress && (
+                <span className="text-[11px] text-ink-muted tabular-nums">
+                  Step {currentStepNumber} of {PIPELINE_STEPS.length}
+                  {remainingSeconds > 0 && (
+                    <> · <span className="text-ink-faint">~{remainingSeconds < 60 ? `${remainingSeconds}s` : `${Math.ceil(remainingSeconds / 60)}m`} left</span></>
+                  )}
+                </span>
+              )}
+              <span className="text-xs text-ink-faint tabular-nums">{formatElapsed(elapsed)}</span>
+            </div>
           </div>
 
           {/* Pipeline progress */}

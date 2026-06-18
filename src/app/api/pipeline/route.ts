@@ -15,6 +15,7 @@ import {
 import { ResearchOrchestrator } from "@/lib/research/orchestrator";
 import type { QualityTier } from "@/lib/research/types";
 import { PipelineActivityEmitter } from "@/lib/pipeline/activity-emitter";
+import { getBandActivityProvider } from "@/lib/storage";
 import {
   formatResearchSummary,
   formatProfileSummary,
@@ -156,6 +157,28 @@ export async function POST(request: NextRequest) {
 
         const emitter = new PipelineActivityEmitter(sessionId || crypto.randomUUID());
 
+        // Resume from checkpoint if available
+        const resumeSessionId = body.resumeSessionId as string | undefined;
+        let resumedProfile: Profile | undefined;
+        let resumedMarkdown: string[] | undefined;
+
+        if (resumeSessionId) {
+          try {
+            const prevEvents = await getBandActivityProvider().getEvents(resumeSessionId);
+            const checkpoints = prevEvents.filter((e) => e.eventType === "checkpoint");
+            const profileCp = checkpoints.find((e) => e.agent === "researcher" && e.metadata?.profile);
+            const researchCp = checkpoints.find((e) => e.agent === "researcher" && e.metadata?.markdown);
+
+            if (profileCp) {
+              resumedProfile = profileCp.metadata!.profile as Profile;
+              emitter.thought("system", "Resuming from profile checkpoint...");
+            } else if (researchCp) {
+              resumedMarkdown = (researchCp.metadata!.markdown as string).split("\n---\n");
+              emitter.thought("system", "Resuming from research checkpoint...");
+            }
+          } catch { /* no checkpoints available, run full pipeline */ }
+        }
+
         // Auto-populate sender context from workspace
         const accountContext = await autoPopulateSenderContext(request);
         const senderName = cleanOptionalString(body.senderName) || accountContext.senderName;
@@ -186,14 +209,20 @@ export async function POST(request: NextRequest) {
         }
 
         // ── Step 1: Research ───────────────────────────────────────────
-        emitter.thought("researcher", `Researching ${url}...`);
-        send({ phase: "enrich" });
-
-        const effectiveTier: QualityTier = researchTier === "balanced" || researchTier === "deep"
-          ? researchTier
-          : "quick";
-
         let profile: Profile;
+
+        if (resumedProfile) {
+          profile = resumedProfile;
+          emitter.message("researcher", formatProfileSummary(profile));
+          emitter.stageComplete("researcher", "Resumed from checkpoint");
+          send({ phase: "compose" });
+        } else {
+          emitter.thought("researcher", `Researching ${url}...`);
+          send({ phase: "enrich" });
+
+          const effectiveTier: QualityTier = researchTier === "balanced" || researchTier === "deep"
+            ? researchTier
+            : "quick";
 
         if (effectiveTier !== "quick" || deepResearchEnabled) {
           const orchestrator = new ResearchOrchestrator({
@@ -284,6 +313,14 @@ export async function POST(request: NextRequest) {
           });
         }
 
+        // Checkpoint: persist profile for resumability
+        if (!resumedProfile) {
+          emitter.checkpoint("researcher", "Profile checkpoint", {
+            profile,
+          });
+        }
+        } // end resume else
+
         if (profile.name === "there") {
           send({ error: "Could not identify a person from this profile. Try a different URL." });
           emitter.error("researcher", "Could not identify person");
@@ -347,6 +384,12 @@ export async function POST(request: NextRequest) {
 
         emitter.message("copywriter", formatScriptDraft(scriptResult, profile));
         emitter.stageComplete("copywriter", "Script draft complete");
+        emitter.checkpoint("copywriter", "Script checkpoint", {
+          script: scriptResult.script,
+          variantA,
+          variantB,
+          vibeId: scriptResult.vibeId,
+        });
 
         // ── Step 4: Review ───────────────────────────────────────────────
         emitter.thought("reviewer", "Reviewing script for quality...");

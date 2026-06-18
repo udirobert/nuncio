@@ -35,6 +35,7 @@ export function QuickReview({
 }: QuickReviewProps) {
   const [editing, setEditing] = useState(false);
   const [editedScript, setEditedScript] = useState(script);
+  const [copied, setCopied] = useState(false);
   const [personalizeOpen, setPersonalizeOpen] = useState(false);
   const [adjustments, setAdjustments] = useState("");
   const [selectedAngleId, setSelectedAngleId] = useState<string | undefined>(
@@ -107,6 +108,16 @@ export function QuickReview({
                 </span>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(currentScript);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                  className="text-[11px] uppercase tracking-widest text-ink-faint hover:text-accent transition-colors"
+                >
+                  {copied ? "Copied" : "Copy"}
+                </button>
                 <button
                   onClick={() => setEditing(!editing)}
                   className="text-[11px] uppercase tracking-widest text-ink-faint hover:text-accent transition-colors"

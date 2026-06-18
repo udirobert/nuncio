@@ -23,7 +23,8 @@ export type BandEventType =
   | "error"
   | "user_message"
   | "stage_complete"
-  | "complete";
+  | "complete"
+  | "checkpoint";
 
 export interface BandEvent {
   id: string;

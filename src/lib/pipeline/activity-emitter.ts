@@ -32,6 +32,10 @@ export class PipelineActivityEmitter {
     this.emit(agent, "complete", content, metadata);
   }
 
+  checkpoint(agent: BandAgent, content: string, metadata?: Record<string, unknown>): void {
+    this.emit(agent, "checkpoint", content, metadata);
+  }
+
   private emit(
     agent: BandAgent,
     eventType: BandEventType,
