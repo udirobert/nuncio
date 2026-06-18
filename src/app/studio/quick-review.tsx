@@ -18,6 +18,9 @@ interface QuickReviewProps {
   translateEnabled: boolean;
   onToggleTranslate: () => void;
   onLanguageChange: (code: string) => void;
+  creditCost?: number;
+  balance?: number;
+  hook?: { archetype: string; concept: string; format: string } | null;
 }
 
 export function QuickReview({
@@ -32,6 +35,9 @@ export function QuickReview({
   translateEnabled,
   onToggleTranslate,
   onLanguageChange,
+  creditCost,
+  balance,
+  hook,
 }: QuickReviewProps) {
   const [editing, setEditing] = useState(false);
   const [editedScript, setEditedScript] = useState(script);
@@ -267,15 +273,67 @@ export function QuickReview({
             </div>
           )}
 
-          <button
-            onClick={onBuild}
-            className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
-          >
-            Build final video
-            <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 8h10M9 4l4 4-4 4" />
-            </svg>
-          </button>
+          {hook && profile && (
+            <div className="rounded-2xl border border-cream-dark bg-gradient-to-br from-accent-soft/40 via-white to-cream-soft p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                  <svg viewBox="0 0 16 16" className="w-4 h-4 text-accent" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="2" y="3" width="12" height="10" rx="1" />
+                    <path d="M6 6l4 2.5L6 11V6z" fill="currentColor" stroke="none" />
+                  </svg>
+                </div>
+                <div>
+                  <span className="text-xs font-medium text-ink">Video preview</span>
+                  <span className="text-[10px] text-ink-faint ml-2">{hook.format}</span>
+                </div>
+              </div>
+              <div className="rounded-xl bg-white border border-cream-dark/70 p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-widest text-ink-faint">For</span>
+                  <span className="text-xs font-medium text-ink">{profile.name}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-widest text-ink-faint">Hook</span>
+                  <span className="text-xs text-accent font-medium">{hook.archetype}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-widest text-ink-faint">Length</span>
+                  <span className="text-xs text-ink-muted">~{Math.round(wordCount / 2.5)}s</span>
+                </div>
+                {hook.concept && (
+                  <div className="pt-2 border-t border-cream-dark/50">
+                    <span className="text-[10px] uppercase tracking-widest text-ink-faint">Concept</span>
+                    <p className="text-[11px] text-ink-muted mt-1 leading-relaxed">{hook.concept}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <button
+              onClick={onBuild}
+              className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
+            >
+              Build final video
+              <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 8h10M9 4l4 4-4 4" />
+              </svg>
+            </button>
+            {creditCost != null && (
+              <div className="flex items-center justify-center gap-2 text-[11px] text-ink-faint">
+                <span>Uses ~{creditCost} credits</span>
+                {balance != null && (
+                  <>
+                    <span>·</span>
+                    <span className={balance < creditCost ? "text-warm font-medium" : ""}>
+                      {balance} remaining
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </section>
     </motion.div>

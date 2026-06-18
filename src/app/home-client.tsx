@@ -133,6 +133,30 @@ export default function HomeClient() {
               </div>
             </div>
           </section>
+
+          <section className="px-6 py-8 max-w-[540px] mx-auto">
+            <div className="flex items-center gap-6 justify-center">
+              <div className="text-center">
+                <span className="block font-[family-name:var(--font-display)] text-2xl text-ink">5 min</span>
+                <span className="text-[10px] uppercase tracking-widest text-ink-faint">URL to video</span>
+              </div>
+              <div className="w-px h-8 bg-cream-dark" />
+              <div className="text-center">
+                <span className="block font-[family-name:var(--font-display)] text-2xl text-ink">3-5x</span>
+                <span className="text-[10px] uppercase tracking-widest text-ink-faint">reply rate lift</span>
+              </div>
+              <div className="w-px h-8 bg-cream-dark" />
+              <div className="text-center">
+                <span className="block font-[family-name:var(--font-display)] text-2xl text-ink">0</span>
+                <span className="text-[10px] uppercase tracking-widest text-ink-faint">manual steps</span>
+              </div>
+            </div>
+            <p className="text-center text-xs text-ink-muted mt-5 max-w-[360px] mx-auto leading-relaxed">
+              &ldquo;I dropped a prospect&apos;s LinkedIn URL and had a personalised video on their phone before our first call. They replied in 12 minutes.&rdquo;
+              <span className="block text-[10px] text-ink-faint mt-1.5 uppercase tracking-wider">Founder-led sales, B2B SaaS</span>
+            </p>
+          </section>
+
           <VideoProof />
           <ShowcaseStrip items={SHOWCASE_RECIPIENTS} />
           <HowItWorks />

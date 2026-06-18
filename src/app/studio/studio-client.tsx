@@ -1530,6 +1530,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               onLanguageChange={(code) => {
                 setReviewProfile(prev => prev ? { ...prev, language: code } : prev);
               }}
+              creditCost={researchTier === "deep" ? 19 : researchTier === "balanced" ? 16 : 11}
+              balance={session?.authenticated && typeof session.balance === "number" ? session.balance : undefined}
+              hook={reviewHook ? { archetype: reviewHook.archetype, concept: reviewHook.concept, format: reviewHook.format } : null}
             />
           ) : (
             <motion.div
