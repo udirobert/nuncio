@@ -117,6 +117,43 @@ async function main() {
     console.log("[server] Speech Engine disabled — missing SPEECH_ENGINE_ID");
   }
 
+  // ── Band agents ──────────────────────────────────────────────────────
+  if (process.env.BAND_ENABLED === "true" && process.env.BAND_API_KEY) {
+    console.log("[server] Starting Band agents...");
+    try {
+      const { spawn } = await import("node:child_process");
+      const path = await import("node:path");
+
+      const bandProc = spawn("uv", ["run", "python", "main.py"], {
+        cwd: path.join(process.cwd(), "agents"),
+        env: { ...process.env },
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+
+      bandProc.stdout.on("data", (d: Buffer) =>
+        process.stdout.write(`[band] ${d.toString()}`),
+      );
+      bandProc.stderr.on("data", (d: Buffer) =>
+        process.stderr.write(`[band] ${d.toString()}`),
+      );
+      bandProc.on("exit", (code) => {
+        console.error(`[server] Band agents exited with code ${code}`);
+      });
+
+      const shutdown = () => {
+        if (!bandProc.killed) bandProc.kill("SIGTERM");
+      };
+      process.on("SIGTERM", shutdown);
+      process.on("SIGINT", shutdown);
+
+      console.log("[server] Band agents started (4 agents)");
+    } catch (err) {
+      console.error("[server] Band agents init failed (non-fatal):", err);
+    }
+  } else {
+    console.log("[server] Band agents disabled — set BAND_ENABLED=true");
+  }
+
   // ── Listen ──────────────────────────────────────────────────────────
   server.listen(PORT, () => {
     console.log(`[server] Listening on port ${PORT}`);

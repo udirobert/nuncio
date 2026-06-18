@@ -560,7 +560,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     setStage("collaborating");
     saveSenderMemory();
 
-    // Post kickoff event
+    // Post local kickoff event for immediate UI feedback
     fetch("/api/band/activity", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -568,10 +568,53 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         sessionId,
         agent: "system",
         eventType: "message",
-        content: `Session started. Researching: ${url.trim()}`,
+        content: `Session started. Creating Band room for: ${url.trim()}`,
         metadata: { url: url.trim(), senderBrief: senderBrief.trim() || undefined },
       }),
     }).catch(() => {});
+
+    // Create Band room, add agents, post kickoff
+    fetch("/api/band/room", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: url.trim(),
+        sessionId,
+        senderBrief: senderBrief.trim() || undefined,
+        senderName: senderName.trim() || undefined,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.roomUrl) {
+          window.open(data.roomUrl, "_blank");
+        }
+        if (data.roomId) {
+          fetch("/api/band/activity", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sessionId,
+              agent: "system",
+              eventType: "message",
+              content: `Band room created. Agents collaborating...`,
+              metadata: { roomId: data.roomId },
+            }),
+          }).catch(() => {});
+        }
+      })
+      .catch((err) => {
+        fetch("/api/band/activity", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            agent: "system",
+            eventType: "error",
+            content: `Failed to create Band room: ${err instanceof Error ? err.message : "unknown error"}`,
+          }),
+        }).catch(() => {});
+      });
 
     // Open SSE connection
     const es = new EventSource(`/api/band/activity?sessionId=${sessionId}`);
@@ -582,11 +625,22 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         const data = JSON.parse(event.data);
         if (data.type === "heartbeat") return;
         setBandEvents((prev) => [...prev, data]);
+
+        // Detect producer completion
+        if (
+          data.eventType === "complete" &&
+          data.agent === "producer" &&
+          data.metadata?.script
+        ) {
+          handleBandComplete({
+            script: data.metadata.script,
+            profile: data.metadata.profile,
+          });
+        }
       } catch { /* skip malformed */ }
     };
 
     es.onerror = () => {
-      // Reconnect after 3 seconds
       es.close();
       setTimeout(() => {
         if (bandEventSourceRef.current === es) {

@@ -211,11 +211,13 @@ Position nuncio as a collaborative sales outreach production workspace. Transiti
 - [x] Activity bridge — agents post structured events to Next.js for real-time studio UI
 - [x] Collaborative session panel — live agent activity feed in studio UI with pipeline progress
 - [x] SSE event stream — `/api/band/activity` bridges Python agents to browser
-- [x] Band mode toggle — "Collaborative mode" in studio input, routes to agent session
+- [x] Band room creation API — `/api/band/room` creates room, adds agents, posts kickoff via Band REST
+- [x] Studio integration — `startBandSession()` creates Band room and opens it in new tab
+- [x] Production server wiring — spawns Band agents as child process when `BAND_ENABLED=true`
 - [x] Config templates (`agent_config.yaml.example`, `.env.example`)
 - [x] Root `package.json` script: `pnpm band-agents`
 - [ ] Create 4 remote agents on app.band.ai platform
-- [ ] Add credentials to `agents/.env`
+- [ ] Add credentials to `agents/.env` and root `.env`
 - [ ] End-to-end test with a real Band room
 - [ ] Demo video recording
 - [ ] Submit to lablab.ai
