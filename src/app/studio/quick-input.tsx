@@ -21,8 +21,6 @@ interface QuickInputProps {
   translateEnabled: boolean;
   onToggleTranslate: () => void;
   voicePopulatedFields?: Set<string>;
-  bandMode?: boolean;
-  onToggleBand?: () => void;
 }
 
 export function QuickInput({
@@ -44,8 +42,6 @@ export function QuickInput({
   translateEnabled,
   onToggleTranslate,
   voicePopulatedFields = new Set(),
-  bandMode = false,
-  onToggleBand,
 }: QuickInputProps) {
   const voiceFlash = (field: string) =>
     voicePopulatedFields.has(field)
@@ -251,48 +247,11 @@ export function QuickInput({
               disabled={!url.trim()}
               className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
             >
-              {bandMode ? "Start collaborative session" : "Research & write script"}
+              Research & write script
               <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3 8h10M9 4l4 4-4 4" />
               </svg>
             </button>
-
-            {onToggleBand && (
-              <button
-                onClick={onToggleBand}
-                className={`w-full rounded-xl border p-3 flex items-center gap-3 transition-all ${
-                  bandMode
-                    ? "border-accent/30 bg-accent-soft/40"
-                    : "border-cream-dark bg-white hover:border-accent/20"
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                  bandMode ? "bg-accent text-white" : "bg-cream text-ink-faint"
-                }`}>
-                  <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.6">
-                    <circle cx="4" cy="8" r="2" />
-                    <circle cx="12" cy="4" r="2" />
-                    <circle cx="12" cy="12" r="2" />
-                    <path d="M6 7.2l4-2.4M6 8.8l4 2.4" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm font-medium ${bandMode ? "text-accent" : "text-ink"}`}>
-                      Collaborative mode
-                    </span>
-                    {bandMode && (
-                      <span className="rounded-full bg-accent/15 border border-accent/20 px-2 py-0.5 text-[9px] uppercase tracking-widest text-accent">
-                        On
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-ink-muted mt-0.5">
-                    Watch 4 agents research, write, review, and render in a live Band room
-                  </p>
-                </div>
-              </button>
-            )}
           </div>
 
           <div className="text-center">

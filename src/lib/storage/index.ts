@@ -1,12 +1,14 @@
-import type { AccountStorageProvider, BatchStorageProvider, ProofStorageProvider, ShareStorageProvider, TokenStorageProvider } from "./types";
+import type { AccountStorageProvider, BandActivityStorageProvider, BatchStorageProvider, ProofStorageProvider, ShareStorageProvider, TokenStorageProvider } from "./types";
 import { FileShareStorageProvider } from "./file-provider";
 import { FileAccountStorageProvider } from "./file-account-provider";
 import { FileBatchStorageProvider } from "./file-batch-provider";
 import { FileTokenStorageProvider } from "./file-token-provider";
+import { FileBandActivityProvider } from "./file-band-provider";
 import { TursoShareStorageProvider } from "./turso-provider";
 import { TursoAccountStorageProvider } from "./turso-account-provider";
 import { TursoBatchStorageProvider } from "./turso-batch-provider";
 import { TursoTokenStorageProvider } from "./turso-token-provider";
+import { TursoBandActivityProvider } from "./turso-band-provider";
 import { GroveProofStorageProvider } from "./grove-provider";
 
 let shareProvider: ShareStorageProvider | null = null;
@@ -14,10 +16,13 @@ let proofProvider: ProofStorageProvider | null = null;
 let accountProvider: AccountStorageProvider | null = null;
 let tokenProvider: TokenStorageProvider | null = null;
 let batchProvider: BatchStorageProvider | null = null;
+let bandActivityProvider: BandActivityStorageProvider | null = null;
 
 export type {
   AccountStorageProvider,
   AccountUser,
+  BandActivityEvent,
+  BandActivityStorageProvider,
   BatchStorageProvider,
   CreditAccountSummary,
   CreditTransactionRecord,
@@ -99,10 +104,25 @@ export function getBatchStorageProvider(): BatchStorageProvider {
   return batchProvider;
 }
 
+export function getBandActivityProvider(): BandActivityStorageProvider {
+  if (bandActivityProvider) return bandActivityProvider;
+
+  if (process.env.TURSO_DATABASE_URL) {
+    bandActivityProvider = new TursoBandActivityProvider();
+    console.log("[storage] Using Turso band activity storage");
+    return bandActivityProvider;
+  }
+
+  bandActivityProvider = new FileBandActivityProvider();
+  console.log("[storage] Using file band activity storage");
+  return bandActivityProvider;
+}
+
 export function resetStorageProvidersForTests(): void {
   shareProvider = null;
   proofProvider = null;
   accountProvider = null;
   tokenProvider = null;
   batchProvider = null;
+  bandActivityProvider = null;
 }

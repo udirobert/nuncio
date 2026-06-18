@@ -122,3 +122,19 @@ export interface AccountStorageProvider {
   getCreditSummary(workspaceId: string): Promise<CreditAccountSummary | null>;
   appendCreditTransaction(input: Omit<CreditTransactionRecord, "id" | "createdAt">): Promise<CreditTransactionRecord>;
 }
+
+export interface BandActivityEvent {
+  id: string;
+  sessionId: string;
+  agent: string;
+  eventType: string;
+  content: string;
+  metadata?: Record<string, unknown>;
+  timestamp: string;
+}
+
+export interface BandActivityStorageProvider {
+  readonly name: string;
+  addEvent(event: BandActivityEvent): Promise<void>;
+  getEvents(sessionId: string): Promise<BandActivityEvent[]>;
+}

@@ -23,6 +23,7 @@ interface CollaborativeSessionProps {
   events: BandEvent[];
   onSendMessage: (content: string) => void;
   onComplete: (data: { script: string; profile?: Record<string, unknown> }) => void;
+  onSkipAhead?: () => void;
 }
 
 // ── Agent config ──────────────────────────────────────────────────────────────
@@ -191,6 +192,7 @@ export function CollaborativeSession({
   events,
   onSendMessage,
   onComplete,
+  onSkipAhead,
 }: CollaborativeSessionProps) {
   const [message, setMessage] = useState("");
   const [elapsed, setElapsed] = useState(0);
@@ -310,7 +312,7 @@ export function CollaborativeSession({
                 <div className="flex items-center justify-center h-full text-sm text-ink-faint">
                   <div className="flex items-center gap-2">
                     <span className="inline-block w-4 h-4 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
-                    Waiting for agents to start...
+                    Agents starting...
                   </div>
                 </div>
               ) : (
@@ -339,9 +341,20 @@ export function CollaborativeSession({
             </button>
           </form>
 
+          {onSkipAhead && events.length > 0 && (
+            <div className="text-center">
+              <button
+                onClick={onSkipAhead}
+                className="text-[11px] text-ink-faint hover:text-accent transition-colors"
+              >
+                Skip ahead to review
+              </button>
+            </div>
+          )}
+
           {/* Session ID hint */}
           <p className="text-[10px] text-ink-faint text-center">
-            Session {sessionId.slice(0, 8)} — agents are collaborating via Band
+            Session {sessionId.slice(0, 8)} — agents are working on your video
           </p>
         </div>
       </section>

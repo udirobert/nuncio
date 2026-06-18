@@ -23,7 +23,7 @@ import { DeepResearchToggle } from "@/components/deep-research-toggle";
 import { QualityLadder } from "@/components/quality-ladder";
 import type { UserPlan } from "@/components/quality-ladder";
 
-export type StudioStage = "input" | "enriching" | "collaborating" | "review" | "building" | "ready" | "error";
+export type StudioStage = "input" | "enriching" | "collaborating" | "generating" | "review" | "building" | "ready" | "error";
 export type ArchetypeSelection = "auto" | "mirror" | "origin" | "future_cast" | "inside_joke" | "day_in_the_life";
 type CaptureIntent = "share" | "download" | "render" | "saveBrief";
 
@@ -208,7 +208,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [videoComposed, setVideoComposed] = useState(false);
   const [videoCustomization, setVideoCustomization] = useState<VideoCustomization | undefined>();
   const [showCustomization, setShowCustomization] = useState(false);
-  const [bandMode, setBandMode] = useState(false);
   const [bandSessionId, setBandSessionId] = useState<string | null>(null);
   const [bandEvents, setBandEvents] = useState<BandEvent[]>([]);
   const bandEventSourceRef = useRef<EventSource | null>(null);
@@ -406,23 +405,57 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   async function handleEnrich() {
     if (!url.trim()) return;
 
-    // Band collaborative mode: route to Band session
-    if (bandMode) {
+    const demoAgents = typeof window !== "undefined" && (
+      localStorage.getItem("nuncio_demo_agents") === "band" ||
+      new URLSearchParams(window.location.search).get("agents") === "band"
+    );
+
+    // Demo mode: route to Band agents (hidden toggle for hackathon/live demos)
+    if (demoAgents) {
       startBandSession();
       return;
     }
 
-    setStage("enriching");
+    // Unified pipeline: server-side agents emit activity events
+    const sessionId = crypto.randomUUID();
+    setBandSessionId(sessionId);
+    setBandEvents([]);
+    setStage("generating");
     setPipelineStep("enrich");
     setError("");
     saveSenderMemory();
 
+    // Open SSE to activity store for the collaborative panel
+    const es = new EventSource(`/api/band/activity?sessionId=${sessionId}`);
+    bandEventSourceRef.current = es;
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "heartbeat") return;
+        setBandEvents((prev) => [...prev, data]);
+      } catch { /* skip malformed */ }
+    };
+
+    es.onerror = () => {
+      es.close();
+      setTimeout(() => {
+        if (bandEventSourceRef.current === es) {
+          const newEs = new EventSource(`/api/band/activity?sessionId=${sessionId}`);
+          bandEventSourceRef.current = newEs;
+          newEs.onmessage = es.onmessage;
+          newEs.onerror = es.onerror;
+        }
+      }, 3000);
+    };
+
     try {
-      const res = await fetch("/api/studio/enrich", {
+      const res = await fetch("/api/pipeline", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: url.trim(),
+          sessionId,
           senderName: senderName.trim() || undefined,
           senderBrief: senderBrief.trim() || undefined,
           senderBusiness: senderBusiness.trim() || undefined,
@@ -439,7 +472,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           reasonForReachingOutNow: reasonForReachingOutNow.trim() || undefined,
           relationshipWarmth,
           tonePreference: tonePreference.trim() || undefined,
-          intent: archetype === "auto" ? undefined : undefined,
           archetype: archetype === "auto" ? undefined : archetype,
           scriptVariants: !quickMode,
           researchTier: researchTier !== "quick" ? researchTier : undefined,
@@ -450,7 +482,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
       if (!res.ok) {
         const body = await res.text();
-        let msg = "Enrichment failed";
+        let msg = "Pipeline failed";
         try { const j = JSON.parse(body); msg = j.error || msg; } catch { /* */ }
         throw new Error(msg);
       }
@@ -481,7 +513,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               throw new Error(event.error);
             } else if (event.error) {
               throw new Error(event.error);
-            } else if (event.type === "done") {
+            } else if (event.type === "done" || event.type === "ready") {
               const data = event.result;
               setReviewProfile(data.profile);
               setReviewScript(typeof data.script === "string" ? data.script : "");
@@ -490,9 +522,13 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               setReviewSelectedVariant("a");
               setReviewHook(data.hook);
               if (data.recentActivity) setRecentActivity(data.recentActivity);
-              // Refresh balance from server after credits were spent
               if (typeof event.creditsBalance === "number") {
                 setSession((prev) => prev ? { ...prev, balance: event.creditsBalance } : prev);
+              }
+              // If auto-rendered, store video result
+              if (event.videoUrl) {
+                setVideoRenderResult({ videoUrl: event.videoUrl, videoId: event.videoId });
+                setVideoRendering("done");
               }
               setPipelineStep("idle");
               setStage("review");
@@ -505,9 +541,12 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Enrichment failed");
+      setError(err instanceof Error ? err.message : "Pipeline failed");
       setPipelineStep("idle");
       setStage("error");
+    } finally {
+      bandEventSourceRef.current?.close();
+      bandEventSourceRef.current = null;
     }
   }
 
@@ -594,10 +633,14 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     };
   }, []);
 
-  async function handleRegenerate() {
+  async function handleRegenerate(adjustments?: string) {
     if (!reviewProfile) return;
     setReviewRegenerating(true);
     setPipelineStep("compose");
+    const baseTone = tonePreference.trim();
+    const effectiveTone = adjustments
+      ? [baseTone, adjustments].filter(Boolean).join(". Also: ")
+      : baseTone;
     try {
       const res = await fetch("/api/studio/enrich", {
         method: "POST",
@@ -619,7 +662,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           desiredOutcome: desiredOutcome.trim() || undefined,
           reasonForReachingOutNow: reasonForReachingOutNow.trim() || undefined,
           relationshipWarmth,
-          tonePreference: tonePreference.trim() || undefined,
+          tonePreference: effectiveTone || undefined,
           archetype: archetype === "auto" ? undefined : archetype,
           profile: reviewProfile,
           scriptVariants: !quickMode,
@@ -931,7 +974,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
   return (
     <>
-      <Header stage={stage === "ready" ? "review" : (stage === "building" || stage === "enriching" || stage === "collaborating") ? "progress" : stage === "review" ? "review" : "input"} />
+      <Header stage={stage === "ready" ? "review" : (stage === "building" || stage === "enriching" || stage === "collaborating" || stage === "generating") ? "progress" : stage === "review" ? "review" : "input"} />
       <OnboardingModal />
 
       <main className="flex-1 w-full">
@@ -989,8 +1032,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               translateEnabled={translateEnabled}
               onToggleTranslate={() => setTranslateEnabled(!translateEnabled)}
               voicePopulatedFields={voicePopulatedFields}
-              bandMode={bandMode}
-              onToggleBand={() => setBandMode(!bandMode)}
             />
           ) : (
             <motion.div
@@ -1386,7 +1427,27 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
             </motion.div>
           )}
 
-          {/* ─── COLLABORATING (Band mode) ──────────────────────────── */}
+          {/* ─── GENERATING (unified pipeline) ───────────────────────── */}
+          {stage === "generating" && bandSessionId && (
+            <CollaborativeSession
+              key="generating"
+              sessionId={bandSessionId}
+              events={bandEvents}
+              onSendMessage={handleBandSendMessage}
+              onComplete={handleBandComplete}
+              onSkipAhead={() => {
+                const lastComplete = bandEvents.find((e) => e.eventType === "complete");
+                if (lastComplete?.metadata) {
+                  const { script, profile } = lastComplete.metadata as { script?: string; profile?: Record<string, unknown> };
+                  if (script) {
+                    handleBandComplete({ script, profile });
+                  }
+                }
+              }}
+            />
+          )}
+
+          {/* ─── COLLABORATING (Band demo mode) ────────────────────── */}
           {stage === "collaborating" && bandSessionId && (
             <CollaborativeSession
               key="collaborating"
@@ -1679,7 +1740,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       </button>
                     </div>
                     <button
-                      onClick={handleRegenerate}
+                      onClick={() => handleRegenerate()}
                       disabled={reviewRegenerating}
                       className="text-[11px] text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1"
                     >

@@ -11,7 +11,7 @@ interface QuickReviewProps {
   script: string;
   senderName: string;
   onBuild: () => void;
-  onRegenerate: () => void;
+  onRegenerate: (adjustments?: string) => void;
   onBack: () => void;
   onToggleMode: () => void;
   regenerating: boolean;
@@ -35,6 +35,8 @@ export function QuickReview({
 }: QuickReviewProps) {
   const [editing, setEditing] = useState(false);
   const [editedScript, setEditedScript] = useState(script);
+  const [personalizeOpen, setPersonalizeOpen] = useState(false);
+  const [adjustments, setAdjustments] = useState("");
   const [selectedAngleId, setSelectedAngleId] = useState<string | undefined>(
     profile?.suggestedAngles?.[0]?.id
   );
@@ -112,7 +114,7 @@ export function QuickReview({
                   {editing ? "Done editing" : "Edit"}
                 </button>
                 <button
-                  onClick={onRegenerate}
+                  onClick={() => onRegenerate(adjustments.trim() || undefined)}
                   disabled={regenerating}
                   className="text-[11px] uppercase tracking-widest text-ink-faint hover:text-accent transition-colors disabled:opacity-40 flex items-center gap-1"
                 >
@@ -127,6 +129,50 @@ export function QuickReview({
                 </button>
               </div>
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-cream-dark/70 bg-white/60 overflow-hidden">
+            <button
+              onClick={() => setPersonalizeOpen(!personalizeOpen)}
+              className="w-full flex items-center justify-between px-5 py-3 text-left"
+            >
+              <div className="flex items-center gap-2">
+                <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-ink-faint" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M12 2l2 2-8 8H4v-2l8-8z" />
+                </svg>
+                <span className="text-xs font-medium text-ink-muted">Personalize further</span>
+              </div>
+              <svg
+                viewBox="0 0 16 16"
+                className={`w-3 h-3 text-ink-faint transition-transform ${personalizeOpen ? "rotate-180" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M4 6l4 4 4-4" />
+              </svg>
+            </button>
+            {personalizeOpen && (
+              <div className="px-5 pb-4 space-y-3 border-t border-cream-dark/50">
+                <p className="text-[11px] text-ink-faint pt-3">
+                  Tell the agent what to change and hit regenerate.
+                </p>
+                <textarea
+                  value={adjustments}
+                  onChange={(e) => setAdjustments(e.target.value)}
+                  placeholder="e.g. Make it more casual, mention their recent podcast, focus on the partnership angle…"
+                  rows={3}
+                  className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                />
+                <button
+                  onClick={() => onRegenerate(adjustments.trim() || undefined)}
+                  disabled={regenerating || !adjustments.trim()}
+                  className="rounded-xl bg-accent/10 border border-accent/20 px-4 py-2 text-xs font-medium text-accent hover:bg-accent/20 disabled:opacity-40 transition-colors"
+                >
+                  {regenerating ? "Regenerating…" : "Regenerate with changes"}
+                </button>
+              </div>
+            )}
           </div>
 
           {profile && (
