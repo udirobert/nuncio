@@ -15,13 +15,15 @@ import { QuickReview } from "./quick-review";
 import { QuickProgress } from "./quick-progress";
 import type { QuickProgressStep } from "./quick-progress";
 import { QuickReady } from "./quick-ready";
+import { CollaborativeSession } from "./collaborative-session";
+import type { BandEvent } from "./collaborative-session";
 import { VoiceOverlay } from "@/components/voice-overlay";
 import type { VoiceProfileResult } from "@/components/voice-overlay";
 import { DeepResearchToggle } from "@/components/deep-research-toggle";
 import { QualityLadder } from "@/components/quality-ladder";
 import type { UserPlan } from "@/components/quality-ladder";
 
-export type StudioStage = "input" | "enriching" | "review" | "building" | "ready" | "error";
+export type StudioStage = "input" | "enriching" | "collaborating" | "review" | "building" | "ready" | "error";
 export type ArchetypeSelection = "auto" | "mirror" | "origin" | "future_cast" | "inside_joke" | "day_in_the_life";
 type CaptureIntent = "share" | "download" | "render" | "saveBrief";
 
@@ -206,6 +208,10 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [videoComposed, setVideoComposed] = useState(false);
   const [videoCustomization, setVideoCustomization] = useState<VideoCustomization | undefined>();
   const [showCustomization, setShowCustomization] = useState(false);
+  const [bandMode, setBandMode] = useState(false);
+  const [bandSessionId, setBandSessionId] = useState<string | null>(null);
+  const [bandEvents, setBandEvents] = useState<BandEvent[]>([]);
+  const bandEventSourceRef = useRef<EventSource | null>(null);
 
   // Wait screen context
   const [recentActivity, setRecentActivity] = useState<string | undefined>();
@@ -399,6 +405,13 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
   async function handleEnrich() {
     if (!url.trim()) return;
+
+    // Band collaborative mode: route to Band session
+    if (bandMode) {
+      startBandSession();
+      return;
+    }
+
     setStage("enriching");
     setPipelineStep("enrich");
     setError("");
@@ -497,6 +510,89 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
       setStage("error");
     }
   }
+
+  // ── Band collaborative session management ──────────────────────────────────
+
+  function startBandSession() {
+    const sessionId = crypto.randomUUID();
+    setBandSessionId(sessionId);
+    setBandEvents([]);
+    setStage("collaborating");
+    saveSenderMemory();
+
+    // Post kickoff event
+    fetch("/api/band/activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        agent: "system",
+        eventType: "message",
+        content: `Session started. Researching: ${url.trim()}`,
+        metadata: { url: url.trim(), senderBrief: senderBrief.trim() || undefined },
+      }),
+    }).catch(() => {});
+
+    // Open SSE connection
+    const es = new EventSource(`/api/band/activity?sessionId=${sessionId}`);
+    bandEventSourceRef.current = es;
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "heartbeat") return;
+        setBandEvents((prev) => [...prev, data]);
+      } catch { /* skip malformed */ }
+    };
+
+    es.onerror = () => {
+      // Reconnect after 3 seconds
+      es.close();
+      setTimeout(() => {
+        if (bandEventSourceRef.current === es) {
+          const newEs = new EventSource(`/api/band/activity?sessionId=${sessionId}`);
+          bandEventSourceRef.current = newEs;
+          newEs.onmessage = es.onmessage;
+          newEs.onerror = es.onerror;
+        }
+      }, 3000);
+    };
+  }
+
+  function handleBandComplete(data: { script: string; profile?: Record<string, unknown> }) {
+    // Close SSE
+    bandEventSourceRef.current?.close();
+    bandEventSourceRef.current = null;
+
+    // Transition to review stage with the agent-generated script
+    setReviewScript(data.script);
+    if (data.profile) {
+      setReviewProfile(data.profile as unknown as import("@/lib/claude").Profile);
+    }
+    setStage("review");
+  }
+
+  async function handleBandSendMessage(content: string) {
+    if (!bandSessionId) return;
+    // Post user message to activity store
+    await fetch("/api/band/activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: bandSessionId,
+        agent: "user",
+        eventType: "user_message",
+        content,
+      }),
+    });
+  }
+
+  // Cleanup SSE on unmount
+  useEffect(() => {
+    return () => {
+      bandEventSourceRef.current?.close();
+    };
+  }, []);
 
   async function handleRegenerate() {
     if (!reviewProfile) return;
@@ -835,7 +931,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
   return (
     <>
-      <Header stage={stage === "ready" ? "review" : (stage === "building" || stage === "enriching") ? "progress" : stage === "review" ? "review" : "input"} />
+      <Header stage={stage === "ready" ? "review" : (stage === "building" || stage === "enriching" || stage === "collaborating") ? "progress" : stage === "review" ? "review" : "input"} />
       <OnboardingModal />
 
       <main className="flex-1 w-full">
@@ -893,6 +989,8 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               translateEnabled={translateEnabled}
               onToggleTranslate={() => setTranslateEnabled(!translateEnabled)}
               voicePopulatedFields={voicePopulatedFields}
+              bandMode={bandMode}
+              onToggleBand={() => setBandMode(!bandMode)}
             />
           ) : (
             <motion.div
@@ -1286,6 +1384,17 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 })}
               </div>
             </motion.div>
+          )}
+
+          {/* ─── COLLABORATING (Band mode) ──────────────────────────── */}
+          {stage === "collaborating" && bandSessionId && (
+            <CollaborativeSession
+              key="collaborating"
+              sessionId={bandSessionId}
+              events={bandEvents}
+              onSendMessage={handleBandSendMessage}
+              onComplete={handleBandComplete}
+            />
           )}
 
           {/* ─── REVIEW ──────────────────────────────────────────────── */}

@@ -189,6 +189,50 @@ Full design and implementation plan: [`docs/HOOK_ENGINE.md`](./HOOK_ENGINE.md).
 
 ---
 
+## Band of Agents Hackathon
+
+**Dates:** June 12–19, 2026
+**Format:** Online build phase
+**Submission deadline:** June 19, 2026
+**Prize pool:** $10,000+
+**Track:** Track 1: Internal Enterprise Workflows
+**Status:** Implementation complete — pending Band credentials and end-to-end test
+
+### Angle
+Position nuncio as a collaborative sales outreach production workspace. Transition the sequential processing pipeline into a shared Band Room where multiple specialized agents (Researcher, Copywriter, QA Compliance, and Producer) coordinate and communicate to deliver the final high-quality personalized pitch assets.
+
+### Implementation Status
+- [x] Python project initialized (`agents/` subproject with `uv` + `band-sdk` + `httpx`)
+- [x] Researcher Agent — calls `/api/enrich`, posts structured enrichment to room
+- [x] Copywriter Agent — listens for enrichment events, calls `/api/script`, posts draft
+- [x] Reviewer Agent — validates script (word count, compliance, personalization), approves or requests edits
+- [x] Producer Agent — listens for approval, calls `/api/video`, polls `/api/video/[id]` until complete
+- [x] Main entrypoint — starts all 4 agents concurrently via `asyncio.gather`
+- [x] Activity bridge — agents post structured events to Next.js for real-time studio UI
+- [x] Collaborative session panel — live agent activity feed in studio UI with pipeline progress
+- [x] SSE event stream — `/api/band/activity` bridges Python agents to browser
+- [x] Band mode toggle — "Collaborative mode" in studio input, routes to agent session
+- [x] Config templates (`agent_config.yaml.example`, `.env.example`)
+- [x] Root `package.json` script: `pnpm band-agents`
+- [ ] Create 4 remote agents on app.band.ai platform
+- [ ] Add credentials to `agents/.env`
+- [ ] End-to-end test with a real Band room
+- [ ] Demo video recording
+- [ ] Submit to lablab.ai
+
+### Integration Details
+For the detailed technical architecture, sequence diagrams, directory structure, and task checklist, see the implementation specification at [`docs/BAND_INTEGRATION.md`](./BAND_INTEGRATION.md).
+
+### Key Integrations
+- Band Rooms: Collaborative state management and human-in-the-loop validation
+- Band Agent SDK: Wraps the core scraping, writing, editing, and rendering modules
+- Production Server: Combined Next.js, Speech Engine, and Band websocket agents under `src/server/production.ts`
+
+### Pitch one-liner
+> "nuncio shifts sales personalization from a black-box pipeline to a collaborative Band Room where specialized agents research, write, audit, and render your outreach video under direct human oversight."
+
+---
+
 ## Cross-submission notes
 
 ### What stays consistent

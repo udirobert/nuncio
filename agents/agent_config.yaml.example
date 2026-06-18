@@ -1,0 +1,23 @@
+# Band of Agents — agent configuration
+#
+# Each agent must be created as a remote agent on the Band platform (app.band.ai).
+# Copy agent_config.yaml.example to agent_config.yaml and fill in the IDs + API key.
+#
+# The api_key is shared across all agents (one per Band account).
+# Each agent_id is unique per agent on the platform.
+
+researcher:
+  agent_id: "YOUR_RESEARCHER_AGENT_ID"
+  api_key: "YOUR_BAND_API_KEY"
+
+copywriter:
+  agent_id: "YOUR_COPYWRITER_AGENT_ID"
+  api_key: "YOUR_BAND_API_KEY"
+
+reviewer:
+  agent_id: "YOUR_REVIEWER_AGENT_ID"
+  api_key: "YOUR_BAND_API_KEY"
+
+producer:
+  agent_id: "YOUR_PRODUCER_AGENT_ID"
+  api_key: "YOUR_BAND_API_KEY"
