@@ -254,7 +254,31 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
       const timer = setTimeout(() => setPurchasedPlan(null), 6000);
       return () => clearTimeout(timer);
     }
-  }, []);  
+  }, []);
+
+  // Re-fetch balance after Stripe purchase (webhook may take a few seconds)
+  useEffect(() => {
+    if (!purchasedPlan) return;
+    let cancelled = false;
+    const delays = [3000, 6000, 12000];
+    async function pollBalance() {
+      for (const delay of delays) {
+        if (cancelled) return;
+        await new Promise((r) => setTimeout(r, delay));
+        if (cancelled) return;
+        try {
+          const res = await fetch("/api/account/session");
+          const s = await res.json();
+          if (s.authenticated && typeof s.balance === "number" && s.balance > 0) {
+            setSession(s);
+            return;
+          }
+        } catch { /* retry */ }
+      }
+    }
+    pollBalance();
+    return () => { cancelled = true; };
+  }, [purchasedPlan]);  
 
   useEffect(() => {
     // Load auth session and sender memory from server
