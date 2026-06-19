@@ -82,57 +82,59 @@ class ResearcherAdapter(SimpleAdapter[list[dict]]):
         progress_task = asyncio.create_task(_progress_loop())
 
         try:
-            async with make_client() as client:
-                resp = await client.post("/api/enrich", json={"urls": urls}, timeout=120.0)
-                resp.raise_for_status()
-                results = resp.json()
-        finally:
+            try:
+                async with make_client() as client:
+                    resp = await client.post("/api/enrich", json={"urls": urls}, timeout=120.0)
+                    resp.raise_for_status()
+                    results = resp.json()
+            finally:
+                progress_done = True
+                progress_task.cancel()
+
+            successful = [r for r in results if r.get("success", True) and r.get("markdown")]
+            failed = [r for r in results if not r.get("success", True)]
+
+            summary_lines = [
+                "## Research Results",
+                "",
+                f"**Enriched:** {len(successful)} profile(s) | **Failed:** {len(failed)}",
+                "",
+            ]
+
+            for r in successful:
+                url = r.get("url", "unknown")
+                md = r.get("markdown", "")
+                preview = md[:500] + "..." if len(md) > 500 else md
+                summary_lines.append(f"### {url}")
+                summary_lines.append(preview)
+                summary_lines.append("")
+
+            if failed:
+                summary_lines.append("### Failed URLs")
+                for r in failed:
+                    summary_lines.append(f"- {r.get('url', '?')}: {r.get('reason', 'unknown error')}")
+
+            summary = "\n".join(summary_lines)
+            await tools.send_message(summary)
+            await post_activity(session_id, "researcher", "message", summary,
+                                metadata={"results": results, "successful": len(successful), "failed": len(failed)})
+            await post_activity(session_id, "researcher", "stage_complete", "Research complete")
+
+            await tools.send_event(
+                content=json.dumps({"type": "enrichment", "data": results, "sessionId": session_id}),
+                message_type="tool_result",
+                metadata={"type": "enrichment_data", "results": results, "sessionId": session_id},
+            )
+
+        except Exception as e:
             progress_done = True
             progress_task.cancel()
-
-        successful = [r for r in results if r.get("success", True) and r.get("markdown")]
-        failed = [r for r in results if not r.get("success", True)]
-
-        summary_lines = [
-            f"## Research Results",
-            f"",
-            f"**Enriched:** {len(successful)} profile(s) | **Failed:** {len(failed)}",
-            f"",
-        ]
-
-        for r in successful:
-            url = r.get("url", "unknown")
-            md = r.get("markdown", "")
-            preview = md[:500] + "..." if len(md) > 500 else md
-            summary_lines.append(f"### {url}")
-            summary_lines.append(preview)
-            summary_lines.append("")
-
-        if failed:
-            summary_lines.append("### Failed URLs")
-            for r in failed:
-                summary_lines.append(f"- {r.get('url', '?')}: {r.get('reason', 'unknown error')}")
-
-        summary = "\n".join(summary_lines)
-        await tools.send_message(summary)
-        await post_activity(session_id, "researcher", "message", summary,
-                            metadata={"results": results, "successful": len(successful), "failed": len(failed)})
-        await post_activity(session_id, "researcher", "stage_complete", "Research complete")
-
-        # Post raw JSON as an event for the copywriter to consume
-        await tools.send_event(
-            content=json.dumps({"type": "enrichment", "data": results, "sessionId": session_id}),
-            message_type="tool_result",
-            metadata={"type": "enrichment_data", "results": results, "sessionId": session_id},
-        )
-
-    except Exception as e:
-        logger.exception("Researcher enrichment failed")
-        await tools.send_event(
-            content=f"Enrichment failed: {e}",
-            message_type="error",
-        )
-        await tools.send_message(
-            f"Enrichment failed: {e}. Please check the URLs and try again."
-        )
-        await post_activity(session_id, "researcher", "error", f"Enrichment failed: {e}")
+            logger.exception("Researcher enrichment failed")
+            await tools.send_event(
+                content=f"Enrichment failed: {e}",
+                message_type="error",
+            )
+            await tools.send_message(
+                f"Enrichment failed: {e}. Please check the URLs and try again."
+            )
+            await post_activity(session_id, "researcher", "error", f"Enrichment failed: {e}")
