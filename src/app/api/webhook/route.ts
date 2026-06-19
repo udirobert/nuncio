@@ -58,6 +58,26 @@ export async function POST(request: NextRequest) {
                 : "stripe_subscription_checkout_completed",
             });
             console.log(`[webhook] Granted ${granted} checkout credits to workspace=${workspace.id}`);
+          } else if (email) {
+            console.log(`[webhook] Workspace ${workspaceId} not found, falling back to email upsert for ${email}`);
+            const { user, workspace: ws } = await upsertBillingAccount({
+              email,
+              stripeCustomerId: customerId || undefined,
+              stripeSubscriptionId: subscriptionId,
+              planType,
+            });
+            const granted = await grantPlanCredits({
+              workspace: ws,
+              user,
+              planType,
+              stripeEventId: event.id,
+              reason: purchaseType === "credit_pack"
+                ? "stripe_credit_pack_checkout_completed"
+                : "stripe_subscription_checkout_completed",
+            });
+            console.log(`[webhook] Granted ${granted} checkout credits via fallback to workspace=${ws.id}`);
+          } else {
+            console.warn(`[webhook] Workspace ${workspaceId} not found and no email available`);
           }
         } else if (email) {
           const { user, workspace } = await upsertBillingAccount({
