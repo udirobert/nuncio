@@ -11,7 +11,6 @@ export type CreditAction =
   | "video.translate"
   | "captions.generate"
   | "preview.generate"
-  // Phase 9: Premium research actions
   | "research.deep"
   | "research.premium"
   | "angle.generation"
@@ -37,19 +36,6 @@ export interface CreditReservation {
   balanceAfter?: number;
 }
 
-interface LedgerState {
-  balance: number;
-  transactions: {
-    id: string;
-    type: CreditTransactionType;
-    amount: number;
-    action?: CreditAction;
-    reason: string;
-    createdAt: string;
-    reservationId?: string;
-  }[];
-}
-
 const COSTS: Record<CreditAction, number> = {
   "profile.research": 1,
   "script.generate": 1,
@@ -59,15 +45,14 @@ const COSTS: Record<CreditAction, number> = {
   "video.translate": 2,
   "captions.generate": 1,
   "preview.generate": 0,
-  // Phase 9: Premium research
-  "research.deep": 3,        // Firecrawl + EXA deep research
-  "research.premium": 5,     // Full multi-provider research
-  "angle.generation": 1,     // Additional angle suggestions
-  "source.attribution": 0,   // Free (just a UI pass)
+  "research.deep": 3,
+  "research.premium": 5,
+  "angle.generation": 1,
+  "source.attribution": 0,
 };
 
-const ledger = new Map<string, LedgerState>();
 const reservations = new Map<string, CreditReservation>();
+const anonWorkspaceCache = new Map<string, string>();
 
 export function creditsEnforced(): boolean {
   return process.env.NUNCIO_CREDITS_ENFORCED === "true";
@@ -82,33 +67,57 @@ export function getCreditSubject(request: Request): CreditSubject {
   const userId = request.headers.get("x-nuncio-user-id") || undefined;
 
   if (workspaceId) {
-    return {
-      workspaceId,
-      userId,
-      anonymous: !userId,
-    };
+    return { workspaceId, userId, anonymous: !userId };
   }
 
   const session = readAccountSession(request);
   if (session) {
-    return {
-      workspaceId: session.workspaceId,
-      userId: session.userId,
-      anonymous: false,
-    };
+    return { workspaceId: session.workspaceId, userId: session.userId, anonymous: false };
   }
 
-  return {
-    workspaceId: `anon:${getClientId(request)}`,
-    anonymous: true,
-  };
+  return { workspaceId: `anon:${getClientId(request)}`, anonymous: true };
+}
+
+async function ensureAnonymousWorkspace(anonId: string): Promise<string> {
+  const cached = anonWorkspaceCache.get(anonId);
+  if (cached) return cached;
+
+  const provider = getAccountStorageProvider();
+  const existing = await provider.getWorkspace(anonId);
+  if (existing) {
+    anonWorkspaceCache.set(anonId, anonId);
+    return anonId;
+  }
+
+  const now = new Date().toISOString();
+  const anonUser = await provider.upsertUserByEmail(`anon-${anonId.slice(5)}@anonymous.local`, {
+    id: anonId,
+  });
+
+  await provider.upsertWorkspaceForUser(anonUser, {
+    id: anonId,
+    name: "Anonymous trial",
+    plan: "free",
+  });
+
+  const trialCredits = Number(process.env.NUNCIO_TRIAL_CREDITS || 10);
+  const grantAmount = Number.isFinite(trialCredits) ? trialCredits : 10;
+  await provider.appendCreditTransaction({
+    workspaceId: anonId,
+    userId: anonId,
+    type: "grant",
+    amount: grantAmount,
+    reason: "anonymous_trial_grant",
+  });
+
+  anonWorkspaceCache.set(anonId, anonId);
+  return anonId;
 }
 
 export async function getCreditBalance(subject: CreditSubject): Promise<number> {
-  if (subject.workspaceId.startsWith("anon:")) {
-    return ensureLedger(subject.workspaceId).balance;
+  if (subject.anonymous) {
+    await ensureAnonymousWorkspace(subject.workspaceId);
   }
-
   const summary = await getAccountStorageProvider().getCreditSummary(subject.workspaceId);
   return summary?.balance || 0;
 }
@@ -123,6 +132,10 @@ export async function reserveCredits(input: {
 }): Promise<CreditReservation> {
   const amount = input.amount ?? estimateCreditCost(input.action);
   const id = crypto.randomUUID();
+
+  if (input.subject.anonymous) {
+    await ensureAnonymousWorkspace(input.subject.workspaceId);
+  }
 
   if (!creditsEnforced()) {
     const reservation: CreditReservation = {
@@ -145,31 +158,17 @@ export async function reserveCredits(input: {
     throw new InsufficientCreditsError(amount, currentBalance);
   }
 
-  if (input.subject.workspaceId.startsWith("anon:")) {
-    const account = ensureLedger(input.subject.workspaceId);
-    account.balance -= amount;
-    account.transactions.push({
-      id: crypto.randomUUID(),
-      type: "debit",
-      amount,
-      action: input.action,
-      reason: input.reason,
-      createdAt: new Date().toISOString(),
-      reservationId: id,
-    });
-  } else {
-    await getAccountStorageProvider().appendCreditTransaction({
-      workspaceId: input.subject.workspaceId,
-      userId: input.subject.userId,
-      type: "debit",
-      amount,
-      action: input.action,
-      reason: input.reason,
-      flowId: input.flowId,
-      provider: input.provider,
-      reservationId: id,
-    });
-  }
+  await getAccountStorageProvider().appendCreditTransaction({
+    workspaceId: input.subject.workspaceId,
+    userId: input.subject.userId,
+    type: "debit",
+    amount,
+    action: input.action,
+    reason: input.reason,
+    flowId: input.flowId,
+    provider: input.provider,
+    reservationId: id,
+  });
 
   const balanceAfter = currentBalance - amount;
   const reservation: CreditReservation = {
@@ -197,34 +196,19 @@ export async function refundCreditReservation(id: string, reason = "provider_fai
   const reservation = reservations.get(id);
   if (!reservation || reservation.status !== "reserved") return;
 
-  if (reservation.subject.workspaceId.startsWith("anon:")) {
-    const account = ensureLedger(reservation.subject.workspaceId);
-    account.balance += reservation.amount;
-    account.transactions.push({
-      id: crypto.randomUUID(),
-      type: "refund",
-      amount: reservation.amount,
-      action: reservation.action,
-      reason,
-      createdAt: new Date().toISOString(),
-      reservationId: id,
-    });
-    reservation.balanceAfter = account.balance;
-  } else {
-    await getAccountStorageProvider().appendCreditTransaction({
-      workspaceId: reservation.subject.workspaceId,
-      userId: reservation.subject.userId,
-      type: "refund",
-      amount: reservation.amount,
-      action: reservation.action,
-      reason,
-      flowId: reservation.flowId,
-      provider: reservation.provider,
-      reservationId: id,
-    });
-    reservation.balanceAfter = await getCreditBalance(reservation.subject);
-  }
+  await getAccountStorageProvider().appendCreditTransaction({
+    workspaceId: reservation.subject.workspaceId,
+    userId: reservation.subject.userId,
+    type: "refund",
+    amount: reservation.amount,
+    action: reservation.action,
+    reason,
+    flowId: reservation.flowId,
+    provider: reservation.provider,
+    reservationId: id,
+  });
 
+  reservation.balanceAfter = await getCreditBalance(reservation.subject);
   reservation.status = "refunded";
 }
 
@@ -245,28 +229,33 @@ export async function grantCredits(input: {
   });
 }
 
-/*
- * Legacy in-memory ledger remains only for anonymous/demo subjects.
- */
-function ensureLedger(workspaceId: string): LedgerState {
-  const existing = ledger.get(workspaceId);
-  if (existing) return existing;
+export async function mergeAnonymousCredits(input: {
+  anonWorkspaceId: string;
+  targetWorkspaceId: string;
+  targetUserId?: string;
+}): Promise<number> {
+  const provider = getAccountStorageProvider();
+  const anonSummary = await provider.getCreditSummary(input.anonWorkspaceId);
+  if (!anonSummary || anonSummary.balance <= 0) return 0;
 
-  const initialCredits = Number(process.env.NUNCIO_TRIAL_CREDITS || 10);
-  const created: LedgerState = {
-    balance: Number.isFinite(initialCredits) ? initialCredits : 10,
-    transactions: [
-      {
-        id: crypto.randomUUID(),
-        type: "grant",
-        amount: Number.isFinite(initialCredits) ? initialCredits : 10,
-        reason: "trial_grant",
-        createdAt: new Date().toISOString(),
-      },
-    ],
-  };
-  ledger.set(workspaceId, created);
-  return created;
+  await provider.appendCreditTransaction({
+    workspaceId: input.targetWorkspaceId,
+    userId: input.targetUserId,
+    type: "grant",
+    amount: anonSummary.balance,
+    reason: "anonymous_credits_merged",
+    metadata: { sourceWorkspaceId: input.anonWorkspaceId },
+  });
+
+  await provider.appendCreditTransaction({
+    workspaceId: input.anonWorkspaceId,
+    type: "debit",
+    amount: anonSummary.balance,
+    reason: "anonymous_credits_transferred",
+    metadata: { targetWorkspaceId: input.targetWorkspaceId },
+  });
+
+  return anonSummary.balance;
 }
 
 export class InsufficientCreditsError extends Error {
