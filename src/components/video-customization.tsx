@@ -80,6 +80,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
   const [vibeId, setVibeId] = useState<string>(recommendedVibeId || "tech-office");
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [captionsEnabled, setCaptionsEnabled] = useState(true);
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const [previewingAvatarId, setPreviewingAvatarId] = useState<string | null>(null);
   const [vibePresets, setVibePresets] = useState<{ id: string; label: string; icon: string; description: string }[]>([]);
@@ -148,8 +149,9 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
         : undefined,
       width: aspect.width,
       height: aspect.height,
+      captions: captionsEnabled,
     });
-  }, [avatarIndex, voiceIndex, vibeId, backgroundColor, aspectIndex, avatars, voices, onCustomize]);
+  }, [avatarIndex, voiceIndex, vibeId, backgroundColor, aspectIndex, avatars, voices, captionsEnabled, onCustomize]);
 
   async function handlePreviewVibe(id: string) {
     if (previewingVibeId === id) {
@@ -653,6 +655,26 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Captions */}
+      <div className="flex items-center justify-between py-2">
+        <div>
+          <span className="text-[11px] font-medium text-ink">Subtitles</span>
+          <span className="text-[10px] text-ink-faint ml-1.5">Auto-generated captions</span>
+        </div>
+        <button
+          onClick={() => setCaptionsEnabled(!captionsEnabled)}
+          className={`relative w-9 h-5 rounded-full transition-colors ${
+            captionsEnabled ? "bg-accent" : "bg-cream-dark"
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${
+              captionsEnabled ? "translate-x-4" : ""
+            }`}
+          />
+        </button>
       </div>
 
       {/* Background audio */}

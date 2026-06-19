@@ -212,6 +212,7 @@ export interface VideoCustomization {
   background?: { type: "color"; value: string } | { type: "image"; url: string };
   width?: number;
   height?: number;
+  captions?: boolean;
 }
 
 /**
@@ -251,6 +252,23 @@ async function createVideoDirect(
       height,
     },
   };
+
+  // Enable captions/subtitles if requested
+  if (customization?.captions) {
+    (payload.video_inputs as Record<string, unknown>[])[0] = {
+      ...((payload.video_inputs as Record<string, unknown>[])[0]),
+      caption: {
+        enabled: true,
+        font_family: "Montserrat",
+        font_size: 32,
+        font_color: "#FFFFFF",
+        background_enabled: true,
+        background_color: "#000000",
+        background_alpha: 0.6,
+        position: "bottom",
+      },
+    };
+  }
 
   // Apply background from customization or from Melius assets
   const bgUrl = customization?.background?.type === "image"

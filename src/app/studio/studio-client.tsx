@@ -2312,25 +2312,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       {audioMemoUrl ? "Memo ready" : "Audio memo"}
                     </button>
 
-                    <div className="flex-1" />
-
-                    <button
-                      onClick={() => {
-                        setStage("input");
-                        setBuildResult(null);
-                        setUrl("");
-                        setSenderBrief("");
-                        setArchetype("auto");
-                        setShareUrl("");
-                        setShowHookReasoning(false);
-                        setVideoRendering("idle");
-                        setVideoRenderResult(null);
-                        setVideoComposed(false);
-                      }}
-                      className="btn-press rounded-lg border border-cream-dark px-2.5 py-1.5 text-[11px] text-ink-faint hover:text-ink-muted hover:bg-cream-dark/30 transition-colors"
-                    >
-                      Brief another →
-                    </button>
                   </div>
                 </div>
 
@@ -2380,7 +2361,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 )}
 
                 {/* Re-render with different customization */}
-                <div className="border-t border-cream-dark/50 pt-3">
+                <div className="border-t border-cream-dark/50 pt-3 flex items-center justify-between">
                   <button
                     onClick={() => { setShowCustomization(true); setStage("review"); }}
                     className="text-[11px] text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5"
@@ -2391,12 +2372,67 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     </svg>
                     Change avatar or voice & re-render
                   </button>
+                  {session?.authenticated && typeof session.balance === "number" && (
+                    <span className="text-[11px] text-ink-faint">
+                      {session.balance} credits remaining
+                    </span>
+                  )}
                 </div>
               </div>
 
               {/* Video result */}
               {videoRenderResult && videoRendering === "done" && (
                 <VideoResultSection videoUrl={videoRenderResult.videoUrl} />
+              )}
+
+              {/* Next actions — circular flow */}
+              {videoRendering === "done" && (
+                <div className="space-y-3 pt-2">
+                  <button
+                    onClick={() => {
+                      setStage("input");
+                      setBuildResult(null);
+                      setUrl("");
+                      setSenderBrief("");
+                      setArchetype("auto");
+                      setShareUrl("");
+                      setShowHookReasoning(false);
+                      setVideoRendering("idle");
+                      setVideoRenderResult(null);
+                      setVideoComposed(false);
+                    }}
+                    className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
+                  >
+                    <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M3 8h10M9 4l4 4-4 4" />
+                    </svg>
+                    Create another video
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href="/dashboard"
+                      className="btn-press flex-1 rounded-xl border border-cream-dark py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <rect x="2" y="2" width="5" height="5" rx="1" />
+                        <rect x="9" y="2" width="5" height="5" rx="1" />
+                        <rect x="2" y="9" width="5" height="5" rx="1" />
+                        <rect x="9" y="9" width="5" height="5" rx="1" />
+                      </svg>
+                      View dashboard
+                    </a>
+                    <a
+                      href="/batch"
+                      className="btn-press flex-1 rounded-xl border border-cream-dark py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M5 8h6M8 5v6" />
+                        <circle cx="8" cy="8" r="6" />
+                      </svg>
+                      Batch create
+                    </a>
+                  </div>
+                </div>
               )}
             </motion.div>
           ))}
