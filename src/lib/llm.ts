@@ -95,25 +95,87 @@ function getVeniceConfig(): LLMConfig {
 }
 
 /**
- * Send a chat completion request to the configured LLM provider.
+ * Build ordered list of all configured LLM providers.
+ */
+function getConfigs(): LLMConfig[] {
+  const configs: LLMConfig[] = [];
+  const preferred = process.env.PREFERRED_LLM_PROVIDER as Provider | undefined;
+
+  const allConfigs: Record<string, () => LLMConfig> = {
+    anthropic: getAnthropicConfig,
+    google: getGoogleConfig,
+    venice: getVeniceConfig,
+    featherless: getFeatherlessConfig,
+  };
+
+  const keys: Record<string, string | undefined> = {
+    anthropic: process.env.ANTHROPIC_API_KEY,
+    google: process.env.GOOGLE_API_KEY,
+    venice: process.env.VENICE_API_KEY,
+    featherless: process.env.FEATHERLESS_API_KEY,
+  };
+
+  // Preferred provider first
+  if (preferred && keys[preferred]) {
+    configs.push(allConfigs[preferred]());
+  }
+
+  // Then the rest in default priority order
+  const order: Provider[] = ["anthropic", "google", "venice", "featherless"];
+  for (const p of order) {
+    if (p === preferred) continue;
+    if (keys[p]) configs.push(allConfigs[p]());
+  }
+
+  return configs;
+}
+
+async function callProvider(
+  config: LLMConfig,
+  systemPrompt: string,
+  userMessage: string,
+  maxTokens: number
+): Promise<string> {
+  if (config.provider === "anthropic") {
+    return callAnthropic(config, systemPrompt, userMessage, maxTokens);
+  }
+  if (config.provider === "google") {
+    return callGoogleGemini(config, systemPrompt, userMessage, maxTokens);
+  }
+  return callOpenAICompatible(config, systemPrompt, userMessage, maxTokens);
+}
+
+/**
+ * Send a chat completion request, trying each configured provider in order.
+ * Falls back to the next provider on failure (auth errors, rate limits, timeouts).
  */
 export async function chatCompletion(
   systemPrompt: string,
   userMessage: string,
   options?: { maxTokens?: number }
 ): Promise<string> {
-  const config = getConfig();
+  const configs = getConfigs();
   const maxTokens = options?.maxTokens || 1024;
 
-  if (config.provider === "anthropic") {
-    return callAnthropic(config, systemPrompt, userMessage, maxTokens);
+  if (configs.length === 0) {
+    throw new Error("No LLM provider configured. Set ANTHROPIC_API_KEY, GOOGLE_API_KEY, VENICE_API_KEY, or FEATHERLESS_API_KEY.");
   }
 
-  if (config.provider === "google") {
-    return callGoogleGemini(config, systemPrompt, userMessage, maxTokens);
+  let lastError: Error | null = null;
+  for (const config of configs) {
+    try {
+      return await callProvider(config, systemPrompt, userMessage, maxTokens);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[llm] ${config.provider} failed: ${msg}`);
+      lastError = err instanceof Error ? err : new Error(msg);
+
+      // Don't retry on client-side errors (bad prompt, etc.)
+      if (msg.includes("400") && !msg.includes("400 —")) break;
+    }
   }
 
-  return callOpenAICompatible(config, systemPrompt, userMessage, maxTokens);
+  throw lastError || new Error("All LLM providers failed");
 }
 
 /**
