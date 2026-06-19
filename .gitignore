@@ -46,12 +46,13 @@ next-env.d.ts
 Thumbs.db
 .blackboxcli/
 .data/
-artifacts/test-runs/
+artifacts/
 .junie
 .kilo
 .claude
 .antigravitycli
 .antigravitycli/
+.qoder/
 
 
 # HyperFrames rendered output
