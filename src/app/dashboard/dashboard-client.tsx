@@ -9,6 +9,7 @@ import { RecentVideos } from "./components/recent-videos";
 import { QuickActions } from "./components/quick-actions";
 import { UsageSummary } from "./components/usage-summary";
 import { OnboardingModal } from "@/components/onboarding-modal";
+import Link from "next/link";
 
 interface SessionData {
   authenticated: boolean;
@@ -56,6 +57,25 @@ export default function DashboardClient() {
               Welcome back
             </h1>
             <p className="text-sm text-ink-muted mt-1">{session.email}</p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.05 }}
+          >
+            <Link
+              href="/studio"
+              className="btn-press flex items-center justify-between rounded-2xl bg-ink text-cream px-6 py-5 hover:bg-ink-light transition-colors group"
+            >
+              <div>
+                <span className="text-sm font-medium">Create a new video</span>
+                <p className="text-xs text-cream/60 mt-0.5">Drop a profile URL, get a personalised video in minutes</p>
+              </div>
+              <svg viewBox="0 0 16 16" className="w-5 h-5 text-cream/50 group-hover:text-cream group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M3 8h10M9 4l4 4-4 4" />
+              </svg>
+            </Link>
           </motion.div>
 
           <motion.div

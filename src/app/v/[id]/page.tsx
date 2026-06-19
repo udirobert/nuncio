@@ -241,6 +241,37 @@ export default function VideoLandingPage({
             </motion.div>
           )}
 
+          {/* Reply / engagement actions */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-6 flex items-center gap-3 justify-center"
+          >
+            <button
+              onClick={() => {
+                navigator.clipboard?.writeText(
+                  `Thanks for the video${videoData.senderName ? `, ${videoData.senderName}` : ""}! Really appreciate the personal touch.`
+                );
+                const btn = document.getElementById("thanks-btn");
+                if (btn) btn.textContent = "Copied!";
+                setTimeout(() => { if (btn) btn.textContent = "Say thanks"; }, 2000);
+              }}
+              className="btn-press rounded-xl border border-cream-dark bg-white/80 px-5 py-2.5 text-xs font-medium text-ink hover:bg-white transition-colors"
+            >
+              <span id="thanks-btn">Say thanks</span>
+            </button>
+            <Link
+              href={`/?reply=${encodeURIComponent(videoData.senderName || "")}`}
+              className="btn-press rounded-xl bg-ink text-cream px-5 py-2.5 text-xs font-medium hover:bg-ink-light transition-colors flex items-center gap-1.5"
+            >
+              <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2L7 9M14 2l-5 12-2-5-5-2 12-5z" />
+              </svg>
+              Send one back
+            </Link>
+          </motion.div>
+
           {/* CTA section — the growth mechanic */}
           {(videoData.trace?.length ?? 0) > 0 && (
             <motion.div

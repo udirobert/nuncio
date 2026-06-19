@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   const { user, workspace } = await upsertBillingAccount({ email, planType: "free" });
   await ensureTrialCredits({ user, workspace });
 
-  const response = NextResponse.redirect(new URL("/", request.url));
+  const response = NextResponse.redirect(new URL("/studio", request.url));
   response.cookies.set(ACCOUNT_COOKIE, createAccountSessionCookie({ user, workspace }), accountCookieOptions());
   return response;
 }

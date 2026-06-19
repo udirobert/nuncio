@@ -97,6 +97,50 @@ interface StudioClientProps {
   initialVoices?: HeyGenVoice[];
 }
 
+function friendlyError(raw: string): { title: string; detail: string; tip?: string } {
+  const lower = raw.toLowerCase();
+  if (lower.includes("403") || lower.includes("login wall") || lower.includes("could not access")) {
+    return {
+      title: "Couldn't access this profile",
+      detail: "Some platforms block automated access. This isn't your fault.",
+      tip: "Try a LinkedIn profile, personal website, or blog URL instead.",
+    };
+  }
+  if (lower.includes("not enough") || lower.includes("insufficient credits")) {
+    return {
+      title: "Not enough credits",
+      detail: raw,
+      tip: "Top up your credits to continue building videos.",
+    };
+  }
+  if (lower.includes("timeout") || lower.includes("timed out")) {
+    return {
+      title: "Taking longer than expected",
+      detail: "The research or render step timed out. This sometimes happens with complex profiles.",
+      tip: "Try again — it may succeed on the next attempt, or try a simpler profile URL.",
+    };
+  }
+  if (lower.includes("no response") || lower.includes("network") || lower.includes("fetch")) {
+    return {
+      title: "Connection problem",
+      detail: "We couldn't reach the server. Check your internet connection.",
+      tip: "If the problem persists, try refreshing the page.",
+    };
+  }
+  if (lower.includes("could not identify") || lower.includes("not a person")) {
+    return {
+      title: "Couldn't identify a person",
+      detail: "The URL doesn't seem to point to an individual's profile.",
+      tip: "Try a LinkedIn profile, Twitter/X handle, or personal website.",
+    };
+  }
+  return {
+    title: "Something went wrong",
+    detail: raw,
+    tip: "Try again, or start over with a different profile.",
+  };
+}
+
 function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [quickMode, setQuickMode] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem("nuncio_studio_mode") !== "advanced";
@@ -2096,7 +2140,18 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       <path d="M8 5v3.5M8 10.5v.5" />
                     </svg>
                   </div>
-                  <p className="text-sm text-ink-light">{error}</p>
+                  {(() => {
+                    const friendly = friendlyError(error);
+                    return (
+                      <div className="space-y-2">
+                        <h3 className="text-base font-semibold text-ink">{friendly.title}</h3>
+                        <p className="text-sm text-ink-light">{friendly.detail}</p>
+                        {friendly.tip && (
+                          <p className="text-xs text-ink-faint italic">{friendly.tip}</p>
+                        )}
+                      </div>
+                    );
+                  })()}
                   <div className="flex flex-wrap justify-center gap-2 pt-2">
                     {bandSessionId && (
                       <button
@@ -2132,11 +2187,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       </button>
                     ) : null}
                   </div>
-                  {(error.toLowerCase().includes("login wall") || error.toLowerCase().includes("could not access")) && (
-                    <p className="text-[11px] text-ink-faint">
-                      Tip: some platforms block automated access. Try a LinkedIn profile or public blog.
-                    </p>
-                  )}
                 </>
               )}
             </motion.div>
