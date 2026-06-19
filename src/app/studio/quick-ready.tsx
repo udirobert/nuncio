@@ -239,52 +239,47 @@ export function QuickReady({
                   </p>
                 </div>
               )}
-
-              <div className="flex items-center justify-center">
-                <button
-                  onClick={onShare}
-                  className="btn-press rounded-xl border border-cream-dark px-6 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
-                >
-                  <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M3 3h10v10H3z" />
-                    <path d="M8 6v4M6 8h4" />
-                  </svg>
-                  Create share page
-                </button>
-              </div>
             </>
           )}
 
-          {/* Batch CTA */}
+          {/* Next actions — circular flow */}
           {showVideo && (
-            <div className="rounded-2xl border border-accent/20 bg-accent-soft/10 p-4 flex items-center gap-4">
-              <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
-                <svg viewBox="0 0 16 16" className="w-4 h-4 text-accent" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M5 8h6M8 5v6" />
-                  <circle cx="8" cy="8" r="6" />
-                </svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-ink">Send to more people{recipientName ? ` like ${recipientName}` : ""}?</p>
-                <p className="text-[11px] text-ink-muted">Batch create videos with the same style and voice.</p>
-              </div>
-              <a
-                href="/batch"
-                className="btn-press shrink-0 rounded-lg bg-accent text-white px-3 py-2 text-[11px] font-medium hover:bg-accent/90 transition-colors"
+            <div className="space-y-3 pt-2">
+              <button
+                onClick={onReset}
+                className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
               >
-                Open Batch
-              </a>
+                <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M3 8h10M9 4l4 4-4 4" />
+                </svg>
+                Create another video
+              </button>
+              <div className="flex items-center gap-2">
+                <a
+                  href="/dashboard"
+                  className="btn-press flex-1 rounded-xl border border-cream-dark py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="2" y="2" width="5" height="5" rx="1" />
+                    <rect x="9" y="2" width="5" height="5" rx="1" />
+                    <rect x="2" y="9" width="5" height="5" rx="1" />
+                    <rect x="9" y="9" width="5" height="5" rx="1" />
+                  </svg>
+                  View dashboard
+                </a>
+                <a
+                  href="/batch"
+                  className="btn-press flex-1 rounded-xl border border-cream-dark py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M5 8h6M8 5v6" />
+                    <circle cx="8" cy="8" r="6" />
+                  </svg>
+                  Batch create
+                </a>
+              </div>
             </div>
           )}
-
-          <div className="text-center">
-            <button
-              onClick={onReset}
-              className="text-[11px] uppercase tracking-widest text-ink-faint hover:text-ink transition-colors"
-            >
-              Generate another →
-            </button>
-          </div>
         </div>
       </section>
     </motion.div>

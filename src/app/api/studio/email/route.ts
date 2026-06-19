@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
       profile: profile || undefined,
       language: language || profile?.language || "en",
       recipientName,
+      workspaceId: workspace.id,
       trace: [
         {
           label: "Captured email after Studio preview",

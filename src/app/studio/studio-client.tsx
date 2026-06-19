@@ -1010,6 +1010,20 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
       setVideoRenderResult({ videoUrl, videoId });
       setVideoRendering("done");
 
+      // Create/update share record with video URL for dashboard
+      fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoUrl,
+          videoId,
+          recipientName: reviewProfile?.name,
+          senderName: senderName.trim() || undefined,
+          profile: reviewProfile || undefined,
+          privacy: "private",
+        }),
+      }).catch(() => {});
+
       // Flash document title for tabbed-away users
       const originalTitle = document.title;
       document.title = "✅ Video ready! — Nuncio";
