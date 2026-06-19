@@ -99,6 +99,11 @@ async function createVideoViaAgent(
   const voiceId = customization?.voiceId || HEYGEN_VOICE_ID;
   if (voiceId) body.voice_id = voiceId;
 
+  // Enable captions if requested (v3 API supports caption as top-level field)
+  if (customization?.captions) {
+    body.caption = { file_format: "srt", style: "default" };
+  }
+
   const response = await fetchWithRetry(`${HEYGEN_BASE_URL}/v3/video-agents`, {
     method: "POST",
     headers: heygenHeaders({
@@ -253,23 +258,6 @@ async function createVideoDirect(
     },
   };
 
-  // Enable captions/subtitles if requested
-  if (customization?.captions) {
-    (payload.video_inputs as Record<string, unknown>[])[0] = {
-      ...((payload.video_inputs as Record<string, unknown>[])[0]),
-      caption: {
-        enabled: true,
-        font_family: "Montserrat",
-        font_size: 32,
-        font_color: "#FFFFFF",
-        background_enabled: true,
-        background_color: "#000000",
-        background_alpha: 0.6,
-        position: "bottom",
-      },
-    };
-  }
-
   // Apply background from customization or from Melius assets
   const bgUrl = customization?.background?.type === "image"
     ? customization.background.url
@@ -356,7 +344,8 @@ GLOBAL STYLE:
 - Avatar V engine — natural gestures and facial expressions
 ${customization?.avatarId || HEYGEN_AVATAR_ID ? `- Avatar ID: ${customization?.avatarId || HEYGEN_AVATAR_ID}` : ""}
 ${customization?.voiceId || HEYGEN_VOICE_ID ? `- Voice ID: ${customization?.voiceId || HEYGEN_VOICE_ID}` : ""}
-${customization?.width && customization?.height ? `- Resolution: ${customization.width}x${customization.height}` : ""}`;
+${customization?.width && customization?.height ? `- Resolution: ${customization.width}x${customization.height}` : ""}
+${customization?.captions ? `- Enable burned-in captions/subtitles (style: "default") so the script text appears on screen as the avatar speaks.` : ""}`;
 }
 
 /**

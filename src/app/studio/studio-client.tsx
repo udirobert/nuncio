@@ -436,10 +436,14 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     if (proofPoints) localStorage.setItem("nuncio_sender_proof_points", proofPoints);
   }
 
+  const [modeSwitchToast, setModeSwitchToast] = useState<string | null>(null);
+
   function toggleMode() {
     const next = !quickMode;
     setQuickMode(next);
     localStorage.setItem("nuncio_studio_mode", next ? "quick" : "advanced");
+    setModeSwitchToast(next ? "Switched to Quick mode — your brief is preserved" : "Switched to Advanced mode — more controls available");
+    setTimeout(() => setModeSwitchToast(null), 4000);
   }
 
   function handleVoiceComplete(profile: VoiceProfileResult) {
@@ -1115,6 +1119,25 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     <>
       <Header stage={stage === "ready" ? "review" : (stage === "building" || stage === "enriching" || stage === "collaborating" || stage === "generating") ? "progress" : stage === "review" ? "review" : "input"} />
       <OnboardingModal />
+
+      {/* Mode switch toast */}
+      <AnimatePresence>
+        {modeSwitchToast && (
+          <motion.div
+            key="mode-toast"
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.25 }}
+            className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-ink text-cream text-xs font-medium px-4 py-2.5 rounded-xl shadow-lg shadow-ink/20 flex items-center gap-2"
+          >
+            <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-success" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z" />
+            </svg>
+            {modeSwitchToast}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <main className="flex-1 w-full">
         {/* Post-checkout success toast */}
