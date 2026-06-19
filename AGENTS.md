@@ -29,6 +29,15 @@ Phase 8 brand consistency, multi-channel distribution, ElevenLabs Speech Engine 
 - Email gate captured on explicit render/share/download actions, not session start
 
 ## Recent Commits
+- `dd25738` — HeyGen captions via v3 API + mode switch UX toast
+- `ecd1c43` — captions toggle + circular flow on advanced ready screen
+- `4b430b0` — TokenRouter (MiniMax-M3) free LLM fallback provider
+- `b45e3bc` — LLM provider fallback chain + dead-end UX improvements
+- `564e049` — close dead-ends: dashboard CTA, share page reply, error state, post-login redirect
+- `24b066f` — dashboard shows past videos + circular flow on ready screen
+- `e8509b7` — overhaul build-wait screen + fix credit tests
+- `56d8d84` — fallback to email upsert when workspace not found in Turso
+- `22a1390` — credits use Turso as single source of truth
 - `517d283` — studio simplification (Phase 7)
 - `8ddd233` — multi-language delivery
 - `35bd035` — cinematic entrance integration + responsive email templates
@@ -39,6 +48,10 @@ Phase 8 brand consistency, multi-channel distribution, ElevenLabs Speech Engine 
 - Voice agent: wire production server, test end-to-end, create submission video for ElevenLabs Hack #10 (closes May 28)
 - Multi-language delivery — auto-detect target language, offer translation in studio UI
 - Multi-channel distribution — link batch from studio ready page (done)
+- **Studio mode unification** — merge Quick and Advanced modes into a single progressive-disclosure component. Currently two separate UIs (`QuickInput` vs inline advanced form) with a `quickMode` toggle. Switching feels abrupt and users fear losing work. Fix: one component with collapsible "More options" section. The Quick mode IS the advanced mode with extra fields hidden. Eliminates mode-switching anxiety entirely. Current toast notification ("your brief is preserved") is a band-aid.
+- **Script quality** — profile synthesis and script generation rely on LLM fallback chain (Featherless → Venice → TokenRouter). The `fallbackScript()` heuristic produces raw data dumps when all LLM providers fail. Improve fallback to clean hooks and generate meaningfully different variants.
+- **Band agent progress events** — researcher agent posts intermediate progress events to activity bridge during enrichment, but WebSocket instability may cause gaps. Consider adding server-side progress events from the pipeline route as a fallback.
+- **Credit spend transparency** — show credits spent during the current session on the ready screen (currently only shows remaining balance).
 
 ## Relevant Files
 - `src/lib/voice-agent/prompt.ts`: LLM prompt for conversation-to-structed-profile extraction
