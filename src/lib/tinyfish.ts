@@ -421,8 +421,24 @@ function extractHandle(url: string): string | null {
   }
 }
 
+export interface ActivityPost {
+  /** Clean, human-readable text of the post (no scaffolding, no Source: URLs). */
+  text: string;
+  /** Canonical link to the post, if known. */
+  url?: string;
+  /** Platform the post came from. */
+  platform: "twitter" | "linkedin";
+  /** ISO date (YYYY-MM-DD) when the post was made, if reliably known. */
+  date?: string;
+  /** Human-friendly relative date, e.g. "3d ago". */
+  relativeDate?: string;
+}
+
 export interface RecentActivityResult {
+  /** Markdown blob intended as LLM context (not for direct UI display). */
   markdown: string;
+  /** Structured, display-ready posts authored by the recipient. */
+  posts: ActivityPost[];
   source: "twitter" | "linkedin" | "github" | "web";
   postCount: number;
 }
@@ -470,17 +486,60 @@ async function fetchRecentTwitterActivity(handle: string): Promise<RecentActivit
 
   if (unique.length === 0) return null;
 
+  // Only keep posts actually authored by this handle (URL path starts with the
+  // handle), so we don't surface other people's tweets that merely mention them.
+  const authored = unique.filter((r) => r.url && isAuthoredByTwitterHandle(r.url, handle));
+  const sourceResults = authored.length > 0 ? authored : unique;
+
+  const posts: ActivityPost[] = sourceResults.map((r) => {
+    const date = r.url ? extractDateFromUrl(r.url) : "";
+    return {
+      text: cleanPostText(r.snippet || r.title || ""),
+      url: r.url,
+      platform: "twitter" as const,
+      date: date || undefined,
+      relativeDate: date ? toRelativeDate(date) : undefined,
+    };
+  }).filter((p) => p.text.length > 0);
+
   const markdown = [
     `## Recent Activity for @${handle} (Twitter/X)`,
     `The following are recent public posts and activity found for this handle:`,
     "",
-    ...unique.map((r, i) => {
+    ...sourceResults.map((r, i) => {
       const date = r.url ? extractDateFromUrl(r.url) : "";
       return `### Post ${i + 1}${date ? ` (${date})` : ""}\n${r.snippet || r.title || ""}\n${r.url ? `Source: ${r.url}` : ""}`;
     }),
   ].join("\n\n");
 
-  return { markdown, source: "twitter", postCount: unique.length };
+  return { markdown, posts, source: "twitter", postCount: posts.length };
+}
+
+/** True when a tweet URL's path begins with the given handle (i.e. authored by them). */
+function isAuthoredByTwitterHandle(url: string, handle: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "");
+    if (!host.includes("x.com") && !host.includes("twitter.com")) return false;
+    const first = parsed.pathname.split("/").filter(Boolean)[0];
+    return !!first && first.toLowerCase() === handle.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+/** Strip search-result noise (trailing nav, "Explore"/"Trending" chrome, dangling URLs). */
+function cleanPostText(raw: string): string {
+  let text = raw
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/\s*\|\s*/g, " ")
+    .replace(/\bExplore\b.*$/i, "")
+    .replace(/\b(Go to Home|Search X|Trending Stories?|News)\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  // Drop trailing dangling punctuation left behind by stripping.
+  text = text.replace(/[\s·•\-–—]+$/g, "").trim();
+  return text;
 }
 
 async function fetchRecentLinkedInActivity(handle: string): Promise<RecentActivityResult | null> {
@@ -504,6 +563,14 @@ async function fetchRecentLinkedInActivity(handle: string): Promise<RecentActivi
 
   if (unique.length === 0) return null;
 
+  const posts: ActivityPost[] = unique
+    .map((r) => ({
+      text: cleanPostText(r.snippet || r.title || ""),
+      url: r.url,
+      platform: "linkedin" as const,
+    }))
+    .filter((p) => p.text.length > 0);
+
   const markdown = [
     `## Recent Activity for ${handle} (LinkedIn)`,
     `The following are recent LinkedIn posts and activity found:`,
@@ -513,25 +580,55 @@ async function fetchRecentLinkedInActivity(handle: string): Promise<RecentActivi
     }),
   ].join("\n\n");
 
-  return { markdown, source: "linkedin", postCount: unique.length };
+  return { markdown, posts, source: "linkedin", postCount: posts.length };
 }
+
+// Twitter snowflake epoch (2010-11-04) in ms; timestamp = (id >> 22) + epoch.
+const TWITTER_EPOCH_MS = 1288834974657;
 
 function extractDateFromUrl(url: string): string {
   const match = url.match(/(\d{4})\/(\d{2})\/(\d{2})/);
-  if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+  if (match) return isPlausibleIso(`${match[1]}-${match[2]}-${match[3]}`) ? `${match[1]}-${match[2]}-${match[3]}` : "";
 
   const statusMatch = url.match(/\/status\/(\d+)/);
   if (statusMatch) {
-    const ts = parseInt(statusMatch[1], 10);
-    if (!isNaN(ts)) {
-      const snowflakeDate = new Date((ts / 1000) + 1288834974657);
-      if (!isNaN(snowflakeDate.getTime())) {
-        return snowflakeDate.toISOString().split("T")[0];
-      }
+    // timestamp = (id >> 22) + epoch. Tweet IDs exceed MAX_SAFE_INTEGER, but
+    // dividing by 2^22 keeps only the high bits, which stay within float64
+    // precision — accurate to the second, which is all we need for a date.
+    const id = Number(statusMatch[1]);
+    if (Number.isFinite(id) && id > 0) {
+      const ms = Math.floor(id / 4194304) + TWITTER_EPOCH_MS;
+      const date = new Date(ms);
+      const iso = date.toISOString().split("T")[0];
+      if (!isNaN(date.getTime()) && isPlausibleIso(iso)) return iso;
     }
   }
 
   return "";
+}
+
+/** Reject dates outside the range Twitter/LinkedIn could plausibly have produced. */
+function isPlausibleIso(iso: string): boolean {
+  const t = Date.parse(iso);
+  if (isNaN(t)) return false;
+  const year = new Date(t).getUTCFullYear();
+  return year >= 2006 && year <= new Date().getUTCFullYear() + 1;
+}
+
+/** Convert an ISO date to a short relative label like "3d ago" or "2mo ago". */
+function toRelativeDate(iso: string): string {
+  const then = Date.parse(iso);
+  if (isNaN(then)) return "";
+  const diffMs = Date.now() - then;
+  if (diffMs < 0) return "";
+  const day = 86400000;
+  const days = Math.floor(diffMs / day);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
 }
 
 /**

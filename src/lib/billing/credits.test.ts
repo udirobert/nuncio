@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   creditsEnforced,
   estimateCreditCost,
@@ -9,6 +9,34 @@ import {
   refundCreditReservation,
   InsufficientCreditsError,
 } from "./credits";
+
+// In-memory mock storage provider for tests
+const balances = new Map<string, number>();
+const workspaces = new Map<string, { id: string }>();
+
+vi.mock("@/lib/storage", () => ({
+  getAccountStorageProvider: () => ({
+    name: "test-mock",
+    getCreditSummary: async (workspaceId: string) => {
+      const balance = balances.get(workspaceId) || 0;
+      const ws = workspaces.get(workspaceId) || { id: workspaceId };
+      return { workspace: ws, balance, transactions: [] };
+    },
+    appendCreditTransaction: async (input: { workspaceId: string; type: string; amount: number }) => {
+      const current = balances.get(input.workspaceId) || 0;
+      const delta = input.type === "debit" ? -input.amount : input.amount;
+      balances.set(input.workspaceId, Math.max(0, current + delta));
+      return { id: "tx-mock", ...input, createdAt: new Date().toISOString() };
+    },
+    getWorkspace: async (id: string) => workspaces.get(id) || null,
+    upsertUserByEmail: async (email: string) => ({ id: `user-${email}`, email, createdAt: "", updatedAt: "" }),
+    upsertWorkspaceForUser: async (user: { id: string }, updates?: { id?: string }) => {
+      const ws = { id: updates?.id || user.id, ownerUserId: user.id };
+      workspaces.set(ws.id, ws);
+      return ws;
+    },
+  }),
+}));
 
 function mockRequest(headers: Record<string, string> = {}): Request {
   const req = new Request("http://localhost:3000");
@@ -21,6 +49,8 @@ function mockRequest(headers: Record<string, string> = {}): Request {
 beforeEach(() => {
   process.env.NUNCIO_CREDITS_ENFORCED = "true";
   process.env.NUNCIO_TRIAL_CREDITS = "10";
+  balances.clear();
+  workspaces.clear();
 });
 
 describe("creditsEnforced", () => {

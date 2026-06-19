@@ -214,6 +214,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
   // Wait screen context
   const [recentActivity, setRecentActivity] = useState<string | undefined>();
+  const [recentActivityPosts, setRecentActivityPosts] = useState<import("@/lib/tinyfish").ActivityPost[] | undefined>();
   const [draftMessage, setDraftMessage] = useState<{ channel: string; message: string } | null>(null);
 
   // Review stage state
@@ -547,6 +548,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               setReviewSelectedVariant("a");
               setReviewHook(data.hook);
               if (data.recentActivity) setRecentActivity(data.recentActivity);
+              if (data.recentActivityPosts) setRecentActivityPosts(data.recentActivityPosts);
               if (typeof event.creditsBalance === "number") {
                 setSession((prev) => prev ? { ...prev, balance: event.creditsBalance } : prev);
               }
@@ -2022,6 +2024,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 senderName: senderName || undefined,
                 script: reviewScript || undefined,
                 recentActivity,
+                recentActivityPosts,
               }}
               onDraftReady={(draft) => setDraftMessage(draft)}
             />

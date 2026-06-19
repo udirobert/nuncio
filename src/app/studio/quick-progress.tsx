@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { trackWaitScreenComposerOpened, trackWaitScreenDraftSaved, trackWaitScreenQuizOpened, trackWaitScreenAiDraftGenerated } from "@/lib/analytics";
+import type { ActivityPost } from "@/lib/tinyfish";
 
 export type QuickProgressStep = "enrich" | "script" | "build" | "render";
 
@@ -10,7 +11,10 @@ export interface WaitContext {
   recipientName?: string;
   senderName?: string;
   script?: string;
+  /** Markdown blob used as LLM context for draft suggestions (not shown directly). */
   recentActivity?: string;
+  /** Structured, display-ready posts authored by the recipient. */
+  recentActivityPosts?: ActivityPost[];
 }
 
 interface QuickProgressProps {
@@ -30,16 +34,29 @@ const STEPS = [
   { id: "render", label: "Rendering video" },
 ];
 
-const MOMENTS = [
-  "Finding the sharpest personal hook",
-  "Checking the script sounds natural out loud",
-  "Preparing the video scene and voice",
-  "Sending the render job to HeyGen",
-  "HeyGen is rendering your avatar — usually 2–3 minutes",
-  "You can tab away — we will move you forward automatically",
-  "Great time to draft the message that will accompany your video",
-  "Almost there — your personalised video is being finalised",
-];
+// Status lines scoped to the current step so the message never contradicts the
+// stage shown in the step list (e.g. no "writing script" copy during rendering).
+const STEP_MOMENTS: Record<QuickProgressStep, string[]> = {
+  enrich: [
+    "Reading public profiles",
+    "Finding the sharpest personal hook",
+    "Noting recent activity worth referencing",
+  ],
+  script: [
+    "Writing your script",
+    "Checking it sounds natural out loud",
+    "Tightening the opening line",
+  ],
+  build: [
+    "Preparing the video scene and voice",
+    "Composing the visual creative",
+  ],
+  render: [
+    "HeyGen is rendering your avatar — usually 2–3 minutes",
+    "You can tab away — we will move you forward automatically",
+    "Finalising your personalised video",
+  ],
+};
 
 function formatElapsed(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -65,13 +82,14 @@ export function QuickProgress({
   onDraftReady,
 }: QuickProgressProps) {
   const [momentIndex, setMomentIndex] = useState(0);
-  const [showComposer, setShowComposer] = useState(false);
+  const [showComposer, setShowComposer] = useState(true);
   const [selectedChannel, setSelectedChannel] = useState("email");
   const [draftMessage, setDraftMessage] = useState("");
-  const [showQuiz, setShowQuiz] = useState(false);
   const [suggestedDraft, setSuggestedDraft] = useState("");
   const [suggestionLoading, setSuggestionLoading] = useState(false);
   const suggestionFetchedRef = useRef<string | null>(null);
+  // Ensures we track "composer opened" + fetch the first suggestion only once.
+  const composerInitRef = useRef(false);
 
   const fetchSuggestion = useCallback(async (channel: string) => {
     if (!waitContext?.recipientName) return;
@@ -106,11 +124,34 @@ export function QuickProgress({
     return Math.min(96, Math.round(base + activeBoost));
   }, [activeIndex, videoRendering]);
 
+  // A single ever-increasing counter; modulo into the current step's messages
+  // keeps the status line in sync with the step without resetting on change.
+  const moments = STEP_MOMENTS[currentStep] ?? STEP_MOMENTS.render;
+  const currentMoment = moments[momentIndex % moments.length];
+
   useEffect(() => {
     const interval = setInterval(() => {
-      setMomentIndex((index) => (index + 1) % MOMENTS.length);
+      setMomentIndex((index) => index + 1);
     }, 4500);
     return () => clearInterval(interval);
+  }, []);
+
+  // The composer is open by default during render — record that it was shown
+  // once. The AI suggestion is generated on explicit user action (below) to
+  // avoid an LLM call for every visitor who never engages with the composer.
+  useEffect(() => {
+    if (currentStep !== "render" || !showComposer || composerInitRef.current) return;
+    composerInitRef.current = true;
+    trackWaitScreenComposerOpened();
+  }, [currentStep, showComposer]);
+
+  // Append a recipient's post as a reference the user can rework into their draft.
+  const referencePost = useCallback((post: ActivityPost) => {
+    setShowComposer(true);
+    const snippet = post.text.length > 140 ? `${post.text.slice(0, 140).trim()}…` : post.text;
+    const reference = `Saw your post: "${snippet}" — `;
+    setDraftMessage((prev) => (prev.trim() ? `${prev.trim()}\n\n${reference}` : reference));
+    trackWaitScreenQuizOpened();
   }, []);
 
   return (
@@ -158,14 +199,14 @@ export function QuickProgress({
           </div>
           <AnimatePresence mode="wait">
             <motion.p
-              key={momentIndex}
+              key={`${currentStep}-${momentIndex % moments.length}`}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.25 }}
               className="text-sm text-ink-light"
             >
-              {MOMENTS[momentIndex]}
+              {currentMoment}
             </motion.p>
           </AnimatePresence>
         </div>
@@ -210,7 +251,7 @@ export function QuickProgress({
           })}
         </div>
 
-        {/* ─── Message Composer ──────────────────────────── */}
+        {/* ─── Prep your outreach (composer + recipient intel) ── */}
         {currentStep === "render" && (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -222,19 +263,19 @@ export function QuickProgress({
               onClick={() => {
                 const opening = !showComposer;
                 setShowComposer(opening);
-                if (opening) {
+                if (opening && !composerInitRef.current) {
+                  composerInitRef.current = true;
                   trackWaitScreenComposerOpened();
-                  if (!draftMessage) fetchSuggestion(selectedChannel);
                 }
               }}
               className="w-full flex items-center justify-between"
             >
               <div className="flex items-center gap-2">
-                <span className="text-sm">\u270D\uFE0F</span>
-                <span className="text-xs font-medium text-ink">Draft your send message</span>
+                <span className="text-sm">{"\u270D\uFE0F"}</span>
+                <span className="text-xs font-medium text-ink">Prep your outreach while you wait</span>
               </div>
               <span className="text-[10px] text-accent font-medium">
-                {showComposer ? "Collapse" : "While you wait"}
+                {showComposer ? "Collapse" : "Expand"}
               </span>
             </button>
 
@@ -255,7 +296,7 @@ export function QuickProgress({
                     {MESSAGE_CHANNELS.map((ch) => (
                       <button
                         key={ch.id}
-                        onClick={() => { setSelectedChannel(ch.id); suggestionFetchedRef.current = null; setSuggestedDraft(""); if (!draftMessage) fetchSuggestion(ch.id); }}
+                        onClick={() => { const hadSuggestion = !!suggestedDraft; setSelectedChannel(ch.id); suggestionFetchedRef.current = null; setSuggestedDraft(""); if (hadSuggestion && !draftMessage) fetchSuggestion(ch.id); }}
                         className={`rounded-lg border px-2.5 py-1.5 text-[11px] transition-all ${
                           selectedChannel === ch.id
                             ? "border-accent bg-accent-soft/40 text-accent font-medium"
@@ -268,6 +309,14 @@ export function QuickProgress({
                   </div>
 
                   {/* AI suggestion */}
+                  {waitContext?.recipientName && !suggestionLoading && !suggestedDraft && !draftMessage && (
+                    <button
+                      onClick={() => fetchSuggestion(selectedChannel)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent-soft/30 px-3 py-1.5 text-[11px] font-medium text-accent hover:bg-accent-soft/50 transition-colors"
+                    >
+                      {"\u2728"} Draft with AI
+                    </button>
+                  )}
                   {suggestionLoading && (
                     <div className="flex items-center gap-2 text-[11px] text-ink-faint animate-pulse">
                       <span className="inline-block w-3 h-3 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
@@ -303,72 +352,57 @@ export function QuickProgress({
                     className="w-full h-24 rounded-xl border border-cream-dark bg-cream/30 p-3 text-sm text-ink placeholder:text-ink-faint/60 resize-none focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all"
                   />
 
-                  {/* Tips based on context */}
-                  {waitContext?.recipientName && (
-                    <div className="rounded-lg bg-cream-dark/30 p-2.5">
-                      <p className="text-[10px] text-ink-faint">
-                        <span className="font-medium">Tip:</span> Mention why now is the right time to reach {waitContext.recipientName}.
-                        {waitContext.recentActivity && " You could reference their recent activity."}
-                      </p>
-                    </div>
-                  )}
-
                   {draftMessage.length > 10 && onDraftReady && (
                     <button
                       onClick={() => { onDraftReady({ channel: selectedChannel, message: draftMessage }); trackWaitScreenDraftSaved({ channel: selectedChannel, usedAiSuggestion: draftMessage === suggestedDraft }); }}
                       className="text-[11px] text-accent font-medium hover:text-accent/80 transition-colors"
                     >
-                      \u2713 Save draft
+                      {"\u2713"} Save draft
                     </button>
                   )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        )}
 
-        {/* ─── Recipient Quiz (from recent activity) ──────── */}
-        {currentStep === "render" && waitContext?.recentActivity && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="rounded-2xl border border-warm/20 bg-white p-4 space-y-3"
-          >
-            <button
-              onClick={() => { const opening = !showQuiz; setShowQuiz(opening); if (opening) trackWaitScreenQuizOpened(); }}
-              className="w-full flex items-center justify-between"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-sm">\uD83E\uDDE0</span>
-                <span className="text-xs font-medium text-ink">
-                  How well do you know {waitContext.recipientName || "them"}?
-                </span>
-              </div>
-              <span className="text-[10px] text-warm font-medium">
-                {showQuiz ? "Collapse" : "Quick quiz"}
-              </span>
-            </button>
-
-            <AnimatePresence>
-              {showQuiz && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="rounded-lg bg-warm-soft/30 p-3 space-y-2">
-                    <p className="text-[11px] text-ink-muted leading-relaxed">
-                      Based on their recent public activity:
-                    </p>
-                    <div className="text-xs text-ink-light leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto">
-                      {waitContext.recentActivity.slice(0, 600)}
+                  {/* Recipient intel — clean cards built from structured posts */}
+                  {waitContext?.recentActivityPosts && waitContext.recentActivityPosts.length > 0 && (
+                    <div className="space-y-2 pt-1 border-t border-cream-dark/60">
+                      <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium pt-2">
+                        What we found about {waitContext.recipientName || "them"}
+                      </p>
+                      <div className="space-y-1.5">
+                        {waitContext.recentActivityPosts.slice(0, 4).map((post, i) => (
+                          <div
+                            key={i}
+                            className="rounded-xl border border-cream-dark bg-cream/30 p-2.5 space-y-1.5"
+                          >
+                            <p className="text-xs text-ink-light leading-relaxed line-clamp-3">
+                              {post.text}
+                            </p>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] text-ink-faint flex items-center gap-1.5">
+                                <span>{post.platform === "linkedin" ? "\uD83D\uDCBC" : "\uD83D\uDC26"}</span>
+                                {post.relativeDate && <span>{post.relativeDate}</span>}
+                                {post.url && (
+                                  <a
+                                    href={post.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-accent hover:underline"
+                                  >
+                                    View
+                                  </a>
+                                )}
+                              </span>
+                              <button
+                                onClick={() => referencePost(post)}
+                                className="text-[10px] text-accent font-medium hover:text-accent/80 transition-colors shrink-0"
+                              >
+                                Reference in draft {"\u2192"}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <p className="text-[10px] text-ink-faint pt-1">
-                      Use these insights to personalise your send message above.
-                    </p>
-                  </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

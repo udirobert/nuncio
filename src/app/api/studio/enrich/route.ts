@@ -34,6 +34,7 @@ export interface EnrichResponse {
   sourceAttribution?: import("@/lib/claude").SourceAttribution;
   researchTier?: "quick" | "balanced" | "deep";
   recentActivity?: string;
+  recentActivityPosts?: import("@/lib/tinyfish").ActivityPost[];
 }
 
 function cleanOptionalString(value: unknown): string | undefined {
@@ -250,13 +251,17 @@ export async function POST(request: NextRequest) {
         send({ phase: "compose" });
 
         let recentActivity: string | undefined;
+        let recentActivityPosts: import("@/lib/tinyfish").ActivityPost[] | undefined;
         let companyContext: string | undefined;
 
         // Only fetch activity + company context for quick tier (deep/balanced already have it via orchestrator)
         if (researchTier === "quick" || !researchTier) {
           if (url) {
             const activity = await fetchRecentActivity(url);
-            if (activity) recentActivity = activity.markdown;
+            if (activity) {
+              recentActivity = activity.markdown;
+              recentActivityPosts = activity.posts.length > 0 ? activity.posts : undefined;
+            }
           }
           if (profile.company && profile.company !== "there") {
             const ctx = await enrichCompany(profile.company);
@@ -316,6 +321,7 @@ export async function POST(request: NextRequest) {
           sourceAttribution: profile.sourceAttribution,
           researchTier: (researchTier as "quick" | "balanced" | "deep" | undefined) || "quick",
           recentActivity,
+          recentActivityPosts,
         };
 
         send({
