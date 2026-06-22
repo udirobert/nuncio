@@ -10,7 +10,7 @@ Phase 8 brand consistency, multi-channel distribution, ElevenLabs Speech Engine 
 - Speech Engine: `SPEECH_ENGINE_ID` env var activates the voice agent; `VOICE_PUBLIC_URL` sets the wsUrl; both packages: `@elevenlabs/elevenlabs-js` (server) and `@elevenlabs/client` (browser `Conversation.startSession`)
 - `fetchRecentActivity()` uses TinyFish Search API for Twitter/X and LinkedIn recent posts
 - Production server at `src/server/production.ts` — runs Next.js + Speech Engine WebSocket on the same HTTP server; started via `tsx src/server/production.ts` (the `start` script)
-- `gh auth switch --user udirobert` before push; Coolify deploy via `ssh nuncio-vultr` artisan tinker commands
+- Ensure correct `gh` auth profile before push; deploy via SSH to the production server (see `scripts/deploy-nuncio.sh`)
 - Sentry DSN set on Coolify via env vars; `SENTRY_DSN` activates `@sentry/nextjs` v10
 - `WorkspaceAccount` extended with `lastSenderBrief` and `lastSenderName`
 - Cinematic entrance generated in build pipeline as `data:audio/mpeg;base64` URL alongside soundscape; played on user click in `/v/[id]` before video starts

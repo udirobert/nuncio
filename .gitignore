@@ -63,3 +63,6 @@ nuncio-announcement/node_modules/
 /public/composed/
 *.local.sh
 scripts/deploy-local.sh
+scripts/deploy-nuncio.sh
+scripts/deploy-production.sh
+.commandcode/
