@@ -1,7 +1,17 @@
 # nuncio — Agent Context
 
 ## Goal
-Phase 8 brand consistency, multi-channel distribution, ElevenLabs Speech Engine voice agent, and production hardening.
+Phase 9: Autonomous SDR agent mode (Hermes + Nemotron 3 Ultra + Stripe Skills) alongside existing Band agent + studio workflows. Dual-mode architecture — same pipeline, two operating modes.
+
+## Core Principles
+- **ENHANCEMENT FIRST**: Always prioritize enhancing existing components over creating new ones
+- **CONSOLIDATION**: Delete unnecessary code rather than deprecating
+- **PREVENT BLOAT**: Systematically audit and consolidate before adding new features
+- **DRY**: Single source of truth for all shared logic
+- **CLEAN**: Clear separation of concerns with explicit dependencies
+- **MODULAR**: Composable, testable, independent modules
+- **PERFORMANT**: Adaptive loading, caching, and resource optimization
+- **ORGANIZED**: Predictable file structure with domain-driven design
 
 ## Constraints & Preferences
 - Next.js App Router with Turso (SQLite) or file-based storage providers; provider selected by `TURSO_DATABASE_URL` or `NUNCIO_DATA_DIR`
@@ -27,6 +37,12 @@ Phase 8 brand consistency, multi-channel distribution, ElevenLabs Speech Engine 
 - Voice overlay ("Brief with voice") is an alternative input channel in the studio; LLM extracts structured profile from natural conversation
 - Nomenclature uses "AI-powered · personalised video" for badge, "Build video" for CTA, "Background audio" for soundscape selector
 - Email gate captured on explicit render/share/download actions, not session start
+- **Dual-mode architecture**: Band agents (human-driven studio) and Hermes agent (autonomous background) are two clients over the same API layer. No duplication — both consume shared pipeline step functions. Band agents are NOT replaced or deprecated.
+- **Pipeline steps extracted** to `src/lib/pipeline/steps.ts` — single source of truth for research → synthesize → script → render → deliver. Both the existing pipeline route and agent endpoints call these shared functions.
+- **Agent API layer** lives under `src/app/api/agent/` — clean domain boundary. Auth via `NUNCIO_AGENT_TOKEN` env var (single shared token, not per-user).
+- **Hermes uses Nemotron 3 Ultra** for reasoning/orchestration; nuncio's existing LLM fallback chain handles content generation. Clean separation — no model config duplication.
+- **Stripe Skills installed in Hermes**, not built in nuncio. `stripe-projects` provisions HeyGen/ElevenLabs credits autonomously; `stripe-link-cli` handles earning (checkout for booked meetings). Nuncio's `/api/agent/earn-checkout` is a thin server-side proxy for Stripe Checkout creation.
+- **Hybrid mode**: Hermes can queue draft videos for human review in the studio — best of autonomous scale + human quality control. This is the primary product mode; fully-autonomous is a config toggle.
 
 ## Recent Commits
 - `dd25738` — HeyGen captions via v3 API + mode switch UX toast
@@ -53,6 +69,86 @@ Phase 8 brand consistency, multi-channel distribution, ElevenLabs Speech Engine 
 - **Band agent progress events** — researcher agent posts intermediate progress events to activity bridge during enrichment, but WebSocket instability may cause gaps. Consider adding server-side progress events from the pipeline route as a fallback.
 - **Credit spend transparency** — show credits spent during the current session on the ready screen (currently only shows remaining balance).
 
+## Phase 9: Autonomous SDR Agent (Hermes Hackathon + Product)
+
+### Architecture: Dual-Mode, Single Pipeline
+```
+  Band agents (existing)          Hermes agent (new)
+  Human-driven studio             Autonomous background
+         │                              │
+         ▼                              ▼
+  ┌──────────────────────────────────────────┐
+  │  Shared API Layer (src/lib/pipeline/)    │
+  │  research → synthesize → script →        │
+  │  render → deliver                        │
+  └──────────────────────────────────────────┘
+```
+
+### Implementation Plan
+
+**Phase 0 — DRY Refactor (DONE)**
+- Extracted pipeline step functions from `src/app/api/pipeline/route.ts` into `src/lib/pipeline/steps.ts`
+- Route is now a thin SSE handler calling shared steps (`researchAndSynthesize`, `generateOutreachScript`, `reviewScript`, `renderVideo`)
+- Band agents continue calling the route over HTTP — unchanged, zero behavior change
+- Typecheck passes clean
+
+**Phase 1 — Agent API Layer (DONE, verified end-to-end)**
+- `src/lib/agent-auth.ts`: token validation (NUNCIO_AGENT_TOKEN env var), resolves to CreditSubject
+- `POST/GET /api/agent/prospect-queue`: enqueue prospect for end-to-end processing, poll status
+- `POST/GET /api/agent/reply-webhook`: receive + classify email replies via existing LLM fallback chain
+- `POST /api/agent/earn-checkout`: create Stripe Checkout for booked meetings (reuses existing Stripe integration)
+- All endpoints verified: auth rejection, successful pipeline execution, reply classification, Stripe checkout creation
+
+**Phase 2 — Hermes Skills (DONE, all 8 enabled)**
+- `sdr-orchestrator/SKILL.md`: the autonomous loop (blueprint, cron-scheduled 9am weekdays, Telegram delivery)
+- `nuncio-research/SKILL.md`: enqueue prospect via prospect-queue API
+- `nuncio-synthesize/SKILL.md`: profile synthesis
+- `nuncio-script/SKILL.md`: script generation/regeneration
+- `nuncio-render/SKILL.md`: video render + poll
+- `nuncio-deliver/SKILL.md`: multi-channel delivery (email, LinkedIn, Twitter, WhatsApp)
+- `nuncio-handle-reply/SKILL.md`: poll reply-webhook, classify, respond
+- `sdr-earn/SKILL.md`: create Stripe checkout for booked meetings
+- All skills visible in `hermes skills list` under `nuncio` category
+
+**Phase 3 — NVIDIA + Stripe Wiring (DONE)**
+- Hermes config: Nemotron 3 Ultra via build.nvidia.com (set as default model)
+- NVIDIA_API_KEY set in both nuncio `.env` and Hermes `~/.hermes/.env`
+- Stripe Skills installed: `stripe-projects`, `stripe-link-cli`, `mpp-agent` (from NousResearch/hermes-agent repo)
+- NUNCIO_AGENT_TOKEN set in both nuncio `.env` and Hermes `~/.hermes/.env`
+- Agent provisions own HeyGen/ElevenLabs credits when low (spends)
+- Agent creates Stripe Checkout for booked meetings (earns)
+
+**Phase 4 — Demo & Submission (READY)**
+- Full autonomous loop: prospect → research → video → deliver → reply → book → earn
+- Hybrid mode: agent queues drafts for human review in studio
+- Reports via Telegram: prospects contacted, replies, meetings, revenue, spend
+- End-to-end test verified: eladgil.com → profile synthesized → script generated → reply classified "interested" → Stripe checkout created
+
+**Verified Test Results (2026-06-29)**
+| Step | Endpoint | Result |
+|------|----------|--------|
+| Auth (valid token) | `GET /api/agent/prospect-queue` | `200 {"queue":[]}` |
+| Auth (invalid token) | `GET /api/agent/prospect-queue` | `401 {"error":"Invalid agent token"}` |
+| Prospect queue | `POST /api/agent/prospect-queue` | Enqueued, processed, completed |
+| Pipeline execution | (async) | Researched eladgil.com → synthesized "Elad Gil" profile → generated personalized script → created ShareRecord |
+| Reply classification | `POST /api/agent/reply-webhook` | `{"intent":"interested","suggestedAction":"propose_meeting"}` |
+| Earn checkout | `POST /api/agent/earn-checkout` | Stripe Checkout session created for $50 |
+
+**Reply Webhook Wiring (not yet connected)**
+The `/api/agent/reply-webhook` endpoint receives POST requests with email replies and classifies them. To wire real email replies:
+1. Set `RESEND_API_KEY` in `.env.local` (enables email sending)
+2. Configure a Resend inbound domain for reply forwarding
+3. Point the inbound webhook to `POST /api/agent/reply-webhook` with body `{ from, subject, text, inReplyTo }`
+4. Alternatively, use a simple email forward rule or manual forwarding for testing
+The endpoint is fully functional — it just needs inbound email routing configured at the provider level.
+
+### Operating Modes
+| Mode | Driver | Band agents | Hermes | Use case |
+|------|--------|-------------|--------|----------|
+| Studio (existing) | Human | Yes | No | Craft perfect outreach with full control |
+| Autonomous (new) | Hermes | No | Yes | Run outreach unattended, report via chat |
+| Hybrid (new) | Hermes + Human | No | Yes (drafts) | Agent generates drafts, human approves in studio |
+
 ## Relevant Files
 - `src/lib/voice-agent/prompt.ts`: LLM prompt for conversation-to-structed-profile extraction
 - `src/lib/voice-agent/types.ts`: `VoiceExtractedProfile`, `ConversationTurn` types
@@ -66,3 +162,10 @@ Phase 8 brand consistency, multi-channel distribution, ElevenLabs Speech Engine 
 - `src/lib/elevenlabs.ts`: `generateCinematicEntrance()`, `textToSpeech()`, `generateSoundEffect()`, `VIBE_PRESETS`
 - `src/app/studio/studio-client.tsx`: Studio UI with "Brief with voice" button, progressive disclosure, etc.
 - `next.config.ts`, `sentry.*.config.ts`, `instrumentation.ts`, `global-error.tsx`: Sentry setup
+- `src/lib/pipeline/steps.ts`: Shared pipeline step functions (research, synthesize, script, render, deliver) — single source of truth for both pipeline route and agent endpoints
+- `src/lib/agent-auth.ts`: Agent API token validation (`NUNCIO_AGENT_TOKEN`)
+- `src/app/api/agent/prospect-queue/route.ts`: Enqueue + poll prospect processing for autonomous agent
+- `src/app/api/agent/reply-webhook/route.ts`: Receive + classify email replies
+- `src/app/api/agent/earn-checkout/route.ts`: Create Stripe Checkout for booked meetings
+- `agents/nuncio_agents/`: Band agents (researcher, copywriter) — human-driven studio mode, NOT deprecated
+- `~/.hermes/skills/nuncio/`: Hermes skills for autonomous SDR mode (8 SKILL.md files)

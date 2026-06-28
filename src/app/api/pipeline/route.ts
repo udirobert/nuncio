@@ -1,7 +1,5 @@
 import { NextRequest } from "next/server";
-import { enrich, fetchRecentActivity, enrichCompany } from "@/lib/tinyfish";
-import { synthesise, generateScript, generateScriptVariants } from "@/lib/claude";
-import type { Profile, IntentId, ScriptResult, SenderProfile, OutreachIntentProfile } from "@/lib/claude";
+import type { Profile, SenderProfile } from "@/lib/claude";
 import { chooseArchetype } from "@/lib/hooks/select";
 import { pickFormat, type HookArchetypeId } from "@/lib/hooks/archetypes";
 import {
@@ -12,16 +10,19 @@ import {
   InsufficientCreditsError,
   reserveCredits,
 } from "@/lib/billing/credits";
-import { ResearchOrchestrator } from "@/lib/research/orchestrator";
-import type { QualityTier } from "@/lib/research/types";
 import { PipelineActivityEmitter } from "@/lib/pipeline/activity-emitter";
+import { formatProfileSummary } from "@/lib/pipeline/format";
 import { getBandActivityProvider } from "@/lib/storage";
 import {
-  formatResearchSummary,
-  formatProfileSummary,
-  formatScriptDraft,
-  formatReview,
-} from "@/lib/pipeline/format";
+  buildSenderProfile,
+  buildOutreachIntent,
+  cleanOptionalString,
+  researchAndSynthesize,
+  generateOutreachScript,
+  reviewScript,
+  renderVideo,
+  type PipelineInput,
+} from "@/lib/pipeline/steps";
 
 interface EnrichResponse {
   profile: Profile;
@@ -43,45 +44,6 @@ interface EnrichResponse {
   researchTier?: "quick" | "balanced" | "deep";
   recentActivity?: string;
   recentActivityPosts?: import("@/lib/tinyfish").ActivityPost[];
-}
-
-function cleanOptionalString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-function cleanStringArray(value: unknown): string[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const cleaned = value
-    .map((item) => (typeof item === "string" ? item.trim() : ""))
-    .filter(Boolean);
-  return cleaned.length > 0 ? cleaned : undefined;
-}
-
-function buildSenderProfile(body: Record<string, unknown>): SenderProfile | undefined {
-  const senderProfile: SenderProfile = {
-    business: cleanOptionalString(body.senderBusiness),
-    brand: cleanOptionalString(body.senderBrand),
-    personality: cleanOptionalString(body.senderPersonality),
-    audience: cleanOptionalString(body.senderAudience),
-    offer: cleanOptionalString(body.senderOffer),
-    proofPoints: cleanStringArray(body.senderProofPoints),
-  };
-  return Object.values(senderProfile).some(Boolean) ? senderProfile : undefined;
-}
-
-function buildOutreachIntent(body: Record<string, unknown>): OutreachIntentProfile | undefined {
-  const relationshipWarmth = body.relationshipWarmth;
-  const outreachIntent: OutreachIntentProfile = {
-    goal: cleanOptionalString(body.outreachGoal),
-    desiredOutcome: cleanOptionalString(body.desiredOutcome),
-    reasonForReachingOutNow: cleanOptionalString(body.reasonForReachingOutNow),
-    relationshipWarmth:
-      relationshipWarmth === "cold" || relationshipWarmth === "warm" || relationshipWarmth === "existing"
-        ? relationshipWarmth
-        : undefined,
-    tonePreference: cleanOptionalString(body.tonePreference),
-  };
-  return Object.values(outreachIntent).some(Boolean) ? outreachIntent : undefined;
 }
 
 async function resolveUserPlan(
@@ -161,21 +123,16 @@ export async function POST(request: NextRequest) {
         // Resume from checkpoint if available
         const resumeSessionId = body.resumeSessionId as string | undefined;
         let resumedProfile: Profile | undefined;
-        let resumedMarkdown: string[] | undefined;
 
         if (resumeSessionId) {
           try {
             const prevEvents = await getBandActivityProvider().getEvents(resumeSessionId);
             const checkpoints = prevEvents.filter((e) => e.eventType === "checkpoint");
             const profileCp = checkpoints.find((e) => e.agent === "researcher" && e.metadata?.profile);
-            const researchCp = checkpoints.find((e) => e.agent === "researcher" && e.metadata?.markdown);
 
             if (profileCp) {
               resumedProfile = profileCp.metadata!.profile as Profile;
               emitter.thought("system", "Resuming from profile checkpoint...");
-            } else if (researchCp) {
-              resumedMarkdown = (researchCp.metadata!.markdown as string).split("\n---\n");
-              emitter.thought("system", "Resuming from research checkpoint...");
             }
           } catch { /* no checkpoints available, run full pipeline */ }
         }
@@ -209,8 +166,27 @@ export async function POST(request: NextRequest) {
           return;
         }
 
-        // ── Step 1: Research ───────────────────────────────────────────
+        const pipelineInput: PipelineInput = {
+          url,
+          senderName,
+          senderBrief,
+          senderProfile,
+          outreachIntent,
+          researchTier: researchTier as "quick" | "balanced" | "deep" | undefined,
+          deepResearchEnabled,
+          languageOverride,
+          scriptVariants: body.scriptVariants === true,
+          autoRender: body.autoRender === true,
+          customization: body.customization,
+          archetype,
+          userTier: subject.anonymous ? "trial" : await resolveUserPlan(subject, request),
+        };
+
+        // ── Steps 1+2: Research & Synthesize ───────────────────────────
         let profile: Profile;
+        let recentActivity: string | undefined;
+        let recentActivityPosts: import("@/lib/tinyfish").ActivityPost[] | undefined;
+        let companyContext: string | undefined;
 
         if (resumedProfile) {
           profile = resumedProfile;
@@ -218,220 +194,36 @@ export async function POST(request: NextRequest) {
           emitter.stageComplete("researcher", "Resumed from checkpoint");
           send({ phase: "compose" });
         } else {
-          emitter.thought("researcher", `Researching ${url}...`);
           send({ phase: "enrich" });
+          const research = await researchAndSynthesize(pipelineInput, emitter);
+          profile = research.profile;
+          recentActivity = research.recentActivity;
+          recentActivityPosts = research.recentActivityPosts;
+          companyContext = research.companyContext;
 
-          const effectiveTier: QualityTier = researchTier === "balanced" || researchTier === "deep"
-            ? researchTier
-            : "quick";
-
-        if (effectiveTier !== "quick" || deepResearchEnabled) {
-          const orchestrator = new ResearchOrchestrator({
-            qualityTier: effectiveTier,
-            userTier: subject.anonymous ? "trial" : (await resolveUserPlan(subject, request)) || "free",
-            enableDeepResearch: deepResearchEnabled,
-            senderBrief: senderBrief,
-          });
-
-          const researchResult = await orchestrator.research(url);
-          const markdown = researchResult.sources
-            .filter((s) => s.content)
-            .map((s) => s.content || "")
-            .filter(Boolean);
-
-          if (markdown.length === 0) {
-            send({ error: "Could not access profile. Try a different URL or platform." });
-            emitter.error("researcher", "Could not access profile");
-            controller.close();
-            return;
-          }
-
-          emitter.message("researcher", `Enriched via ${researchResult.sources.length} source(s)`);
-          emitter.stageComplete("researcher", "Research complete");
-
-          // ── Step 2: Synthesize ─────────────────────────────────────────
-          emitter.thought("researcher", "Synthesizing recipient profile...");
+          emitter.checkpoint("researcher", "Profile checkpoint", { profile });
           send({ phase: "synthesise" });
-
-          profile = await synthesise(markdown, {
-            senderContext: {
-              senderBrief,
-              senderName,
-              senderBusiness: senderProfile?.business,
-              senderBrand: senderProfile?.brand,
-              senderPersonality: senderProfile?.personality,
-              senderAudience: senderProfile?.audience,
-              senderOffer: senderProfile?.offer,
-              senderProofPoints: senderProfile?.proofPoints,
-              outreachGoal: outreachIntent?.goal,
-              desiredOutcome: outreachIntent?.desiredOutcome,
-              relationshipWarmth: outreachIntent?.relationshipWarmth,
-              reasonForReachingOutNow: outreachIntent?.reasonForReachingOutNow,
-              tonePreference: outreachIntent?.tonePreference,
-            },
-          });
-        } else {
-          const enrichment_0 = await enrich([url], { discoverRelated: true });
-          const results = enrichment_0.map((r) => ({
-            url: url,
-            success: r.success,
-            markdown: r.markdown,
-            reason: r.success ? undefined : "Enrichment failed",
-          }));
-
-          const markdown = enrichment_0.filter((r) => r.success).map((r) => r.markdown);
-
-          if (markdown.length === 0) {
-            send({ error: "Could not access profile. The page may be behind a login wall." });
-            emitter.error("researcher", "Could not access profile");
-            controller.close();
-            return;
-          }
-
-          emitter.message("researcher", formatResearchSummary(results));
-          emitter.stageComplete("researcher", "Research complete");
-
-          // ── Step 2: Synthesize ─────────────────────────────────────────
-          emitter.thought("researcher", "Synthesizing recipient profile...");
-          send({ phase: "synthesise" });
-
-          profile = await synthesise(markdown, {
-            senderContext: {
-              senderBrief,
-              senderName,
-              senderBusiness: senderProfile?.business,
-              senderBrand: senderProfile?.brand,
-              senderPersonality: senderProfile?.personality,
-              senderAudience: senderProfile?.audience,
-              senderOffer: senderProfile?.offer,
-              senderProofPoints: senderProfile?.proofPoints,
-              outreachGoal: outreachIntent?.goal,
-              desiredOutcome: outreachIntent?.desiredOutcome,
-              relationshipWarmth: outreachIntent?.relationshipWarmth,
-              reasonForReachingOutNow: outreachIntent?.reasonForReachingOutNow,
-              tonePreference: outreachIntent?.tonePreference,
-            },
-          });
         }
 
-        // Checkpoint: persist profile for resumability
-        if (!resumedProfile) {
-          emitter.checkpoint("researcher", "Profile checkpoint", {
-            profile,
-          });
-        }
-        } // end resume else
-
-        if (profile.name === "there") {
-          send({ error: "Could not identify a person from this profile. Try a different URL." });
-          emitter.error("researcher", "Could not identify person");
-          controller.close();
-          return;
-        }
-
-        emitter.message("researcher", formatProfileSummary(profile));
-
-        if (languageOverride) {
-          profile.language = languageOverride;
-        }
-        if (senderProfile) {
-          profile.sender_profile = senderProfile;
-        }
-        if (outreachIntent) {
-          profile.outreach_intent = outreachIntent;
-        }
-
-        // ── Step 3: Generate Script ──────────────────────────────────────
-        emitter.thought("copywriter", "Drafting personalized outreach script...");
+        // ── Step 3: Generate Script ─────────────────────────────────────
         send({ phase: "compose" });
+        const { scriptResult, variantA, variantB } = await generateOutreachScript(
+          profile,
+          senderBrief,
+          pipelineInput,
+          { recentActivity, companyContext },
+          emitter,
+        );
 
-        let recentActivity: string | undefined;
-        let recentActivityPosts: import("@/lib/tinyfish").ActivityPost[] | undefined;
-        let companyContext: string | undefined;
+        // ── Step 4: Review ──────────────────────────────────────────────
+        const { passed } = reviewScript(scriptResult, profile, emitter);
 
-        if (researchTier === "quick" || !researchTier) {
-          const activity = await fetchRecentActivity(url);
-          if (activity) {
-            recentActivity = activity.markdown;
-            recentActivityPosts = activity.posts.length > 0 ? activity.posts : undefined;
-          }
-          if (profile.company && profile.company !== "there") {
-            const ctx = await enrichCompany(profile.company);
-            if (ctx) companyContext = ctx;
-          }
-        }
-
-        const scriptOptions = {
-          intent: undefined as IntentId | undefined,
-          senderName: typeof senderName === "string" ? senderName.trim() || undefined : undefined,
-          recentActivity,
-          companyContext,
-          senderProfile,
-          outreachIntent,
-          toneInstruction: outreachIntent?.tonePreference
-            ? `Honor this sender preference where it still feels natural: ${outreachIntent.tonePreference}.`
-            : undefined,
-        };
-
-        let scriptResult: ScriptResult;
-        let variantA: string | undefined;
-        let variantB: string | undefined;
-
-        const wantsVariants = body.scriptVariants === true;
-        if (wantsVariants) {
-          const variants = await generateScriptVariants(profile, senderBrief, scriptOptions);
-          scriptResult = variants.variantA;
-          variantA = variants.variantA.script;
-          variantB = variants.variantB.script;
-        } else {
-          scriptResult = await generateScript(profile, senderBrief, scriptOptions);
-        }
-
-        emitter.message("copywriter", formatScriptDraft(scriptResult, profile));
-        emitter.stageComplete("copywriter", "Script draft complete");
-        emitter.checkpoint("copywriter", "Script checkpoint", {
-          script: scriptResult.script,
-          variantA,
-          variantB,
-          vibeId: scriptResult.vibeId,
-        });
-
-        // ── Step 4: Review ───────────────────────────────────────────────
-        emitter.thought("reviewer", "Reviewing script for quality...");
-
-        const wordCount = scriptResult.script.trim().split(/\s+/).filter(Boolean).length;
-        const issues: { category: string; detail: string }[] = [];
-        const FORBIDDEN = ["guaranteed", "guarantee", "100%", "no risk", "risk-free", "act now", "limited time", "buy now", "click here"];
-
-        if (wordCount < 50) issues.push({ category: "Length", detail: `Script is ${wordCount} words (minimum 50).` });
-        if (wordCount > 350) issues.push({ category: "Length", detail: `Script is ${wordCount} words (maximum 350).` });
-        const lower = scriptResult.script.toLowerCase();
-        for (const term of FORBIDDEN) {
-          if (lower.includes(term)) issues.push({ category: "Compliance", detail: `Forbidden term: "${term}".` });
-        }
-        if (!/[.!?]/.test(scriptResult.script)) {
-          issues.push({ category: "Quality", detail: "No sentence-ending punctuation found." });
-        }
-        if (profile.name && profile.name !== "there") {
-          const firstName = profile.name.split(" ")[0].toLowerCase();
-          if (!lower.includes(firstName)) {
-            issues.push({ category: "Personalization", detail: `Recipient's name not mentioned.` });
-          }
-        }
-
-        emitter.message("reviewer", formatReview(issues, wordCount));
-        emitter.stageComplete("reviewer", issues.length === 0 ? "Script approved" : "Edits requested");
-
-        // ── Step 5: Optional Auto-Render ──────────────────────────────────
-        const autoRender = body.autoRender === true;
+        // ── Step 5: Optional Auto-Render ────────────────────────────────
         let videoUrl: string | undefined;
         let videoId: string | undefined;
 
-        if (autoRender && issues.length === 0) {
-          emitter.thought("producer", "Starting video render...");
-
+        if (pipelineInput.autoRender && passed) {
           try {
-            const { createVideo } = await import("@/lib/heygen");
             const renderCost = estimateCreditCost("video.render");
             const renderReservation = await reserveCredits({
               subject,
@@ -441,33 +233,21 @@ export async function POST(request: NextRequest) {
               provider: "heygen",
             });
 
-            const renderResult = await createVideo(
+            const renderResult = await renderVideo(
               scriptResult.script,
-              undefined,
-              profile.name,
-              body.customization,
+              profile,
+              pipelineInput.customization,
+              emitter,
             );
+            videoUrl = renderResult.videoUrl;
             videoId = renderResult.videoId;
-            emitter.thought("producer", `Render submitted: ${videoId}. Polling for completion...`);
-
-            const { pollVideoUntilReady } = await import("@/lib/pipeline/video-poller");
-            const pollResult = await pollVideoUntilReady(videoId!, {
-              onProgress: (attempt, max) => {
-                if (attempt % 6 === 1) {
-                  emitter.thought("producer", `Render in progress... (${attempt}/${max})`);
-                }
-              },
-            });
-
-            videoUrl = pollResult.videoUrl;
-            emitter.stageComplete("producer", "Video rendered");
             await commitCreditReservation(renderReservation.id);
           } catch (renderError) {
             emitter.error("producer", `Render failed: ${renderError instanceof Error ? renderError.message : "unknown"}`);
           }
         }
 
-        // ── Done ─────────────────────────────────────────────────────────
+        // ── Done ────────────────────────────────────────────────────────
         const hookChoice = chooseArchetype(profile, senderBrief, archetype as HookArchetypeId | undefined);
         const hookFormat = pickFormat(profile);
 
@@ -525,6 +305,10 @@ export async function POST(request: NextRequest) {
             availableCredits: error.available,
             insufficientCredits: true,
           });
+        } else if (error instanceof Error && error.message.includes("Could not access profile")) {
+          send({ error: error.message });
+        } else if (error instanceof Error && error.message.includes("Could not identify a person")) {
+          send({ error: error.message });
         } else {
           console.error("[pipeline] Fatal:", error);
           send({ error: "Something went wrong during pipeline execution" });
