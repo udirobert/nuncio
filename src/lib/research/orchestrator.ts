@@ -25,7 +25,7 @@ import type {
   SourceProvider,
   ConfidenceLevel,
 } from "./types";
-import type { ResearchProvider, ResearchProviderConfig } from "./providers/types";
+import type { ResearchProvider, ResearchProviderConfig, ResearchProviderWithExtract, ResearchProviderWithMap, ExtractSchema } from "./providers/types";
 import type { TopicalAngle } from "@/lib/claude";
 import { chatCompletion } from "@/lib/llm";
 import { TinyFishProvider } from "./providers/tinyfish-provider";
@@ -103,10 +103,13 @@ export class ResearchOrchestrator {
   async research(url: string): Promise<ResearchResult> {
     await this.initialize();
 
-    // 1. Discover related URLs from every provider
+    // 1. Discover related URLs — use mapSite() for Firecrawl (faster), discover() for others
     const discoveredUrls = await this.discoverUrls(url);
 
-    // 2. Enrich every discovered URL via every provider
+    // 2. Structured extraction from the seed URL via Firecrawl (high-confidence claims, no LLM call)
+    const structuredClaims = await this.extractStructuredClaims(url);
+
+    // 3. Enrich every discovered URL via every provider
     const allSources: ResearchSource[] = [];
     for (const provider of this.providers) {
       const results = await Promise.allSettled(
@@ -119,7 +122,7 @@ export class ResearchOrchestrator {
       }
     }
 
-    // 3. Semantic search (Firecrawl / EXA only)
+    // 4. Semantic search (Firecrawl / EXA only)
     for (const provider of this.providers.filter(
       (p) => p.name === "firecrawl" || p.name === "exa"
     )) {
@@ -130,7 +133,7 @@ export class ResearchOrchestrator {
       }
     }
 
-    // 4. TinyFish-specific recent activity fetch
+    // 5. TinyFish-specific recent activity fetch
     const tfProvider = this.providers.find(
       (p) => p.name === "tinyfish"
     ) as TinyFishProvider | undefined;
@@ -141,13 +144,16 @@ export class ResearchOrchestrator {
       if (activity) allSources.push(activity);
     }
 
-    // 5. Deduplicate
+    // 6. Deduplicate
     const normalized = this.deduplicateSources(allSources);
 
-    // 6. LLM: extract structured claims
-    const claims = await this.extractClaims(normalized);
+    // 7. LLM: extract structured claims from raw sources
+    const llmClaims = await this.extractClaims(normalized);
 
-    // 7. LLM: generate ranked outreach angles
+    // 8. Merge: structured extraction claims (high confidence) + LLM claims
+    const claims = this.mergeClaims(structuredClaims, llmClaims);
+
+    // 9. LLM: generate ranked outreach angles
     const angles = claims.length > 0 ? await this.generateAngles(claims) : [];
 
     return {
@@ -163,16 +169,146 @@ export class ResearchOrchestrator {
   }
 
   // -----------------------------------------------------------------------
-  // URL discovery
+  // URL discovery — mapSite() for Firecrawl (fast), discover() for others
   // -----------------------------------------------------------------------
 
   private async discoverUrls(seedUrl: string): Promise<Set<string>> {
     const urls = new Set<string>([seedUrl]);
     for (const provider of this.providers) {
+      // Firecrawl: use mapSite() (5x faster than crawl — just sitemap enumeration)
+      if (provider.name === "firecrawl") {
+        const fcProvider = provider as ResearchProviderWithMap;
+        if (typeof fcProvider.mapSite === "function") {
+          const mapped = await fcProvider
+            .mapSite(seedUrl, { search: "about blog talks podcast", limit: 25 })
+            .catch(() => [] as string[]);
+          for (const u of mapped) urls.add(u);
+          continue;
+        }
+      }
+      // Other providers: use discover()
       const discovered = await provider.discover(seedUrl).catch(() => [] as string[]);
       for (const u of discovered) urls.add(u);
     }
     return urls;
+  }
+
+  // -----------------------------------------------------------------------
+  // Structured extraction — Firecrawl LLM scrape → high-confidence claims
+  // -----------------------------------------------------------------------
+
+  private async extractStructuredClaims(seedUrl: string): Promise<ResearchClaim[]> {
+    const fcProvider = this.providers.find(
+      (p) => p.name === "firecrawl"
+    ) as (ResearchProvider & ResearchProviderWithExtract) | undefined;
+
+    if (!fcProvider || typeof fcProvider.extractStructured !== "function") {
+      return [];
+    }
+
+    const schema: ExtractSchema = {
+      name: { type: "string", description: "Full name of the person" },
+      role: { type: "string", description: "Current job title or role" },
+      company: { type: "string", description: "Current company or organization" },
+      location: { type: "string", description: "City, country or region" },
+      bio: { type: "string", description: "Short bio or about section (max 300 chars)" },
+      expertise: { type: "array", description: "Key skills or areas of expertise", items: { type: "string" } },
+      achievements: { type: "array", description: "Notable achievements, awards, or milestones", items: { type: "string" } },
+      interests: { type: "array", description: "Personal or professional interests", items: { type: "string" } },
+      recentNews: { type: "array", description: "Recent news, launches, or announcements", items: { type: "string" } },
+    };
+
+    const prompt =
+      "Extract structured profile information about this person for personalized outreach. " +
+      "Focus on factual, verifiable details. Leave fields empty if not found.";
+
+    try {
+      const extraction = await fcProvider.extractStructured(seedUrl, schema, prompt);
+      if (!extraction) return [];
+
+      const claims: ResearchClaim[] = [];
+      const d = extraction.data;
+      const mkClaim = (
+        category: ResearchClaim["category"],
+        entity: string,
+        claim: string,
+        confidence: ConfidenceLevel
+      ): ResearchClaim => ({
+        id: `fc-ex-${crypto.randomUUID().slice(0, 8)}`,
+        entity,
+        claim,
+        excerpt: claim.slice(0, 150),
+        sourceUrl: extraction.sourceUrl,
+        provider: "firecrawl",
+        confidence,
+        relevanceScore: 0.8,
+        relevanceReason: "Directly extracted from profile page via structured extraction",
+        category,
+      });
+
+      const name = String(d.name || "").trim();
+      const role = String(d.role || "").trim();
+      const company = String(d.company || "").trim();
+
+      if (name) claims.push(mkClaim("role", name, `${name}'s name`, "high"));
+      if (role) claims.push(mkClaim("role", name || "subject", `Current role: ${role}`, "high"));
+      if (company) claims.push(mkClaim("company_news", name || company, `Works at ${company}`, "high"));
+
+      const bio = String(d.bio || "").trim();
+      if (bio) claims.push(mkClaim("personal_fact", name || "subject", bio.slice(0, 200), "medium"));
+
+      for (const item of (d.achievements as string[] || [])) {
+        if (item) claims.push(mkClaim("achievement", name || "subject", String(item), "high"));
+      }
+      for (const item of (d.interests as string[] || [])) {
+        if (item) claims.push(mkClaim("interest", name || "subject", String(item), "medium"));
+      }
+      for (const item of (d.recentNews as string[] || [])) {
+        if (item) claims.push(mkClaim("recent_activity", name || company || "subject", String(item), "high"));
+      }
+      for (const item of (d.expertise as string[] || [])) {
+        if (item) claims.push(mkClaim("thought_leadership", name || "subject", `Expertise: ${item}`, "medium"));
+      }
+
+      return claims;
+    } catch (err) {
+      console.warn("[Orchestrator] extractStructuredClaims failed:", err);
+      return [];
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Merge claims — structured extraction (high conf) + LLM-extracted
+  // Deduplicates by (entity, claim) pair, preferring higher confidence
+  // -----------------------------------------------------------------------
+
+  private mergeClaims(structured: ResearchClaim[], llm: ResearchClaim[]): ResearchClaim[] {
+    const merged = new Map<string, ResearchClaim>();
+    const confidenceRank: Record<ConfidenceLevel, number> = {
+      high: 3,
+      medium: 2,
+      low: 1,
+      speculative: 0,
+    };
+
+    const key = (c: ResearchClaim) =>
+      `${(c.entity || "").toLowerCase()}::${(c.claim || "").toLowerCase().slice(0, 80)}`;
+
+    // Add structured claims first (they have higher base confidence)
+    for (const c of structured) {
+      merged.set(key(c), c);
+    }
+
+    // Add LLM claims, preferring higher confidence on conflicts
+    for (const c of llm) {
+      const k = key(c);
+      const existing = merged.get(k);
+      if (!existing || confidenceRank[c.confidence] > confidenceRank[existing.confidence]) {
+        merged.set(k, c);
+      }
+    }
+
+    return Array.from(merged.values());
   }
 
   // -----------------------------------------------------------------------

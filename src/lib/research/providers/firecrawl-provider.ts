@@ -3,15 +3,62 @@
  *
  * Provides structured web content extraction via Firecrawl API.
  * Handles LinkedIn profiles, GitHub repos, company pages, articles.
+ *
+ * Capabilities:
+ *   - enrichUrl()     — /v1/scrape with markdown + metadata
+ *   - search()        — /v1/search semantic web search
+ *   - discover()      — /v1/crawl (legacy, use mapSite for speed)
+ *   - extractStructured() — /v1/scrape with json format (LLM extraction)
+ *   - mapSite()       — /v1/map fast site URL enumeration
+ *
+ * All responses are cached in-memory with a TTL to avoid re-scraping
+ * the same prospect within a session.
  */
 
 import type { ResearchProvider, ResearchProviderConfig } from "./types";
+import type {
+  ResearchProviderWithExtract,
+  ResearchProviderWithMap,
+  ExtractSchema,
+  StructuredExtraction,
+} from "./types";
 import type { ResearchSource, SourceProvider } from "../types";
 import { fetchWithRetry } from "@/lib/retry";
 
 const FIRECRAWL_API_BASE = "https://api.firecrawl.dev/v1";
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
-export class FirecrawlProvider implements ResearchProvider {
+// ── Module-level cache (shared across all FirecrawlProvider instances) ──
+
+interface CacheEntry<T> {
+  value: T;
+  expiresAt: number;
+}
+
+const scrapeCache = new Map<string, CacheEntry<ResearchSource | null>>();
+const searchCache = new Map<string, CacheEntry<ResearchSource[]>>();
+const mapCache = new Map<string, CacheEntry<string[]>>();
+const extractCache = new Map<string, CacheEntry<StructuredExtraction | null>>();
+
+function getCached<T>(cache: Map<string, CacheEntry<T>>, key: string): T | undefined {
+  const entry = cache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() > entry.expiresAt) {
+    cache.delete(key);
+    return undefined;
+  }
+  return entry.value;
+}
+
+function setCached<T>(cache: Map<string, CacheEntry<T>>, key: string, value: T, ttlMs = CACHE_TTL_MS): void {
+  cache.set(key, { value, expiresAt: Date.now() + ttlMs });
+}
+
+// ── Provider ──────────────────────────────────────────────────────────
+
+export class FirecrawlProvider
+  implements ResearchProvider, ResearchProviderWithExtract, ResearchProviderWithMap
+{
   readonly name: SourceProvider = "firecrawl";
   private apiKey: string | undefined;
   private initialized = false;
@@ -31,8 +78,14 @@ export class FirecrawlProvider implements ResearchProvider {
     this.initialized = true;
   }
 
+  // ── Scrape (markdown + metadata) ────────────────────────────────────
+
   async enrichUrl(url: string): Promise<ResearchSource | null> {
     await this.initialize();
+
+    const cached = getCached(scrapeCache, url);
+    if (cached !== undefined) return cached;
+
     try {
       const response = await fetchWithRetry(
         `${FIRECRAWL_API_BASE}/scrape`,
@@ -51,16 +104,25 @@ export class FirecrawlProvider implements ResearchProvider {
         { maxAttempts: 2, timeoutMs: this.config.timeoutMs || 30000 }
       );
 
-      if (!response.ok) return null;
+      if (!response.ok) {
+        setCached(scrapeCache, url, null);
+        return null;
+      }
 
       const data = await response.json();
       const result = data?.data;
-      if (!result) return null;
+      if (!result) {
+        setCached(scrapeCache, url, null);
+        return null;
+      }
 
       const markdown = result.markdown || "";
-      if (!markdown.trim()) return null;
+      if (!markdown.trim()) {
+        setCached(scrapeCache, url, null);
+        return null;
+      }
 
-      return {
+      const source: ResearchSource = {
         id: `fc-${crypto.randomUUID().slice(0, 8)}`,
         url,
         provider: "firecrawl",
@@ -69,10 +131,16 @@ export class FirecrawlProvider implements ResearchProvider {
         content: markdown,
         fetchedAt: new Date().toISOString(),
       };
+
+      setCached(scrapeCache, url, source);
+      return source;
     } catch {
+      setCached(scrapeCache, url, null);
       return null;
     }
   }
+
+  // ── Semantic search ─────────────────────────────────────────────────
 
   async search(
     query: string,
@@ -84,6 +152,11 @@ export class FirecrawlProvider implements ResearchProvider {
     }
   ): Promise<ResearchSource[]> {
     await this.initialize();
+
+    const cacheKey = `${query}:${options?.maxResults || 5}:${options?.recencyDays || 0}`;
+    const cached = getCached(searchCache, cacheKey);
+    if (cached) return cached;
+
     try {
       const body: Record<string, unknown> = {
         query,
@@ -110,13 +183,19 @@ export class FirecrawlProvider implements ResearchProvider {
         { maxAttempts: 2, timeoutMs: this.config.timeoutMs || 30000 }
       );
 
-      if (!response.ok) return [];
+      if (!response.ok) {
+        setCached(searchCache, cacheKey, []);
+        return [];
+      }
 
       const data = await response.json();
       const results = data?.data || [];
-      if (!Array.isArray(results)) return [];
+      if (!Array.isArray(results)) {
+        setCached(searchCache, cacheKey, []);
+        return [];
+      }
 
-      return results
+      const sources = results
         .filter((r: { url?: string }) => r.url)
         .map(
           (r: {
@@ -135,13 +214,23 @@ export class FirecrawlProvider implements ResearchProvider {
               fetchedAt: new Date().toISOString(),
             }) as ResearchSource
         );
+
+      setCached(searchCache, cacheKey, sources);
+      return sources;
     } catch {
+      setCached(searchCache, cacheKey, []);
       return [];
     }
   }
 
+  // ── Crawl (legacy discovery — prefer mapSite for speed) ─────────────
+
   async discover(url: string): Promise<string[]> {
     await this.initialize();
+
+    const cached = getCached(mapCache, `crawl:${url}`);
+    if (cached) return cached;
+
     try {
       const response = await fetchWithRetry(
         `${FIRECRAWL_API_BASE}/crawl`,
@@ -160,19 +249,160 @@ export class FirecrawlProvider implements ResearchProvider {
         { maxAttempts: 1, timeoutMs: this.config.timeoutMs || 20000 }
       );
 
-      if (!response.ok) return [];
+      if (!response.ok) {
+        setCached(mapCache, `crawl:${url}`, []);
+        return [];
+      }
 
       const data = await response.json();
       const links = data?.data?.links || [];
-      return Array.isArray(links) ? links.filter(Boolean) : [];
+      const result = Array.isArray(links) ? links.filter(Boolean) : [];
+      setCached(mapCache, `crawl:${url}`, result);
+      return result;
     } catch {
+      setCached(mapCache, `crawl:${url}`, []);
       return [];
+    }
+  }
+
+  // ── Map (fast URL enumeration — no content fetch, just URLs) ─────────
+
+  async mapSite(
+    url: string,
+    options?: { search?: string; limit?: number }
+  ): Promise<string[]> {
+    await this.initialize();
+
+    const cacheKey = `map:${url}:${options?.search || ""}:${options?.limit || 50}`;
+    const cached = getCached(mapCache, cacheKey);
+    if (cached) return cached;
+
+    try {
+      const body: Record<string, unknown> = {
+        url,
+        limit: options?.limit || 50,
+        includeSubdomains: true,
+      };
+
+      if (options?.search) {
+        body.search = options.search;
+      }
+
+      const response = await fetchWithRetry(
+        `${FIRECRAWL_API_BASE}/map`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.apiKey}`,
+          },
+          body: JSON.stringify(body),
+        },
+        { maxAttempts: 2, timeoutMs: this.config.timeoutMs || 20000 }
+      );
+
+      if (!response.ok) {
+        setCached(mapCache, cacheKey, []);
+        return [];
+      }
+
+      const data = await response.json();
+      const links = data?.links || data?.data?.links || [];
+      const result = Array.isArray(links) ? links.filter(Boolean) : [];
+      setCached(mapCache, cacheKey, result);
+      return result;
+    } catch {
+      setCached(mapCache, cacheKey, []);
+      return [];
+    }
+  }
+
+  // ── Structured extraction (LLM-powered scrape with json format) ─────
+
+  async extractStructured(
+    url: string,
+    schema: ExtractSchema,
+    prompt: string
+  ): Promise<StructuredExtraction | null> {
+    await this.initialize();
+
+    const cacheKey = `${url}:${JSON.stringify(schema)}`;
+    const cached = getCached(extractCache, cacheKey);
+    if (cached !== undefined) return cached;
+
+    try {
+      const response = await fetchWithRetry(
+        `${FIRECRAWL_API_BASE}/scrape`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.apiKey}`,
+          },
+          body: JSON.stringify({
+            url,
+            formats: ["markdown", "json"],
+            onlyMainContent: true,
+            jsonOptions: {
+              prompt,
+              schema: buildJsonSchema(schema),
+            },
+          }),
+        },
+        { maxAttempts: 2, timeoutMs: this.config.timeoutMs || 45000 }
+      );
+
+      if (!response.ok) {
+        setCached(extractCache, cacheKey, null);
+        return null;
+      }
+
+      const data = await response.json();
+      const result = data?.data;
+      if (!result) {
+        setCached(extractCache, cacheKey, null);
+        return null;
+      }
+
+      const extracted = result.json || result.extract;
+      if (!extracted || typeof extracted !== "object") {
+        setCached(extractCache, cacheKey, null);
+        return null;
+      }
+
+      const extraction: StructuredExtraction = {
+        data: extracted as Record<string, unknown>,
+        sourceUrl: url,
+      };
+
+      setCached(extractCache, cacheKey, extraction);
+      return extraction;
+    } catch {
+      setCached(extractCache, cacheKey, null);
+      return null;
     }
   }
 
   estimatedCostPerRequest() {
     return { credits: 1, usd: 0.01 };
   }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────
+
+function buildJsonSchema(schema: ExtractSchema): Record<string, unknown> {
+  const properties: Record<string, unknown> = {};
+  for (const [key, def] of Object.entries(schema)) {
+    const prop: Record<string, unknown> = { type: def.type, description: def.description };
+    if (def.type === "array" && def.items) {
+      prop.items = { type: def.items.type };
+    }
+    properties[key] = prop;
+  }
+  return {
+    type: "object",
+    properties,
+  };
 }
 
 function extractTitle(markdown: string): string | undefined {

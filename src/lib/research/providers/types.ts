@@ -39,3 +39,27 @@ export interface ResearchProvider {
   /** Get estimated cost for this provider */
   estimatedCostPerRequest(): { credits: number; usd: number };
 }
+
+// ── Optional capabilities (providers that support them override) ──────
+
+/**
+ * Structured field extraction via LLM-powered scrape.
+ * Returns a JSON object matching the provided schema, or null on failure.
+ * Providers without LLM extraction support leave this undefined.
+ */
+export type ExtractSchema = Record<string, { type: "string" | "boolean" | "number" | "array"; description?: string; items?: { type: string } }>;
+
+export interface StructuredExtraction {
+  data: Record<string, unknown>;
+  sourceUrl: string;
+}
+
+export interface ResearchProviderWithExtract extends ResearchProvider {
+  /** Synchronous structured extraction from a single URL */
+  extractStructured(url: string, schema: ExtractSchema, prompt: string): Promise<StructuredExtraction | null>;
+}
+
+export interface ResearchProviderWithMap extends ResearchProvider {
+  /** Fast site mapping — returns all URLs on a domain (faster than crawl) */
+  mapSite(url: string, options?: { search?: string; limit?: number }): Promise<string[]>;
+}

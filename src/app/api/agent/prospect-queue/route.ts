@@ -90,13 +90,21 @@ export async function POST(request: NextRequest) {
     queue.set(id, entry);
 
     // Fire-and-forget async processing
+    // Agent mode runs at studio tier with deep research enabled so that
+    // Firecrawl/EXA providers load — the autonomous agent needs the richest
+    // research data to craft quality outreach without human intervention.
+    const agentTier = (body.userTier as "trial" | "free" | "pro" | "studio") || "studio";
+    const deepResearch = body.deepResearchEnabled !== false; // default true for agent
+
     processQueueEntry(id, auth.subject, {
       url,
       senderBrief,
       senderName,
       senderProfile,
       outreachIntent,
-      researchTier,
+      researchTier: researchTier || "deep",
+      deepResearchEnabled: deepResearch,
+      userTier: agentTier,
       autoRender,
       customization: body.customization,
       archetype: body.archetype,
