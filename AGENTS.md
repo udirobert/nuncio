@@ -40,7 +40,7 @@ Phase 9: Autonomous SDR agent mode (Hermes + Nemotron 3 Ultra + Stripe Skills) a
 - **Dual-mode architecture**: Band agents (human-driven studio) and Hermes agent (autonomous background) are two clients over the same API layer. No duplication — both consume shared pipeline step functions. Band agents are NOT replaced or deprecated.
 - **Pipeline steps extracted** to `src/lib/pipeline/steps.ts` — single source of truth for research → synthesize → script → render → deliver. Both the existing pipeline route and agent endpoints call these shared functions.
 - **Agent API layer** lives under `src/app/api/agent/` — clean domain boundary. Auth via `NUNCIO_AGENT_TOKEN` env var (single shared token, not per-user).
-- **Hermes uses Nemotron 3 Ultra** for reasoning/orchestration; nuncio's existing LLM fallback chain handles content generation. Clean separation — no model config duplication.
+- **Hermes uses Nemotron 3 Ultra** (`nvidia/nemotron-3-ultra-550b-a55b` via build.nvidia.com) for reasoning/orchestration; nuncio's existing LLM fallback chain handles content generation. Clean separation — no model config duplication.
 - **Stripe Skills installed in Hermes**, not built in nuncio. `stripe-projects` provisions HeyGen/ElevenLabs credits autonomously; `stripe-link-cli` handles earning (checkout for booked meetings). Nuncio's `/api/agent/earn-checkout` is a thin server-side proxy for Stripe Checkout creation.
 - **Hybrid mode**: Hermes can queue draft videos for human review in the studio — best of autonomous scale + human quality control. This is the primary product mode; fully-autonomous is a config toggle.
 
@@ -122,21 +122,23 @@ Phase 9: Autonomous SDR agent mode (Hermes + Nemotron 3 Ultra + Stripe Skills) a
 - Full autonomous loop: prospect → research → video → deliver → reply → book → earn
 - Hybrid mode: agent queues drafts for human review in studio
 - Reports via Telegram: prospects contacted, replies, meetings, revenue, spend
-- End-to-end test verified: eladgil.com → profile synthesized → script generated → reply classified "interested" → Stripe checkout created
+- End-to-end test verified via Hermes + Nemotron: eladgil.com → profile synthesized → script generated → Telegram report → reply classified "interested" → Stripe checkout created → final Telegram report
 
-**Verified Test Results (2026-06-29)**
-| Step | Endpoint | Result |
-|------|----------|--------|
-| Auth (valid token) | `GET /api/agent/prospect-queue` | `200 {"queue":[]}` |
-| Auth (invalid token) | `GET /api/agent/prospect-queue` | `401 {"error":"Invalid agent token"}` |
-| Prospect queue | `POST /api/agent/prospect-queue` | Enqueued, processed, completed |
-| Pipeline execution | (async) | Researched eladgil.com → synthesized "Elad Gil" profile → generated personalized script → created ShareRecord |
-| Reply classification | `POST /api/agent/reply-webhook` | `{"intent":"interested","suggestedAction":"propose_meeting"}` |
-| Earn checkout | `POST /api/agent/earn-checkout` | Stripe Checkout session created for $50 |
+**Verified End-to-End Results (2026-06-29)**
+| Step | Component | Result |
+|------|-----------|--------|
+| Hermes + Nemotron | Model | `nvidia/nemotron-3-ultra-550b-a55b` via build.nvidia.com |
+| Stripe Projects (spend) | `stripe projects add elevenlabs/tts` | Provisioned ElevenLabs TTS credits autonomously |
+| Stripe Projects (spend) | `stripe projects add exa/api` | Provisioned Exa web search API autonomously |
+| Hermes SDR loop | Full autonomous cycle | 6-step loop executed: research → poll → Telegram report → reply classification → Stripe earn → final Telegram report |
+| Telegram gateway | @nuncioappbot | Two report messages sent (message_id 196, 197) |
+| Resend email | Real outreach email | Sent to udingethe@gmail.com with video share link |
+| Stripe earn | `POST /api/agent/earn-checkout` | Stripe Checkout session created for $50 consultation |
+| Production deploy | nuncio-vultr:57913 | All agent endpoints live with RESEND_API_KEY + NUNCIO_AGENT_TOKEN |
 
 **Reply Webhook Wiring (not yet connected)**
 The `/api/agent/reply-webhook` endpoint receives POST requests with email replies and classifies them. To wire real email replies:
-1. Set `RESEND_API_KEY` in `.env.local` (enables email sending)
+1. Set `RESEND_API_KEY` in `.env.local` (enables email sending) — DONE
 2. Configure a Resend inbound domain for reply forwarding
 3. Point the inbound webhook to `POST /api/agent/reply-webhook` with body `{ from, subject, text, inReplyTo }`
 4. Alternatively, use a simple email forward rule or manual forwarding for testing
@@ -169,3 +171,13 @@ The endpoint is fully functional — it just needs inbound email routing configu
 - `src/app/api/agent/earn-checkout/route.ts`: Create Stripe Checkout for booked meetings
 - `agents/nuncio_agents/`: Band agents (researcher, copywriter) — human-driven studio mode, NOT deprecated
 - `~/.hermes/skills/nuncio/`: Hermes skills for autonomous SDR mode (8 SKILL.md files)
+
+<!-- stripe-projects-cli managed:agents-md:start -->
+## Stripe Projects CLI
+
+This repository is initialized for the Stripe project "nuncio".
+
+## Tools used
+
+- [Stripe CLI](https://docs.stripe.com/stripe-cli) with the `projects` plugin to manage third-party services, credentials, and deployments for this project. Use the stripe-projects-cli to manage deploying and access to third party services.
+<!-- stripe-projects-cli managed:agents-md:end -->
