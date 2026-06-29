@@ -132,7 +132,7 @@ Phase 9: Autonomous SDR agent mode (Hermes + Nemotron 3 Ultra + Stripe Skills) a
 | Stripe Projects (spend) | `stripe projects add exa/api` | Provisioned Exa web search API autonomously |
 | Hermes SDR loop | Full autonomous cycle | 6-step loop executed: research → poll → Telegram report → reply classification → Stripe earn → final Telegram report |
 | Telegram gateway | @nuncioappbot | Two report messages sent (message_id 196, 197) |
-| Resend email | Real outreach email | Sent to udingethe@gmail.com with video share link |
+| Resend email | Real outreach email | Sent to ungethe@gmail.com with video share link |
 | Stripe earn | `POST /api/agent/earn-checkout` | Stripe Checkout session created for $50 consultation |
 | Production deploy | nuncio-vultr:57913 | All agent endpoints live with RESEND_API_KEY + NUNCIO_AGENT_TOKEN |
 
