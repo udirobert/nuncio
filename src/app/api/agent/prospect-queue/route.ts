@@ -189,11 +189,13 @@ async function processQueueEntry(
     // Step 4: Review
     const { passed } = reviewScript(scriptResult, profile);
 
-    // Step 5: Render (if autoRender and review passed)
+    // Step 5: Render (if autoRender enabled)
+    // For the autonomous agent, render regardless of review issues —
+    // the review is advisory, not blocking, in agent mode.
     let videoUrl: string | undefined;
     let videoId: string | undefined;
 
-    if (input.autoRender && passed) {
+    if (input.autoRender) {
       const renderResult = await renderVideo(scriptResult.script, profile, input.customization);
       videoUrl = renderResult.videoUrl;
       videoId = renderResult.videoId;
