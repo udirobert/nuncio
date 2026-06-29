@@ -177,6 +177,8 @@ export default function VideoLandingPage({
                       const audio = new Audio(videoData.cinematicEntranceUrl);
                       audio.onended = () => setShowVideo(true);
                       audio.play().catch(() => setShowVideo(true));
+                    } else {
+                      setShowVideo(true);
                     }
                     setIsPlaying(true);
                   }}
@@ -232,8 +234,8 @@ export default function VideoLandingPage({
             </div>
           </motion.div>
 
-          {/* Language badge */}
-          {hasVideo && videoData.language && videoData.language !== "en" && (
+          {/* Language badge — hide for English, undefined, or unknown languages */}
+          {hasVideo && videoData.language && videoData.language !== "en" && videoData.language !== "und" && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
