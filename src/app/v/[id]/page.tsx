@@ -101,6 +101,8 @@ export default function VideoLandingPage({
     );
   }
 
+  const hasVideo = Boolean(videoData.videoUrl);
+
   return (
     <div className="min-h-screen bg-cream flex flex-col">
       {/* Minimal header */}
@@ -111,12 +113,14 @@ export default function VideoLandingPage({
         >
           nuncio
         </Link>
-        <Link
-          href="/"
-          className="text-xs text-ink-faint hover:text-accent transition-colors"
-        >
-          Make your own →
-        </Link>
+        {hasVideo && (
+          <Link
+            href="/"
+            className="text-xs text-ink-faint hover:text-accent transition-colors"
+          >
+            Make your own →
+          </Link>
+        )}
       </header>
 
       {/* Main content */}
@@ -133,9 +137,13 @@ export default function VideoLandingPage({
               Hey{videoData.recipientName ? ` ${videoData.recipientName}` : ""}
             </h1>
             <p className="text-ink-muted text-[15px]">
-              {videoData.senderName
-                ? `${videoData.senderName} recorded this for you`
-                : "Someone recorded this video just for you"}
+              {hasVideo
+                ? videoData.senderName
+                  ? `${videoData.senderName} recorded this for you`
+                  : "Someone recorded this video just for you"
+                : videoData.senderName
+                  ? `${videoData.senderName} is preparing a video for you`
+                  : "A video is being prepared for you"}
             </p>
           </motion.div>
 
@@ -225,7 +233,7 @@ export default function VideoLandingPage({
           </motion.div>
 
           {/* Language badge */}
-          {videoData.language && videoData.language !== "en" && (
+          {hasVideo && videoData.language && videoData.language !== "en" && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -241,39 +249,41 @@ export default function VideoLandingPage({
             </motion.div>
           )}
 
-          {/* Reply / engagement actions */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-6 flex items-center gap-3 justify-center"
-          >
-            <button
-              onClick={() => {
-                navigator.clipboard?.writeText(
-                  `Thanks for the video${videoData.senderName ? `, ${videoData.senderName}` : ""}! Really appreciate the personal touch.`
-                );
-                const btn = document.getElementById("thanks-btn");
-                if (btn) btn.textContent = "Copied!";
-                setTimeout(() => { if (btn) btn.textContent = "Say thanks"; }, 2000);
-              }}
-              className="btn-press rounded-xl border border-cream-dark bg-white/80 px-5 py-2.5 text-xs font-medium text-ink hover:bg-white transition-colors"
+          {/* Reply / engagement actions — only when video is ready */}
+          {hasVideo && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              className="mt-6 flex items-center gap-3 justify-center"
             >
-              <span id="thanks-btn">Say thanks</span>
-            </button>
-            <Link
-              href={`/?reply=${encodeURIComponent(videoData.senderName || "")}`}
-              className="btn-press rounded-xl bg-ink text-cream px-5 py-2.5 text-xs font-medium hover:bg-ink-light transition-colors flex items-center gap-1.5"
-            >
-              <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14 2L7 9M14 2l-5 12-2-5-5-2 12-5z" />
-              </svg>
-              Send one back
-            </Link>
-          </motion.div>
+              <button
+                onClick={() => {
+                  navigator.clipboard?.writeText(
+                    `Thanks for the video${videoData.senderName ? `, ${videoData.senderName}` : ""}! Really appreciate the personal touch.`
+                  );
+                  const btn = document.getElementById("thanks-btn");
+                  if (btn) btn.textContent = "Copied!";
+                  setTimeout(() => { if (btn) btn.textContent = "Say thanks"; }, 2000);
+                }}
+                className="btn-press rounded-xl border border-cream-dark bg-white/80 px-5 py-2.5 text-xs font-medium text-ink hover:bg-white transition-colors"
+              >
+                <span id="thanks-btn">Say thanks</span>
+              </button>
+              <Link
+                href={`/?reply=${encodeURIComponent(videoData.senderName || "")}`}
+                className="btn-press rounded-xl bg-ink text-cream px-5 py-2.5 text-xs font-medium hover:bg-ink-light transition-colors flex items-center gap-1.5"
+              >
+                <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2L7 9M14 2l-5 12-2-5-5-2 12-5z" />
+                </svg>
+                Send one back
+              </Link>
+            </motion.div>
+          )}
 
-          {/* CTA section — the growth mechanic */}
-          {(videoData.trace?.length ?? 0) > 0 && (
+          {/* "How this was made" trace — only when video is ready */}
+          {hasVideo && (videoData.trace?.length ?? 0) > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -290,41 +300,37 @@ export default function VideoLandingPage({
                   </p>
                 ))}
               </div>
-
             </motion.div>
           )}
 
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-12 text-center"
-          >
-            <div className="inline-flex flex-col items-center gap-4 rounded-2xl border border-cream-dark bg-white/80 px-8 py-6 shadow-sm">
-              <p className="text-sm text-ink-light max-w-[320px]">
-                This video was researched, written, and rendered by AI — personalised
-                specifically for you.
-              </p>
-              <Link
-                href="/"
-                className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-6 py-3 text-sm font-medium shadow-lg shadow-ink/15 hover:shadow-xl hover:-translate-y-0.5 transition-all"
-              >
-                Send your own personalised video
-                <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M3 8h10M9 4l4 4-4 4" />
-                </svg>
-              </Link>
-              <p className="text-[11px] text-ink-faint">
-                Free · No account needed · 90 seconds
-              </p>
-              <Link
-                href="/playbook"
-                className="text-[11px] text-ink-faint hover:text-accent transition-colors underline-offset-2 hover:underline"
-              >
-                See how nuncio crafts these videos →
-              </Link>
-            </div>
-          </motion.div>
+          {/* CTA section — only when video is ready */}
+          {hasVideo && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              className="mt-12 text-center"
+            >
+              <div className="inline-flex flex-col items-center gap-4 rounded-2xl border border-cream-dark bg-white/80 px-8 py-6 shadow-sm">
+                <p className="text-sm text-ink-light max-w-[320px]">
+                  This video was researched, written, and rendered by AI — personalised
+                  specifically for you.
+                </p>
+                <Link
+                  href="/"
+                  className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-6 py-3 text-sm font-medium shadow-lg shadow-ink/15 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+                >
+                  Send your own personalised video
+                  <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M3 8h10M9 4l4 4-4 4" />
+                  </svg>
+                </Link>
+                <p className="text-[11px] text-ink-faint">
+                  Free · No account needed · 90 seconds
+                </p>
+              </div>
+            </motion.div>
+          )}
         </div>
       </main>
 
