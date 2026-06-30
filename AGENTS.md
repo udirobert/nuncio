@@ -122,21 +122,32 @@ Phase 9: Autonomous SDR agent mode (Hermes + Nemotron 3 Ultra + Stripe Skills) a
 - Full autonomous loop: prospect → research → video → deliver → reply → book → earn
 - Hybrid mode: agent queues drafts for human review in studio
 - Reports via Telegram: prospects contacted, replies, meetings, revenue, spend
-- End-to-end test verified via Hermes + Nemotron: eladgil.com → profile synthesized → script generated → Telegram report → reply classified "interested" → Stripe checkout created → final Telegram report
+- End-to-end test verified via Hermes + Nemotron: eladgil.com → profile synthesized → script generated → video rendered → email sent → Telegram report → reply classified "interested" → Stripe checkout created → final Telegram report
 
-**Verified End-to-End Results (2026-06-29)**
+**Verified End-to-End Results (2026-06-30)**
 | Step | Component | Result |
 |------|-----------|--------|
 | Hermes + Nemotron | Model | `nvidia/nemotron-3-ultra-550b-a55b` via build.nvidia.com |
 | Stripe Projects (spend) | `stripe projects add elevenlabs/tts` | Provisioned ElevenLabs TTS credits autonomously |
 | Stripe Projects (spend) | `stripe projects add exa/api` | Provisioned Exa web search API autonomously |
-| Hermes SDR loop | Full autonomous cycle | 6-step loop executed: research → poll → Telegram report → reply classification → Stripe earn → final Telegram report |
-| Telegram gateway | @nuncioappbot | Two report messages sent (message_id 196, 197) |
-| Resend email | Real outreach email | Sent to ungethe@gmail.com with video share link |
-| Stripe earn | `POST /api/agent/earn-checkout` | Stripe Checkout session created for $50 consultation |
-| Production deploy | nuncio-vultr:57913 | All agent endpoints live with RESEND_API_KEY + NUNCIO_AGENT_TOKEN |
+| Hermes SDR loop | Full autonomous cycle | 6-step loop: research → render → email → reply classification → Stripe earn → Telegram report |
+| Telegram gateway | @nuncioappbot | Report messages sent with prospect info and share links |
+| Resend email | Real outreach email | Sent to prospect with HTTPS video share link |
+| Video rendering | HeyGen | Personalized video rendered (3-5 min), share page shows video with play button |
+| Stripe earn (live) | `POST /api/agent/earn-checkout` | Live Stripe Checkout session created (`cs_live_...`) for $50 consultation |
+| Stripe webhook | `https://nuncio.persidian.com/api/webhook` | Live endpoint registered with signature verification |
+| Production deploy | https://nuncio.persidian.com | All agent endpoints live with Turso persistence + Let's Encrypt SSL |
 
-**Reply Webhook Wiring (not yet connected)**
+**Stripe Integration (live mode)**
+- `STRIPE_SECRET_KEY`: live restricted key (`rk_live_...`) deployed via Coolify env vars
+- `STRIPE_PUBLISHABLE_KEY`: live publishable key (`pk_live_...`)
+- `STRIPE_WEBHOOK_SECRET`: live webhook signing secret (`whsec_...`)
+- Webhook endpoint registered in live mode at `https://nuncio.persidian.com/api/webhook`
+- Events: `checkout.session.completed`, `checkout.session.expired`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.deleted`, `customer.subscription.updated`
+- earn-checkout: customer reuse by email lookup, idempotency keys, dynamic product creation
+- webhook: handles expired sessions (logs for agent follow-up), credit grants, subscription lifecycle
+
+**Reply Webhook Wiring**
 The `/api/agent/reply-webhook` endpoint receives POST requests with email replies and classifies them. To wire real email replies:
 1. Set `RESEND_API_KEY` in `.env.local` (enables email sending) — DONE
 2. Configure a Resend inbound domain for reply forwarding
