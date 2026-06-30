@@ -10,7 +10,7 @@ import { getVideoStatus } from "@/lib/heygen";
 import { getVideoStatusFromCache } from "@/lib/video-status-cache";
 
 const POLL_INTERVAL_MS = 5_000;
-const MAX_ATTEMPTS = 60;
+const MAX_ATTEMPTS = 120; // 10 minutes — HeyGen can take 5-8 min
 
 export interface PollOptions {
   onProgress?: (attempt: number, max: number) => void;
