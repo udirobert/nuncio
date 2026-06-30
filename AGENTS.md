@@ -118,24 +118,27 @@ Phase 9: Autonomous SDR agent mode (Hermes + Nemotron 3 Ultra + Stripe Skills) a
 - Agent provisions own HeyGen/ElevenLabs credits when low (spends)
 - Agent creates Stripe Checkout for booked meetings (earns)
 
-**Phase 4 — Demo & Submission (READY)**
+**Phase 4 — Demo & Submission (DONE)**
 - Full autonomous loop: prospect → research → video → deliver → reply → book → earn
 - Hybrid mode: agent queues drafts for human review in studio
 - Reports via Telegram: prospects contacted, replies, meetings, revenue, spend
 - End-to-end test verified via Hermes + Nemotron: eladgil.com → profile synthesized → script generated → video rendered → email sent → Telegram report → reply classified "interested" → Stripe checkout created → final Telegram report
+- **NemoClaw sandbox deployed on Brev GCP VM** — agent runs inside OpenShell with Landlock + seccomp + network policies
+- **Resend inbound email verified** — `replies.persidian.com` domain verified (DKIM + SPF + MX), webhook → `/api/webhook/resend` → classify → reply-webhook
+- **Video render timeout fixed** — increased from 5 min to 10 min (HeyGen can take 5-8 min)
 
 **Verified End-to-End Results (2026-06-30)**
 | Step | Component | Result |
 |------|-----------|--------|
-| Hermes + Nemotron | Model | `nvidia/nemotron-3-ultra-550b-a55b` via build.nvidia.com |
-| Stripe Projects (spend) | `stripe projects add elevenlabs/tts` | Provisioned ElevenLabs TTS credits autonomously |
-| Stripe Projects (spend) | `stripe projects add exa/api` | Provisioned Exa web search API autonomously |
-| Hermes SDR loop | Full autonomous cycle | 6-step loop: research → render → email → reply classification → Stripe earn → Telegram report |
-| Telegram gateway | @nuncioappbot | Report messages sent with prospect info and share links |
-| Resend email | Real outreach email | Sent to prospect with HTTPS video share link |
-| Video rendering | HeyGen | Personalized video rendered (3-5 min), share page shows video with play button |
-| Stripe earn (live) | `POST /api/agent/earn-checkout` | Live Stripe Checkout session created (`cs_live_...`) for $50 consultation |
+| NemoClaw sandbox | OpenShell isolation | Hermes v0.14.0 running inside sandbox (Landlock + seccomp + netns) on Brev GCP VM |
+| Nemotron 3 Ultra | Routed inference | `nvidia/nemotron-3-ultra-550b-a55b` via OpenShell gateway → `inference.local` |
+| Network policies | Declarative egress | `nuncio.persidian.com`, `api.resend.com`, `api.telegram.org`, `integrate.api.nvidia.com` — all verified from inside sandbox |
+| Hermes SDR loop | Full autonomous cycle | Research → script → HeyGen render → Stripe earn → Telegram report — all from inside sandbox |
+| Video rendering | HeyGen | Personalized video for Elad Gil rendered in ~8 min, share page live at `https://nuncio.persidian.com/v/b46b1f69-3f0` |
+| Stripe earn (live) | `POST /api/agent/earn-checkout` | Live Stripe Checkout session `cs_live_a1qnZHAL...` created from inside sandbox for $50 consultation |
 | Stripe webhook | `https://nuncio.persidian.com/api/webhook` | Live endpoint registered with signature verification |
+| Resend inbound | `replies.persidian.com` | Domain verified (DKIM + SPF + MX), inbound email → `/api/webhook/resend` → classify → reply-webhook |
+| Telegram channel | @nuncioappbot | Registered in sandbox, network policy active, tunnel started |
 | Production deploy | https://nuncio.persidian.com | All agent endpoints live with Turso persistence + Let's Encrypt SSL |
 
 **Stripe Integration (live mode)**
@@ -147,13 +150,14 @@ Phase 9: Autonomous SDR agent mode (Hermes + Nemotron 3 Ultra + Stripe Skills) a
 - earn-checkout: customer reuse by email lookup, idempotency keys, dynamic product creation
 - webhook: handles expired sessions (logs for agent follow-up), credit grants, subscription lifecycle
 
-**Reply Webhook Wiring**
-The `/api/agent/reply-webhook` endpoint receives POST requests with email replies and classifies them. To wire real email replies:
-1. Set `RESEND_API_KEY` in `.env.local` (enables email sending) — DONE
-2. Configure a Resend inbound domain for reply forwarding
-3. Point the inbound webhook to `POST /api/agent/reply-webhook` with body `{ from, subject, text, inReplyTo }`
-4. Alternatively, use a simple email forward rule or manual forwarding for testing
-The endpoint is fully functional — it just needs inbound email routing configured at the provider level.
+**Reply Webhook Wiring (DONE)**
+The `/api/webhook/resend` endpoint receives inbound email replies from Resend, fetches the full body, classifies intent via LLM, and forwards to `/api/agent/reply-webhook` for agent processing.
+1. `RESEND_API_KEY` set in `.env.local` — DONE
+2. Resend inbound domain `replies.persidian.com` — verified (DKIM + SPF + MX all green)
+3. Resend webhook endpoint → `https://nuncio.persidian.com/api/webhook/resend` — created with Svix signature verification
+4. `RESEND_WEBHOOK_SECRET` set on production — DONE
+5. `nuncio-deliver` skill updated with `replyTo: nuncio@replies.persidian.com` — prospects reply to inbound domain
+6. Reply flow: email → Resend inbound → `/api/webhook/resend` (Svix verified) → fetch body → classify (interested/not_now/unsubscribe/question) → `/api/agent/reply-webhook` → agent polls → creates Stripe checkout if interested
 
 ### Operating Modes
 | Mode | Driver | Band agents | Hermes | Use case |
@@ -180,6 +184,8 @@ The endpoint is fully functional — it just needs inbound email routing configu
 - `src/app/api/agent/prospect-queue/route.ts`: Enqueue + poll prospect processing for autonomous agent
 - `src/app/api/agent/reply-webhook/route.ts`: Receive + classify email replies
 - `src/app/api/agent/earn-checkout/route.ts`: Create Stripe Checkout for booked meetings
+- `src/app/api/webhook/resend/route.ts`: Resend inbound email webhook (Svix signature verification, body fetch, LLM classification, forward to reply-webhook)
+- `src/lib/pipeline/video-poller.ts`: Server-side HeyGen video polling (10 min timeout, 5s interval)
 - `agents/nuncio_agents/`: Band agents (researcher, copywriter) — human-driven studio mode, NOT deprecated
 - `~/.hermes/skills/nuncio/`: Hermes skills for autonomous SDR mode (8 SKILL.md files)
 

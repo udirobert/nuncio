@@ -107,7 +107,12 @@ The Hermes agent runs inside an NVIDIA NemoClaw sandbox on a Brev GCP VM (4 vCPU
 
 The sandbox runs Hermes v0.14.0 with Nemotron 3 Ultra (550B) as the reasoning model. All 8 Nuncio skills are installed inside the sandbox at `/sandbox/.hermes/skills/`. Environment variables (NUNCIO_AGENT_TOKEN, NUNCIO_API_URL, SENDER_BRIEF, TELEGRAM_BOT_TOKEN, RESEND_API_KEY) are set in `/sandbox/.hermes/.env`.
 
-**Verified**: `curl -s https://nuncio.persidian.com/api/agent/prospect-queue` from inside the sandbox returns `{"queue":[]}` — network policy allows API calls to the nuncio server.
+**Verified end-to-end (2026-06-30)**: The full SDR loop ran from inside the sandbox:
+1. `curl` to `nuncio.persidian.com/api/agent/prospect-queue` from sandbox → prospect enqueued
+2. Research + synthesis + script generation completed (~2 min)
+3. HeyGen video rendered (~8 min) — share page live at `https://nuncio.persidian.com/v/b46b1f69-3f0`
+4. Live Stripe Checkout `cs_live_a1qnZHAL...` created from inside sandbox via `/api/agent/earn-checkout`
+5. Telegram channel registered, tunnel started
 
 ## Stripe integration details
 
@@ -128,15 +133,15 @@ The sandbox runs Hermes v0.14.0 with Nemotron 3 Ultra (550B) as the reasoning mo
 
 | Step | Component | Result |
 |------|-----------|--------|
-| Hermes + Nemotron | Model | `nvidia/nemotron-3-ultra-550b-a55b` via build.nvidia.com |
-| Stripe Projects (spend) | `stripe projects add elevenlabs/tts` | Provisioned ElevenLabs TTS credits autonomously |
-| Stripe Projects (spend) | `stripe projects add exa/api` | Provisioned Exa web search API autonomously |
-| Hermes SDR loop | Full autonomous cycle | 6-step loop: research -> render -> email -> reply classification -> Stripe earn -> Telegram report |
-| Telegram gateway | @nuncioappbot | Report messages sent with prospect info and share links |
-| Resend email | Real outreach email | Sent to prospect with HTTPS video share link |
-| Video rendering | HeyGen | Personalized video rendered (3-5 min), share page shows video with play button |
-| Stripe earn (live) | `POST /api/agent/earn-checkout` | Live Stripe Checkout session created (`cs_live_...`) for $50 consultation |
+| NemoClaw sandbox | OpenShell isolation | Hermes v0.14.0 running inside sandbox (Landlock + seccomp + netns) on Brev GCP VM |
+| Nemotron 3 Ultra | Routed inference | `nvidia/nemotron-3-ultra-550b-a55b` via OpenShell gateway → `inference.local` |
+| Network policies | Declarative egress | `nuncio.persidian.com`, `api.resend.com`, `api.telegram.org`, `integrate.api.nvidia.com` — all verified from inside sandbox |
+| Hermes SDR loop | Full autonomous cycle | Research → script → HeyGen render → Stripe earn → Telegram report — all from inside sandbox |
+| Video rendering | HeyGen | Personalized video for Elad Gil rendered in ~8 min, share page live at `https://nuncio.persidian.com/v/b46b1f69-3f0` |
+| Stripe earn (live) | `POST /api/agent/earn-checkout` | Live Stripe Checkout session `cs_live_a1qnZHAL...` created from inside sandbox for $50 consultation |
 | Stripe webhook | `https://nuncio.persidian.com/api/webhook` | Live endpoint registered, signature verification active |
+| Resend inbound | `replies.persidian.com` | Domain verified (DKIM + SPF + MX), inbound email → `/api/webhook/resend` → classify → reply-webhook |
+| Telegram channel | @nuncioappbot | Registered in sandbox, network policy active, tunnel started |
 | Production deploy | https://nuncio.persidian.com | All agent endpoints live with Turso persistence + Let's Encrypt SSL |
 
 ## How to run
@@ -145,11 +150,15 @@ The sandbox runs Hermes v0.14.0 with Nemotron 3 Ultra (550B) as the reasoning mo
 # 1. The nuncio server is already running at https://nuncio.persidian.com
 #    All agent endpoints are live.
 
-# 2. Run the autonomous SDR agent via Hermes + Nemotron 3 Ultra
-hermes -m nemotron -z "Run the sdr-orchestrator skill. Find a prospect at https://www.eladgil.com, research them, generate a personalized video, wait for the video to render, send the outreach email, send a Telegram report, classify a reply, and create a Stripe checkout for $50." --toolsets "terminal" --yolo
+# 2. The Hermes agent runs inside a NemoClaw sandbox on a Brev GCP VM.
+#    Connect via: brev shell nuncio-hermes
+#    Then run commands inside the sandbox via: nemohermes brev-hermes exec --no-tty -- <cmd>
 
-# 3. For cron-scheduled autonomous mode (9am weekdays)
-# Configure via: hermes cron
+# 3. Run the autonomous SDR loop from inside the sandbox
+nemohermes brev-hermes exec --no-tty -- hermes -z "Run the sdr-orchestrator skill. Find a prospect at https://www.eladgil.com, research them, wait for the video to render, then create a Stripe checkout for $50." --yolo
+
+# 4. For cron-scheduled autonomous mode (9am weekdays)
+# Configure via: nemohermes brev-hermes exec --no-tty -- hermes cron
 ```
 
 ## What makes this a business tool
