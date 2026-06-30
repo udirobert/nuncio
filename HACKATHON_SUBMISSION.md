@@ -36,8 +36,9 @@ The agent **earns** by closing deals ($50 per booked consultation via Stripe Che
 
 | Component | Technology | Role |
 |-----------|-----------|------|
-| Agent orchestrator | Hermes | Runs the autonomous SDR loop |
-| Reasoning model | NVIDIA Nemotron 3 Ultra (550B) | Decision-making, script generation, reply classification |
+| Agent orchestrator | Hermes (in NemoClaw sandbox) | Runs the autonomous SDR loop inside a hardened OpenShell sandbox |
+| Reasoning model | NVIDIA Nemotron 3 Ultra (550B) | Decision-making, script generation, reply classification — routed inference via OpenShell gateway |
+| Agent sandbox | NVIDIA NemoClaw + OpenShell | Landlock, seccomp, network namespace isolation — agent runs safely with declarative network policies |
 | Agent API | Next.js App Router | `POST /api/agent/prospect-queue`, `POST /api/agent/reply-webhook`, `POST /api/agent/earn-checkout` |
 | Spending | Stripe Projects | Agent provisions ElevenLabs TTS + Exa search API autonomously |
 | Earning | Stripe Checkout (live mode) | Agent creates checkout sessions for booked meetings |
@@ -89,6 +90,25 @@ The agent **earns** by closing deals ($50 per booked consultation via Stripe Che
 
 Plus 3 official Stripe Skills: `stripe-projects`, `stripe-link-cli`, `mpp-agent`.
 
+## NemoClaw sandbox
+
+The Hermes agent runs inside an NVIDIA NemoClaw sandbox on a Brev GCP VM (4 vCPU, 16 GB RAM, The Dalles, OR). NemoClaw provides:
+
+- **OpenShell sandbox isolation**: Landlock LSM, seccomp filters, network namespace isolation
+- **Routed inference**: Agent traffic goes through the OpenShell gateway to NVIDIA NIM (build.nvidia.com) — credentials stay on the host, never inside the sandbox
+- **Declarative network policies**: The sandbox has no network access by default. We explicitly allow:
+  - `nuncio.persidian.com:443` — agent API calls (research, deliver, earn-checkout, reply-webhook)
+  - `api.resend.com:443` — sending outreach emails
+  - `api.telegram.org:443` — Telegram reporting (pre-configured)
+  - `integrate.api.nvidia.com:443` — Nemotron 3 Ultra inference (pre-configured)
+  - `github.com:443` — git operations (pre-configured)
+- **Filesystem policies**: System dirs read-only, sandbox writable only at `/sandbox` and `/tmp`
+- **Process isolation**: Agent runs as `sandbox` user, not root
+
+The sandbox runs Hermes v0.14.0 with Nemotron 3 Ultra (550B) as the reasoning model. All 8 Nuncio skills are installed inside the sandbox at `/sandbox/.hermes/skills/`. Environment variables (NUNCIO_AGENT_TOKEN, NUNCIO_API_URL, SENDER_BRIEF, TELEGRAM_BOT_TOKEN, RESEND_API_KEY) are set in `/sandbox/.hermes/.env`.
+
+**Verified**: `curl -s https://nuncio.persidian.com/api/agent/prospect-queue` from inside the sandbox returns `{"queue":[]}` — network policy allows API calls to the nuncio server.
+
 ## Stripe integration details
 
 ### Earning (Stripe Checkout)
@@ -139,6 +159,7 @@ hermes -m nemotron -z "Run the sdr-orchestrator skill. Find a prospect at https:
 - **Real operations**: The agent runs the full SDR loop — research, script, video, email, reply classification, booking — without human intervention.
 - **Real reporting**: The agent sends cycle reports via Telegram, so the operator can monitor performance.
 - **Production-grade**: HTTPS, Turso persistence, live Stripe, idempotent checkout, customer reuse, webhook signature verification.
+- **Sandboxed safety**: Agent runs inside NVIDIA NemoClaw (OpenShell) with Landlock, seccomp, and network namespace isolation. Declarative network policies limit egress to only the APIs the agent needs.
 - **Hybrid mode**: The agent can queue drafts for human review in the studio — best of autonomous scale + human quality control.
 
 ## Repo
