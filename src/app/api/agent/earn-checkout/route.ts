@@ -8,10 +8,12 @@
  *
  * POST /api/agent/earn-checkout
  *   Body: { prospectEmail, meetingType, amount, prospectName?, shareId? }
- *   Returns: { checkoutUrl, sessionId }
+ *   Returns: { checkoutUrl, sessionId, customerId }
  *
- * Reuses the same Stripe integration pattern as /api/checkout (DRY).
- * Uses STRIPE_SECRET_KEY env var — same as existing checkout route.
+ * Reuses existing Stripe customers by email lookup so repeat prospects
+ * get a unified payment history. Uses an idempotency key derived from
+ * shareId + meetingType to prevent duplicate sessions if the agent
+ * calls this endpoint more than once for the same prospect meeting.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -25,6 +27,22 @@ const MEETING_TYPE_LABELS: Record<string, string> = {
   discovery: "Discovery call",
   strategy: "Strategy session",
 };
+
+/**
+ * Look up an existing Stripe customer by email. Returns the customer ID
+ * if found, otherwise undefined (Stripe will create one implicitly from
+ * customer_email during checkout).
+ */
+async function findCustomerByEmail(
+  stripe: import("stripe").default,
+  email: string,
+): Promise<string | undefined> {
+  const customers = await stripe.customers.list({
+    email,
+    limit: 1,
+  });
+  return customers.data[0]?.id;
+}
 
 export async function POST(request: NextRequest) {
   const auth = validateAgentRequest(request);
@@ -58,37 +76,55 @@ export async function POST(request: NextRequest) {
     const label = MEETING_TYPE_LABELS[meetingType] || meetingType || "Meeting";
     const description = `${label}${prospectName ? ` with ${prospectName}` : ""}`;
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            unit_amount: Math.round(amount * 100),
-            product_data: {
-              name: description,
-              metadata: {
-                meetingType: meetingType || "meeting",
-                shareId: shareId || "",
+    // Reuse existing Stripe customer for this email so repeat prospects
+    // have a unified payment history and we can look them up later.
+    const existingCustomerId = await findCustomerByEmail(stripe, prospectEmail);
+
+    // Idempotency: if the agent calls earn-checkout twice for the same
+    // shareId + meetingType, Stripe returns the same session instead of
+    // creating a duplicate.
+    const idempotencyKey = shareId
+      ? `earn-checkout-${shareId}-${meetingType || "meeting"}`
+      : undefined;
+
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "payment",
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              unit_amount: Math.round(amount * 100),
+              product_data: {
+                name: description,
+                metadata: {
+                  meetingType: meetingType || "meeting",
+                  shareId: shareId || "",
+                },
               },
             },
+            quantity: 1,
           },
-          quantity: 1,
+        ],
+        // Use existing customer if found, otherwise let Stripe create one
+        // from the email.
+        ...(existingCustomerId
+          ? { customer: existingCustomerId }
+          : { customer_email: prospectEmail }),
+        success_url: `${APP_URL}/v/${shareId || ""}?booked=true`,
+        cancel_url: `${APP_URL}/v/${shareId || ""}?booked=cancel`,
+        metadata: {
+          type: "agent_meeting",
+          workspaceId: auth.workspaceId,
+          prospectEmail,
+          prospectName: prospectName || "",
+          shareId: shareId || "",
+          meetingType: meetingType || "meeting",
         },
-      ],
-      customer_email: prospectEmail,
-      success_url: `${APP_URL}/v/${shareId || ""}?booked=true`,
-      cancel_url: `${APP_URL}/v/${shareId || ""}?booked=cancel`,
-      metadata: {
-        type: "agent_meeting",
-        workspaceId: auth.workspaceId,
-        prospectEmail,
-        prospectName: prospectName || "",
-        shareId: shareId || "",
-        meetingType: meetingType || "meeting",
       },
-    });
+      ...(idempotencyKey ? [{ idempotencyKey }] : []),
+    );
 
     if (!session.url) {
       return NextResponse.json(
@@ -100,6 +136,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       checkoutUrl: session.url,
       sessionId: session.id,
+      customerId: existingCustomerId || (session.customer as string) || undefined,
     });
   } catch (error) {
     console.error("[agent-earn-checkout] Error:", error);

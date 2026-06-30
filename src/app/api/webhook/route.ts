@@ -180,6 +180,23 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      case "checkout.session.expired": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const sessionType = session.metadata?.type || "subscription";
+        const workspaceId = session.metadata?.workspaceId || session.client_reference_id || "";
+
+        console.log(`[webhook] Checkout session expired: session=${session.id}, type=${sessionType}, workspace=${workspaceId}`);
+
+        // For agent meeting sessions, log the expired payment attempt so
+        // the agent can follow up with a new session if appropriate.
+        if (sessionType === "agent_meeting") {
+          const prospectEmail = session.metadata?.prospectEmail || "";
+          const meetingType = session.metadata?.meetingType || "";
+          console.log(`[webhook] Agent meeting checkout expired: prospect=${prospectEmail}, meeting=${meetingType}, session=${session.id}`);
+        }
+        break;
+      }
+
       default:
         console.log(`[webhook] Unhandled event type: ${event.type}`);
     }
