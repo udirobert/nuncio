@@ -1,14 +1,18 @@
 /**
- * Agent earn-checkout endpoint — creates a Stripe Checkout session
- * for a prospect to pay for a booked meeting.
+ * Agent earn-checkout endpoint — creates a Stripe embedded checkout
+ * session for a prospect to pay for a booked meeting.
  *
  * This is the "earning" side of the autonomous agent: when a prospect
  * agrees to a meeting, the agent creates a checkout session and sends
  * the payment link. Revenue flows to the workspace's Stripe account.
  *
+ * Uses Stripe embedded checkout (ui_mode: "embedded_page") so the
+ * payment form renders on our own /checkout page rather than redirecting
+ * to Stripe's hosted checkout (which requires Dashboard activation).
+ *
  * POST /api/agent/earn-checkout
  *   Body: { prospectEmail, meetingType, amount, prospectName?, shareId? }
- *   Returns: { checkoutUrl, sessionId, customerId }
+ *   Returns: { checkoutUrl, sessionId, clientSecret, customerId }
  *
  * Reuses existing Stripe customers by email lookup so repeat prospects
  * get a unified payment history. Uses an idempotency key derived from
@@ -84,13 +88,17 @@ export async function POST(request: NextRequest) {
     // shareId + meetingType, Stripe returns the same session instead of
     // creating a duplicate.
     const idempotencyKey = shareId
-      ? `earn-checkout-${shareId}-${meetingType || "meeting"}`
+      ? `earn-checkout-emb-${shareId}-${meetingType || "meeting"}`
       : undefined;
 
+    // Embedded checkout: renders the Stripe payment form on our own
+    // /checkout page via the client_secret + @stripe/stripe-js
+    // initEmbeddedCheckout(). This bypasses the hosted checkout page
+    // which requires Dashboard activation.
     const session = await stripe.checkout.sessions.create(
       {
         mode: "payment",
-        payment_method_types: ["card"],
+        ui_mode: "embedded_page",
         line_items: [
           {
             price_data: {
@@ -112,8 +120,7 @@ export async function POST(request: NextRequest) {
         ...(existingCustomerId
           ? { customer: existingCustomerId }
           : { customer_email: prospectEmail }),
-        success_url: `${APP_URL}/v/${shareId || ""}?booked=true`,
-        cancel_url: `${APP_URL}/v/${shareId || ""}?booked=cancel`,
+        return_url: `${APP_URL}/v/${shareId || ""}?booked=true`,
         metadata: {
           type: "agent_meeting",
           workspaceId: auth.workspaceId,
@@ -126,16 +133,21 @@ export async function POST(request: NextRequest) {
       ...(idempotencyKey ? [{ idempotencyKey }] : []),
     );
 
-    if (!session.url) {
+    if (!session.client_secret) {
       return NextResponse.json(
         { error: "Failed to create checkout session" },
         { status: 500 },
       );
     }
 
+    // checkoutUrl points to our embedded checkout page, passing the
+    // session ID so the page can fetch the client_secret.
+    const checkoutUrl = `${APP_URL}/checkout?session_id=${session.id}`;
+
     return NextResponse.json({
-      checkoutUrl: session.url,
+      checkoutUrl,
       sessionId: session.id,
+      clientSecret: session.client_secret,
       customerId: existingCustomerId || (session.customer as string) || undefined,
     });
   } catch (error) {

@@ -73,3 +73,14 @@ scripts/deploy-production.sh
 .env
 .env.*
 !.env.example
+
+# Auto-generated tooling files (stripe projects, agent skills, etc.)
+.agents/
+.cursor/
+.cursorignore
+.projects/
+CLAUDE.md
+
+# Demo video assets (large, not needed in repo)
+demo-assets/
+demo-video/
