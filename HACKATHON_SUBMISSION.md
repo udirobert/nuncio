@@ -46,15 +46,26 @@ The agent **earns** by closing deals ($50 per booked consultation via Stripe Che
 | Inbound replies | Resend Inbound + reply-webhook | Receives and classifies prospect replies |
 | Reporting | Telegram Bot (@nuncioappbot) | Sends cycle reports to the operator |
 | Video rendering | HeyGen | Generates personalized outreach videos |
-| Profile enrichment | TinyFish | Researches prospects from their URL |
+| Profile enrichment | TinyFish + Firecrawl + EXA | Three-provider research orchestrator: TinyFish for prospect discovery, Firecrawl for structured web extraction + site mapping, EXA for semantic search |
 | Data persistence | Turso (SQLite at the edge) | Share records, billing accounts, workspace data |
 | Production | Vultr + Coolify + Traefik | Deployed at https://nuncio.persidian.com with automatic Let's Encrypt |
 
 ## The earn / spend / operate loop
 
+### Research pipeline
+
+The agent uses a three-provider research orchestrator (`src/lib/research/orchestrator.ts`) that cascades from lightweight to deep:
+
+1. **TinyFish** — prospect discovery from a URL. Fast, cheap, always available. Returns a structured profile with name, title, company, and recent activity.
+2. **Firecrawl** — structured web extraction + site mapping. Scrapes the prospect's site for high-confidence claims (no LLM call needed). Uses `mapSite()` for fast sitemap enumeration (5x faster than crawling). Gated on `FIRECRAWL_API_KEY` (Pro+ tier).
+3. **EXA** — semantic search across the web. Finds related articles, posts, and mentions about the prospect. Provisions its own API credits via Stripe Projects (`stripe projects add exa/api`).
+
+The orchestrator merges results from all available providers, deduplicates by URL, and feeds the combined context to the script generator. Providers are loaded conditionally based on API key availability — the agent degrades gracefully if a provider isn't configured.
+
 ### SPENDS (agent provisions its own services)
 - `stripe projects add elevenlabs/tts` — provisions ElevenLabs TTS credits for voice generation
 - `stripe projects add exa/api` — provisions Exa web search API for prospect discovery
+- Firecrawl API credits (via existing nuncio pipeline)
 - HeyGen video rendering credits (via existing nuncio pipeline)
 
 ### EARNS (agent generates revenue)
@@ -164,7 +175,7 @@ nemohermes brev-hermes exec --no-tty -- hermes -z "Run the sdr-orchestrator skil
 ## What makes this a business tool
 
 - **Real revenue**: The agent creates live Stripe Checkout sessions for booked meetings. $50 per consultation. Real money, not test mode.
-- **Real spending**: The agent provisions its own services via Stripe Projects (ElevenLabs, Exa). It pays for its own tools.
+- **Real spending**: The agent provisions its own services via Stripe Projects (ElevenLabs, Exa). Firecrawl and HeyGen credits are consumed through the pipeline. It pays for its own tools.
 - **Real operations**: The agent runs the full SDR loop — research, script, video, email, reply classification, booking — without human intervention.
 - **Real reporting**: The agent sends cycle reports via Telegram, so the operator can monitor performance.
 - **Production-grade**: HTTPS, Turso persistence, live Stripe, idempotent checkout, customer reuse, webhook signature verification.

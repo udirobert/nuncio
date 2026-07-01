@@ -26,24 +26,9 @@ const CREDIT_PACKS = [
 
 const PLAN_TIERS = [
   {
-    id: "trial",
-    name: "Trial",
-    eyebrow: "Anonymous judges",
-    price: "$0",
-    period: "first canvas",
-    hookModel: "10 trial credits",
-    quality: "Draft workflow",
-    allowance: "Enough for research + one review",
-    speed: "Render requires account",
-    watermark: "Public share",
-    cta: "Start anonymous",
-    note: "No email. Drop a profile URL and watch the agent build.",
-    featured: false,
-  },
-  {
     id: "free",
     name: "Free",
-    eyebrow: "Email captured",
+    eyebrow: "Get started",
     price: "$0",
     period: "monthly",
     hookModel: "10 starter credits",
@@ -206,7 +191,30 @@ function PricingContent() {
         )}
       </AnimatePresence>
 
-      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-5 items-stretch max-w-6xl mx-auto">
+      {/* Trial callout — no signup needed */}
+      <motion.a
+        href="/studio"
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="group flex items-center justify-between gap-4 max-w-2xl mx-auto mb-10 rounded-2xl border border-cream-dark bg-white/60 hover:bg-white hover:border-accent/30 transition-all px-5 py-4 cursor-pointer"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-accent-soft flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 16 16" className="w-4 h-4 text-accent" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M2 8l4 4 8-8" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-ink">Want to see it first?</p>
+            <p className="text-xs text-ink-muted">Drop a profile URL — no signup needed. Watch the agent research, script, and build a canvas in real time.</p>
+          </div>
+        </div>
+        <span className="text-xs font-medium text-accent group-hover:translate-x-0.5 transition-transform shrink-0">
+          Try it →
+        </span>
+      </motion.a>
+
+      <div className="grid md:grid-cols-3 gap-5 items-stretch max-w-5xl mx-auto">
         {PLAN_TIERS.map((tier, index) => {
           const isPro = tier.id === "pro";
           const displayedPrice = isPro && annual && "annualPrice" in tier ? tier.annualPrice : tier.price;
