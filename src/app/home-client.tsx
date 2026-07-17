@@ -9,19 +9,19 @@ import { ShowcaseStrip } from "@/components/landing/showcase-strip";
 import { VideoProof } from "@/components/landing/video-proof";
 import { SHOWCASE_RECIPIENTS } from "@/lib/showcase";
 
-const PIPELINE_DEMO: { id: string; label: string; desc: string; tool: string }[] = [
-  { id: "enrich", label: "Enrich", desc: "Fetch public data from their profile", tool: "tinyfish" },
-  { id: "synthesise", label: "Synthesise", desc: "Build a structured profile with Claude", tool: "claude" },
-  { id: "compose", label: "Compose", desc: "Draft a personalised script", tool: "claude" },
+const ACCOUNT_FLOW: { id: string; label: string; desc: string }[] = [
+  { id: "account", label: "Pick the account", desc: "Start with the person or company you genuinely want to reach." },
+  { id: "reason", label: "Make your case", desc: "Give Nuncio the reason this conversation should happen now." },
+  { id: "review", label: "Review before sending", desc: "Approve the research, hook, and every word in your name." },
 ];
 
 export default function HomeClient() {
-  const [demoStep, setDemoStep] = useState(0);
+  const [activeStep, setActiveStep] = useState(0);
 
   useEffect(() => {
-    const t = setTimeout(() => setDemoStep((s) => (s + 1) % (PIPELINE_DEMO.length + 1)), 2200);
+    const t = setTimeout(() => setActiveStep((s) => (s + 1) % ACCOUNT_FLOW.length), 2600);
     return () => clearTimeout(t);
-  }, [demoStep]);
+  }, [activeStep]);
 
   return (
     <>
@@ -52,9 +52,9 @@ export default function HomeClient() {
                     transition={{ delay: 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                     className="font-[family-name:var(--font-display)] text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[0.95] mb-3"
                   >
-                    Send a video
+                    Open the accounts
                     <br />
-                    <span className="italic">they&apos;ll actually watch</span>
+                    <span className="italic">that matter most.</span>
                   </motion.h1>
                   <motion.p
                     initial={{ opacity: 0, y: 12 }}
@@ -62,8 +62,9 @@ export default function HomeClient() {
                     transition={{ delay: 0.2, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                     className="text-ink-muted text-[14px] leading-relaxed max-w-[380px]"
                   >
-                    Paste their profile. We&apos;ll research them, write a personalised
-                    script, and build a creative canvas — in ~5 minutes.
+                    For founders and small B2B teams pursuing high-value accounts,
+                    partnerships, and investor conversations. Make a personal video
+                    for one person—not another sequence for thousands.
                   </motion.p>
                 </div>
                 <motion.div
@@ -75,20 +76,20 @@ export default function HomeClient() {
                     href="/studio"
                     className="btn-press w-full rounded-2xl px-6 py-4 text-sm font-medium bg-ink text-cream shadow-xl shadow-ink/15 hover:shadow-2xl hover:shadow-ink/20 hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2"
                   >
-                    Build a video
+                    Make a strategic-account video
                     <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M3 8h10M9 4l4 4-4 4" />
                     </svg>
                   </Link>
                   <p className="text-center text-[11px] text-ink-faint mt-3">
-                    No account needed · ~5 minutes
+                    Review every word before it leaves your name
                   </p>
                 </motion.div>
 
                 <div className="mt-10 space-y-2">
-                  {PIPELINE_DEMO.map((step, i) => {
-                    const active = demoStep === i;
-                    const complete = demoStep > i;
+                  {ACCOUNT_FLOW.map((step, i) => {
+                    const active = activeStep === i;
+                    const complete = activeStep > i;
                     return (
                       <div
                         key={step.id}
@@ -118,7 +119,6 @@ export default function HomeClient() {
                             }`}>
                               {step.label}
                             </span>
-                            <span className="text-[9px] font-mono text-ink-faint">{step.tool}</span>
                           </div>
                           <p className={`text-[11px] mt-px transition-colors ${
                             active || complete ? "text-ink-muted" : "text-ink-faint"
@@ -137,23 +137,23 @@ export default function HomeClient() {
           <section className="px-6 py-8 max-w-[540px] mx-auto">
             <div className="flex items-center gap-6 justify-center">
               <div className="text-center">
-                <span className="block font-[family-name:var(--font-display)] text-2xl text-ink">5 min</span>
-                <span className="text-[10px] uppercase tracking-widest text-ink-faint">URL to video</span>
+                <span className="block font-[family-name:var(--font-display)] text-2xl text-ink">1</span>
+                <span className="text-[10px] uppercase tracking-widest text-ink-faint">person at a time</span>
               </div>
               <div className="w-px h-8 bg-cream-dark" />
               <div className="text-center">
-                <span className="block font-[family-name:var(--font-display)] text-2xl text-ink">3-5x</span>
-                <span className="text-[10px] uppercase tracking-widest text-ink-faint">reply rate lift</span>
+                <span className="block font-[family-name:var(--font-display)] text-2xl text-ink">100%</span>
+                <span className="text-[10px] uppercase tracking-widest text-ink-faint">human reviewed</span>
               </div>
               <div className="w-px h-8 bg-cream-dark" />
               <div className="text-center">
-                <span className="block font-[family-name:var(--font-display)] text-2xl text-ink">0</span>
-                <span className="text-[10px] uppercase tracking-widest text-ink-faint">manual steps</span>
+                <span className="block font-[family-name:var(--font-display)] text-2xl text-ink">1</span>
+                <span className="text-[10px] uppercase tracking-widest text-ink-faint">clear reason to reach out</span>
               </div>
             </div>
-            <p className="text-center text-xs text-ink-muted mt-5 max-w-[360px] mx-auto leading-relaxed">
-              &ldquo;I dropped a prospect&apos;s LinkedIn URL and had a personalised video on their phone before our first call. They replied in 12 minutes.&rdquo;
-              <span className="block text-[10px] text-ink-faint mt-1.5 uppercase tracking-wider">Founder-led sales, B2B SaaS</span>
+            <p className="text-center text-xs text-ink-muted mt-5 max-w-[390px] mx-auto leading-relaxed">
+              Nuncio is for the account you would research properly yourself—the
+              one where a thoughtful first message can change the relationship.
             </p>
           </section>
 

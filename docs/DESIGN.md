@@ -5,13 +5,16 @@
 **1. The video is the product, not the app.**
 The UI exists to collect an input and deliver an output. Every design decision should reduce friction between "I want to send someone a video" and "the video is ready." Avoid feature creep in the interface.
 
-**2. Progress, not waiting.**
+**2. Specificity must be visible.**
+The recipient should be able to tell, within the first few seconds, that the video was made for them. Vocal personalisation is not enough. The visual system should reference the recipient, the sender's offer, and the reason for reaching out.
+
+**3. Progress, not waiting.**
 Video generation takes 60–180 seconds. That time cannot be compressed. The UI must make it feel purposeful — show the user what the agent is doing at each stage, not just a spinner.
 
-**3. Confidence through specificity.**
+**4. Confidence through specificity.**
 The generated script should feel genuinely personalised, not templated. The UI should surface which specific details were used (e.g. "Referenced: your role at Stripe, your thread on ZK proofs") so the sender can verify before rendering.
 
-**4. One flow, no dead ends.**
+**5. One flow, no dead ends.**
 The happy path is: enter URLs → review script → render video → copy link. Every failure state should offer a clear next action — retry, edit, or skip — not a blank error screen.
 
 ---
@@ -22,14 +25,18 @@ The happy path is: enter URLs → review script → render video → copy link. 
 
 ```
 ┌──────────────────────────────────────────────┐
-│  Who are you sending to?                     │
+│  Who is this for?                            │
 │                                              │
 │  LinkedIn URL  [________________________]    │
 │  Twitter/X     [________________________]    │
 │  Farcaster     [________________________]    │
 │  Other URL     [________________________]    │
 │                                              │
-│  At least one URL required.                  │
+│  Why should this conversation happen?        │
+│  [______________________________________]    │
+│                                              │
+│  What can you show them?                     │
+│  [Screenshot] [Proof point] [Relevant URL]   │
 │                                              │
 │  [Generate video →]                          │
 └──────────────────────────────────────────────┘
@@ -38,7 +45,8 @@ The happy path is: enter URLs → review script → render video → copy link. 
 - All fields optional except at least one URL
 - Inline validation on blur (is this a valid profile URL?)
 - "Other URL" is a catch-all for personal sites, GitHub profiles, etc.
-- No account required for hackathon MVP
+- Sender context is not optional in practice: the product needs a reason, an offer, and at least one proof asset to make the video visually specific
+- Voice input can fill the same brief, but the structured brief remains the source of truth
 
 ### Step 2 — Agent progress
 
@@ -48,8 +56,9 @@ The happy path is: enter URLs → review script → render video → copy link. 
 │                                              │
 │  ✓  Fetching profiles          0.8s          │
 │  ✓  Analysing context          2.1s          │
+│  ✓  Choosing visual hook       2.8s          │
 │  ◌  Writing script...                        │
-│  ○  Composing visuals                        │
+│  ○  Composing proof scene                    │
 │  ○  Rendering video                          │
 │                                              │
 │  Usually takes about 90 seconds.             │
@@ -61,11 +70,11 @@ The happy path is: enter URLs → review script → render video → copy link. 
 - No estimated total time on individual steps — only a general "about 90 seconds" message
 - If any enrichment URLs failed (e.g. login wall), show a soft warning: "Couldn't access Twitter — continuing with LinkedIn only"
 
-### Step 3 — Script review
+### Step 3 — Script and visual review
 
 ```
 ┌──────────────────────────────────────────────┐
-│  Script ready — review before rendering      │
+│  Review before rendering                     │
 │                                              │
 │  "Hey Sarah — I came across your work on     │
 │  the Stripe Atlas team and your recent post  │
@@ -74,6 +83,8 @@ The happy path is: enter URLs → review script → render video → copy link. 
 │  think you'd have a sharp take on it..."     │
 │                                              │
 │  Based on: LinkedIn · Twitter (3 posts)     │
+│  Opening visual: Stripe Atlas post           │
+│  Proof visual: payments API screenshot       │
 │                                              │
 │  [Edit script]  [Render video →]             │
 └──────────────────────────────────────────────┘
@@ -83,6 +94,8 @@ The happy path is: enter URLs → review script → render video → copy link. 
 - Small attribution line shows which sources were used
 - Inline edit mode (simple textarea, not a separate page)
 - Word count indicator (200 word limit for avatar delivery)
+- Visual plan is shown before rendering: opening signal, proof asset, motion graphic, and close
+- Sender can replace an asset or remove a visual reference that feels weak
 
 ### Step 4 — Video ready
 
@@ -144,6 +157,32 @@ The happy path is: enter URLs → review script → render video → copy link. 
 **Motion:** Minimal. The progress stepper uses a subtle pulse on the active step. Video autoplay is the only unsolicited motion. No page transitions, no hover animations beyond cursor changes.
 
 **Layout:** Single-column, centred, max-width ~600px. Mobile-first. The flow is linear — no sidebar, no tabs, no navigation for MVP.
+
+## Account Film Composition
+
+The next video format should be an account-specific film, not a full-screen avatar monologue.
+
+### Default structure
+
+- **0-3s target hook:** recipient name, company, product surface, recent post, or public signal
+- **3-12s reason:** motion graphic explaining why the outreach is relevant now
+- **12-22s proof:** sender screenshot, case study result, metric, deck slide, or customer example
+- **22-30s close:** avatar or voice-led ask with one clear next step
+
+### Asset inputs
+
+- Product screenshot or short screen capture
+- Sender logo or product mark
+- One proof point, metric, or customer reference
+- Optional relevant URL that supports the reason for reaching out
+
+### Channel scope
+
+Start with one polished format before expanding:
+
+- Primary: LinkedIn/email share page, 16:9 or square depending on current render constraints
+- Later: cropped social variants for Instagram and X
+- Out of scope for now: a general motion graphics editor, arbitrary template builder, or channel-by-channel creative suite
 
 ---
 

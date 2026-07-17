@@ -44,7 +44,7 @@ export function QuickInput({
   onToggleTranslate,
   voicePopulatedFields = new Set(),
 }: QuickInputProps) {
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(true);
 
   const voiceFlash = (field: string) =>
     voicePopulatedFields.has(field)
@@ -64,30 +64,29 @@ export function QuickInput({
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15">
               <span className="w-1.5 h-1.5 rounded-full bg-accent" />
               <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
-                AI-powered · personalised video
+                High-value outreach · human reviewed
               </span>
             </div>
             <h1 className="font-[family-name:var(--font-display)] text-4xl sm:text-5xl tracking-tight leading-[1.02]">
-              Brief an agent.
+              Make the next account
               <br />
-              <span className="text-ink-muted">Get a personalised video.</span>
+              <span className="text-ink-muted">count.</span>
             </h1>
             <div className="flex items-center justify-center gap-2 pt-2 text-[10px] uppercase tracking-widest text-ink-faint">
-              <span className="text-accent">Brief</span>
+              <span className="text-accent">Account</span>
+              <span>→</span>
+              <span>Reason</span>
               <span>→</span>
               <span>Review</span>
               <span>→</span>
-              <span>Build</span>
-              <span>→</span>
-              <span>Share</span>
+              <span>Send</span>
             </div>
           </div>
 
           <div className="space-y-4">
-            <div className="rounded-2xl border-2 border-accent/25 bg-gradient-to-br from-accent-soft/70 via-white to-warm-soft/40 p-5 shadow-sm space-y-4 text-left">
+            <div className="rounded-2xl border border-accent/20 bg-gradient-to-br from-accent-soft/45 via-white to-warm-soft/25 p-4 shadow-sm text-left">
               <div className="flex items-start gap-3">
-                <div className="relative w-12 h-12 rounded-2xl bg-accent text-white flex items-center justify-center shadow-sm shrink-0">
-                  <span className="absolute inset-0 rounded-2xl bg-accent animate-ping opacity-15" />
+                <div className="relative w-9 h-9 rounded-xl bg-accent text-white flex items-center justify-center shadow-sm shrink-0">
                   <svg viewBox="0 0 16 16" className="relative w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.6">
                     <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
                     <path d="M3 8a5 5 0 0010 0M8 13v2" />
@@ -95,38 +94,29 @@ export function QuickInput({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="text-base font-medium text-ink">Talk to your video agent</p>
-                    <span className="rounded-full bg-white/70 border border-accent/15 px-2 py-0.5 text-[9px] uppercase tracking-widest text-accent">
-                      Speech Engine
-                    </span>
+                    <p className="text-sm font-medium text-ink">Prefer to talk it through?</p>
                   </div>
-                  <p className="mt-1 text-sm leading-relaxed text-ink-muted">
-                    Tell Nuncio who you want to reach and it will fill the brief for you.
+                  <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">
+                    Use voice to fill this brief faster. You will still review the message before building.
                   </p>
                 </div>
               </div>
-              <button
-                onClick={onOpenVoice}
-                className="btn-press w-full rounded-xl bg-accent text-white py-3.5 text-sm font-medium hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"
-              >
-                Start voice brief
+              <button onClick={onOpenVoice} className="btn-press text-xs font-medium text-accent hover:text-accent/80 transition-colors flex items-center gap-1.5">
+                Brief with voice
                 <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M3 8h10M9 4l4 4-4 4" />
                 </svg>
               </button>
-              <p className="text-[11px] text-ink-faint text-center">
-                or paste a profile URL below
-              </p>
             </div>
 
             <div>
               <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
-                Profile URL
+                Who is this for?
               </label>
               <input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://linkedin.com/in/…"
+                placeholder="Paste their LinkedIn, X, or website URL"
                 className={`w-full rounded-xl border bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voiceFlash("url")} ${voicePopulatedFields.has("url") ? "border-success/50" : "border-cream-dark"}`}
                 onKeyDown={(e) => e.key === "Enter" && onEnrich()}
               />
@@ -140,8 +130,8 @@ export function QuickInput({
               )}
               <div className="flex flex-wrap gap-2 mt-2">
                 {[
-                  { label: "Try Sundar Pichai", url: "https://linkedin.com/in/sundarpichai" },
-                  { label: "Try Vercel CEO", url: "https://x.com/rauchg" },
+                  { label: "Example: B2B founder", url: "https://x.com/timgl" },
+                  { label: "Example: product leader", url: "https://ca.linkedin.com/in/yekeh" },
                 ].map((example) => (
                   <button
                     key={example.label}
@@ -183,7 +173,7 @@ export function QuickInput({
                 onClick={() => setMoreOpen(!moreOpen)}
                 className="w-full flex items-center justify-between px-5 py-3 text-left"
               >
-                <span className="text-xs font-medium text-ink-muted">More context (optional)</span>
+                <span className="text-xs font-medium text-ink-muted">Why should this conversation happen?</span>
                 <svg
                   viewBox="0 0 16 16"
                   className={`w-3 h-3 text-ink-faint transition-transform ${moreOpen ? "rotate-180" : ""}`}
@@ -198,12 +188,12 @@ export function QuickInput({
                 <div className="px-5 pb-4 space-y-3 border-t border-cream-dark/50 pt-3">
                   <div>
                     <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
-                      Context <span className="normal-case text-ink-faint">— what are you reaching out about?</span>
+                      What is your reason to reach out? <span className="normal-case text-ink-faint">— make it specific</span>
                     </label>
                     <textarea
                       value={senderBrief}
                       onChange={(e) => setSenderBrief(e.target.value)}
-                      placeholder="e.g. I'm building a payments API and would love their perspective…"
+                      placeholder="e.g. Their team is scaling payments infrastructure and I have a relevant idea for reducing reconciliation work…"
                       rows={2}
                       className={`w-full rounded-xl border bg-white px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voiceFlash("senderBrief")} ${voicePopulatedFields.has("senderBrief") ? "border-success/50" : "border-cream-dark"}`}
                     />
@@ -218,25 +208,25 @@ export function QuickInput({
                   </div>
                   <div>
                     <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
-                      Your business <span className="normal-case text-ink-faint">— what are you building or selling?</span>
+                      Your offer <span className="normal-case text-ink-faint">— what can you genuinely help with?</span>
                     </label>
                     <input
                       type="text"
                       value={senderBusiness}
                       onChange={(e) => setSenderBusiness(e.target.value)}
-                      placeholder="e.g. AI outreach studio for personalised videos"
+                      placeholder="e.g. We help fintech teams reduce reconciliation work"
                       className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
                     />
                   </div>
                   <div>
                     <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
-                      Goal <span className="normal-case text-ink-faint">— what outcome do you want from this outreach?</span>
+                      Desired conversation <span className="normal-case text-ink-faint">— what do you want them to do next?</span>
                     </label>
                     <input
                       type="text"
                       value={outreachGoal}
                       onChange={(e) => setOutreachGoal(e.target.value)}
-                      placeholder="e.g. book a demo, get feedback, open a partnership conversation"
+                      placeholder="e.g. a 20-minute discovery call or their feedback on an idea"
                       className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
                     />
                   </div>
@@ -272,7 +262,7 @@ export function QuickInput({
               disabled={!url.trim()}
               className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
             >
-              Research & write script
+              Research account & draft a script
               <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3 8h10M9 4l4 4-4 4" />
               </svg>
@@ -284,7 +274,7 @@ export function QuickInput({
               onClick={onToggleMode}
               className="text-[11px] text-ink-faint hover:text-accent transition-colors"
             >
-              Switch to Advanced mode
+              Open full creative controls
             </button>
           </div>
         </div>

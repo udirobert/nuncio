@@ -1,20 +1,21 @@
 # nuncio
 
-> Send a video they'll actually watch.
+> Account-specific videos for the conversations that matter most.
 
-nuncio is a collaborative video personalization platform where specialized AI agents research prospects, craft personalized scripts, validate compliance, and render videos—all coordinated through Band's multi-agent room.
+nuncio is a collaborative video personalization platform for founders and small B2B teams pursuing high-value accounts, partnerships, investors, and other conversations where one thoughtful first message can change the relationship.
 
-No templates. No mail merge. A video that sounds like you wrote it for them specifically, because the agent did.
+No templates. No mail merge. A video that sounds and looks like it was made for one specific person.
 
 ---
 
 ## How it works
 
 1. **Research** — TinyFish fetches and cleans each social profile in parallel.
-2. **Write** — The Copywriter Agent surfaces personalization angles and drafts scripts.
-3. **Validate** — The QA Agent checks word counts, brand safety, and compliance.
-4. **Render** — The Producer Agent generates audio (ElevenLabs) and video (HeyGen).
-5. **Deliver** — The finished video is served on a branded landing page (`/v/[id]`) with sharing, captions, and optional translation.
+2. **Ground** — Nuncio combines public context with the sender's reason for reaching out.
+3. **Write** — The Copywriter Agent surfaces personalization angles and drafts scripts.
+4. **Review** — The sender approves the research, hook, script, and creative direction.
+5. **Render** — The Producer Agent generates audio (ElevenLabs) and video (HeyGen).
+6. **Deliver** — The finished video is served on a branded landing page (`/v/[id]`) with sharing, captions, and optional translation.
 
 Total time from input to video: ~5 minutes.
 
@@ -108,11 +109,11 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 ## Use cases
 
-- **Sales outreach** — personalized video prospecting at scale
-- **Investor pitches** — tailored intro videos for each LP or VC
+- **Strategic account outreach** — reach the handful of prospects that deserve real effort
+- **Investor intros** — tailored videos for each LP, angel, or VC
+- **Partnership conversations** — show why the relationship makes sense now
 - **Recruiting** — video outreach to candidates that references their actual work
-- **Freelancer pitches** — win clients with a video that speaks to their specific situation
-- **Conference follow-up** — post-event videos that reference real conversations
+- **Founder-to-founder asks** — specific, respectful first messages that open a door
 
 ---
 

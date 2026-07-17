@@ -5,23 +5,23 @@ import { motion } from "motion/react";
 const TILES = [
   {
     step: "01",
-    title: "Enrich",
-    body: "TinyFish reads every public profile in parallel — LinkedIn, X, GitHub, Farcaster — and returns structured context, not scraped soup.",
+    title: "Choose",
+    body: "Start with a person or company worth real effort—not a list you plan to blast.",
   },
   {
     step: "02",
-    title: "Synthesise",
-    body: "Claude merges the sources into one rich profile and writes a script that references real, recent work — not job titles or generic flattery.",
+    title: "Ground it",
+    body: "Nuncio turns public context and your reason for reaching out into a relevant, specific opening.",
   },
   {
     step: "03",
-    title: "Compose",
-    body: "The creative agent picks supporting visuals, organises assets, and prepares a 3-scene structure that matches the message's intent.",
+    title: "Make it yours",
+    body: "Edit the hook, script, and creative direction until it sounds like a message you would actually send.",
   },
   {
     step: "04",
-    title: "Render",
-    body: "HeyGen renders the video with your cloned voice and avatar, captioned by Speechmatics. Branded share page included.",
+    title: "Open a door",
+    body: "Send a polished personal video and give a high-value conversation the attention it deserves.",
   },
 ];
 
@@ -40,13 +40,13 @@ export function HowItWorks() {
             How nuncio works
           </p>
           <h2 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl tracking-tight leading-[1] mb-4">
-            Four agents, fully automated, one video
-            that sounds like you wrote it.
+            A considered first message for the
+            conversations that can change your business.
           </h2>
           <p className="text-ink-muted text-[15px] leading-relaxed">
-            Every step is auditable. The agent shows you what it pulled, what it
-            chose to use, and what it deliberately ignored — so you can trust
-            what gets sent in your name.
+            Research accelerates the work. You retain the judgement. Review the
+            context, the hook, and the final script before anything is sent in
+            your name.
           </p>
         </motion.div>
 
