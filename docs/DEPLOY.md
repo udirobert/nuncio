@@ -31,8 +31,19 @@ API routes implement per-IP sliding-window rate limits (`src/lib/rate-limit.ts`)
 - Video render: 3 req/min
 - Translation: 5 req/min
 - Transcription: 10 req/min
+- Live avatar session: 3 req/min
 
-These prevent credit exhaustion from runaway requests or basic abuse. They are not a substitute
+By default, limits are stored in-memory and reset on server restart. For multi-instance or
+production deployments, enable Redis-backed rate limiting:
+
+```env
+NUNCIO_RATE_LIMIT_STORE=redis
+REDIS_URL=redis://localhost:6379
+```
+
+Use a managed Redis (e.g., Upstash, Redis Cloud) for `REDIS_URL` in production.
+
+These limits prevent credit exhaustion from runaway requests or basic abuse. They are not a substitute
 for a Web Application Firewall (WAF) in a production deployment.
 
 ### Firewall

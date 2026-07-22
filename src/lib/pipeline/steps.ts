@@ -23,6 +23,8 @@ export interface PipelineInput {
   senderBrief?: string;
   senderProfile?: SenderProfile;
   outreachIntent?: OutreachIntentProfile;
+  /** How the outreach should be delivered. `livelink` prepares a live avatar session; `video` renders an MP4. */
+  deliveryMode?: "video" | "livelink";
   researchTier?: "quick" | "balanced" | "deep";
   deepResearchEnabled?: boolean;
   languageOverride?: string;
@@ -86,6 +88,12 @@ export function buildSenderProfile(body: Record<string, unknown>): SenderProfile
 
 export function buildOutreachIntent(body: Record<string, unknown>): OutreachIntentProfile | undefined {
   const relationshipWarmth = body.relationshipWarmth;
+  const playbook: OutreachIntentProfile["playbook"] = {
+    wants: cleanOptionalString(body.wants),
+    canOffer: cleanOptionalString(body.canOffer),
+    wiggleRoom: cleanOptionalString(body.wiggleRoom),
+    constraints: cleanStringArray(body.constraints),
+  };
   const outreachIntent: OutreachIntentProfile = {
     goal: cleanOptionalString(body.outreachGoal),
     desiredOutcome: cleanOptionalString(body.desiredOutcome),
@@ -95,6 +103,7 @@ export function buildOutreachIntent(body: Record<string, unknown>): OutreachInte
         ? relationshipWarmth
         : undefined,
     tonePreference: cleanOptionalString(body.tonePreference),
+    playbook: Object.values(playbook).some(Boolean) ? playbook : undefined,
   };
   return Object.values(outreachIntent).some(Boolean) ? outreachIntent : undefined;
 }
@@ -169,6 +178,7 @@ export async function researchAndSynthesize(
     relationshipWarmth: outreachIntent?.relationshipWarmth,
     reasonForReachingOutNow: outreachIntent?.reasonForReachingOutNow,
     tonePreference: outreachIntent?.tonePreference,
+    playbook: outreachIntent?.playbook,
   };
 
   const profile = await synthesise(markdown, { senderContext });

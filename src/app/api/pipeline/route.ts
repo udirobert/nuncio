@@ -172,6 +172,7 @@ export async function POST(request: NextRequest) {
           senderBrief,
           senderProfile,
           outreachIntent,
+          deliveryMode: body.deliveryMode === "livelink" ? "livelink" : "video",
           researchTier: researchTier as "quick" | "balanced" | "deep" | undefined,
           deepResearchEnabled,
           languageOverride,

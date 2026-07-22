@@ -2,7 +2,9 @@
 
 ## Overview
 
-nuncio is a multi-agent collaboration platform where specialized agents work together through Band to produce personalized videos. Each agent is a discrete module with a clean input/output contract.
+nuncio is a multi-agent platform for personalized outreach. The current product is video-first: agents research a prospect, draft a script, and render a personalized video. The next chapter is a **conversational SDR** — a live AI avatar of the sender that can hold a real-time conversation with the prospect.
+
+Recorded video is the wedge. Live conversation is the product. The same research and synthesis pipeline powers both.
 
 ---
 
@@ -51,6 +53,17 @@ User input (URL + brief)
 
 ---
 
+## Delivery Modes
+
+The pipeline is intentionally agnostic to the final delivery format. A single `deliveryMode` field routes the output:
+
+| Mode | Output | Render Layer |
+|------|--------|--------------|
+| `video` | MP4 + share page | HeyGen |
+| `livelink` | Real-time avatar session | Anam / HeyGen LiveAvatar + WebRTC |
+
+Shared steps (research, synthesis, script/playbook generation) stay the same. Only the final render step changes.
+
 ## Cross-Cutting Concerns
 
 ### Retry Logic
@@ -72,4 +85,5 @@ All external API calls use exponential backoff with configurable max attempts.
 | `/` | Landing page |
 | `/studio` | Video builder |
 | `/v/[id]` | Video share page |
+| `/live/[id]` | Live avatar conversation page |
 | `/playbook` | Usage examples |

@@ -4,16 +4,12 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Conversation } from "@elevenlabs/client";
 
-export interface VoiceProfileResult {
-  name?: string;
-  company?: string;
-  role?: string;
-  url?: string;
-  senderName?: string;
-  senderBrief?: string;
-  archetype?: string;
-  tone?: string;
-}
+import type { VoiceExtractedProfile } from "@/lib/voice-agent/types";
+
+export type VoiceProfileResult = Omit<
+  VoiceExtractedProfile,
+  "isComplete" | "missingFields" | "lastAgentMessage"
+>;
 
 interface VoiceOverlayProps {
   open: boolean;

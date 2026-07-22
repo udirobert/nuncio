@@ -1,7 +1,11 @@
 # nuncio — Agent Context
 
 ## Goal
-Phase 9: Autonomous SDR agent mode (Hermes + Nemotron 3 Ultra + Stripe Skills) alongside existing Band agent + studio workflows. Dual-mode architecture — same pipeline, two operating modes.
+Build a creative monopoly in **conversational SDR**. nuncio moves from "personalised video outreach" to a live, agentic AI avatar of the sender — trained on their face, voice, and playbook — that can hold real-time conversations with prospects, answer questions within bounded guardrails, and book meetings.
+
+Recorded video is the wedge. Live conversation is the product. The schlep (latency, guardrails, booking, compliance) is the moat.
+
+Current phase: extend the existing dual-mode architecture (Band studio + Hermes autonomous) with a `SenderPlaybook` and a `deliveryMode` so the same research → synthesize → script pipeline can power both recorded video and live-link conversations.
 
 ## Core Principles
 - **ENHANCEMENT FIRST**: Always prioritize enhancing existing components over creating new ones
@@ -59,6 +63,7 @@ Phase 9: Autonomous SDR agent mode (Hermes + Nemotron 3 Ultra + Stripe Skills) a
 - `35bd035` — cinematic entrance integration + responsive email templates
 - `009f120` — phase 8: nomenclature, batch link from studio, footer, studio polish
 - `ccaae6e` — speech engine integration: voice agent, overlay UI, conversation token endpoint, LLM prompt, standalone voice server
+- (pending) — LiveLink POC: deliveryMode on ShareRecord, /api/share livelink path, studio client creates live link, QuickReady shows live link card
 
 ## Next Steps
 - Voice agent: wire production server, test end-to-end, create submission video for ElevenLabs Hack #10 (closes May 28)

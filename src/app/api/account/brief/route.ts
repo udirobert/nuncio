@@ -23,6 +23,11 @@ export async function GET(request: NextRequest) {
     senderAudience: workspace.senderAudience || null,
     senderOffer: workspace.senderOffer || null,
     senderProofPoints: workspace.senderProofPoints || null,
+    playbookWants: workspace.playbookWants || null,
+    playbookOffer: workspace.playbookOffer || null,
+    playbookWiggleRoom: workspace.playbookWiggleRoom || null,
+    playbookConstraints: workspace.playbookConstraints || null,
+    deliveryMode: workspace.deliveryMode || "video",
     plan: workspace.plan || (workspace.stripePlanType || "trial").toLowerCase(),
   });
 }
@@ -34,7 +39,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { senderBrief, senderName, senderBusiness, senderBrand, senderPersonality, senderAudience, senderOffer, senderProofPoints } = body;
+  const { senderBrief, senderName, senderBusiness, senderBrand, senderPersonality, senderAudience, senderOffer, senderProofPoints, playbookWants, playbookOffer, playbookWiggleRoom, playbookConstraints, deliveryMode } = body;
 
   const provider = getAccountStorageProvider();
   const workspace = await provider.getWorkspace(session.workspaceId);
@@ -51,6 +56,11 @@ export async function PATCH(request: NextRequest) {
   if (typeof senderAudience === "string") updates.senderAudience = senderAudience;
   if (typeof senderOffer === "string") updates.senderOffer = senderOffer;
   if (typeof senderProofPoints === "string") updates.senderProofPoints = senderProofPoints;
+  if (typeof playbookWants === "string") updates.playbookWants = playbookWants;
+  if (typeof playbookOffer === "string") updates.playbookOffer = playbookOffer;
+  if (typeof playbookWiggleRoom === "string") updates.playbookWiggleRoom = playbookWiggleRoom;
+  if (typeof playbookConstraints === "string") updates.playbookConstraints = playbookConstraints;
+  if (deliveryMode === "video" || deliveryMode === "livelink") updates.deliveryMode = deliveryMode;
 
   await provider.updateWorkspace(session.workspaceId, updates);
 

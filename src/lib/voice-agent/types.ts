@@ -7,6 +7,11 @@ export interface VoiceExtractedProfile {
   senderName?: string;
   archetype?: string;
   tone?: string;
+  /** Sender playbook for live / agentic conversations. */
+  offer?: string;
+  wants?: string;
+  wiggleRoom?: string;
+  constraints?: string[];
   isComplete: boolean;
   missingFields: string[];
   lastAgentMessage: string;

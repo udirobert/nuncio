@@ -14,7 +14,21 @@ nuncio is in production. The core multi-agent pipeline — research → write �
 
 ---
 
+## Strategic Direction
+
+nuncio is redefining the category from "AI video outreach" to **conversational SDR** — a live AI avatar of the sender that prospects can actually talk to, negotiate with, and book meetings with.
+
+- **Recorded video is the wedge**: a personalized 30–60s HeyGen video breaks through noise and creates trust at scale.
+- **Live conversation is the product**: a real-time avatar session (Anam / HeyGen LiveAvatar + low-latency voice) lets the prospect ask questions, object, and negotiate.
+- **Sender Playbook is the control layer**: structured capture of intent, offer, constraints, and wiggle room keeps the agent on-message without micromanagement.
+
 ## Current Focus
+
+### Conversational SDR / LiveLink
+
+The immediate focus is the LiveLink proof-of-concept: a real-time avatar session that uses the sender's face and voice, is bounded by the Sender Playbook, and lets the prospect ask questions and book a meeting. Recorded HeyGen videos remain the scalable wedge; the live session is the conversion surface.
+
+After LiveLink is proven end-to-end, the account-specific video compositions below become supporting assets that the live agent can also show or reference during conversation.
 
 ### Strategic Account Videos
 
@@ -56,11 +70,21 @@ Use London founder/operator access as a practical test bed before broadening the
 
 ## Next Steps
 
+### Strategic (LiveLink / Conversational SDR)
+1. ✅ **Sender playbook data model** — capture wants, offers, constraints, and wiggle room
+2. ✅ **Voice agent playbook extraction** — gather playbook fields conversationally
+3. ✅ **Pipeline delivery mode** — add `video` / `livelink` mode to pipeline input
+4. ✅ **LiveLink share + studio wiring** — `deliveryMode` on `ShareRecord`, `/api/share` handles livelink, studio client creates live share + QuickReady shows live link card
+5. **LiveLink conversation page** — real-time avatar session using Anam / HeyGen LiveAvatar + Cartesia/ElevenLabs voice
+6. **Guardrails and booking integration** — hard constraints, fallback answers, calendar booking
+7. **Reply-to-live escalation** — email replies can open a live avatar session instead of static follow-up
+
 ### High Priority
-1. **Visual proof brief** - collect 1-3 sender assets: product screenshot, logo, proof point, case study, deck slide, or relevant URL
-2. **Proof-first render path** - create one reusable composition that combines recipient research, sender asset, motion graphic, and avatar close
-3. **Pre-send review** - make the research, hook, script, and visual plan reviewable before credits are spent
-4. **Outcome tracking** - capture sent, watched, replied, meeting booked, and second-video-created events
+1. **LiveLink proof-of-concept** - one real-time avatar conversation with a test sender's face/voice, bounded by sender playbook
+2. **Visual proof brief** - collect 1-3 sender assets: product screenshot, logo, proof point, case study, deck slide, or relevant URL
+3. **Proof-first render path** - create one reusable composition that combines recipient research, sender asset, motion graphic, and avatar close
+4. **Pre-send review** - make the research, hook, script, and visual plan reviewable before credits are spent
+5. **Outcome tracking** - capture sent, watched, replied, meeting booked, live-session-started, and second-video-created events
 
 ### Medium Priority
 1. **LinkedIn-first format** - optimise one aspect ratio and playback context before expanding to Instagram, X, and other channels
@@ -79,6 +103,17 @@ Use London founder/operator access as a practical test bed before broadening the
 - **HeyGen generation time:** 60–180 seconds per video
 - **TinyFish login walls:** Some profiles require authentication
 - **In-memory magic link tokens:** Single-instance limitation
+
+---
+
+## Still to do
+
+### Redis-backed rate limiter deployment
+The rate limiter (`src/lib/rate-limit.ts`) now supports Redis for cross-instance, restart-safe rate limiting. It is currently deployed in code but **not enabled in production**:
+- Set `NUNCIO_RATE_LIMIT_STORE=redis` in production environment variables
+- Provide a real `REDIS_URL` (e.g., Upstash / Redis Cloud)
+- Redeploy and verify `/api/*` routes still enforce limits correctly
+
 
 ---
 

@@ -55,6 +55,13 @@ export interface WorkspaceAccount {
   senderAudience?: string;
   senderOffer?: string;
   senderProofPoints?: string;
+  /** Sender playbook for live / agentic conversations. */
+  playbookWants?: string;
+  playbookOffer?: string;
+  playbookWiggleRoom?: string;
+  playbookConstraints?: string;
+  /** Preferred delivery mode: recorded video or live avatar link. */
+  deliveryMode?: "video" | "livelink";
   createdAt: string;
   updatedAt: string;
 }

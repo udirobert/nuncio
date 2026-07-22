@@ -209,6 +209,17 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [reasonForReachingOutNow, setReasonForReachingOutNow] = useState("");
   const [relationshipWarmth, setRelationshipWarmth] = useState<"cold" | "warm" | "existing">("cold");
   const [tonePreference, setTonePreference] = useState("");
+  const [deliveryMode, setDeliveryMode] = useState<"video" | "livelink">(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("nuncio_delivery_mode");
+      if (stored === "video" || stored === "livelink") return stored;
+    }
+    return "video";
+  });
+  const [playbookOffer, setPlaybookOffer] = useState("");
+  const [playbookWants, setPlaybookWants] = useState("");
+  const [playbookWiggleRoom, setPlaybookWiggleRoom] = useState("");
+  const [playbookConstraints, setPlaybookConstraints] = useState("");
   const [stage, setStage] = useState<StudioStage>("input");
   const [buildResult, setBuildResult] = useState<{ soundscapeUrl?: string; cinematicEntranceUrl?: string; recommendedVibeId?: string } | null>(null);
   const [error, setError] = useState("");
@@ -364,6 +375,21 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         if (data.senderProofPoints && !localStorage.getItem("nuncio_sender_proof_points")) {
           setSenderProofPoints(data.senderProofPoints);
         }
+        if (data.playbookWants && !localStorage.getItem("nuncio_playbook_wants")) {
+          setPlaybookWants(data.playbookWants);
+        }
+        if (data.playbookOffer && !localStorage.getItem("nuncio_playbook_offer")) {
+          setPlaybookOffer(data.playbookOffer);
+        }
+        if (data.playbookWiggleRoom && !localStorage.getItem("nuncio_playbook_wiggle_room")) {
+          setPlaybookWiggleRoom(data.playbookWiggleRoom);
+        }
+        if (data.playbookConstraints && !localStorage.getItem("nuncio_playbook_constraints")) {
+          setPlaybookConstraints(data.playbookConstraints);
+        }
+        if (!localStorage.getItem("nuncio_delivery_mode") && (data.deliveryMode === "video" || data.deliveryMode === "livelink")) {
+          setDeliveryMode(data.deliveryMode);
+        }
         if (data.plan) {
           setUserPlan(data.plan as UserPlan);
         }
@@ -403,7 +429,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     return () => clearTimeout(timer);
   }, [url]);
 
-  function saveSenderMemory() {
+  function saveSenderMemory(overrides?: { deliveryMode?: "video" | "livelink" }) {
     const brief = senderBrief.trim();
     const name = senderName.trim();
     const business = senderBusiness.trim();
@@ -412,7 +438,16 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     const audience = senderAudience.trim();
     const offer = senderOffer.trim();
     const proofPoints = senderProofPoints.trim();
-    if (!brief && !name && !business && !brand && !personality && !audience && !offer && !proofPoints) return;
+    const playbookOfferValue = playbookOffer.trim();
+    const playbookWantsValue = playbookWants.trim();
+    const playbookWiggleRoomValue = playbookWiggleRoom.trim();
+    const playbookConstraintsValue = playbookConstraints.trim();
+    const mode = overrides?.deliveryMode ?? deliveryMode;
+    if (
+      !brief && !name && !business && !brand && !personality && !audience && !offer && !proofPoints &&
+      !playbookOfferValue && !playbookWantsValue && !playbookWiggleRoomValue && !playbookConstraintsValue &&
+      mode === "video"
+    ) return;
     fetch("/api/account/brief", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -425,6 +460,11 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         senderAudience: audience || undefined,
         senderOffer: offer || undefined,
         senderProofPoints: proofPoints || undefined,
+        playbookOffer: playbookOfferValue || undefined,
+        playbookWants: playbookWantsValue || undefined,
+        playbookWiggleRoom: playbookWiggleRoomValue || undefined,
+        playbookConstraints: playbookConstraintsValue || undefined,
+        deliveryMode: mode,
       }),
     }).catch(() => {});
     if (name) localStorage.setItem("nuncio_sender_name", name);
@@ -434,6 +474,16 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     if (audience) localStorage.setItem("nuncio_sender_audience", audience);
     if (offer) localStorage.setItem("nuncio_sender_offer", offer);
     if (proofPoints) localStorage.setItem("nuncio_sender_proof_points", proofPoints);
+    if (playbookOfferValue) localStorage.setItem("nuncio_playbook_offer", playbookOfferValue);
+    if (playbookWantsValue) localStorage.setItem("nuncio_playbook_wants", playbookWantsValue);
+    if (playbookWiggleRoomValue) localStorage.setItem("nuncio_playbook_wiggle_room", playbookWiggleRoomValue);
+    if (playbookConstraintsValue) localStorage.setItem("nuncio_playbook_constraints", playbookConstraintsValue);
+    localStorage.setItem("nuncio_delivery_mode", mode);
+  }
+
+  function handleDeliveryModeChange(mode: "video" | "livelink") {
+    setDeliveryMode(mode);
+    saveSenderMemory({ deliveryMode: mode });
   }
 
   const [modeSwitchToast, setModeSwitchToast] = useState<string | null>(null);
@@ -453,6 +503,10 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     if (profile.senderBrief) { setSenderBrief(profile.senderBrief); populated.add("senderBrief"); }
     if (profile.archetype) setArchetype(profile.archetype as ArchetypeSelection);
     if (profile.tone) setTonePreference(profile.tone);
+    if (profile.offer) { setPlaybookOffer(profile.offer); populated.add("offer"); }
+    if (profile.wants) { setPlaybookWants(profile.wants); populated.add("wants"); }
+    if (profile.wiggleRoom) { setPlaybookWiggleRoom(profile.wiggleRoom); populated.add("wiggleRoom"); }
+    if (profile.constraints) { setPlaybookConstraints(profile.constraints.join("\n")); populated.add("constraints"); }
     setVoiceBrief(profile);
     setVoicePopulatedFields(populated);
     setVoiceOverlayOpen(false);
@@ -530,8 +584,16 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           url: url.trim(),
           sessionId,
           resumeSessionId: resumeFromSession,
+          deliveryMode,
           senderName: senderName.trim() || undefined,
           senderBrief: senderBrief.trim() || undefined,
+          offer: playbookOffer.trim() || undefined,
+          wants: playbookWants.trim() || undefined,
+          wiggleRoom: playbookWiggleRoom.trim() || undefined,
+          constraints: playbookConstraints
+            .split("\n")
+            .map((value) => value.trim())
+            .filter(Boolean),
           senderBusiness: senderBusiness.trim() || undefined,
           senderBrand: senderBrand.trim() || undefined,
           senderPersonality: senderPersonality.trim() || undefined,
@@ -776,6 +838,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: url.trim(),
+          deliveryMode,
           senderName: senderName.trim() || undefined,
           senderBrief: senderBrief.trim() || undefined,
           senderBusiness: senderBusiness.trim() || undefined,
@@ -784,6 +847,13 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           senderAudience: senderAudience.trim() || undefined,
           senderOffer: senderOffer.trim() || undefined,
           senderProofPoints: senderProofPoints
+            .split("\n")
+            .map((value) => value.trim())
+            .filter(Boolean),
+          offer: playbookOffer.trim() || undefined,
+          wants: playbookWants.trim() || undefined,
+          wiggleRoom: playbookWiggleRoom.trim() || undefined,
+          constraints: playbookConstraints
             .split("\n")
             .map((value) => value.trim())
             .filter(Boolean),
@@ -905,7 +975,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   async function handleConfirmBuild() {
     if (!reviewProfile || !reviewScript) return;
     if (!capturedEmail) {
-      openCapture("render");
+      openCapture(deliveryMode === "livelink" ? "share" : "render");
       return;
     }
     saveSenderMemory();
@@ -914,6 +984,18 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     setBuildStartedAt(Date.now());
     setBuildElapsedSeconds(0);
     setShowHookReasoning(false);
+
+    if (deliveryMode === "livelink") {
+      const liveLinkUrl = await handleCreateLiveLink();
+      if (!liveLinkUrl) {
+        setStage("error");
+        return;
+      }
+      setBuildResult({});
+      setStage("ready");
+      return;
+    }
+
     const rendered = await handleRenderVideo(capturedEmail);
     if (!rendered) {
       setStage("error");
@@ -921,6 +1003,36 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     }
     setBuildResult({});
     setStage("ready");
+  }
+
+  async function handleCreateLiveLink(): Promise<string | null> {
+    if (!reviewProfile) return null;
+    try {
+      const res = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deliveryMode: "livelink",
+          recipientName: reviewProfile.name,
+          senderName: senderName.trim() || undefined,
+          profile: reviewProfile,
+          privacy: "private",
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Could not create live link");
+      }
+
+      const data = await res.json();
+      const createdUrl = (data.shareUrl as string) || "";
+      setShareUrl(createdUrl);
+      return createdUrl;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create live link");
+      return null;
+    }
   }
 
   function openCapture(intent: CaptureIntent) {
@@ -956,8 +1068,16 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
       setShareUrl(data.shareUrl || "");
       setCaptureIntent(null);
 
-      if (captureIntent === "share" && data.shareUrl) {
-        await copyShareUrl(data.shareUrl);
+      if (captureIntent === "share") {
+        if (deliveryMode === "livelink" && !data.shareUrl) {
+          const liveLinkUrl = await handleCreateLiveLink();
+          if (liveLinkUrl) {
+            setStage("ready");
+            await copyShareUrl(liveLinkUrl);
+          }
+        } else if (data.shareUrl) {
+          await copyShareUrl(data.shareUrl);
+        }
       } else if (captureIntent === "download") {
         openDownloadTarget();
       } else if (captureIntent === "render") {
@@ -971,6 +1091,10 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           if (profile.senderBrief) setSenderBrief(profile.senderBrief);
           if (profile.archetype) setArchetype(profile.archetype as ArchetypeSelection);
           if (profile.tone) setTonePreference(profile.tone);
+          if (profile.offer) setPlaybookOffer(profile.offer);
+          if (profile.wants) setPlaybookWants(profile.wants);
+          if (profile.wiggleRoom) setPlaybookWiggleRoom(profile.wiggleRoom);
+          if (profile.constraints) setPlaybookConstraints(profile.constraints.join("\n"));
         }
       }
     } catch (err) {
@@ -1454,6 +1578,42 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                                 userTier={userPlan}
                                 compact
                               />
+                            </div>
+
+                            {/* Delivery mode — recorded video today, live link tomorrow */}
+                            <div>
+                              <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                                Delivery mode
+                              </label>
+                              <div className="flex rounded-xl border border-cream-dark bg-white p-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeliveryModeChange("video")}
+                                  className={`flex-1 rounded-lg py-2 text-xs font-medium transition-all ${
+                                    deliveryMode === "video"
+                                      ? "bg-accent text-white shadow-sm"
+                                      : "text-ink-muted hover:text-ink"
+                                  }`}
+                                >
+                                  Video
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeliveryModeChange("livelink")}
+                                  className={`flex-1 rounded-lg py-2 text-xs font-medium transition-all ${
+                                    deliveryMode === "livelink"
+                                      ? "bg-accent text-white shadow-sm"
+                                      : "text-ink-muted hover:text-ink"
+                                  }`}
+                                >
+                                  Live link
+                                </button>
+                              </div>
+                              <p className="mt-1.5 text-[10px] text-ink-muted">
+                                {deliveryMode === "video"
+                                  ? "Render an MP4 share page."
+                                  : "Prepare a live avatar session (preview)."}
+                              </p>
                             </div>
 
                       </div>
@@ -2080,7 +2240,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       onClick={handleConfirmBuild}
                       className="flex-[2] btn-press rounded-xl bg-ink text-cream py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2 shadow-lg"
                     >
-                      Build final video
+                      {deliveryMode === "livelink" ? "Create live link" : "Build final video"}
                       <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M3 8h10M9 4l4 4-4 4" />
                       </svg>
@@ -2227,6 +2387,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               }}
               onShare={handleShareClick}
               onDownload={handleDownloadClick}
+              deliveryMode={deliveryMode}
               onReset={() => {
                 setStage("input");
                 setBuildResult(null);

@@ -1,15 +1,15 @@
-# Nuncio SDR Agent — Hermes Agent Accelerated Business Hackathon
+# Nuncio — Conversational SDR Agent
 
-> NVIDIA × Stripe × NousResearch — building agents that earn, spend, and run real operations.
+> Hermes Agent Accelerated Business Hackathon — NVIDIA × Stripe × NousResearch
 
 ## What it does
 
-Nuncio is an autonomous SDR (Sales Development Representative) agent that runs the full sales-development loop without human intervention:
+Nuncio is a **conversational SDR agent**: an AI avatar of the sender that researches a prospect, reaches out, listens to replies, and negotiates toward a meeting. It runs the full sales-development loop without human intervention:
 
 1. **Finds prospects** — given a URL, it researches the person and synthesizes a profile
 2. **Writes personalized scripts** — generates a tailored outreach script using the prospect's background
-3. **Renders video** — produces a personalized video via HeyGen
-4. **Delivers outreach** — sends the video via email (Resend) with a shareable HTTPS link
+3. **Picks the delivery mode** — renders a personalized **video** (async wedge) or prepares a **live avatar session** (interactive conversion)
+4. **Delivers outreach** — sends the video or live-link via email (Resend) with a shareable HTTPS link
 5. **Classifies replies** — when a prospect replies, classifies intent (interested / not_now / question / unsubscribe)
 6. **Books meetings** — if interested, creates a Stripe Checkout for a consultation
 7. **Reports via Telegram** — sends status updates after each cycle
@@ -26,11 +26,14 @@ The agent **earns** by closing deals ($50 per booked consultation via Stripe Che
   +------------------------------------------+
   |  Shared API Layer (src/lib/pipeline/)    |
   |  research -> synthesize -> script ->     |
-  |  render -> deliver                       |
+  |       ├─ video render (HeyGen)           |
+  |       └─ live conversation (Anam/RTC)    |
   +------------------------------------------+
 ```
 
 **Dual-mode architecture**: The existing human-driven studio (Band agents) and the new autonomous Hermes agent share the same pipeline step functions. No duplication — both consume `src/lib/pipeline/steps.ts`. The studio UI is untouched; the agent layer is purely additive.
+
+**Video vs. LiveLink**: The same profile, script, and sender playbook feed either a recorded HeyGen video (`deliveryMode: "video"`) or a real-time avatar conversation (`deliveryMode: "livelink"`). Recorded video is the scalable wedge; live avatar is the conversion surface.
 
 ## Tech stack
 
@@ -46,6 +49,8 @@ The agent **earns** by closing deals ($50 per booked consultation via Stripe Che
 | Inbound replies | Resend Inbound + reply-webhook | Receives and classifies prospect replies |
 | Reporting | Telegram Bot (@nuncioappbot) | Sends cycle reports to the operator |
 | Video rendering | HeyGen | Generates personalized outreach videos |
+| Live avatar *(planned)* | Anam.ai / HeyGen LiveAvatar | Evaluated for real-time interactive avatar face + lip-sync for live-link conversations |
+| Real-time voice *(planned)* | ElevenLabs / Cartesia | Evaluated for ultra-low-latency TTS and streaming STT for live conversations |
 | Profile enrichment | TinyFish + Firecrawl + EXA | Three-provider research orchestrator: TinyFish for prospect discovery, Firecrawl for structured web extraction + site mapping, EXA for semantic search |
 | Data persistence | Turso (SQLite at the edge) | Share records, billing accounts, workspace data |
 | Production | Vultr + Coolify + Traefik | Deployed at https://nuncio.persidian.com with automatic Let's Encrypt |
@@ -76,8 +81,8 @@ The orchestrator merges results from all available providers, deduplicates by UR
 
 ### OPERATES (agent runs real business operations)
 - Researches prospects from their public profiles
-- Generates personalized outreach scripts
-- Renders personalized videos (3-5 min HeyGen rendering)
+- Generates personalized outreach scripts and sender playbooks (wants, offer, wiggle room, constraints)
+- Renders personalized videos (3-5 min HeyGen rendering) **or** prepares live avatar sessions (pipeline support)
 - Sends outreach emails via Resend with HTTPS share links
 - Receives and classifies email replies (interested / not_now / question / unsubscribe)
 - Books meetings and collects payment via live Stripe Checkout
@@ -166,6 +171,8 @@ The sandbox runs Hermes v0.14.0 with Nemotron 3 Ultra (550B) as the reasoning mo
 #    Then run commands inside the sandbox via: nemohermes brev-hermes exec --no-tty -- <cmd>
 
 # 3. Run the autonomous SDR loop from inside the sandbox
+#    Use deliveryMode: "video" for a recorded HeyGen video (default),
+#    or deliveryMode: "livelink" to prepare a live avatar session instead.
 nemohermes brev-hermes exec --no-tty -- hermes -z "Run the sdr-orchestrator skill. Find a prospect at https://www.eladgil.com, research them, wait for the video to render, then create a Stripe checkout for $50." --yolo
 
 # 4. For cron-scheduled autonomous mode (9am weekdays)
@@ -181,6 +188,16 @@ nemohermes brev-hermes exec --no-tty -- hermes -z "Run the sdr-orchestrator skil
 - **Production-grade**: HTTPS, Turso persistence, live Stripe, idempotent checkout, customer reuse, webhook signature verification.
 - **Sandboxed safety**: Agent runs inside NVIDIA NemoClaw (OpenShell) with Landlock, seccomp, and network namespace isolation. Declarative network policies limit egress to only the APIs the agent needs.
 - **Hybrid mode**: The agent can queue drafts for human review in the studio — best of autonomous scale + human quality control.
+
+## Product strategy: from "AI video tool" to "conversational SDR"
+
+The dominant narrative around AI outreach is "personalized video at scale." That market is crowded, low-margin, and quickly commoditized. Nuncio's bet is that the real product is not the video — it is the **first AI sales agent that a prospect can actually talk to**.
+
+- **Recorded video is the wedge**: a personalized 30–60s video breaks through noise and builds trust at scale.
+- **Live conversation is the product**: an avatar of the sender, with the sender's face and voice, answers questions, handles objections, and negotiates within explicit guardrails.
+- **Sender playbook is the moat**: structured capture of what the sender wants, what they can offer, where they have wiggle room, and hard constraints. This keeps the agent on-message without micromanagement.
+
+This redefines the category. Nuncio is not competing with HeyGen or Loom; it is competing with the first call itself.
 
 ## Repo
 

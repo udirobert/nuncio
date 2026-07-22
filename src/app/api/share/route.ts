@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
     privacy,
     industry,
     videoStyle,
+    deliveryMode,
   }: {
     videoUrl?: string;
     videoId?: string;
@@ -28,13 +29,14 @@ export async function POST(request: NextRequest) {
     privacy?: "public" | "private";
     industry?: string;
     videoStyle?: string;
+    deliveryMode?: "video" | "livelink";
   } = body;
 
   const session = readAccountSession(request);
 
-  // Allow empty videoUrl for early-share (before video renders)
-  // but require it for final share record
-  if (videoUrl === undefined) {
+  // Live links don't need a rendered video. Recorded videos do.
+  const mode = deliveryMode === "livelink" ? "livelink" : "video";
+  if (mode === "video" && videoUrl === undefined) {
     return NextResponse.json({ error: "videoUrl is required" }, { status: 400 });
   }
 
@@ -50,7 +52,9 @@ export async function POST(request: NextRequest) {
     industry,
     videoStyle,
     workspaceId: session?.workspaceId,
+    deliveryMode: mode,
   });
 
-  return NextResponse.json({ record, shareUrl: `/v/${record.id}` });
+  const sharePath = mode === "livelink" ? `/live/${record.id}` : `/v/${record.id}`;
+  return NextResponse.json({ record, shareUrl: sharePath });
 }

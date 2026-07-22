@@ -16,6 +16,7 @@ interface QuickReadyProps {
   shareUrl?: string;
   draftMessage?: { channel: string; message: string } | null;
   recipientName?: string;
+  deliveryMode?: "video" | "livelink";
 }
 
 export function QuickReady({
@@ -31,6 +32,7 @@ export function QuickReady({
   shareUrl,
   draftMessage,
   recipientName,
+  deliveryMode = "video",
 }: QuickReadyProps) {
   const [copied, setCopied] = useState(false);
 
@@ -64,12 +66,14 @@ export function QuickReady({
                 </svg>
               </span>
               <div>
-                <h2 className="font-[family-name:var(--font-display)] text-xl text-ink">
-                  Your video is ready
-                </h2>
-                <p className="text-xs text-ink-muted">
-                  Copy the link and paste it into your outreach message.
-                </p>
+              <h2 className="font-[family-name:var(--font-display)] text-xl text-ink">
+                {deliveryMode === "livelink" ? "Your live link is ready" : "Your video is ready"}
+              </h2>
+              <p className="text-xs text-ink-muted">
+                {deliveryMode === "livelink"
+                  ? "Copy the link and invite someone to a live conversation."
+                  : "Copy the link and paste it into your outreach message."}
+              </p>
               </div>
             </div>
             <button
@@ -93,7 +97,35 @@ export function QuickReady({
             </div>
           )}
 
-          {!showVideo && (
+          {!showVideo && deliveryMode === "livelink" && shareUrl && (
+            <div className="rounded-2xl border border-cream-dark bg-white p-6 text-center space-y-4">
+              <div className="w-12 h-12 mx-auto rounded-full bg-accent/10 flex items-center justify-center">
+                <svg viewBox="0 0 24 24" className="w-6 h-6 text-accent" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />
+                  <path d="M9 9.5l6 6M15 9.5l-6 6" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-ink">Live avatar conversation</p>
+                <p className="text-xs text-ink-muted mt-1">
+                  Recipients click the link and talk with an AI avatar that follows your playbook.
+                </p>
+              </div>
+              <a
+                href={shareUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm text-accent hover:text-accent/80 transition-colors"
+              >
+                Open live link
+                <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M6 2h8v8M14 2L7 9" />
+                </svg>
+              </a>
+            </div>
+          )}
+
+          {!showVideo && deliveryMode !== "livelink" && (
             <div className="rounded-2xl border border-cream-dark bg-white p-8 text-center space-y-4">
               {videoRendering === "rendering" ? (
                 <>
@@ -145,16 +177,18 @@ export function QuickReady({
                     </>
                   )}
                 </button>
-                <button
-                  onClick={onDownload}
-                  className="btn-press flex-1 rounded-xl border border-cream-dark py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
-                >
-                  <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M8 1v9M4 6l4 4 4-4" />
-                    <path d="M2 12v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" />
-                  </svg>
-                  Download
-                </button>
+                {deliveryMode !== "livelink" && (
+                  <button
+                    onClick={onDownload}
+                    className="btn-press flex-1 rounded-xl border border-cream-dark py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M8 1v9M4 6l4 4 4-4" />
+                      <path d="M2 12v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" />
+                    </svg>
+                    Download
+                  </button>
+                )}
                 <button
                   onClick={onShare}
                   className="btn-press flex-1 rounded-xl border border-cream-dark py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
@@ -175,7 +209,7 @@ export function QuickReady({
                   </span>
                   <div className="grid grid-cols-3 gap-2">
                     <a
-                      href={`mailto:${recipientName ? "" : ""}?subject=${encodeURIComponent(`Quick video for ${recipientName || "you"}`)}&body=${encodeURIComponent((draftMessage?.message || `I made a short personalised video for you — take a look!`) + "\n\n" + (shareUrl ? new URL(shareUrl, typeof window !== "undefined" ? window.location.origin : "").toString() : videoUrl || ""))}`}
+                      href={`mailto:${recipientName ? "" : ""}?subject=${encodeURIComponent(deliveryMode === "livelink" ? `Quick live link for ${recipientName || "you"}` : `Quick video for ${recipientName || "you"}`)}&body=${encodeURIComponent((draftMessage?.message || (deliveryMode === "livelink" ? `I set up a short live conversation for us — jump in here:` : `I made a short personalised video for you — take a look!`)) + "\n\n" + (shareUrl ? new URL(shareUrl, typeof window !== "undefined" ? window.location.origin : "").toString() : videoUrl || ""))}`}
                       className="btn-press flex flex-col items-center gap-1.5 rounded-xl border border-cream-dark py-3 text-[11px] font-medium text-ink hover:bg-cream-dark/30 transition-colors"
                     >
                       <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -185,7 +219,7 @@ export function QuickReady({
                       Email
                     </a>
                     <a
-                      href={`https://twitter.com/intent/tweet?text=${encodeURIComponent((draftMessage?.channel === "twitter" ? draftMessage.message : `Check out this personalised video I made for ${recipientName || "you"}!`) + " " + (shareUrl ? new URL(shareUrl, typeof window !== "undefined" ? window.location.origin : "").toString() : videoUrl || ""))}`}
+                      href={`https://twitter.com/intent/tweet?text=${encodeURIComponent((draftMessage?.channel === "twitter" ? draftMessage.message : deliveryMode === "livelink" ? `Jump into a quick live conversation I set up for ${recipientName || "you"}!` : `Check out this personalised video I made for ${recipientName || "you"}!`) + " " + (shareUrl ? new URL(shareUrl, typeof window !== "undefined" ? window.location.origin : "").toString() : videoUrl || ""))}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn-press flex flex-col items-center gap-1.5 rounded-xl border border-cream-dark py-3 text-[11px] font-medium text-ink hover:bg-cream-dark/30 transition-colors"
@@ -252,7 +286,7 @@ export function QuickReady({
                 <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M3 8h10M9 4l4 4-4 4" />
                 </svg>
-                Create another video
+                {deliveryMode === "livelink" ? "Create another live link" : "Create another video"}
               </button>
               <div className="flex items-center gap-2">
                 <a

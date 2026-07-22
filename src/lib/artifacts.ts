@@ -33,6 +33,8 @@ export interface ShareRecord {
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   language?: string;
+  /** Delivery mode for this share: recorded video or live avatar link. */
+  deliveryMode?: "video" | "livelink";
 }
 
 export function buildAgentTrace(input: {
