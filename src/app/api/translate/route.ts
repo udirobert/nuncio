@@ -9,7 +9,7 @@ import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 export async function POST(request: NextRequest) {
   // Rate limit
   const clientId = getClientId(request);
-  const limit = checkRateLimit(clientId, "translate", RATE_LIMITS.translate);
+  const limit = await checkRateLimit(clientId, "translate", RATE_LIMITS.translate);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: `Rate limited. Try again in ${limit.resetIn} seconds.` },

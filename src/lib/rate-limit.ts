@@ -1,16 +1,12 @@
 /**
- * Simple in-memory rate limiter.
- * Prevents abuse of API routes that consume external credits.
+ * Rate limiter with Redis backing and in-memory fallback.
  *
- * Uses a sliding window approach per IP address.
+ * - Set `NUNCIO_RATE_LIMIT_STORE=redis` to persist limits across restarts
+ *   and share them between instances.
+ * - Defaults to in-memory storage so the app works locally without Redis.
  */
 
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-const store = new Map<string, RateLimitEntry>();
+import Redis from "ioredis";
 
 export interface RateLimitConfig {
   /** Maximum requests allowed in the window */
@@ -31,6 +27,8 @@ export const RATE_LIMITS = {
   translate: { maxRequests: 5, windowSeconds: 60 },
   /** Transcription — costs Speechmatics credits */
   transcribe: { maxRequests: 10, windowSeconds: 60 },
+  /** Live avatar session — costs Anam credits */
+  live: { maxRequests: 3, windowSeconds: 60 },
 } as const;
 
 export interface RateLimitResult {
@@ -39,21 +37,88 @@ export interface RateLimitResult {
   resetIn: number; // seconds until reset
 }
 
-/**
- * Check if a request is allowed under the rate limit.
- */
-export function checkRateLimit(
+interface RateLimitEntry {
+  count: number;
+  resetAt: number;
+}
+
+const KEY_PREFIX = "nuncio:rate:";
+const memoryStore = new Map<string, RateLimitEntry>();
+
+function getRedisClient(): Redis | null {
+  if (process.env.NUNCIO_RATE_LIMIT_STORE !== "redis") return null;
+
+  try {
+    const client = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
+      lazyConnect: true,
+      maxRetriesPerRequest: null,
+      retryStrategy(times) {
+        if (times > 3) return null;
+        return Math.min(times * 200, 2000);
+      },
+    });
+    // Fire-and-forget connect — ioredis queues commands until ready.
+    client.connect().catch(() => {});
+    return client;
+  } catch {
+    return null;
+  }
+}
+
+const redisClient = getRedisClient();
+
+// Lua script atomically increments a counter, sets expiry on the first
+// increment in the window, and returns the current count plus TTL.
+const RATE_LIMIT_LUA = `
+local current = redis.call("INCR", KEYS[1])
+if current == 1 then
+  redis.call("EXPIRE", KEYS[1], ARGV[1])
+end
+local ttl = redis.call("TTL", KEYS[1])
+return {current, ttl}
+`;
+
+async function checkRateLimitRedis(
+  identifier: string,
+  route: string,
+  config: RateLimitConfig,
+  client: Redis
+): Promise<RateLimitResult | null> {
+  try {
+    const key = `${KEY_PREFIX}${route}:${identifier}`;
+    const result = (await client.eval(
+      RATE_LIMIT_LUA,
+      1,
+      key,
+      String(config.windowSeconds)
+    )) as [number, number];
+
+    const count = Number(result[0]);
+    const ttl = Number(result[1]);
+
+    return {
+      allowed: count <= config.maxRequests,
+      remaining: Math.max(0, config.maxRequests - count),
+      resetIn: ttl > 0 ? ttl : config.windowSeconds,
+    };
+  } catch (error) {
+    console.error("[rate-limit] Redis check failed, falling back to memory:", error);
+    return null;
+  }
+}
+
+function checkRateLimitMemory(
   identifier: string,
   route: string,
   config: RateLimitConfig
 ): RateLimitResult {
   const key = `${route}:${identifier}`;
   const now = Date.now();
-  const entry = store.get(key);
+  const entry = memoryStore.get(key);
 
   // No existing entry or window expired — allow and start fresh
   if (!entry || now > entry.resetAt) {
-    store.set(key, {
+    memoryStore.set(key, {
       count: 1,
       resetAt: now + config.windowSeconds * 1000,
     });
@@ -80,6 +145,42 @@ export function checkRateLimit(
     remaining: config.maxRequests - entry.count,
     resetIn: Math.ceil((entry.resetAt - now) / 1000),
   };
+}
+
+/**
+ * Check if a request is allowed under the rate limit, using a specific
+ * Redis client or falling back to in-memory when no client is provided.
+ *
+ * Prefer `checkRateLimit` in production code; this variant is exposed mainly
+ * for testing.
+ */
+export async function checkRateLimitWithClient(
+  identifier: string,
+  route: string,
+  config: RateLimitConfig,
+  client?: Redis
+): Promise<RateLimitResult> {
+  if (client) {
+    const redisResult = await checkRateLimitRedis(identifier, route, config, client);
+    if (redisResult) return redisResult;
+  }
+
+  return checkRateLimitMemory(identifier, route, config);
+}
+
+/**
+ * Check if a request is allowed under the rate limit.
+ *
+ * Uses Redis when `NUNCIO_RATE_LIMIT_STORE=redis` is set; otherwise uses an
+ * in-memory store. If Redis is enabled but unavailable, it falls back to the
+ * in-memory store.
+ */
+export async function checkRateLimit(
+  identifier: string,
+  route: string,
+  config: RateLimitConfig
+): Promise<RateLimitResult> {
+  return checkRateLimitWithClient(identifier, route, config, redisClient ?? undefined);
 }
 
 /**

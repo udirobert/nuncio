@@ -26,7 +26,7 @@ function hashInput(data: unknown): string {
 export async function POST(request: NextRequest) {
   // Rate limit
   const clientId = getClientId(request);
-  const limit = checkRateLimit(clientId, "script", RATE_LIMITS.script);
+  const limit = await checkRateLimit(clientId, "script", RATE_LIMITS.script);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: `Rate limited. Try again in ${limit.resetIn} seconds.` },

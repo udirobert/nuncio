@@ -15,7 +15,7 @@ import {
 export async function POST(request: NextRequest) {
   // Rate limit — video is the most expensive operation
   const clientId = getClientId(request);
-  const limit = checkRateLimit(clientId, "video", RATE_LIMITS.video);
+  const limit = await checkRateLimit(clientId, "video", RATE_LIMITS.video);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: `Rate limited — max ${RATE_LIMITS.video.maxRequests} videos per minute. Try again in ${limit.resetIn}s.` },

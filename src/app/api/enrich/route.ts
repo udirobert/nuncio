@@ -20,7 +20,7 @@ const enrichmentCache = new MemoryCache<unknown[]>(30);
 export async function POST(request: NextRequest) {
   // Rate limit
   const clientId = getClientId(request);
-  const limit = checkRateLimit(clientId, "enrich", RATE_LIMITS.enrich);
+  const limit = await checkRateLimit(clientId, "enrich", RATE_LIMITS.enrich);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: `Rate limited. Try again in ${limit.resetIn} seconds.` },

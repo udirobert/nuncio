@@ -61,7 +61,10 @@ const HOOK_MODEL_FOR_TIER: Record<UserTier, HookTierConfig> = {
 
 const spendByDay = new Map<string, number>();
 
-export function resolveHookAccess(request: Request, email?: string | null): HookAccess {
+export async function resolveHookAccess(
+  request: Request,
+  email?: string | null
+): Promise<HookAccess> {
   const tier: UserTier = email ? "free" : "trial";
   const config = HOOK_MODEL_FOR_TIER[tier];
   const clientId = getClientId(request);
@@ -96,7 +99,7 @@ export function resolveHookAccess(request: Request, email?: string | null): Hook
   }
 
   if (tier === "trial") {
-    const limit = checkRateLimit(rateKey, "hook:trial", { maxRequests: 1, windowSeconds: 24 * 60 * 60 });
+    const limit = await checkRateLimit(rateKey, "hook:trial", { maxRequests: 1, windowSeconds: 24 * 60 * 60 });
     return {
       tier,
       modelLabel: config.modelLabel,
