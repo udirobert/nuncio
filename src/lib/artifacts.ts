@@ -6,6 +6,18 @@ export interface AgentTraceItem {
   status?: "complete" | "warning" | "pending";
 }
 
+/** Orchestration provenance captured during generation. */
+export interface GenerationProvenance {
+  /** Content hashes for generated assets, keyed by role (video, soundscape, entrance, thumbnail). */
+  hashes?: Record<string, string>;
+  /** Genblaze manifest URIs, keyed by role. */
+  manifests?: Record<string, string>;
+  /** Canonical Genblaze manifest hashes, keyed by role. */
+  manifestHashes?: Record<string, string>;
+  /** Models / providers used during generation. */
+  models?: Record<string, string>;
+}
+
 export interface ShareRecord {
   id: string;
   videoUrl?: string;
@@ -35,6 +47,10 @@ export interface ShareRecord {
   language?: string;
   /** Delivery mode for this share: recorded video or live avatar link. */
   deliveryMode?: "video" | "livelink";
+  /** Custom thumbnail generated via GMI Cloud through Genblaze. */
+  thumbnailUrl?: string;
+  /** Generation provenance (Genblaze manifests, content hashes, models used). */
+  generation?: GenerationProvenance;
 }
 
 export function buildAgentTrace(input: {

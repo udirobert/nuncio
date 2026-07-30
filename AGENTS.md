@@ -41,6 +41,10 @@ Current phase: extend the existing dual-mode architecture (Band studio + Hermes 
 - Voice overlay ("Brief with voice") is an alternative input channel in the studio; LLM extracts structured profile from natural conversation
 - Nomenclature uses "AI-powered · personalised video" for badge, "Build video" for CTA, "Background audio" for soundscape selector
 - Email gate captured on explicit render/share/download actions, not session start
+- **Three-tier storage** (Backblaze hackathon): B2 = media asset store (videos, audio, thumbnails, traces, per-share asset manifests, S3 user-defined metadata), Grove = immutable provenance anchor (proof v2 with content hashes + Genblaze manifest URIs), Genblaze worker = orchestration SDK. No overlap between tiers.
+- **Genblaze worker owned by nuncio** at `workers/genblaze/` (Python/FastAPI), not by Hermes. Multi-step `Pipeline("nuncio-composite")` chains thumbnail (GMI Cloud) + soundscape + TTS (ElevenLabs) in one run. HeyGen video stays outside Genblaze (no adapter); rendered video persisted to B2 via `MediaStorageProvider`.
+- **Hermes demoted** to an optional cron trigger over `/api/agent/*`; all generation logic lives in nuncio's repo.
+- Genblaze/B2 usage is **opt-in and non-blocking**: `GENBLAZE_WORKER_URL` and `B2_*` env vars gate the paths; absence falls back to direct provider calls / raw URLs.
 - **Dual-mode architecture**: Band agents (human-driven studio) and Hermes agent (autonomous background) are two clients over the same API layer. No duplication — both consume shared pipeline step functions. Band agents are NOT replaced or deprecated.
 - **Pipeline steps extracted** to `src/lib/pipeline/steps.ts` — single source of truth for research → synthesize → script → render → deliver. Both the existing pipeline route and agent endpoints call these shared functions.
 - **Agent API layer** lives under `src/app/api/agent/` — clean domain boundary. Auth via `NUNCIO_AGENT_TOKEN` env var (single shared token, not per-user).
@@ -49,6 +53,7 @@ Current phase: extend the existing dual-mode architecture (Band studio + Hermes 
 - **Hybrid mode**: Hermes can queue draft videos for human review in the studio — best of autonomous scale + human quality control. This is the primary product mode; fully-autonomous is a config toggle.
 
 ## Recent Commits
+- (pending) — Backblaze hackathon: B2 media store, Genblaze multi-step orchestration worker, Grove proof v2, composite assets, CI
 - `dd25738` — HeyGen captions via v3 API + mode switch UX toast
 - `ecd1c43` — captions toggle + circular flow on advanced ready screen
 - `4b430b0` — TokenRouter (MiniMax-M3) free LLM fallback provider
@@ -191,6 +196,13 @@ The `/api/webhook/resend` endpoint receives inbound email replies from Resend, f
 - `src/app/api/agent/earn-checkout/route.ts`: Create Stripe Checkout for booked meetings
 - `src/app/api/webhook/resend/route.ts`: Resend inbound email webhook (Svix signature verification, body fetch, LLM classification, forward to reply-webhook)
 - `src/lib/pipeline/video-poller.ts`: Server-side HeyGen video polling (10 min timeout, 5s interval)
+- `src/lib/storage/b2-provider.ts`: Backblaze B2 media storage provider (S3-compatible, user-defined metadata, `listKeys`)
+- `src/lib/storage/media-store.ts`: Media persistence layer (`persistVideo`, `persistAudio`, `persistTrace`, `persistAssetManifest`); non-blocking, SHA-256 hashing
+- `src/lib/genblaze-client.ts`: TypeScript client for the Genblaze worker (`genblazeTts`, `genblazeSoundscape`, `genblazeThumbnail`, `genblazeComposite`)
+- `src/app/api/persist/route.ts` + `src/app/api/persist/trace/route.ts`: B2 video persist + trace/asset-manifest persist endpoints
+- `src/app/api/thumbnail/route.ts`: Custom thumbnail generation via Genblaze worker (GMI Cloud)
+- `workers/genblaze/`: Genblaze orchestration worker (FastAPI). `main.py` (endpoints), `providers.py` (multi-step pipelines), `Dockerfile`, `README.md`
+- `docs/DEVPOST-BACKBLAZE.md`: Backblaze Generative AI Media Hackathon submission writeup
 - `agents/nuncio_agents/`: Band agents (researcher, copywriter) — human-driven studio mode, NOT deprecated
 - `~/.hermes/skills/nuncio/`: Hermes skills for autonomous SDR mode (8 SKILL.md files)
 

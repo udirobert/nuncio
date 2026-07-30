@@ -84,3 +84,7 @@ CLAUDE.md
 # Demo video assets (large, not needed in repo)
 demo-assets/
 demo-video/
+
+# Python
+__pycache__/
+*.py[cod]

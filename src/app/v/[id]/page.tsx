@@ -302,6 +302,46 @@ export default function VideoLandingPage({
                   </p>
                 ))}
               </div>
+              {videoData.generation?.models && (
+                <div className="mt-3 pt-3 border-t border-cream-dark">
+                  <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-2">
+                    Generated with Genblaze
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(videoData.generation.models).map(([role, model]) => (
+                      <span
+                        key={role}
+                        className="inline-flex items-center gap-1 rounded-full bg-ink/5 px-2 py-0.5 text-[10px] text-ink-muted"
+                      >
+                        {role}: {model}
+                      </span>
+                    ))}
+                  </div>
+                  {videoData.generation.manifests &&
+                    Object.keys(videoData.generation.manifests).length > 0 && (
+                      <p className="mt-1.5 text-[10px] text-ink-faint">
+                        Provenance manifests:{" "}
+                        {Object.entries(videoData.generation.manifests)
+                          .map(([role]) => role)
+                          .join(", ")}
+                      </p>
+                    )}
+                </div>
+              )}
+              {videoData.proof?.gatewayUrl && (
+                <a
+                  href={videoData.proof.gatewayUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-ink-muted hover:text-ink transition-colors"
+                >
+                  <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M8 1l5 2v4c0 3.5-2.2 5.7-5 7-2.8-1.3-5-3.5-5-7V3l5-2z" />
+                    <path d="M6 8l1.5 1.5L10 6.5" />
+                  </svg>
+                  View generation proof
+                </a>
+              )}
             </motion.div>
           )}
 

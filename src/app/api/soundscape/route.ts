@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateSoundEffect, VIBE_PRESETS } from "@/lib/elevenlabs";
+import { genblazeSoundscape, isGenblazeWorkerConfigured } from "@/lib/genblaze-client";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { context, preview } = await request.json();
+    const { context, preview, shareId } = await request.json();
 
     if (!context) {
       return NextResponse.json(
@@ -27,16 +28,31 @@ export async function POST(request: NextRequest) {
       ? preset.prompt
       : `Ambient background soundscape for: ${context}. Subtle, non-distracting, high quality foley.`;
 
-    // Preview mode: 3s clip for the customization panel
-    // Full mode: 20s loop for the actual video
     const duration = preview ? 3 : 20;
-    const audioBuffer = await generateSoundEffect(prompt, duration, 0.8);
 
+    // Try Genblaze worker first (gives B2 URL + provenance manifest)
+    if (isGenblazeWorkerConfigured() && shareId && !preview) {
+      const result = await genblazeSoundscape(prompt, shareId, duration);
+      if (result) {
+        return NextResponse.json({
+          audio: result.asset.url,
+          context,
+          duration,
+          provider: "genblaze",
+          manifestUri: result.asset.manifest_uri,
+          sha256: result.asset.sha256,
+        });
+      }
+    }
+
+    // Fallback: direct ElevenLabs call (returns base64 data URL)
+    const audioBuffer = await generateSoundEffect(prompt, duration, 0.8);
     const base64Audio = audioBuffer.toString("base64");
     return NextResponse.json({
       audio: `data:audio/mpeg;base64,${base64Audio}`,
       context,
       duration,
+      provider: "elevenlabs-direct",
     });
   } catch (error) {
     console.error("[soundscape] Generation failed:", error);

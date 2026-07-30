@@ -1,4 +1,4 @@
-import type { AccountStorageProvider, BandActivityStorageProvider, BatchStorageProvider, ProofStorageProvider, ShareStorageProvider, TokenStorageProvider } from "./types";
+import type { AccountStorageProvider, BandActivityStorageProvider, BatchStorageProvider, MediaStorageProvider, ProofStorageProvider, ShareStorageProvider, TokenStorageProvider } from "./types";
 import { FileShareStorageProvider } from "./file-provider";
 import { FileAccountStorageProvider } from "./file-account-provider";
 import { FileBatchStorageProvider } from "./file-batch-provider";
@@ -10,6 +10,7 @@ import { TursoBatchStorageProvider } from "./turso-batch-provider";
 import { TursoTokenStorageProvider } from "./turso-token-provider";
 import { TursoBandActivityProvider } from "./turso-band-provider";
 import { GroveProofStorageProvider } from "./grove-provider";
+import { B2MediaStorageProvider, isB2Configured } from "./b2-provider";
 
 let shareProvider: ShareStorageProvider | null = null;
 let proofProvider: ProofStorageProvider | null = null;
@@ -17,6 +18,7 @@ let accountProvider: AccountStorageProvider | null = null;
 let tokenProvider: TokenStorageProvider | null = null;
 let batchProvider: BatchStorageProvider | null = null;
 let bandActivityProvider: BandActivityStorageProvider | null = null;
+let mediaProvider: MediaStorageProvider | null = null;
 
 export type {
   AccountStorageProvider,
@@ -27,6 +29,7 @@ export type {
   CreditAccountSummary,
   CreditTransactionRecord,
   MagicLinkToken,
+  MediaStorageProvider,
   ProofPublishResult,
   ProofStorageProvider,
   ShareListOptions,
@@ -118,6 +121,18 @@ export function getBandActivityProvider(): BandActivityStorageProvider {
   return bandActivityProvider;
 }
 
+export function getMediaStorageProvider(): MediaStorageProvider | null {
+  if (mediaProvider) return mediaProvider;
+
+  if (isB2Configured()) {
+    mediaProvider = new B2MediaStorageProvider();
+    console.log("[storage] Using B2 media storage");
+    return mediaProvider;
+  }
+
+  return null;
+}
+
 export function resetStorageProvidersForTests(): void {
   shareProvider = null;
   proofProvider = null;
@@ -125,4 +140,5 @@ export function resetStorageProvidersForTests(): void {
   tokenProvider = null;
   batchProvider = null;
   bandActivityProvider = null;
+  mediaProvider = null;
 }

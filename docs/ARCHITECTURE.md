@@ -20,6 +20,9 @@ Recorded video is the wedge. Live conversation is the product. The same research
 | `/api/translate` | POST | Translate video to 8 languages |
 | `/api/transcribe` | POST | Transcribe audio via Speechmatics |
 | `/api/share` | POST | Create shareable video link |
+| `/api/persist` | POST | Persist HeyGen video to Backblaze B2 |
+| `/api/persist/trace` | POST | Persist pipeline trace + asset manifest to B2 |
+| `/api/thumbnail` | POST | Generate thumbnail via Genblaze worker (GMI Cloud) |
 
 ---
 
@@ -35,6 +38,10 @@ User input (URL + brief)
         ├── ElevenLabs ──→ { soundscape, cinematic entrance }
         │
         ├── HeyGen ──→ { video URL }
+        │
+        ├── Backblaze B2 ──→ { permanent media URLs + asset manifest }
+        │
+        ├── Grove ──→ { immutable provenance proof }
         │
         └── Share store ──→ { /v/[id] landing page }
 ```
@@ -75,6 +82,17 @@ All external API calls use exponential backoff with configurable max attempts.
 ### Storage Providers
 - `FileShareStorageProvider` — default local fallback
 - `TursoShareStorageProvider` — production (when `TURSO_DATABASE_URL` set)
+
+### Three-Tier Media Storage
+Media assets and provenance are separated by role with zero overlap:
+
+| Tier | Provider | Role |
+|------|----------|------|
+| Media assets | Backblaze B2 | Videos, audio, thumbnails, traces, per-share asset manifests; S3 user-defined metadata |
+| Provenance | Grove | Immutable proof v2 records: content hashes, Genblaze manifest URIs, model versions |
+| Orchestration | Genblaze worker | Multi-step pipelines across ElevenLabs + GMI Cloud (see `workers/genblaze/`) |
+
+B2 and Genblaze are opt-in (`B2_*` and `GENBLAZE_WORKER_URL` env vars) and non-blocking: absence falls back to direct provider calls and raw URLs.
 
 ---
 

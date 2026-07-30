@@ -490,21 +490,55 @@ export async function renderVideo(
       videoId,
     });
 
-    // Persist video to Grove for permanent URL (non-blocking on failure)
+    // Persist video to B2 for permanent URL (non-blocking on failure)
     let permanentVideoUrl = videoUrl;
+    let videoSha256: string | undefined;
     try {
       const persistRes = await fetch("/api/persist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoUrl }),
+        body: JSON.stringify({ videoUrl, shareId: videoId }),
       });
       if (persistRes.ok) {
-        const { permanentUrl } = await persistRes.json();
-        if (permanentUrl) permanentVideoUrl = permanentUrl;
+        const data = await persistRes.json();
+        if (data.permanentUrl) permanentVideoUrl = data.permanentUrl;
+        if (data.sha256) videoSha256 = data.sha256;
       }
     } catch {
-      // Grove persistence is non-critical — fall back to HeyGen URL
+      // B2 persistence is non-critical — fall back to HeyGen URL
     }
+
+    // Generate custom thumbnail via Genblaze worker (GMI Cloud, non-blocking)
+    let thumbnailUrl: string | undefined;
+    let thumbnailSha256: string | undefined;
+    let thumbnailManifest: string | undefined;
+    const shareId = context?.share?.id || videoId;
+    try {
+      const hookLine = script.split("\n").find((l) => l.trim().length > 0) || script.slice(0, 80);
+      const thumbRes = await fetch("/api/thumbnail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: `Professional outreach video thumbnail, clean minimal design: "${hookLine}"`,
+          shareId,
+        }),
+      });
+      if (thumbRes.ok) {
+        const thumbData = await thumbRes.json();
+        thumbnailUrl = thumbData.thumbnailUrl;
+        thumbnailSha256 = thumbData.sha256;
+        thumbnailManifest = thumbData.manifestUri;
+      }
+    } catch {
+      // Thumbnail is non-critical
+    }
+
+    // Build generation provenance from pipeline results
+    const generation = buildGenerationProvenance({
+      videoSha256,
+      thumbnailSha256,
+      thumbnailManifest,
+    });
 
     let share: ShareRecord | undefined;
     try {
@@ -517,6 +551,8 @@ export async function renderVideo(
             videoUrl: permanentVideoUrl,
             videoId,
             trace,
+            thumbnailUrl,
+            generation,
           }),
         });
         if (updateRes.ok) {
@@ -532,8 +568,9 @@ export async function renderVideo(
             recipientName,
             profile: context?.profile,
             sources: context?.sources,
-
             trace,
+            thumbnailUrl,
+            generation,
           }),
         });
         if (shareRes.ok) {
@@ -543,6 +580,32 @@ export async function renderVideo(
       }
     } catch {
       // Sharing is non-critical; keep the completed video visible.
+    }
+
+    // Persist pipeline trace + per-share asset manifest to B2 (non-blocking).
+    // The manifest indexes every asset generated for this share, making B2 the
+    // source of truth for what belongs to a share (data orchestration layer).
+    try {
+      const assets = [
+        videoSha256
+          ? { key: `videos/${shareId}/video.mp4`, url: permanentVideoUrl, sha256: videoSha256 }
+          : null,
+        thumbnailUrl && thumbnailSha256
+          ? { key: `images/${shareId}/thumbnail.png`, url: thumbnailUrl, sha256: thumbnailSha256 }
+          : null,
+      ].filter(Boolean);
+
+      await fetch("/api/persist/trace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shareId,
+          trace: { videoId, generation, recipientName, at: new Date().toISOString() },
+          assets,
+        }),
+      });
+    } catch {
+      // Trace persistence is non-critical
     }
 
     setState((prev) => ({
@@ -583,6 +646,28 @@ export async function renderVideo(
 /**
  * Detect industry from profile to help differentiate video styles.
  */
+function buildGenerationProvenance(input: {
+  videoSha256?: string;
+  thumbnailSha256?: string;
+  thumbnailManifest?: string;
+}): import("@/lib/artifacts").GenerationProvenance | undefined {
+  const { videoSha256, thumbnailSha256, thumbnailManifest } = input;
+  if (!videoSha256 && !thumbnailSha256 && !thumbnailManifest) return undefined;
+
+  const hashes: Record<string, string> = {};
+  const manifests: Record<string, string> = {};
+  const models: Record<string, string> = { video: "heygen" };
+
+  if (videoSha256) hashes.video = videoSha256;
+  if (thumbnailSha256) {
+    hashes.thumbnail = thumbnailSha256;
+    models.thumbnail = "gmi-cloud/seedream-5.0-lite";
+  }
+  if (thumbnailManifest) manifests.thumbnail = thumbnailManifest;
+
+  return { hashes, manifests, models };
+}
+
 function detectIndustry(profile?: Profile): string {
   if (!profile) return "general";
 

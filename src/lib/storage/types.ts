@@ -145,3 +145,16 @@ export interface BandActivityStorageProvider {
   addEvent(event: BandActivityEvent): Promise<void>;
   getEvents(sessionId: string): Promise<BandActivityEvent[]>;
 }
+
+export interface MediaStorageProvider {
+  readonly name: string;
+  upload(
+    key: string,
+    buffer: Buffer | Uint8Array,
+    contentType: string,
+    metadata?: Record<string, string>
+  ): Promise<string>;
+  getPublicUrl(key: string): string;
+  /** List object keys under a prefix (for building per-share asset manifests). Optional. */
+  listKeys?(prefix: string): Promise<string[]>;
+}

@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { persistVideoToGrove, isGroveEnabled } from "@/lib/grove";
+import { persistVideo } from "@/lib/storage/media-store";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
+import { getMediaStorageProvider } from "@/lib/storage";
 
 /**
  * POST /api/persist
  * Download a video from a temporary URL (e.g., HeyGen signed URL)
- * and upload to Grove for permanent, publicly-accessible storage.
- *
- * Returns the permanent Grove gateway URL that never expires.
+ * and upload to B2 for permanent, publicly-accessible storage.
+ * Falls back to the original URL if B2 is not configured.
  */
 export async function POST(request: NextRequest) {
-  // Rate limit — same as video (expensive operation)
   const clientId = getClientId(request);
   const limit = await checkRateLimit(clientId, "video", RATE_LIMITS.video);
   if (!limit.allowed) {
@@ -20,29 +19,27 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!isGroveEnabled()) {
+  if (!getMediaStorageProvider()) {
     return NextResponse.json(
-      { error: "Grove storage is not enabled" },
+      { error: "No media storage provider configured (set B2_* env vars)" },
       { status: 503 }
     );
   }
 
   try {
-    const { videoUrl } = await request.json();
+    const { videoUrl, shareId } = await request.json();
 
     if (!videoUrl) {
-      return NextResponse.json(
-        { error: "videoUrl is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "videoUrl is required" }, { status: 400 });
     }
 
-    const result = await persistVideoToGrove(videoUrl);
+    const id = shareId || crypto.randomUUID();
+    const { url, result } = await persistVideo(videoUrl, id);
 
     return NextResponse.json({
-      permanentUrl: result.gatewayUrl,
-      storageKey: result.storageKey,
-      uri: result.uri,
+      permanentUrl: url,
+      provider: result?.provider ?? "fallback",
+      sha256: result?.sha256,
     });
   } catch (error) {
     return NextResponse.json(

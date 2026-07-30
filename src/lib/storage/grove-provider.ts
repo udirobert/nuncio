@@ -33,20 +33,37 @@ export class GroveProofStorageProvider implements ProofStorageProvider {
 }
 
 function buildRedactedProof(record: ShareRecord) {
+  const gen = record.generation;
+  const hasProvenance = Boolean(
+    gen && (gen.hashes || gen.manifests || gen.models)
+  );
+
   return {
-    schema: "nuncio.proof.v1",
+    schema: hasProvenance ? "nuncio.proof.v2" : "nuncio.proof.v1",
     shareId: record.id,
     createdAt: record.createdAt,
     video: {
       provider: "heygen",
       videoId: record.videoId,
       hasVideoUrl: Boolean(record.videoUrl),
+      videoUrl: record.videoUrl,
     },
     sources: record.sources?.map((source) => safeHost(source)),
     trace: record.trace?.map((item) => ({
       label: item.label,
       status: item.status,
     })),
+    // v2: content hashes + Genblaze orchestration provenance
+    ...(hasProvenance
+      ? {
+          generation: {
+            hashes: gen?.hashes,
+            manifests: gen?.manifests,
+            manifestHashes: gen?.manifestHashes,
+            models: gen?.models,
+          },
+        }
+      : {}),
   };
 }
 
