@@ -5,6 +5,24 @@ const TINYFISH_URL = "https://api.fetch.tinyfish.ai";
 const TINYFISH_SEARCH_URL = "https://api.search.tinyfish.ai";
 const TINYFISH_AGENT_URL = "https://agent.tinyfish.ai/v1/automation/run";
 
+/**
+ * Thrown when TinyFish fails at the API level (auth, quota, rate limit),
+ * as opposed to "search returned no results" which is a normal empty array.
+ * Callers should catch this and surface it to the user — silent degradation
+ * to empty results produces garbage profiles and wasted render credits.
+ */
+export class TinyFishApiError extends Error {
+  /** "auth" (401/403 — bad key or out of credits), "rate_limit" (429), "unavailable" (5xx). */
+  readonly kind: "auth" | "rate_limit" | "unavailable";
+  readonly status: number;
+  constructor(kind: "auth" | "rate_limit" | "unavailable", status: number, message: string) {
+    super(message);
+    this.name = "TinyFishApiError";
+    this.kind = kind;
+    this.status = status;
+  }
+}
+
 export interface EnrichmentResult {
   url: string;
   markdown: string;
@@ -160,6 +178,7 @@ export async function enrich(
       // Try fetch first
       let markdown = "";
       let fetchOk = false;
+      let fetchError: TinyFishApiError | null = null;
       try {
         const response = await fetchWithRetry(
           TINYFISH_URL,
@@ -178,6 +197,12 @@ export async function enrich(
           const data = await response.json();
           const item = normaliseTinyFishItem(data);
           markdown = item?.markdown || item?.text || item?.content || "";
+        } else if (response.status === 401 || response.status === 403) {
+          fetchError = new TinyFishApiError("auth", response.status,
+            `TinyFish Fetch returned ${response.status} — API key invalid or out of credits.`);
+        } else if (response.status === 429) {
+          fetchError = new TinyFishApiError("rate_limit", 429,
+            "TinyFish Fetch rate limited.");
         }
       } catch {
         // Fetch threw — fall through to search
@@ -188,6 +213,7 @@ export async function enrich(
       }
 
       // Fetch failed or returned junk — try search (discard junk entirely)
+      let searchError: TinyFishApiError | null = null;
       try {
         const searchMarkdown = await searchProfileContext(url);
         if (searchMarkdown) {
@@ -201,8 +227,22 @@ export async function enrich(
               : "Fetch service unavailable; using TinyFish Search.",
           };
         }
-      } catch {
-        // Search also failed
+      } catch (err) {
+        // Search also failed — capture TinyFishApiError to propagate
+        if (err instanceof TinyFishApiError) searchError = err;
+      }
+
+      // If both fetch and search failed due to API-level errors (not just
+      // "no results"), propagate the error so callers can warn the user.
+      // Returning success: false silently would produce garbage profiles.
+      const apiError = fetchError || searchError;
+      if (apiError) {
+        return {
+          url,
+          markdown: "",
+          success: false,
+          warning: apiError.message,
+        };
       }
 
       return { url, markdown: "", success: false };
@@ -281,6 +321,18 @@ async function runSearch(query: string): Promise<SearchResult[]> {
     },
     { maxAttempts: 1, timeoutMs: 10000 }
   );
+  if (response.status === 401 || response.status === 403) {
+    throw new TinyFishApiError("auth", response.status,
+      `TinyFish Search returned ${response.status} — API key invalid or out of credits. Research quality will be degraded.`);
+  }
+  if (response.status === 429) {
+    throw new TinyFishApiError("rate_limit", 429,
+      "TinyFish Search rate limited. Research quality may be degraded.");
+  }
+  if (response.status >= 500) {
+    throw new TinyFishApiError("unavailable", response.status,
+      `TinyFish Search unavailable (${response.status}). Research quality may be degraded.`);
+  }
   if (!response.ok) return [];
   const data = await response.json();
   return Array.isArray(data.results) ? data.results : [];
@@ -296,8 +348,18 @@ async function searchProfileContext(url: string): Promise<string | null> {
   let allResults: SearchResult[] = [];
 
   if (isTwitter) {
-    // Phase 1a: X-native results (tweets, bio, profile snippets)
-    const xResults = await runSearch(`"@${handle}" OR "${handle}" site:x.com`);
+    // Phase 0: Identity-first — find stable profile signals (LinkedIn, GitHub,
+    // personal site, podcast bios) BEFORE tweets, so tweet snippets don't
+    // dominate the LLM's characterization. Tweets are ephemeral hot-takes;
+    // a LinkedIn bio or GitHub README is a far more reliable identity signal.
+    const identityResults = await runSearch(
+      `"${handle}" (founder OR CEO OR engineer OR "working on" OR "building") -site:x.com`
+    );
+    allResults.push(...identityResults);
+
+    // Phase 1a: X-native results (tweets, bio, profile snippets) — capped
+    // at 5 so they don't overwhelm the identity results above.
+    const xResults = (await runSearch(`"@${handle}" OR "${handle}" site:x.com`)).slice(0, 5);
     allResults.push(...xResults);
 
     // Phase 1b: Cross-platform mentions (LinkedIn, news, etc.)
@@ -441,6 +503,8 @@ export interface RecentActivityResult {
   posts: ActivityPost[];
   source: "twitter" | "linkedin" | "github" | "web";
   postCount: number;
+  /** Non-fatal warning (e.g. TinyFish API degraded) — surface to user. */
+  warning?: string;
 }
 
 /**
@@ -455,11 +519,27 @@ export async function fetchRecentActivity(url: string): Promise<RecentActivityRe
   const isTwitter = host.includes("x.com") || host.includes("twitter.com");
   const isLinkedIn = host.includes("linkedin.com");
 
-  if (isTwitter) {
-    return fetchRecentTwitterActivity(handle);
-  }
-  if (isLinkedIn) {
-    return fetchRecentLinkedInActivity(handle);
+  try {
+    if (isTwitter) {
+      return await fetchRecentTwitterActivity(handle);
+    }
+    if (isLinkedIn) {
+      return await fetchRecentLinkedInActivity(handle);
+    }
+  } catch (err) {
+    // TinyFishApiError — return a minimal result with a warning so the
+    // pipeline can surface it. Don't let a degraded API silently produce
+    // a profile with zero recent-activity context.
+    if (err instanceof TinyFishApiError) {
+      return {
+        markdown: `## Recent Activity for @${handle}\n\n*Recent activity unavailable: ${err.message}*`,
+        posts: [],
+        source: isTwitter ? "twitter" : "linkedin",
+        postCount: 0,
+        warning: err.message,
+      };
+    }
+    throw err;
   }
 
   return null;
@@ -636,7 +716,14 @@ function toRelativeDate(iso: string): string {
  * Attempts to find and fetch the company's website and Crunchbase profile.
  */
 export async function enrichCompany(companyName: string): Promise<string | null> {
-  const searchResults = await runSearch(`"${companyName}" company OR startup OR about OR "our team" OR we`);
+  let searchResults: SearchResult[];
+  try {
+    searchResults = await runSearch(`"${companyName}" company OR startup OR about OR "our team" OR we`);
+  } catch {
+    // TinyFishApiError — company context is enrichment, not critical.
+    // Return null rather than crashing the pipeline.
+    return null;
+  }
   if (searchResults.length === 0) return null;
 
   const seen = new Set<string>();

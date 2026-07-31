@@ -41,6 +41,28 @@ export interface ResearchResult {
   recentActivity?: string;
   recentActivityPosts?: import("@/lib/tinyfish").ActivityPost[];
   companyContext?: string;
+  /** Quality assessment — used to warn the user before spending render credits. */
+  researchQuality?: ResearchQuality;
+}
+
+/**
+ * Assessment of how much reliable data went into the profile synthesis.
+ * The pipeline route uses this to warn the user (or gate auto-render)
+ * before spending HeyGen credits on a low-confidence profile.
+ */
+export interface ResearchQuality {
+  /** "high" = multiple non-tweet sources + recent activity; "medium" = some data; "low" = thin/degraded. */
+  confidence: "high" | "medium" | "low";
+  /** Number of distinct enriched markdown sources that contributed content. */
+  sourceCount: number;
+  /** Number of recent-activity posts found (0 if API degraded). */
+  recentPostCount: number;
+  /** True if any source relied on TinyFish Search fallback (vs direct fetch). */
+  usedSearchFallback: boolean;
+  /** Non-fatal warnings collected during research (TinyFish API errors, etc). */
+  warnings: string[];
+  /** Human-readable summary for the activity panel. */
+  summary: string;
 }
 
 export interface ScriptOutput {
@@ -121,7 +143,9 @@ export async function researchAndSynthesize(
   const effectiveTier: QualityTier =
     researchTier === "balanced" || researchTier === "deep" ? researchTier : "quick";
 
+  const warnings: string[] = [];
   let markdown: string[];
+  let usedSearchFallback = false;
 
   if (effectiveTier !== "quick" || deepResearchEnabled) {
     const orchestrator = new ResearchOrchestrator({
@@ -147,7 +171,21 @@ export async function researchAndSynthesize(
     const enrichment = await enrich([url], { discoverRelated: true });
     markdown = enrichment.filter((r) => r.success).map((r) => r.markdown);
 
+    // Collect warnings from degraded enrichment results (TinyFish API errors)
+    for (const r of enrichment) {
+      if (r.warning) warnings.push(r.warning);
+      if (r.source === "search") usedSearchFallback = true;
+    }
+
     if (markdown.length === 0) {
+      // If we have API-level warnings, surface them as the error message
+      // instead of the generic login-wall message.
+      if (warnings.length > 0) {
+        emitter?.error("researcher", warnings.join("; "));
+        throw new Error(
+          `Could not access profile: ${warnings[0]} The page may also be behind a login wall.`
+        );
+      }
       throw new Error("Could not access profile. The page may be behind a login wall.");
     }
 
@@ -155,13 +193,35 @@ export async function researchAndSynthesize(
       url,
       success: r.success,
       markdown: r.markdown,
-      reason: r.success ? undefined : "Enrichment failed",
+      reason: r.success ? undefined : (r.warning || "Enrichment failed"),
     }));
     emitter?.message("researcher", formatResearchSummary(results));
     emitter?.stageComplete("researcher", "Research complete");
   }
 
-  // Synthesize
+  // ── Fetch recent activity BEFORE synthesis ──────────────────────────
+  // Previously this ran after synthesis, so the LLM had already committed
+  // to a characterization before seeing recent posts. Now we fetch it
+  // first and include it in the synthesis input so the LLM can weigh
+  // tweets against profile data rather than having tweets bolted on later.
+  let recentActivity: string | undefined;
+  let recentActivityPosts: import("@/lib/tinyfish").ActivityPost[] | undefined;
+  let recentActivityWarning: string | undefined;
+
+  if (researchTier === "quick" || !researchTier) {
+    const activity = await fetchRecentActivity(url);
+    if (activity) {
+      recentActivity = activity.markdown;
+      recentActivityPosts = activity.posts.length > 0 ? activity.posts : undefined;
+      if (activity.warning) {
+        recentActivityWarning = activity.warning;
+        warnings.push(activity.warning);
+      }
+    }
+  }
+
+  // Synthesize — include recent activity in the enrichment so the LLM
+  // has the full picture (identity + recent posts) before committing.
   emitter?.thought("researcher", "Synthesizing recipient profile...");
 
   const senderContext = {
@@ -181,7 +241,13 @@ export async function researchAndSynthesize(
     playbook: outreachIntent?.playbook,
   };
 
-  const profile = await synthesise(markdown, { senderContext });
+  // Prepend recent activity to the enrichment so synthesis sees it.
+  // The LLM prompt already handles "Profile URL at top, other data below."
+  const synthesisInput = recentActivity
+    ? [recentActivity, ...markdown]
+    : markdown;
+
+  const profile = await synthesise(synthesisInput, { senderContext });
 
   if (profile.name === "there") {
     throw new Error("Could not identify a person from this profile. Try a different URL.");
@@ -199,24 +265,98 @@ export async function researchAndSynthesize(
 
   emitter?.message("researcher", formatProfileSummary(profile));
 
-  // Quick-mode enrichment (recent activity + company context)
-  let recentActivity: string | undefined;
-  let recentActivityPosts: import("@/lib/tinyfish").ActivityPost[] | undefined;
+  // ── Company context (still after synthesis — needs profile.company) ──
   let companyContext: string | undefined;
-
   if (researchTier === "quick" || !researchTier) {
-    const activity = await fetchRecentActivity(url);
-    if (activity) {
-      recentActivity = activity.markdown;
-      recentActivityPosts = activity.posts.length > 0 ? activity.posts : undefined;
-    }
     if (profile.company && profile.company !== "there") {
       const ctx = await enrichCompany(profile.company);
       if (ctx) companyContext = ctx;
     }
   }
 
-  return { profile, markdown, recentActivity, recentActivityPosts, companyContext };
+  // ── Assess research quality ─────────────────────────────────────────
+  const researchQuality = assessResearchQuality({
+    sourceCount: markdown.length,
+    recentPostCount: recentActivityPosts?.length || 0,
+    usedSearchFallback,
+    warnings,
+    hasRecentActivityWarning: !!recentActivityWarning,
+  });
+
+  if (researchQuality.confidence === "low") {
+    emitter?.error("researcher",
+      `Low-confidence profile: ${researchQuality.summary}`);
+  } else if (researchQuality.confidence === "medium" && warnings.length > 0) {
+    emitter?.thought("researcher",
+      `Research degraded: ${warnings.join("; ")}`);
+  }
+
+  return {
+    profile,
+    markdown,
+    recentActivity,
+    recentActivityPosts,
+    companyContext,
+    researchQuality,
+  };
+}
+
+// ── Research quality assessment ──────────────────────────────────────
+
+/**
+ * Assess how much reliable data went into the profile synthesis.
+ *
+ * The goal is to prevent the "wasted credit" problem: the user pastes a
+ * Twitter link, TinyFish is degraded, the pipeline produces a thin profile
+ * from 1-2 tweet snippets, and the user only discovers the poor quality
+ * after spending a HeyGen render credit.
+ *
+ * Confidence levels:
+ * - "high": 3+ sources AND recent activity found, no API warnings.
+ * - "medium": 1-2 sources, or search fallback used, or recent activity
+ *   unavailable but identity data is present.
+ * - "low": single source via search fallback, OR API errors, OR zero
+ *   recent activity AND search fallback used.
+ */
+function assessResearchQuality(params: {
+  sourceCount: number;
+  recentPostCount: number;
+  usedSearchFallback: boolean;
+  warnings: string[];
+  hasRecentActivityWarning: boolean;
+}): ResearchQuality {
+  const { sourceCount, recentPostCount, usedSearchFallback, warnings, hasRecentActivityWarning } = params;
+
+  const hasApiErrors = warnings.some((w) =>
+    w.includes("out of credits") || w.includes("invalid") || w.includes("unavailable")
+  );
+
+  let confidence: ResearchQuality["confidence"];
+
+  if (sourceCount >= 3 && recentPostCount > 0 && !hasApiErrors) {
+    confidence = "high";
+  } else if (sourceCount >= 1 && !hasApiErrors && (recentPostCount > 0 || !usedSearchFallback)) {
+    confidence = "medium";
+  } else {
+    confidence = "low";
+  }
+
+  const parts: string[] = [`${sourceCount} source(s)`];
+  if (recentPostCount > 0) parts.push(`${recentPostCount} recent post(s)`);
+  if (usedSearchFallback) parts.push("search fallback used");
+  if (hasApiErrors) parts.push(`${warnings.length} API warning(s)`);
+  if (hasRecentActivityWarning) parts.push("recent activity degraded");
+
+  const summary = parts.join(", ");
+
+  return {
+    confidence,
+    sourceCount,
+    recentPostCount,
+    usedSearchFallback,
+    warnings,
+    summary,
+  };
 }
 
 // ── Step 3: Generate Script ──────────────────────────────────────────

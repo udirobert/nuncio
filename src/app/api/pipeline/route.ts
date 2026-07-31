@@ -44,6 +44,7 @@ interface EnrichResponse {
   researchTier?: "quick" | "balanced" | "deep";
   recentActivity?: string;
   recentActivityPosts?: import("@/lib/tinyfish").ActivityPost[];
+  researchQuality?: import("@/lib/pipeline/steps").ResearchQuality;
 }
 
 async function resolveUserPlan(
@@ -188,6 +189,7 @@ export async function POST(request: NextRequest) {
         let recentActivity: string | undefined;
         let recentActivityPosts: import("@/lib/tinyfish").ActivityPost[] | undefined;
         let companyContext: string | undefined;
+        let researchQuality: import("@/lib/pipeline/steps").ResearchQuality | undefined;
 
         if (resumedProfile) {
           profile = resumedProfile;
@@ -201,6 +203,13 @@ export async function POST(request: NextRequest) {
           recentActivity = research.recentActivity;
           recentActivityPosts = research.recentActivityPosts;
           companyContext = research.companyContext;
+          researchQuality = research.researchQuality;
+
+          // Surface research quality to the client so it can warn the user
+          // before they spend a render credit on a low-confidence profile.
+          if (researchQuality) {
+            send({ phase: "research_quality", researchQuality });
+          }
 
           emitter.checkpoint("researcher", "Profile checkpoint", { profile });
           send({ phase: "synthesise" });
@@ -223,7 +232,22 @@ export async function POST(request: NextRequest) {
         let videoUrl: string | undefined;
         let videoId: string | undefined;
 
-        if (pipelineInput.autoRender && passed) {
+        // Gate auto-render on research quality: if the profile is low-confidence,
+        // don't auto-spend a HeyGen credit. Let the user review the script and
+        // explicitly decide to render. This prevents the "wasted credit on bad
+        // research" problem when TinyFish is degraded.
+        const autoRenderBlocked =
+          pipelineInput.autoRender &&
+          passed &&
+          researchQuality?.confidence === "low";
+
+        if (autoRenderBlocked) {
+          emitter.error("producer",
+            `Auto-render skipped: low research confidence (${researchQuality!.summary}). ` +
+            `Review the script and render manually.`);
+        }
+
+        if (pipelineInput.autoRender && passed && !autoRenderBlocked) {
           try {
             const renderCost = estimateCreditCost("video.render");
             const renderReservation = await reserveCredits({
@@ -274,6 +298,7 @@ export async function POST(request: NextRequest) {
           researchTier: (researchTier as "quick" | "balanced" | "deep" | undefined) || "quick",
           recentActivity,
           recentActivityPosts,
+          researchQuality,
         };
 
         if (videoUrl) {

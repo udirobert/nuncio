@@ -53,12 +53,60 @@ User input (URL + brief)
 | Stage | Failure | Recovery |
 |-------|---------|---------|
 | TinyFish | Login wall / 403 | Skip URL, continue with remaining |
-| LLM | Rate limit | Provider fallback (Anthropic → Featherless) |
+| TinyFish | API auth/quota (401/403) | `TinyFishApiError` thrown — warning surfaced to user, auto-render blocked on low confidence |
+| TinyFish | Rate limit (429) | `TinyFishApiError` thrown — warning surfaced, research quality downgraded |
+| TinyFish | Unavailable (5xx) | `TinyFishApiError` thrown — warning surfaced |
+| LLM | Rate limit | Provider fallback (Anthropic → Google → Featherless → Venice → TokenRouter) |
 | HeyGen Video Agent | API unavailable | Fallback to direct `/v3/videos` |
-| HeyGen | Timeout (>5 min) | Surface error, preserve script |
+| HeyGen | Timeout (>10 min) | Surface error, preserve script |
 | Speechmatics | Transcription fails | Non-blocking, text-only |
 
 ---
+
+## Research Quality
+
+The pipeline assesses research confidence *before* the user spends a render credit. This prevents the “wasted credit on bad research” problem when TinyFish is degraded or a Twitter link yields only thin tweet snippets.
+
+### Quality Assessment
+
+`assessResearchQuality()` in `src/lib/pipeline/steps.ts` evaluates:
+- **Source count** — how many enriched markdown sources contributed
+- **Recent post count** — how many recent-activity posts were found
+- **Search fallback used** — whether TinyFish fetch failed and search was used instead
+- **API warnings** — `TinyFishApiError` messages collected during research
+
+### Confidence Levels
+
+| Confidence | Criteria | Behavior |
+|-----------|----------|----------|
+| `high` | 3+ sources, recent activity found, no API warnings | Normal flow |
+| `medium` | 1-2 sources, or search fallback used, no API errors | Subtle warning shown |
+| `low` | API errors, or single source via search fallback with zero recent activity | **Auto-render blocked**, amber warning banner, user must review and manually render |
+
+### SSE Events
+
+The pipeline emits a `research_quality` phase event immediately after synthesis, so the studio client can display the warning *before* the script is even generated:
+
+```
+data: {"phase":"research_quality","researchQuality":{"confidence":"low","sourceCount":1,...}}
+```
+
+### Agent Mode
+
+In the autonomous Hermes agent (`/api/agent/prospect-queue`), low-confidence profiles skip auto-render and get `needsReview: true` in the result — flagging them for human review in hybrid mode.
+
+### Twitter/X De-biasing
+
+Twitter links are particularly prone to mischaracterization because:
+1. X serves a login wall to scrapers (fetch returns junk)
+2. Search fallback returns tweet snippets, which are ephemeral hot-takes
+3. 1-2 tweets can dominate the LLM’s characterization
+
+Mitigations in `src/lib/tinyfish.ts`:
+- **Identity-first search**: runs a `-site:x.com` query *before* tweet searches, so LinkedIn bios, GitHub READMEs, and personal sites are found first
+- **Tweet cap**: tweet search results are capped at 5 so they can’t overwhelm identity data
+- **Synthesis prompt**: explicitly instructs the LLM to weight stable sources (LinkedIn, GitHub, personal sites) over individual tweets, and to mark confidence as `low` when data is thin
+- **Activity before synthesis**: `fetchRecentActivity()` now runs *before* `synthesise()`, so the LLM sees the full picture (identity + recent posts) before committing to a characterization
 
 ## Delivery Modes
 

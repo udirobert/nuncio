@@ -31,7 +31,7 @@ Current phase: extend the existing dual-mode architecture (Band studio + Hermes 
 - Email templates use inline-string base template with full `<html>` wrapper, `<style>` block, and mobile-first media queries
 
 ## Key Decisions
-- Recent activity + company enrichment fire **after** synthesis (not before), keeping enrichment lightweight
+- Recent activity fires **before** synthesis (reordered) so the LLM sees the full picture (identity + recent posts) before committing to a characterization; company enrichment still fires after synthesis (needs `profile.company`)
 - Script variants use **single LLM call** (not two) to save cost and time
 - A/B variants default to **off in quick mode** — only advanced mode shows the picker
 - Cinematic entrance generated **non-blocking** (try/catch) like soundscape — build succeeds even if ElevenLabs fails
@@ -53,8 +53,12 @@ Current phase: extend the existing dual-mode architecture (Band studio + Hermes 
 - **Hybrid mode**: Hermes can queue draft videos for human review in the studio — best of autonomous scale + human quality control. This is the primary product mode; fully-autonomous is a config toggle.
 - **Proxy-aware URL resolution**: `src/lib/url.ts` (`resolvePublicOrigin`, `absoluteUrl`) resolves the public origin from `APP_URL` env var → `X-Forwarded-Host`/`X-Forwarded-Proto` headers → request host → localhost fallback. All auth redirects, magic-link emails, and Stripe checkout URLs use this — prevents the `localhost:3000` redirect bug behind reverse proxies (Coolify/Caddy/Traefik).
 - **Credit guard consistency**: every credit-gated route (pipeline, video, live session, etc.) respects `creditsEnforced()` — in shadow mode (`NUNCIO_CREDITS_ENFORCED` unset), no route hard-blocks with a 402. This keeps the app judge-accessible without a paywall.
+- **Research quality gate**: `assessResearchQuality()` in `src/lib/pipeline/steps.ts` evaluates source count, recent post count, search-fallback usage, and TinyFish API warnings to assign a confidence level (`high` / `medium` / `low`). Low-confidence profiles block auto-render (no wasted HeyGen credit) and surface an amber warning banner in the studio. The pipeline emits a `research_quality` SSE phase event immediately after synthesis so the client can warn before the script is generated. In agent mode, low-confidence profiles get `needsReview: true` for hybrid-mode human review.
+- **TinyFish failure is loud, not silent**: `TinyFishApiError` (`src/lib/tinyfish.ts`) is thrown on 401/403 (auth/quota), 429 (rate limit), and 5xx (unavailable) — instead of silently returning empty arrays. Warnings propagate through `EnrichmentResult.warning` and `RecentActivityResult.warning` to the pipeline, which surfaces them to the user.
+- **Twitter/X de-biasing**: identity-first search (`-site:x.com` for LinkedIn/GitHub/personal sites) runs *before* tweet searches; tweet results are capped at 5; the synthesis prompt explicitly instructs the LLM to weight stable sources over ephemeral tweets and to mark confidence as `low` when data is thin.
 
 ## Recent Commits
+- (pending) — research quality gate: loud TinyFish failure, Twitter de-biasing, auto-render block on low confidence, suggested angles in review UI
 - (pending) — fix: proxy-aware auth redirects + live session credit guard consistency
 - (pending) — Backblaze hackathon: B2 media store, Genblaze multi-step orchestration worker, Grove proof v2, composite assets, CI
 - `dd25738` — HeyGen captions via v3 API + mode switch UX toast
@@ -78,7 +82,7 @@ Current phase: extend the existing dual-mode architecture (Band studio + Hermes 
 - Multi-language delivery — auto-detect target language, offer translation in studio UI
 - Multi-channel distribution — link batch from studio ready page (done)
 - **Studio mode unification** — merge Quick and Advanced modes into a single progressive-disclosure component. Currently two separate UIs (`QuickInput` vs inline advanced form) with a `quickMode` toggle. Switching feels abrupt and users fear losing work. Fix: one component with collapsible "More options" section. The Quick mode IS the advanced mode with extra fields hidden. Eliminates mode-switching anxiety entirely. Current toast notification ("your brief is preserved") is a band-aid.
-- **Script quality** — profile synthesis and script generation rely on LLM fallback chain (Featherless → Venice → TokenRouter). The `fallbackScript()` heuristic produces raw data dumps when all LLM providers fail. Improve fallback to clean hooks and generate meaningfully different variants.
+- **Script quality** — profile synthesis and script generation rely on LLM fallback chain (Featherless → Venice → TokenRouter). The `fallbackScript()` heuristic produces raw data dumps when all LLM providers fail. Improve fallback to clean hooks and generate meaningfully different variants. *(Partially addressed: research quality gate now prevents wasted render credits on bad research; Twitter de-biasing reduces mischaracterization from tweet-only data.)*
 - **Band agent progress events** — researcher agent posts intermediate progress events to activity bridge during enrichment, but WebSocket instability may cause gaps. Consider adding server-side progress events from the pipeline route as a fallback.
 - **Credit spend transparency** — show credits spent during the current session on the ready screen (currently only shows remaining balance).
 
@@ -188,11 +192,11 @@ The `/api/webhook/resend` endpoint receives inbound email replies from Resend, f
 - `src/app/api/studio/voice/token/route.ts`: Generates conversation token via ElevenLabs ConvAI API
 - `src/app/api/studio/voice/init/route.ts`: Returns WebSocket URL info
 - `src/lib/claude.ts`: `generateScriptVariants()`, `ScriptVariants` type
-- `src/lib/tinyfish.ts`: `fetchRecentActivity()`, `enrichCompany()`
+- `src/lib/tinyfish.ts`: `fetchRecentActivity()`, `enrichCompany()`, `TinyFishApiError` (loud API failure instead of silent empty results)
 - `src/lib/elevenlabs.ts`: `generateCinematicEntrance()`, `textToSpeech()`, `generateSoundEffect()`, `VIBE_PRESETS`
 - `src/app/studio/studio-client.tsx`: Studio UI with "Brief with voice" button, progressive disclosure, etc.
 - `next.config.ts`, `sentry.*.config.ts`, `instrumentation.ts`, `global-error.tsx`: Sentry setup
-- `src/lib/pipeline/steps.ts`: Shared pipeline step functions (research, synthesize, script, render, deliver) — single source of truth for both pipeline route and agent endpoints
+- `src/lib/pipeline/steps.ts`: Shared pipeline step functions (research, synthesize, script, render, deliver) — single source of truth for both pipeline route and agent endpoints. Includes `assessResearchQuality()` and `ResearchQuality` type for confidence-gated rendering.
 - `src/lib/agent-auth.ts`: Agent API token validation (`NUNCIO_AGENT_TOKEN`)
 - `src/app/api/agent/prospect-queue/route.ts`: Enqueue + poll prospect processing for autonomous agent
 - `src/app/api/agent/reply-webhook/route.ts`: Receive + classify email replies

@@ -262,6 +262,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   // Wait screen context
   const [recentActivity, setRecentActivity] = useState<string | undefined>();
   const [recentActivityPosts, setRecentActivityPosts] = useState<import("@/lib/tinyfish").ActivityPost[] | undefined>();
+  const [researchQuality, setResearchQuality] = useState<import("@/lib/pipeline/steps").ResearchQuality | undefined>();
   const [draftMessage, setDraftMessage] = useState<{ channel: string; message: string } | null>(null);
 
   // Review stage state
@@ -532,6 +533,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     setStage("generating");
     setPipelineStep("enrich");
     setError("");
+    setResearchQuality(undefined);
     saveSenderMemory();
 
     // Open SSE to activity store for the collaborative panel
@@ -626,6 +628,12 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
             if (event.phase) {
               setPipelineStep(event.phase);
+              // Capture research quality warning as soon as it arrives,
+              // before the script is even generated — so the user sees
+              // the warning immediately if TinyFish is degraded.
+              if (event.phase === "research_quality" && event.researchQuality) {
+                setResearchQuality(event.researchQuality);
+              }
             } else if (event.insufficientCredits) {
               setInsufficientCredits({ required: event.requiredCredits, available: event.availableCredits });
               throw new Error(event.error);
@@ -641,6 +649,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               setReviewHook(data.hook);
               if (data.recentActivity) setRecentActivity(data.recentActivity);
               if (data.recentActivityPosts) setRecentActivityPosts(data.recentActivityPosts);
+              if (data.researchQuality) setResearchQuality(data.researchQuality);
               if (typeof event.creditsBalance === "number") {
                 setSession((prev) => prev ? { ...prev, balance: event.creditsBalance } : prev);
               }
@@ -880,6 +889,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               setReviewScriptVariantB(data.scriptVariantB || null);
               setReviewSelectedVariant("a");
               setReviewHook(data.hook);
+              if (data.researchQuality) setResearchQuality(data.researchQuality);
             }
           } catch { /* skip malformed */ }
         }
@@ -1730,6 +1740,37 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 Edit anything below, then build the final video.
               </p>
 
+              {/* Research quality warning — prevents wasted render credits */}
+              {researchQuality && researchQuality.confidence === "low" && (
+                <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <svg viewBox="0 0 20 20" className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-amber-900">
+                        Low-confidence profile — review before rendering
+                      </p>
+                      <p className="text-xs text-amber-800 mt-1">
+                        Research found {researchQuality.sourceCount} source(s) and {researchQuality.recentPostCount} recent post(s).
+                        {researchQuality.usedSearchFallback && " Search fallback was used."}
+                        {researchQuality.warnings.length > 0 && ` ${researchQuality.warnings[0]}`}
+                      </p>
+                      <p className="text-xs text-amber-700 mt-2">
+                        The profile may be incomplete or mischaracterized. Consider editing the details below or trying a different URL (e.g. LinkedIn instead of Twitter) before spending a render credit.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {researchQuality && researchQuality.confidence === "medium" && researchQuality.warnings.length > 0 && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3 mb-6">
+                  <p className="text-xs text-amber-800">
+                    ⚠ Research degraded: {researchQuality.warnings[0]}
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-6">
                 {/* Profile card — collapsed by default */}
                 <div className="rounded-xl border border-cream-dark bg-white p-5 space-y-3">
@@ -1952,6 +1993,33 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     </>
                   )}
                 </div>
+
+                {/* Suggested outreach angles — helps user pick a direction before rendering */}
+                {reviewProfile.suggestedAngles && reviewProfile.suggestedAngles.length > 0 && (
+                  <div className="rounded-xl border border-cream-dark bg-white p-5 space-y-3">
+                    <div className="text-[10px] uppercase tracking-widest font-medium text-ink-muted">Suggested angles</div>
+                    <div className="space-y-2">
+                      {reviewProfile.suggestedAngles.map((angle, i) => (
+                        <div key={angle.id || i} className="flex items-start gap-2">
+                          <span className={`text-[9px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded shrink-0 mt-0.5 ${
+                            angle.confidence === "high" ? "bg-success-soft text-success" :
+                            angle.confidence === "medium" ? "bg-amber-50 text-amber-700" :
+                            "bg-cream-dark text-ink-muted"
+                          }`}>
+                            {angle.confidence}
+                          </span>
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-ink">{angle.label}</p>
+                            <p className="text-[11px] text-ink-muted mt-0.5">{angle.description}</p>
+                            {angle.evidence && (
+                              <p className="text-[10px] text-ink-faint mt-1 italic">{angle.evidence}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Script */}
                 <div className="rounded-xl border border-cream-dark bg-white p-5 space-y-3">

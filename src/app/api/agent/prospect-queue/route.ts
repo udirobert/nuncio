@@ -47,6 +47,8 @@ interface QueueEntry {
     videoId?: string;
     shareId?: string;
     vibeId?: string;
+    researchQuality?: import("@/lib/pipeline/steps").ResearchQuality;
+    needsReview?: boolean;
   };
   error?: string;
   createdAt: string;
@@ -184,7 +186,7 @@ async function processQueueEntry(
 
     // Steps 1+2: Research & Synthesize
     const research = await researchAndSynthesize(input);
-    const { profile, recentActivity, companyContext } = research;
+    const { profile, recentActivity, companyContext, researchQuality } = research;
 
     // Step 3: Generate Script
     const { scriptResult } = await generateOutreachScript(
@@ -200,10 +202,14 @@ async function processQueueEntry(
     // Step 5: Render (if autoRender enabled)
     // For the autonomous agent, render regardless of review issues —
     // the review is advisory, not blocking, in agent mode.
+    // However, if research quality is low, skip auto-render and flag for
+    // human review (hybrid mode) — don't burn a HeyGen credit on a
+    // low-confidence profile.
     let videoUrl: string | undefined;
     let videoId: string | undefined;
+    const lowConfidence = researchQuality?.confidence === "low";
 
-    if (input.autoRender) {
+    if (input.autoRender && !lowConfidence) {
       const renderResult = await renderVideo(scriptResult.script, profile, input.customization);
       videoUrl = renderResult.videoUrl;
       videoId = renderResult.videoId;
@@ -233,6 +239,8 @@ async function processQueueEntry(
       videoId,
       shareId: share.id,
       vibeId: scriptResult.vibeId,
+      researchQuality,
+      needsReview: lowConfidence,
     };
   } catch (error) {
     entry.status = "failed";
