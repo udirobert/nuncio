@@ -45,8 +45,8 @@ export async function ensureTrialCredits(input: {
   const summary = await getAccountStorageProvider().getCreditSummary(input.workspace.id);
   if (summary && summary.transactions.length > 0) return 0;
 
-  const amount = Number(process.env.NUNCIO_TRIAL_CREDITS || 10);
-  const grantAmount = Number.isFinite(amount) ? amount : 10;
+  const amount = Number(process.env.NUNCIO_TRIAL_CREDITS || 15);
+  const grantAmount = Number.isFinite(amount) ? amount : 15;
   await grantCredits({
     workspaceId: input.workspace.id,
     userId: input.user?.id || input.workspace.ownerUserId,

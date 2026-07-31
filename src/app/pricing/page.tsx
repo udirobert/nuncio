@@ -14,6 +14,7 @@ const CREDIT_PACKS = [
     price: "$15",
     priceId: process.env.NEXT_PUBLIC_STRIPE_CREDITS_100_PRICE_ID || "",
     note: "Top up for a short campaign.",
+    videos: "≈ 9 personalised videos",
   },
   {
     id: "credits-500",
@@ -21,6 +22,7 @@ const CREDIT_PACKS = [
     price: "$99",
     priceId: process.env.NEXT_PUBLIC_STRIPE_CREDITS_500_PRICE_ID || "",
     note: "Best for founder-led prospecting.",
+    videos: "≈ 45 personalised videos",
   },
 ] as const;
 
@@ -31,7 +33,8 @@ const PLAN_TIERS = [
     eyebrow: "Get started",
     price: "$0",
     period: "monthly",
-    hookModel: "10 starter credits",
+    hookModel: "15 starter credits",
+    hookEstimate: "≈ 1 full video, free",
     quality: "Account ledger",
     allowance: "Spend across research, scripts, canvas, render",
     speed: "5 credits per render",
@@ -49,6 +52,7 @@ const PLAN_TIERS = [
     period: "month",
     annualPeriod: "year",
     hookModel: "200 credits / month",
+    hookEstimate: "≈ 18 personalised videos / month",
     quality: "Cinematic renders",
     allowance: "Credits spend across every Nuncio stage",
     speed: "Unused credits tracked in ledger",
@@ -64,6 +68,7 @@ const PLAN_TIERS = [
     price: "$79+",
     period: "month",
     hookModel: "1,000+ credits / month",
+    hookEstimate: "90+ personalised videos / month",
     quality: "Team workspace",
     allowance: "Shared credit pool and usage history",
     speed: "Priority render capacity",
@@ -92,9 +97,15 @@ const CREDIT_COSTS = [
   { action: "Captions", cost: "1" },
 ];
 
+const VIDEO_TOTALS = [
+  { mode: "Quick", credits: "~11", note: "1 research · 1 script · 1 canvas · 1 soundscape · 8 render" },
+  { mode: "Balanced", credits: "~16", note: "Quick + deeper hooks and creative refinement" },
+  { mode: "Deep", credits: "~19", note: "Quick + deep research and translation" },
+] as const;
+
 function PricingContent() {
   const [loading, setLoading] = useState<string | null>(null);
-  const [annual, setAnnual] = useState(true);
+  const [annual, setAnnual] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [account, setAccount] = useState<{ authenticated: boolean; balance?: number; plan?: string } | null>(null);
@@ -281,6 +292,10 @@ function PricingContent() {
                   <span className="font-semibold text-ink text-right">{tier.hookModel}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-ink-muted">That&apos;s about</span>
+                  <span className="font-semibold text-accent text-right">{tier.hookEstimate}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="text-ink-muted">Quality</span>
                   <span className="font-medium text-ink text-right">{tier.quality}</span>
                 </div>
@@ -339,6 +354,7 @@ function PricingContent() {
                 <span className="text-ink-muted">Credits</span>
                 <span className="font-semibold text-ink text-right">{tier.hookModel}</span>
               </div>
+              <p className="text-xs text-accent font-medium mt-2">{tier.hookEstimate}</p>
 
               <button
                 onClick={() => {
@@ -390,6 +406,7 @@ function PricingContent() {
                 <span className="font-display text-2xl text-accent">{pack.price}</span>
               </div>
               <p className="mt-1 text-xs text-ink-muted">{pack.note}</p>
+              <p className="mt-2 text-xs font-medium text-accent">{pack.videos}</p>
               <p className="mt-3 text-[10px] uppercase tracking-widest text-ink-faint">
                 {pack.priceId ? loading === pack.id ? "Opening checkout..." : "Buy pack" : "Price ID missing"}
               </p>
@@ -408,16 +425,26 @@ function PricingContent() {
         <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between mb-5">
           <div>
             <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
-              Credit costs
+              Think in videos
             </span>
             <h2 className="mt-2 font-display text-3xl tracking-tight">
-              Know exactly what you spend.
+              Know what a video costs.
             </h2>
           </div>
           <p className="max-w-md text-sm text-ink-muted">
-            A typical Quick-mode video costs ~11 credits. Deep research adds 2–4 more.
+            One complete video, start to finish. Pro&apos;s 200 credits is about 18 Quick videos a month.
           </p>
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+          {VIDEO_TOTALS.map((t) => (
+            <div key={t.mode} className="rounded-xl border border-cream-dark bg-cream/40 p-4 text-center">
+              <p className="font-display text-4xl text-accent">{t.credits}</p>
+              <p className="text-sm font-semibold text-ink mt-1">{t.mode} video</p>
+              <p className="text-[11px] text-ink-muted mt-2 leading-relaxed">{t.note}</p>
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] uppercase tracking-widest text-ink-faint text-center mb-3">Per-step breakdown</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {CREDIT_COSTS.map((item) => (
             <div key={item.action} className="rounded-xl border border-cream-dark p-3 text-center">
@@ -427,7 +454,7 @@ function PricingContent() {
           ))}
         </div>
         <p className="text-[10px] text-ink-faint mt-3 text-center">
-          Total for a complete Quick video: ~11 credits · Balanced: ~16 · Deep: ~19
+          Costs are per stage. The totals above reflect a complete run at each depth.
         </p>
       </motion.section>
 

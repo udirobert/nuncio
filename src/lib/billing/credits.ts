@@ -102,8 +102,8 @@ async function ensureAnonymousWorkspace(anonId: string): Promise<string> {
     plan: "free",
   });
 
-  const trialCredits = Number(process.env.NUNCIO_TRIAL_CREDITS || 10);
-  const grantAmount = Number.isFinite(trialCredits) ? trialCredits : 10;
+  const trialCredits = Number(process.env.NUNCIO_TRIAL_CREDITS || 15);
+  const grantAmount = Number.isFinite(trialCredits) ? trialCredits : 15;
   await provider.appendCreditTransaction({
     workspaceId: anonId,
     userId: anonId,
