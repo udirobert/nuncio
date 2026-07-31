@@ -88,3 +88,6 @@ demo-video/
 # Python
 __pycache__/
 *.py[cod]
+
+# Private deploy notes (server-specific, never commit)
+docs/DEPLOY-NOTES.md
