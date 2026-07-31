@@ -198,11 +198,11 @@ export default function BatchPage() {
         <div>
           <Link
             href="/"
-            className="font-[family-name:var(--font-display)] text-xl font-medium tracking-tight text-ink"
+            className="font-display text-xl font-medium tracking-tight text-ink"
           >
             nuncio
           </Link>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight mt-4">
+          <h1 className="font-display text-3xl tracking-tight mt-4">
             Batch
           </h1>
           <p className="text-sm text-ink-muted mt-1">

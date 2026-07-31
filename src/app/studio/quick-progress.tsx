@@ -173,7 +173,7 @@ export function QuickProgress({
               Generating
             </span>
           </div>
-          <h2 className="font-[family-name:var(--font-display)] text-2xl text-ink">
+          <h2 className="font-display text-2xl text-ink">
             Building the final video
           </h2>
           <p className="text-sm text-ink-muted">

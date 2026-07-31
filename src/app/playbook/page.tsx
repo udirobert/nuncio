@@ -24,7 +24,7 @@ export default function PlaybookPage() {
       <main className="flex-1 pt-24 pb-20">
         {/* Hero */}
         <section className="px-6 py-16 max-w-[720px] mx-auto">
-          <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl tracking-tight leading-[0.9] mb-4">
+          <h1 className="font-display text-4xl md:text-5xl tracking-tight leading-[0.9] mb-4">
             The nuncio
             <br />
             <span className="italic">playbook</span>
@@ -47,7 +47,7 @@ export default function PlaybookPage() {
         {/* Bottom CTA */}
         <section className="px-6 pb-20 max-w-[720px] mx-auto text-center">
           <div className="rounded-2xl border border-cream-dark bg-white/80 px-8 py-8">
-            <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-tight mb-2">
+            <h2 className="font-display text-2xl tracking-tight mb-2">
               Ready to send yours?
             </h2>
             <p className="text-sm text-ink-muted mb-5">

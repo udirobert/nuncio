@@ -53,7 +53,7 @@ export default function DashboardClient() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <h1 className="font-[family-name:var(--font-display)] text-3xl text-ink">
+            <h1 className="font-display text-3xl text-ink">
               Welcome back
             </h1>
             <p className="text-sm text-ink-muted mt-1">{session.email}</p>

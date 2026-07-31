@@ -98,7 +98,7 @@ function CheckoutContent() {
       <header className="px-6 py-5 flex items-center justify-between">
         <Link
           href="/"
-          className="font-[family-name:var(--font-display)] text-lg tracking-tight text-ink hover:text-ink-light transition-colors"
+          className="font-display text-lg tracking-tight text-ink hover:text-ink-light transition-colors"
         >
           nuncio
         </Link>
@@ -108,7 +108,7 @@ function CheckoutContent() {
         <div className="w-full max-w-[480px]">
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight mb-2">
+            <h1 className="font-display text-3xl tracking-tight mb-2">
               Complete your payment
             </h1>
             {sessionDetails?.description && (

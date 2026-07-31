@@ -4,10 +4,11 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Header } from "@/components/header";
+import { CardWall } from "@/components/landing/card-wall";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { ShowcaseStrip } from "@/components/landing/showcase-strip";
 import { VideoProof } from "@/components/landing/video-proof";
-import { SHOWCASE_RECIPIENTS } from "@/lib/showcase";
+import { SHOWCASE_RECIPIENTS, splitShowcase } from "@/lib/showcase";
 
 const ACCOUNT_FLOW: { id: string; label: string; desc: string }[] = [
   { id: "account", label: "Pick the account", desc: "Start with the person or company you genuinely want to reach." },
@@ -17,6 +18,7 @@ const ACCOUNT_FLOW: { id: string; label: string; desc: string }[] = [
 
 export default function HomeClient() {
   const [activeStep, setActiveStep] = useState(0);
+  const { left, right } = splitShowcase(SHOWCASE_RECIPIENTS);
 
   useEffect(() => {
     const t = setTimeout(() => setActiveStep((s) => (s + 1) % ACCOUNT_FLOW.length), 2600);
@@ -43,6 +45,27 @@ export default function HomeClient() {
                   "radial-gradient(circle at 50% 35%, rgba(255,255,255,0.7) 0%, rgba(250,249,246,0) 55%)",
               }}
             />
+
+            {/* Drifting recipient card walls — desktop only, ambient depth */}
+            <motion.aside
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+              className="hidden lg:block absolute inset-y-0 left-0 px-4 py-12 overflow-hidden"
+              style={{ width: "calc((100% - 640px) / 2)" }}
+            >
+              <CardWall items={left} direction="up" durationSec={75} />
+            </motion.aside>
+            <motion.aside
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+              className="hidden lg:block absolute inset-y-0 right-0 px-4 py-12 overflow-hidden"
+              style={{ width: "calc((100% - 640px) / 2)" }}
+            >
+              <CardWall items={right} direction="down" durationSec={65} />
+            </motion.aside>
+
             <div className="relative mx-auto flex w-full max-w-[640px] items-start justify-center pt-16 lg:pt-20 pb-12 lg:pb-16 px-6">
               <div className="w-full max-w-[540px]">
                 <div className="mb-8 lg:mb-10">
@@ -50,7 +73,7 @@ export default function HomeClient() {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                    className="font-[family-name:var(--font-display)] text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[0.95] mb-3"
+                    className="font-display text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[0.95] mb-3"
                   >
                     Open the accounts
                     <br />
@@ -137,17 +160,17 @@ export default function HomeClient() {
           <section className="px-6 py-8 max-w-[540px] mx-auto">
             <div className="flex items-center gap-6 justify-center">
               <div className="text-center">
-                <span className="block font-[family-name:var(--font-display)] text-2xl text-ink">1</span>
+                <span className="block font-display text-2xl text-ink">1</span>
                 <span className="text-[10px] uppercase tracking-widest text-ink-faint">person at a time</span>
               </div>
               <div className="w-px h-8 bg-cream-dark" />
               <div className="text-center">
-                <span className="block font-[family-name:var(--font-display)] text-2xl text-ink">100%</span>
+                <span className="block font-display text-2xl text-ink">100%</span>
                 <span className="text-[10px] uppercase tracking-widest text-ink-faint">human reviewed</span>
               </div>
               <div className="w-px h-8 bg-cream-dark" />
               <div className="text-center">
-                <span className="block font-[family-name:var(--font-display)] text-2xl text-ink">1</span>
+                <span className="block font-display text-2xl text-ink">1</span>
                 <span className="text-[10px] uppercase tracking-widest text-ink-faint">clear reason to reach out</span>
               </div>
             </div>

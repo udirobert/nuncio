@@ -10,11 +10,8 @@ import type { VideoCustomization, HeyGenAvatar, HeyGenVoice } from "@/lib/heygen
 import { VideoCustomization as VideoCustomizationComponent } from "@/components/video-customization";
 import { OnboardingModal } from "@/components/onboarding-modal";
 import { LANGUAGES } from "@/lib/languages";
-import { QuickInput } from "./quick-input";
-import { QuickReview } from "./quick-review";
 import { QuickProgress } from "./quick-progress";
 import type { QuickProgressStep } from "./quick-progress";
-import { QuickReady } from "./quick-ready";
 import { CollaborativeSession } from "./collaborative-session";
 import type { BandEvent } from "./collaborative-session";
 import { VoiceOverlay } from "@/components/voice-overlay";
@@ -142,10 +139,6 @@ function friendlyError(raw: string): { title: string; detail: string; tip?: stri
 }
 
 function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
-  const [quickMode, setQuickMode] = useState(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("nuncio_studio_mode") !== "advanced";
-    return true;
-  });
   const [showProgressDetails, setShowProgressDetails] = useState(false);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [showAdvancedInput, setShowAdvancedInput] = useState(false);
@@ -260,7 +253,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [buildStartedAt, setBuildStartedAt] = useState<number | null>(null);
   const [buildElapsedSeconds, setBuildElapsedSeconds] = useState(0);
   const [videoRenderResult, setVideoRenderResult] = useState<{ videoUrl: string; videoId: string } | null>(null);
-  const [videoComposed, setVideoComposed] = useState(false);
   const [videoCustomization, setVideoCustomization] = useState<VideoCustomization | undefined>();
   const [showCustomization, setShowCustomization] = useState(false);
   const [bandSessionId, setBandSessionId] = useState<string | null>(null);
@@ -486,16 +478,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     saveSenderMemory({ deliveryMode: mode });
   }
 
-  const [modeSwitchToast, setModeSwitchToast] = useState<string | null>(null);
-
-  function toggleMode() {
-    const next = !quickMode;
-    setQuickMode(next);
-    localStorage.setItem("nuncio_studio_mode", next ? "quick" : "advanced");
-    setModeSwitchToast(next ? "Switched to Quick mode — your brief is preserved" : "Switched to Advanced mode — more controls available");
-    setTimeout(() => setModeSwitchToast(null), 4000);
-  }
-
   function handleVoiceComplete(profile: VoiceProfileResult) {
     const populated = new Set<string>();
     if (profile.url) { setUrl(profile.url); populated.add("url"); }
@@ -609,7 +591,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           relationshipWarmth,
           tonePreference: tonePreference.trim() || undefined,
           archetype: archetype === "auto" ? undefined : archetype,
-          scriptVariants: !quickMode,
+          scriptVariants: false,
           researchTier: researchTier !== "quick" ? researchTier : undefined,
           deepResearchEnabled: deepResearchEnabled || undefined,
           language: translateEnabled ? (detectedLanguage || undefined) : "en",
@@ -864,7 +846,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           tonePreference: effectiveTone || undefined,
           archetype: archetype === "auto" ? undefined : archetype,
           profile: reviewProfile,
-          scriptVariants: !quickMode,
+          scriptVariants: false,
           language: translateEnabled ? (reviewProfile.language || undefined) : "en",
         }),
       });
@@ -1112,16 +1094,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
     await copyShareUrl(shareUrl);
   }
 
-  async function handleDownloadClick() {
-    if (!capturedEmail) {
-      openCapture("download");
-      return;
-    }
-    if (videoRenderResult?.videoUrl) {
-      window.open(videoRenderResult.videoUrl, "_blank", "noopener,noreferrer");
-    }
-  }
-
   async function handleRenderVideo(email = capturedEmail) {
     if (!reviewScript || videoRendering === "rendering") return false;
     if (!email) {
@@ -1244,25 +1216,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
       <Header stage={stage === "ready" ? "review" : (stage === "building" || stage === "enriching" || stage === "collaborating" || stage === "generating") ? "progress" : stage === "review" ? "review" : "input"} />
       <OnboardingModal />
 
-      {/* Mode switch toast */}
-      <AnimatePresence>
-        {modeSwitchToast && (
-          <motion.div
-            key="mode-toast"
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.25 }}
-            className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-ink text-cream text-xs font-medium px-4 py-2.5 rounded-xl shadow-lg shadow-ink/20 flex items-center gap-2"
-          >
-            <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-success" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z" />
-            </svg>
-            {modeSwitchToast}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <main className="flex-1 w-full">
         {/* Post-checkout success toast */}
         <AnimatePresence>
@@ -1297,29 +1250,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
         <AnimatePresence mode="wait">
           {/* ─── INPUT ────────────────────────────────────────────────── */}
-          {stage === "input" && (quickMode ? (
-            <QuickInput
-              key="quick-input"
-              url={url}
-              setUrl={setUrl}
-              senderName={senderName}
-              setSenderName={setSenderName}
-              senderBrief={senderBrief}
-              setSenderBrief={setSenderBrief}
-              senderBusiness={senderBusiness}
-              setSenderBusiness={setSenderBusiness}
-              outreachGoal={outreachGoal}
-              setOutreachGoal={setOutreachGoal}
-              onEnrich={() => handleEnrich()}
-              onToggleMode={toggleMode}
-              onOpenVoice={() => setVoiceOverlayOpen(true)}
-              detectedLanguage={detectedLanguage}
-              detectingLanguage={detectingLanguage}
-              translateEnabled={translateEnabled}
-              onToggleTranslate={() => setTranslateEnabled(!translateEnabled)}
-              voicePopulatedFields={voicePopulatedFields}
-            />
-          ) : (
+          {stage === "input" && (
             <motion.div
               key="input"
               initial={{ opacity: 0, y: 20 }}
@@ -1330,28 +1261,26 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               <section className="relative px-6 pt-24 pb-16">
                 <div className="max-w-lg mx-auto space-y-8">
                   <div className="space-y-7 text-center">
-                    <div className="flex items-center justify-between">
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15">
-                        <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-                        <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
-                          AI-powered · personalised video
-                        </span>
-                      </div>
-                      <button
-                        onClick={toggleMode}
-                        className="text-[11px] text-ink-faint hover:text-accent transition-colors"
-                      >
-                        Switch to Quick mode
-                      </button>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15">
+                      <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                      <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
+                        AI-powered · personalised video
+                      </span>
                     </div>
-                    <h1 className="font-[family-name:var(--font-display)] text-5xl lg:text-6xl tracking-tight leading-[1.02]">
+                    <h1 className="font-display text-5xl lg:text-6xl tracking-tight leading-[1.02]">
                       Brief an agent.
                       <br />
                       <span className="text-ink-muted">Get personalised creative.</span>
                     </h1>
-                    <p className="text-ink-muted text-base max-w-md mx-auto leading-relaxed">
-                      Drop in a profile URL. A nuncio agent reads the human, generates a personalised outreach script, and renders a custom video for you.
-                    </p>
+                    <div className="flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest text-ink-faint">
+                      <span className="text-accent">Account</span>
+                      <span>→</span>
+                      <span>Reason</span>
+                      <span>→</span>
+                      <span>Review</span>
+                      <span>→</span>
+                      <span>Send</span>
+                    </div>
                     <Link
                       href="/batch"
                       className="text-[11px] text-accent hover:text-accent/80 transition-colors inline-block"
@@ -1383,7 +1312,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                         </div>
                         <button
                           onClick={() => setVoiceOverlayOpen(true)}
-                          className="btn-press w-full rounded-xl bg-accent text-white py-3 text-sm font-medium hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"
+                          className="btn-press w-full rounded-xl bg-ink text-cream py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
                         >
                           Start voice brief
                           <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1460,8 +1389,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                         )}
                           <div className="flex flex-wrap gap-2 mt-2">
                           {[
-                            { label: "Sundar Pichai", url: "https://linkedin.com/in/sundarpichai" },
-                            { label: "Vercel CEO", url: "https://x.com/rauchg" },
                             { label: "Sundar Pichai", url: "https://linkedin.com/in/sundarpichai" },
                             { label: "Vercel CEO", url: "https://x.com/rauchg" },
                           ].map((example) => (
@@ -1670,7 +1597,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               </section>
 
             </motion.div>
-          ))}
+          )}
 
           {/* ─── ENRICHING ───────────────────────────────────────────── */}
           {stage === "enriching" && (
@@ -1687,7 +1614,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     Researching
                   </span>
                 </div>
-                <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight">
+                <h1 className="font-display text-3xl tracking-tight">
                   Reading their profile
                 </h1>
                 <p className="text-sm text-ink-muted mt-2">
@@ -1781,27 +1708,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           )}
 
           {/* ─── REVIEW ──────────────────────────────────────────────── */}
-          {stage === "review" && reviewProfile && (quickMode ? (
-            <QuickReview
-              key="quick-review"
-              profile={reviewProfile}
-              script={reviewScript}
-              senderName={senderName}
-              onBuild={handleConfirmBuild}
-              onRegenerate={handleRegenerate}
-              onBack={() => setStage("input")}
-              onToggleMode={toggleMode}
-              regenerating={reviewRegenerating}
-              translateEnabled={translateEnabled}
-              onToggleTranslate={() => setTranslateEnabled(!translateEnabled)}
-              onLanguageChange={(code) => {
-                setReviewProfile(prev => prev ? { ...prev, language: code } : prev);
-              }}
-              creditCost={researchTier === "deep" ? 19 : researchTier === "balanced" ? 16 : 11}
-              balance={session?.authenticated && typeof session.balance === "number" ? session.balance : undefined}
-              hook={reviewHook ? { archetype: reviewHook.archetype, concept: reviewHook.concept, format: reviewHook.format } : null}
-            />
-          ) : (
+          {stage === "review" && reviewProfile && (
             <motion.div
               key="review"
               initial={{ opacity: 0, y: 20 }}
@@ -1815,14 +1722,8 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     Review
                   </span>
                 </div>
-                <button
-                  onClick={toggleMode}
-                  className="text-[11px] text-ink-faint hover:text-accent transition-colors"
-                >
-                  Switch to Quick mode
-                </button>
               </div>
-              <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight">
+              <h1 className="font-display text-3xl tracking-tight">
                 Review the script
               </h1>
               <p className="text-sm text-ink-muted mt-2 mb-8">
@@ -2249,7 +2150,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 </div>
               </div>
             </motion.div>
-          ))}
+          )}
 
           {/* ─── BUILDING ─────────────────────────────────────────────── */}
           {stage === "building" && (
@@ -2361,13 +2262,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       >
                         Try a different URL
                       </button>
-                    ) : !quickMode ? (
-                      <button
-                        onClick={() => { toggleMode(); setStage("input"); }}
-                        className="btn-press rounded-xl border border-cream-dark px-5 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
-                      >
-                        Switch to Quick mode
-                      </button>
                     ) : null}
                   </div>
                 </>
@@ -2376,36 +2270,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
           )}
 
           {/* ─── READY ────────────────────────────────────────────────── */}
-          {stage === "ready" && buildResult && (quickMode ? (
-            <QuickReady
-              key="quick-ready"
-              videoUrl={videoRenderResult?.videoUrl}
-              videoRendering={videoRendering}
-              videoComposed={videoComposed}
-              onRenderVideo={() => {
-                if (!capturedEmail) { openCapture("render"); } else { handleRenderVideo(); }
-              }}
-              onShare={handleShareClick}
-              onDownload={handleDownloadClick}
-              deliveryMode={deliveryMode}
-              onReset={() => {
-                setStage("input");
-                setBuildResult(null);
-                setUrl("");
-                setSenderBrief("");
-                setArchetype("auto");
-                setShareUrl("");
-                setShowHookReasoning(false);
-                setVideoRendering("idle");
-                setVideoRenderResult(null);
-                setVideoComposed(false);
-              }}
-              onToggleMode={toggleMode}
-              shareUrl={shareUrl}
-              draftMessage={draftMessage}
-              recipientName={reviewProfile?.name}
-            />
-          ) : (
+          {stage === "ready" && buildResult && (
             <motion.div
               key="ready"
               initial={{ opacity: 0 }}
@@ -2421,17 +2286,27 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       Creative ready
                     </span>
                   </div>
-                  <button
-                    onClick={toggleMode}
-                    className="text-[11px] text-ink-faint hover:text-accent transition-colors ml-auto"
-                  >
-                    Quick mode
-                  </button>
                   <p className="text-sm text-ink">
                     {videoRendering === "done"
                       ? <>Video rendered successfully.</>
                       : <>Rendering in progress…</>}
                   </p>
+                  <button
+                    onClick={() => {
+                      setStage("input");
+                      setBuildResult(null);
+                      setUrl("");
+                      setSenderBrief("");
+                      setArchetype("auto");
+                      setShareUrl("");
+                      setShowHookReasoning(false);
+                      setVideoRendering("idle");
+                      setVideoRenderResult(null);
+                    }}
+                    className="btn-press ml-auto rounded-lg border border-cream-dark px-3 py-1.5 text-[11px] font-medium text-ink-muted hover:text-ink hover:bg-cream-dark/40 transition-colors"
+                  >
+                    Start another
+                  </button>
                 </div>
 
                 <div className="border-t border-cream-dark/50 pt-4 space-y-2">
@@ -2583,7 +2458,6 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       setShowHookReasoning(false);
                       setVideoRendering("idle");
                       setVideoRenderResult(null);
-                      setVideoComposed(false);
                     }}
                     className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
                   >
@@ -2619,7 +2493,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 </div>
               )}
             </motion.div>
-          ))}
+          )}
         </AnimatePresence>
       </main>
 
@@ -2661,7 +2535,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                    className="font-[family-name:var(--font-display)] text-3xl tracking-tight"
+                    className="font-display text-3xl tracking-tight"
                   >
                     {captureIntent === "download" ? "Download video" : captureIntent === "share" ? "Share video" : captureIntent === "saveBrief" ? "Save your brief" : "Render video"}
                   </motion.h2>

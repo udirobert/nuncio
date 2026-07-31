@@ -67,7 +67,7 @@ export function UsageSummary() {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <div className="font-[family-name:var(--font-display)] text-2xl text-ink">
+          <div className="font-display text-2xl text-ink">
             {totalVideos}
           </div>
           <div className="text-[10px] uppercase tracking-widest text-ink-faint mt-0.5">
@@ -75,7 +75,7 @@ export function UsageSummary() {
           </div>
         </div>
         <div>
-          <div className="font-[family-name:var(--font-display)] text-2xl text-ink">
+          <div className="font-display text-2xl text-ink">
             {completedVideos}
           </div>
           <div className="text-[10px] uppercase tracking-widest text-ink-faint mt-0.5">
@@ -83,7 +83,7 @@ export function UsageSummary() {
           </div>
         </div>
         <div>
-          <div className="font-[family-name:var(--font-display)] text-2xl text-ink">
+          <div className="font-display text-2xl text-ink">
             {activeBatches}
           </div>
           <div className="text-[10px] uppercase tracking-widest text-ink-faint mt-0.5">
@@ -91,7 +91,7 @@ export function UsageSummary() {
           </div>
         </div>
         <div>
-          <div className="font-[family-name:var(--font-display)] text-2xl text-ink">
+          <div className="font-display text-2xl text-ink">
             {batches.length}
           </div>
           <div className="text-[10px] uppercase tracking-widest text-ink-faint mt-0.5">

@@ -248,7 +248,7 @@ export function ScriptReview({
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="font-[family-name:var(--font-display)] text-4xl md:text-5xl tracking-tight leading-[0.9]"
+            className="font-display text-4xl md:text-5xl tracking-tight leading-[0.9]"
           >
             {profile.name}
           </motion.h1>

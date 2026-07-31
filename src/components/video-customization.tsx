@@ -121,11 +121,11 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
         // For simplicity in this turn, I'll hardcode the few we need 
         // or just import them if I can (but this is a client component).
         const VIBES = [
-          { id: "tech-office", label: "Modern Tech", icon: "💻", description: "Sleek, productive ambience" },
-          { id: "quiet-cafe", label: "Quiet Cafe", icon: "☕", description: "Warm, morning vibe" },
-          { id: "startup-hustle", label: "Startup Hustle", icon: "🚀", description: "High-energy atmosphere" },
-          { id: "zen-studio", label: "Zen Studio", icon: "🧘", description: "Calm, focused sanctuary" },
-          { id: "city-pulse", label: "City Pulse", icon: "🏙️", description: "Urban, dynamic energy" },
+          { id: "tech-office", label: "Modern Tech", icon: "M3 4h10v7H3zM5 13h6M8 11v2", description: "Sleek, productive ambience" },
+          { id: "quiet-cafe", label: "Quiet Cafe", icon: "M3 5h8v5a4 4 0 01-8 0V5zM11 6h1.5a2 2 0 010 4H11M5 2.5c0-.8.5-1 .5-1.5M8 2.5c0-.8.5-1 .5-1.5", description: "Warm, morning vibe" },
+          { id: "startup-hustle", label: "Startup Hustle", icon: "M8 1c2.5 2 3.5 5 3 8l-2-1-2 1c-.5-3 .5-6 1-8zM6 9l-2.5 2.5M10 9l2.5 2.5M8 12v3", description: "High-energy atmosphere" },
+          { id: "zen-studio", label: "Zen Studio", icon: "M8 3a2 2 0 100 4 2 2 0 000-4zM4 13c0-2.5 1.5-4 4-4s4 1.5 4 4M2 13h12", description: "Calm, focused sanctuary" },
+          { id: "city-pulse", label: "City Pulse", icon: "M3 14V6l3-2v10M6 14V8h3v6M9 14V5l4 3v6M2 14h12", description: "Urban, dynamic energy" },
         ];
         setVibePresets(VIBES);
       } catch { /* noop */ }
@@ -704,7 +704,9 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
                 onClick={() => setVibeId(v.id)}
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-lg">{v.icon}</span>
+                  <svg viewBox="0 0 16 16" className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={v.icon} />
+                  </svg>
                   <span className={`text-[13px] font-medium ${isSelected ? "text-accent" : "text-ink"}`}>
                     {v.label}
                   </span>

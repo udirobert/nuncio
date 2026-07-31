@@ -101,7 +101,7 @@ export function OnboardingModal() {
                   exit={{ opacity: 0, x: -12 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <h2 className="font-[family-name:var(--font-display)] text-xl text-ink">
+                  <h2 className="font-display text-xl text-ink">
                     {TIPS[step].title}
                   </h2>
                   <p className="text-sm text-ink-muted mt-2 leading-relaxed">

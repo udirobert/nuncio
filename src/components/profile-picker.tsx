@@ -51,7 +51,7 @@ export function ProfilePicker({
           animate={{ opacity: 1 }}
           className="w-full max-w-[540px] text-center"
         >
-          <h1 className="font-[family-name:var(--font-display)] text-4xl tracking-tight leading-[0.9] mb-4">
+          <h1 className="font-display text-4xl tracking-tight leading-[0.9] mb-4">
             No additional
             <br />
             <span className="italic">profiles found</span>
@@ -82,7 +82,7 @@ export function ProfilePicker({
           >
             Profile discovery
           </motion.p>
-          <h1 className="font-[family-name:var(--font-display)] text-4xl tracking-tight leading-[0.9] mb-3">
+          <h1 className="font-display text-4xl tracking-tight leading-[0.9] mb-3">
             Which profiles
             <br />
             <span className="italic">look right?</span>

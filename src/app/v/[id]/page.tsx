@@ -28,6 +28,7 @@ export default function VideoLandingPage({
   const [notFound, setNotFound] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
+  const [thanksCopied, setThanksCopied] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hasVideoRef = useRef(false);
 
@@ -69,10 +70,10 @@ export default function VideoLandingPage({
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center px-6">
         <div className="max-w-sm text-center space-y-4">
-          <Link href="/" className="font-[family-name:var(--font-display)] text-lg tracking-tight text-ink">
+          <Link href="/" className="font-display text-lg tracking-tight text-ink">
             nuncio
           </Link>
-          <h1 className="font-[family-name:var(--font-display)] text-4xl tracking-tight">Video link expired</h1>
+          <h1 className="font-display text-4xl tracking-tight">Video link expired</h1>
           <p className="text-sm text-ink-muted leading-relaxed">
             This prototype keeps share records in the running app process. Generate a fresh video to create a new branded page.
           </p>
@@ -109,7 +110,7 @@ export default function VideoLandingPage({
       <header className="px-6 py-5 flex items-center justify-between">
         <Link
           href="/"
-          className="font-[family-name:var(--font-display)] text-lg tracking-tight text-ink hover:text-ink-light transition-colors"
+          className="font-display text-lg tracking-tight text-ink hover:text-ink-light transition-colors"
         >
           nuncio
         </Link>
@@ -133,7 +134,7 @@ export default function VideoLandingPage({
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="mb-8 text-center"
           >
-            <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl tracking-tight leading-[0.9] mb-3">
+            <h1 className="font-display text-4xl md:text-5xl tracking-tight leading-[0.9] mb-3">
               Hey{videoData.recipientName ? ` ${videoData.recipientName}` : ""}
             </h1>
             <p className="text-ink-muted text-[15px]">
@@ -264,13 +265,12 @@ export default function VideoLandingPage({
                   navigator.clipboard?.writeText(
                     `Thanks for the video${videoData.senderName ? `, ${videoData.senderName}` : ""}! Really appreciate the personal touch.`
                   );
-                  const btn = document.getElementById("thanks-btn");
-                  if (btn) btn.textContent = "Copied!";
-                  setTimeout(() => { if (btn) btn.textContent = "Say thanks"; }, 2000);
+                  setThanksCopied(true);
+                  setTimeout(() => setThanksCopied(false), 2000);
                 }}
                 className="btn-press rounded-xl border border-cream-dark bg-white/80 px-5 py-2.5 text-xs font-medium text-ink hover:bg-white transition-colors"
               >
-                <span id="thanks-btn">Say thanks</span>
+                {thanksCopied ? "Copied!" : "Say thanks"}
               </button>
               <Link
                 href={`/?reply=${encodeURIComponent(videoData.senderName || "")}`}

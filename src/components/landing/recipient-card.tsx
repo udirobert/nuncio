@@ -96,7 +96,7 @@ export function RecipientCard({ item, size = "lg" }: RecipientCardProps) {
               />
               <span
                 className={`
-                  font-[family-name:var(--font-display)] text-ink/80
+                  font-display text-ink/80
                   ${isLg ? "text-lg" : "text-sm"}
                   transition-opacity duration-300
                   ${isHover ? "opacity-0" : "opacity-100"}
@@ -122,7 +122,7 @@ export function RecipientCard({ item, size = "lg" }: RecipientCardProps) {
           ) : (
             <span
               className={`
-                font-[family-name:var(--font-display)] text-ink/80
+                font-display text-ink/80
                 ${isLg ? "text-lg" : "text-sm"}
               `}
             >
@@ -159,7 +159,7 @@ export function RecipientCard({ item, size = "lg" }: RecipientCardProps) {
 
       <p
         className={`
-          font-[family-name:var(--font-display)] italic text-ink-light leading-snug
+          font-display italic text-ink-light leading-snug
           ${isLg ? "text-[13px] mt-3" : "text-[12px] mt-2.5"}
         `}
       >

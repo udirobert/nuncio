@@ -198,7 +198,7 @@ export function ProgressStepper({ steps, warnings, urls, script, recipientName }
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           className="mb-12"
         >
-          <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl tracking-tight leading-[0.9] mb-4">
+          <h1 className="font-display text-4xl md:text-5xl tracking-tight leading-[0.9] mb-4">
             {targetHint ? (
               <>
                 Researching
@@ -406,7 +406,7 @@ export function ProgressStepper({ steps, warnings, urls, script, recipientName }
           transition={{ delay: 0.6 }}
           className="text-center text-xs text-ink-faint mt-12"
         >
-          Credit usage is shown per stage · Video rendering uses 1 HeyGen credit
+          Credit usage is shown per stage · Exact cost displayed before each render
         </motion.p>
       </motion.div>
     </main>

@@ -35,7 +35,7 @@ export function CreditCard() {
       </span>
 
       <div className="flex items-baseline gap-1">
-        <span className="font-[family-name:var(--font-display)] text-4xl text-ink">
+        <span className="font-display text-4xl text-ink">
           {data?.balance ?? "—"}
         </span>
       </div>

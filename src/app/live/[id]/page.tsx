@@ -130,10 +130,10 @@ export default function LiveAvatarLandingPage({
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center px-6">
         <div className="max-w-sm text-center space-y-4">
-          <Link href="/" className="font-[family-name:var(--font-display)] text-lg tracking-tight text-ink">
+          <Link href="/" className="font-display text-lg tracking-tight text-ink">
             nuncio
           </Link>
-          <h1 className="font-[family-name:var(--font-display)] text-4xl tracking-tight">Live link expired</h1>
+          <h1 className="font-display text-4xl tracking-tight">Live link expired</h1>
           <p className="text-sm text-ink-muted leading-relaxed">
             This live conversation link is no longer available.
           </p>
@@ -156,7 +156,7 @@ export default function LiveAvatarLandingPage({
       <header className="px-6 py-5 flex items-center justify-between">
         <Link
           href="/"
-          className="font-[family-name:var(--font-display)] text-lg tracking-tight text-ink hover:text-ink-light transition-colors"
+          className="font-display text-lg tracking-tight text-ink hover:text-ink-light transition-colors"
         >
           nuncio
         </Link>
@@ -170,7 +170,7 @@ export default function LiveAvatarLandingPage({
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="mb-8 text-center"
           >
-            <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl tracking-tight leading-[0.9] mb-3">
+            <h1 className="font-display text-4xl md:text-5xl tracking-tight leading-[0.9] mb-3">
               Hey {recipient}
             </h1>
             <p className="text-ink-muted text-[15px]">

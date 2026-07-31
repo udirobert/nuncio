@@ -433,7 +433,7 @@ function EditCard({ profile, onChange, linkUrl, onLinkChange, onConfirm, onRedo,
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-success" />
-          <h3 className="font-[family-name:var(--font-display)] text-xl text-ink">
+          <h3 className="font-display text-xl text-ink">
             Review your brief
           </h3>
         </div>

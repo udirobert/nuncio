@@ -95,6 +95,7 @@ const CREDIT_COSTS = [
 function PricingContent() {
   const [loading, setLoading] = useState<string | null>(null);
   const [annual, setAnnual] = useState(true);
+  const [checkoutError, setCheckoutError] = useState("");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [account, setAccount] = useState<{ authenticated: boolean; balance?: number; plan?: string } | null>(null);
   const searchParams = useSearchParams();
@@ -110,8 +111,9 @@ function PricingContent() {
   const currentPriceId = annual ? ANNUAL_PRICE_ID : MONTHLY_PRICE_ID;
 
   async function handleCheckout(priceId = currentPriceId, planType = annual ? "pro-annual" : "pro-monthly", mode: "subscription" | "payment" = "subscription") {
+    setCheckoutError("");
     if (!priceId) {
-      alert("Stripe not configured.");
+      setCheckoutError("Payments aren't configured yet. Please contact support.");
       return;
     }
     setLoading(planType);
@@ -127,9 +129,9 @@ function PricingContent() {
       }
       const data = await res.json();
       if (data.url) window.location.assign(data.url);
-      else if (data.error) alert(data.error);
+      else if (data.error) setCheckoutError(data.error);
     } catch {
-      alert("Checkout failed. Please try again.");
+      setCheckoutError("Checkout failed. Please try again.");
     } finally {
       setLoading(null);
     }
@@ -140,15 +142,15 @@ function PricingContent() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-16"
+        className="mb-16 max-w-2xl"
       >
         <span className="text-[10px] uppercase tracking-widest font-medium text-accent mb-4 block">
           Pricing
         </span>
-        <h1 className="font-[family-name:var(--font-display)] text-5xl md:text-7xl tracking-tighter leading-[0.85] mb-6">
+        <h1 className="font-display text-5xl md:text-7xl tracking-tighter leading-[0.85] mb-6">
           Scale your impact,<br />not your costs.
         </h1>
-        <p className="text-ink-muted text-base max-w-lg mx-auto">
+        <p className="text-ink-muted text-base max-w-lg">
           One credit balance. Spend it across research, scripts, creative canvases, renders, translations, captions, and delivery.
         </p>
       </motion.div>
@@ -162,7 +164,7 @@ function PricingContent() {
         >
           <div>
             <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">Your account</p>
-            <p className="text-2xl font-[family-name:var(--font-display)] text-ink mt-1">
+            <p className="text-2xl font-display text-ink mt-1">
               {account.balance ?? 0} <span className="text-sm text-ink-muted font-normal">credits</span>
             </p>
           </div>
@@ -214,78 +216,66 @@ function PricingContent() {
         </span>
       </motion.a>
 
-      <div className="grid md:grid-cols-3 gap-5 items-stretch max-w-5xl mx-auto">
-        {PLAN_TIERS.map((tier, index) => {
-          const isPro = tier.id === "pro";
-          const displayedPrice = isPro && annual && "annualPrice" in tier ? tier.annualPrice : tier.price;
-          const displayedPeriod = isPro && annual && "annualPeriod" in tier ? tier.annualPeriod : tier.period;
-          const isLoading = loading === "annual" || loading === "monthly";
+      {checkoutError && (
+        <div className="max-w-5xl mx-auto mb-6 rounded-xl border border-error/20 bg-error-soft px-4 py-3 text-sm text-error">
+          {checkoutError}
+        </div>
+      )}
 
+      <div className="grid lg:grid-cols-5 gap-5 items-start max-w-5xl mx-auto">
+        {/* Pro — the anchor plan */}
+        {(() => {
+          const tier = PLAN_TIERS.find((t) => t.id === "pro")!;
+          const displayedPrice = annual && "annualPrice" in tier ? tier.annualPrice : tier.price;
+          const displayedPeriod = annual && "annualPeriod" in tier ? tier.annualPeriod : tier.period;
+          const isLoading = loading === "annual" || loading === "monthly";
           return (
             <motion.div
-              key={tier.id}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.08 * index }}
-              className={`relative rounded-2xl border bg-white p-5 flex flex-col min-h-[520px] ${
-                tier.featured
-                  ? "border-2 border-accent shadow-2xl shadow-accent/5"
-                  : "border-cream-dark"
-              }`}
+              transition={{ delay: 0.08 }}
+              className="lg:col-span-3 relative rounded-2xl border-2 border-accent bg-white p-7 flex flex-col shadow-2xl shadow-accent/5"
             >
-              {tier.featured && (
-                <div className="absolute -top-3 left-5">
-                  <span className="text-[10px] uppercase tracking-widest font-bold text-white bg-accent px-3 py-1.5 rounded-full shadow-lg shadow-accent/20">
-                    Recommended
-                  </span>
-                </div>
-              )}
+              <div className="absolute -top-3 left-7">
+                <span className="text-[10px] uppercase tracking-widest font-bold text-white bg-accent px-3 py-1.5 rounded-full shadow-lg shadow-accent/20">
+                  Recommended
+                </span>
+              </div>
 
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <span className="text-[10px] uppercase tracking-widest font-medium text-ink-faint">
                     {tier.eyebrow}
                   </span>
-                  <h2 className="font-[family-name:var(--font-display)] text-3xl tracking-tight mt-2">
-                    {tier.name}
-                  </h2>
+                  <h2 className="font-display text-4xl tracking-tight mt-2">{tier.name}</h2>
                 </div>
-                {isPro && (
-                  <span className="text-[10px] font-bold text-success bg-success-soft px-2 py-1 rounded-md">
-                    {annual ? "-17%" : "Monthly"}
-                  </span>
-                )}
-              </div>
-
-              {isPro && (
-                <div className="flex items-center gap-2 bg-cream-dark/50 p-1 rounded-full mt-5">
+                <div className="flex items-center gap-2 bg-cream-dark/50 p-1 rounded-full">
                   <button
                     onClick={() => setAnnual(false)}
-                    className={`flex-1 px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all ${!annual ? "bg-white text-ink shadow-sm" : "text-ink-faint"}`}
+                    className={`px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all ${!annual ? "bg-white text-ink shadow-sm" : "text-ink-faint"}`}
                   >
                     Monthly
                   </button>
                   <button
                     onClick={() => setAnnual(true)}
-                    className={`flex-1 px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all ${annual ? "bg-accent text-white shadow-sm" : "text-ink-faint"}`}
+                    className={`px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all ${annual ? "bg-accent text-white shadow-sm" : "text-ink-faint"}`}
                   >
                     Yearly
                   </button>
                 </div>
-              )}
-
-              <div className="mt-6 flex items-baseline gap-1">
-                <span className={`font-[family-name:var(--font-display)] text-5xl tracking-tight ${tier.featured ? "text-accent" : "text-ink-muted"}`}>
-                  {displayedPrice}
-                </span>
-                <span className="text-sm text-ink-faint">/{displayedPeriod}</span>
               </div>
 
-              <p className="text-sm text-ink-muted mt-3 min-h-[58px]">
-                {tier.note}
-              </p>
+              <div className="mt-6 flex items-baseline gap-2">
+                <span className="font-display text-6xl tracking-tight text-accent">{displayedPrice}</span>
+                <span className="text-sm text-ink-faint">/{displayedPeriod}</span>
+                <span className="text-[10px] font-bold text-success bg-success-soft px-2 py-1 rounded-md ml-1">
+                  {annual ? "Save 17%" : "Monthly"}
+                </span>
+              </div>
 
-              <div className="rounded-xl border border-cream-dark bg-cream/40 p-3 mt-5 space-y-2">
+              <p className="text-sm text-ink-muted mt-3">{tier.note}</p>
+
+              <div className="rounded-xl border border-cream-dark bg-cream/40 p-4 mt-6 space-y-2">
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="text-ink-muted">Credits</span>
                   <span className="font-semibold text-ink text-right">{tier.hookModel}</span>
@@ -296,7 +286,7 @@ function PricingContent() {
                 </div>
               </div>
 
-              <ul className="space-y-3 mt-5 mb-6 text-sm">
+              <ul className="space-y-3 mt-6 mb-7 text-sm">
                 {[tier.allowance, tier.speed, tier.watermark].map((item) => (
                   <li key={item} className="flex items-start gap-2">
                     <span className="mt-1 w-4 h-4 rounded-full bg-accent-soft flex items-center justify-center shrink-0">
@@ -310,29 +300,61 @@ function PricingContent() {
               </ul>
 
               <button
+                onClick={() => handleCheckout()}
+                disabled={loading !== null}
+                className="btn-press w-full rounded-xl py-4 text-sm font-bold transition-all mt-auto disabled:opacity-40 bg-ink text-cream hover:bg-ink-light shadow-xl shadow-ink/10"
+              >
+                {isLoading ? "Preparing secure checkout..." : `${tier.cta}${annual ? " Annual" : " Monthly"}`}
+              </button>
+            </motion.div>
+          );
+        })()}
+
+        {/* Free + Studio — compact alternatives */}
+        <div className="lg:col-span-2 grid gap-5">
+          {PLAN_TIERS.filter((t) => t.id !== "pro").map((tier, index) => (
+            <motion.div
+              key={tier.id}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.16 + 0.08 * index }}
+              className="rounded-2xl border border-cream-dark bg-white p-5 flex flex-col"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="text-[10px] uppercase tracking-widest font-medium text-ink-faint">
+                    {tier.eyebrow}
+                  </span>
+                  <h2 className="font-display text-2xl tracking-tight mt-1">{tier.name}</h2>
+                </div>
+                <div className="text-right">
+                  <span className="font-display text-3xl tracking-tight text-ink-muted">{tier.price}</span>
+                  <span className="text-xs text-ink-faint">/{tier.period}</span>
+                </div>
+              </div>
+
+              <p className="text-sm text-ink-muted mt-3">{tier.note}</p>
+
+              <div className="flex items-center justify-between gap-3 text-sm rounded-xl border border-cream-dark bg-cream/40 px-3 py-2 mt-4">
+                <span className="text-ink-muted">Credits</span>
+                <span className="font-semibold text-ink text-right">{tier.hookModel}</span>
+              </div>
+
+              <button
                 onClick={() => {
-                  if (isPro) {
-                    handleCheckout();
-                    return;
-                  }
                   if (tier.id === "studio") {
                     window.location.assign("mailto:team@nuncio.ai?subject=Studio%20plan");
                     return;
                   }
                   window.location.assign("/studio");
                 }}
-                disabled={isPro && loading !== null}
-                className={`btn-press w-full rounded-xl py-3.5 text-sm font-bold transition-all mt-auto disabled:opacity-40 ${
-                  tier.featured
-                    ? "bg-ink text-cream hover:bg-ink-light shadow-xl shadow-ink/10"
-                    : "border border-cream-dark text-ink hover:bg-cream-dark/30"
-                }`}
+                className="btn-press w-full rounded-xl py-3 text-sm font-bold transition-all mt-5 border border-cream-dark text-ink hover:bg-cream-dark/30"
               >
-                {isPro && isLoading ? "Preparing secure checkout..." : `${tier.cta}${isPro ? annual ? " Annual" : " Monthly" : ""}`}
+                {tier.cta}
               </button>
             </motion.div>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
       <motion.section
@@ -347,7 +369,7 @@ function PricingContent() {
             <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
               Credit packs
             </span>
-            <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl tracking-tight">
+            <h2 className="mt-2 font-display text-3xl tracking-tight">
               Top up without changing plans.
             </h2>
           </div>
@@ -365,7 +387,7 @@ function PricingContent() {
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm font-semibold text-ink">{pack.label}</span>
-                <span className="font-[family-name:var(--font-display)] text-2xl text-accent">{pack.price}</span>
+                <span className="font-display text-2xl text-accent">{pack.price}</span>
               </div>
               <p className="mt-1 text-xs text-ink-muted">{pack.note}</p>
               <p className="mt-3 text-[10px] uppercase tracking-widest text-ink-faint">
@@ -388,7 +410,7 @@ function PricingContent() {
             <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
               Credit costs
             </span>
-            <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl tracking-tight">
+            <h2 className="mt-2 font-display text-3xl tracking-tight">
               Know exactly what you spend.
             </h2>
           </div>
@@ -399,7 +421,7 @@ function PricingContent() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {CREDIT_COSTS.map((item) => (
             <div key={item.action} className="rounded-xl border border-cream-dark p-3 text-center">
-              <p className="font-[family-name:var(--font-display)] text-2xl text-ink">{item.cost}</p>
+              <p className="font-display text-2xl text-ink">{item.cost}</p>
               <p className="text-[11px] text-ink-muted mt-1">{item.action}</p>
             </div>
           ))}
@@ -444,7 +466,7 @@ function PricingContent() {
         transition={{ delay: 0.4 }}
         className="max-w-lg mx-auto mt-20"
       >
-        <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-tight text-center mb-8">
+        <h2 className="font-display text-2xl tracking-tight text-center mb-8">
           Frequently asked questions
         </h2>
         <div className="space-y-2">

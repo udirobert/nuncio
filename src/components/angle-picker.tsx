@@ -83,7 +83,7 @@ export function AnglePicker({ profile, onConfirm, onSkip }: AnglePickerProps) {
           animate={{ opacity: 1 }}
           className="w-full max-w-[540px] text-center"
         >
-          <h1 className="font-[family-name:var(--font-display)] text-4xl tracking-tight leading-[0.9] mb-4">
+          <h1 className="font-display text-4xl tracking-tight leading-[0.9] mb-4">
             Finding the
             <br />
             <span className="italic">right angle</span>
@@ -129,7 +129,7 @@ export function AnglePicker({ profile, onConfirm, onSkip }: AnglePickerProps) {
           >
             Coach mode
           </motion.p>
-          <h1 className="font-[family-name:var(--font-display)] text-4xl tracking-tight leading-[0.9] mb-3">
+          <h1 className="font-display text-4xl tracking-tight leading-[0.9] mb-3">
             Which angles
             <br />
             <span className="italic">matter most?</span>

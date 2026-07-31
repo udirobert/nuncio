@@ -39,7 +39,7 @@ export function HowItWorks() {
           <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-3">
             How nuncio works
           </p>
-          <h2 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl tracking-tight leading-[1] mb-4">
+          <h2 className="font-display text-4xl md:text-5xl tracking-tight leading-[1] mb-4">
             A considered first message for the
             conversations that can change your business.
           </h2>
@@ -68,11 +68,11 @@ export function HowItWorks() {
                 <span className="text-[10px] uppercase tracking-widest text-accent font-medium">
                   {tile.step}
                 </span>
-                <span className="font-[family-name:var(--font-display)] text-xl text-ink-faint/60">
+                <span className="font-display text-xl text-ink-faint/60">
                   ⌁
                 </span>
               </div>
-              <h3 className="font-[family-name:var(--font-display)] text-2xl tracking-tight mb-2">
+              <h3 className="font-display text-2xl tracking-tight mb-2">
                 {tile.title}
               </h3>
               <p className="text-[13px] text-ink-muted leading-relaxed">

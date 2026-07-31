@@ -340,7 +340,7 @@ export function VideoPlayer({
               <path d="M3 8.5l3.5 3.5L13 5" />
             </svg>
           </motion.div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl md:text-4xl tracking-tight leading-none mb-2">
+          <h1 className="font-display text-3xl md:text-4xl tracking-tight leading-none mb-2">
             {recipientName ? `Video for ${recipientName}` : "Your video is ready"}
           </h1>
           <p className="text-sm text-ink-muted">

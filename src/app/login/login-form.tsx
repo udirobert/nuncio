@@ -67,7 +67,7 @@ export function LoginForm() {
         <div className="mb-8">
           <Link
             href="/"
-            className="font-[family-name:var(--font-display)] text-xl font-medium tracking-tight text-ink hover:text-ink-light transition-colors"
+            className="font-display text-xl font-medium tracking-tight text-ink hover:text-ink-light transition-colors"
           >
             nuncio
           </Link>
@@ -75,7 +75,7 @@ export function LoginForm() {
 
         {step === "email" && (
           <>
-            <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight mb-2">
+            <h1 className="font-display text-3xl tracking-tight mb-2">
               Sign in
             </h1>
             <p className="text-sm text-ink-muted mb-8">
@@ -93,13 +93,13 @@ export function LoginForm() {
               />
 
               {error && (
-                <p className="text-xs text-warm">{error}</p>
+                <p className="text-xs text-error">{error}</p>
               )}
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-medium text-white hover:bg-accent-soft transition-colors disabled:opacity-50"
+                className="btn-press w-full rounded-xl bg-ink px-4 py-3 text-sm font-medium text-cream hover:bg-ink-light transition-colors disabled:opacity-40"
               >
                 {loading ? "Sending…" : "Send magic link"}
               </button>
@@ -109,7 +109,7 @@ export function LoginForm() {
 
         {step === "check" && (
           <>
-            <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight mb-2">
+            <h1 className="font-display text-3xl tracking-tight mb-2">
               Check your email
             </h1>
             <p className="text-sm text-ink-muted mb-4">

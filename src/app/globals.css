@@ -2,6 +2,7 @@
 
 @theme {
   --color-cream: #FAF9F6;
+  --color-cream-soft: #F7F5F1;
   --color-cream-dark: #F0EDE8;
   --color-ink: #1A1A1A;
   --color-ink-light: #3D3D3D;
@@ -18,6 +19,11 @@
 
   --font-body: "Geist", system-ui, sans-serif;
   --font-mono: "Geist Mono", monospace;
+}
+
+/* Display typeface utility — references the next/font variable set on <html> */
+@utility font-display {
+  font-family: var(--font-display);
 }
 
 /* Base styles */

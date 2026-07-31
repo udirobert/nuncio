@@ -26,6 +26,7 @@ export function Header({ stage, isDemo }: HeaderProps) {
   const pathname = usePathname();
   const showStage = stage && stage !== "input" && stage !== "error";
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/account/session")
@@ -48,18 +49,97 @@ export function Header({ stage, isDemo }: HeaderProps) {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between pointer-events-none">
+      {/* Mobile nav dropdown */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.nav
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="md:hidden pointer-events-auto absolute top-full left-6 right-6 mt-2 rounded-2xl border border-cream-dark bg-cream shadow-lg shadow-ink/5 p-2 flex flex-col"
+          >
+            {NAV_LINKS.map((link, i) => {
+              const isActive = pathname === link.href;
+              return (
+                <motion.div
+                  key={link.href}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.03 * i, duration: 0.25 }}
+                >
+                  <Link
+                    href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`block rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
+                      isActive ? "bg-accent-soft text-accent" : "text-ink hover:bg-cream-dark/50"
+                    }`}
+                  >
+                    {link.label}
+                    {link.subtitle && (
+                      <span className="block text-[11px] font-normal text-ink-faint">{link.subtitle}</span>
+                    )}
+                  </Link>
+                </motion.div>
+              );
+            })}
+          </motion.nav>
+        )}
+      </AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5, duration: 0.6 }}
-        className="pointer-events-auto"
+        className="pointer-events-auto flex items-center gap-3"
       >
         <Link
           href="/"
-          className="font-[family-name:var(--font-display)] text-xl font-medium tracking-tight text-ink hover:text-ink-light transition-colors"
+          className="font-display text-xl font-medium tracking-tight text-ink hover:text-ink-light transition-colors"
         >
           nuncio
         </Link>
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Toggle navigation"
+          aria-expanded={mobileMenuOpen}
+          className="md:hidden btn-press flex items-center justify-center w-9 h-9 rounded-lg border border-cream-dark bg-white/70 text-ink-muted hover:text-ink transition-colors"
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            {mobileMenuOpen ? (
+              <motion.svg
+                key="close"
+                initial={{ opacity: 0, rotate: -45 }}
+                animate={{ opacity: 1, rotate: 0 }}
+                exit={{ opacity: 0, rotate: 45 }}
+                transition={{ duration: 0.2 }}
+                viewBox="0 0 16 16"
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              >
+                <path d="M4 4l8 8M12 4l-8 8" />
+              </motion.svg>
+            ) : (
+              <motion.svg
+                key="menu"
+                initial={{ opacity: 0, rotate: 45 }}
+                animate={{ opacity: 1, rotate: 0 }}
+                exit={{ opacity: 0, rotate: -45 }}
+                transition={{ duration: 0.2 }}
+                viewBox="0 0 16 16"
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              >
+                <path d="M3 5h10M3 8h10M3 11h10" />
+              </motion.svg>
+            )}
+          </AnimatePresence>
+        </button>
       </motion.div>
 
       <div className="pointer-events-auto flex items-center gap-6">
