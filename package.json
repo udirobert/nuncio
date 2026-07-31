@@ -20,6 +20,7 @@
   "dependencies": {
     "@anam-ai/js-sdk": "4.22.0",
     "@aws-sdk/client-s3": "3.1098.0",
+    "@aws-sdk/s3-request-presigner": "3.1098.0",
     "@elevenlabs/client": "1.8.1",
     "@elevenlabs/elevenlabs-js": "2.49.1",
     "@gsap/react": "2.1.2",

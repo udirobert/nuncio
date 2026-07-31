@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getShareRecord, updateShareRecord } from "@/lib/share-store";
+import { signRecordAssets } from "@/lib/storage/media-store";
 
 export async function GET(
   _request: NextRequest,
@@ -12,7 +13,10 @@ export async function GET(
     return NextResponse.json({ error: "Share not found" }, { status: 404 });
   }
 
-  return NextResponse.json(record);
+  // Resolve private B2 asset URLs to presigned download URLs
+  const signed = await signRecordAssets(record);
+
+  return NextResponse.json(signed);
 }
 
 export async function PATCH(

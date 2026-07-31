@@ -155,6 +155,10 @@ export interface MediaStorageProvider {
     metadata?: Record<string, string>
   ): Promise<string>;
   getPublicUrl(key: string): string;
+  /** Generate a time-limited presigned download URL for a private object. Optional. */
+  getSignedUrl?(key: string, expiresIn?: number): Promise<string>;
+  /** Resolve a stored asset URL to a presigned URL if it belongs to this store. Optional. */
+  signAssetUrl?(url: string, expiresIn?: number): Promise<string>;
   /** List object keys under a prefix (for building per-share asset manifests). Optional. */
   listKeys?(prefix: string): Promise<string[]>;
 }

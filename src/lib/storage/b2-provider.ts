@@ -1,4 +1,5 @@
-import { S3Client, PutObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { MediaStorageProvider } from "./types";
 
 /**
@@ -6,16 +7,27 @@ import type { MediaStorageProvider } from "./types";
  *
  * B2 is S3-compatible, so we use the AWS SDK v3 pointed at the B2 endpoint.
  * Stores rendered videos, audio assets, thumbnails, and pipeline traces as
- * the primary durable media store. Public read access is enabled per-bucket
- * so returned URLs are served directly to recipients.
+ * the primary durable media store. The bucket is PRIVATE; assets are served
+ * to recipients via time-limited presigned download URLs (see getSignedUrl),
+ * so no public bucket / payment history is required.
  *
  * Env vars:
  *   B2_KEY_ID          — application key ID (access key)
  *   B2_APPLICATION_KEY — application key (secret)
  *   B2_BUCKET_NAME     — target bucket
- *   B2_ENDPOINT        — e.g. https://s3.us-west-004.backblazeb2.com
+ *   B2_ENDPOINT        — e.g. https://s3.us-east-005.backblazeb2.com
  *   B2_PUBLIC_URL      — optional friendly URL prefix (e.g. CDN / bucket subdomain)
  */
+
+/** Default presigned URL lifetime: 7 days. */
+const DEFAULT_SIGNED_TTL_SECONDS = 7 * 24 * 60 * 60;
+
+/** Extract the B2 region from an S3 endpoint, e.g. https://s3.us-east-005.backblazeb2.com → us-east-005. */
+function regionFromEndpoint(endpoint: string): string {
+  const match = endpoint.match(/s3\.([a-z0-9-]+)\.backblazeb2\.com/i);
+  return match ? match[1] : "us-east-005";
+}
+
 export class B2MediaStorageProvider implements MediaStorageProvider {
   readonly name = "b2";
   private client: S3Client;
@@ -37,7 +49,7 @@ export class B2MediaStorageProvider implements MediaStorageProvider {
     this.bucket = bucket;
     this.client = new S3Client({
       endpoint,
-      region: "us-west-004",
+      region: regionFromEndpoint(endpoint),
       credentials: { accessKeyId: keyId, secretAccessKey: appKey },
       forcePathStyle: true,
     });
@@ -72,6 +84,47 @@ export class B2MediaStorageProvider implements MediaStorageProvider {
 
   getPublicUrl(key: string): string {
     return `${this.publicBase}/${key}`;
+  }
+
+  /**
+   * Generate a time-limited presigned download URL for a private object.
+   * This is how assets are served to recipients without a public bucket.
+   * Falls back to the (unsigned) public URL only if presigning fails.
+   */
+  async getSignedUrl(
+    key: string,
+    expiresIn: number = DEFAULT_SIGNED_TTL_SECONDS
+  ): Promise<string> {
+    const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
+    return getSignedUrl(this.client, command, { expiresIn });
+  }
+
+  /**
+   * Resolve a stored asset URL to a presigned download URL if it belongs to
+   * this B2 bucket, otherwise return it unchanged. Detects assets by matching
+   * the S3 endpoint host (or any *.backblazeb2.com host) and the bucket path
+   * prefix, so both our `videos/{shareId}/...` keys and the Genblaze worker's
+   * hierarchical keys are signed transparently.
+   */
+  async signAssetUrl(
+    url: string,
+    expiresIn: number = DEFAULT_SIGNED_TTL_SECONDS
+  ): Promise<string> {
+    try {
+      const u = new URL(url);
+      const endpointHost = new URL(process.env.B2_ENDPOINT!).host;
+      const isB2Host = u.hostname === endpointHost || u.hostname.endsWith("backblazeb2.com");
+      if (!isB2Host) return url;
+
+      const prefix = `/${this.bucket}/`;
+      if (!u.pathname.startsWith(prefix)) return url;
+
+      const key = decodeURIComponent(u.pathname.slice(prefix.length));
+      if (!key) return url;
+      return this.getSignedUrl(key, expiresIn);
+    } catch {
+      return url;
+    }
   }
 
   async listKeys(prefix: string): Promise<string[]> {

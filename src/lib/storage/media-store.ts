@@ -179,3 +179,33 @@ export async function persistAssetManifest(
 }
 
 export type { MediaStorageProvider };
+
+/**
+ * Resolve the media asset URLs on a share record to presigned download URLs
+ * (bucket is private). Non-B2 URLs are left unchanged. Non-blocking: any
+ * signing failure falls back to the original stored URL.
+ */
+export async function signRecordAssets<T extends object>(
+  record: T
+): Promise<T> {
+  const provider = getMediaStorageProvider();
+  if (!provider || typeof provider.signAssetUrl !== "function") return record;
+
+  const signed = { ...record } as Record<string, unknown>;
+  const urlFields = ["videoUrl", "soundscapeUrl", "thumbnailUrl", "cinematicEntranceUrl"];
+
+  await Promise.all(
+    urlFields.map(async (field) => {
+      const value = (record as Record<string, unknown>)[field];
+      if (typeof value === "string" && value.startsWith("http")) {
+        try {
+          signed[field] = await provider.signAssetUrl!(value);
+        } catch {
+          // keep original on failure
+        }
+      }
+    })
+  );
+
+  return signed as T;
+}

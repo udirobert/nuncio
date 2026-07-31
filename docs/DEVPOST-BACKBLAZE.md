@@ -80,11 +80,12 @@ truth for "what assets does share X have," enabling reconstruction, auditing,
 and search without a separate metadata store.
 
 **Why B2 matters here**: HeyGen signed URLs expire after ~24 hours. Without
-durable storage, every shared video link goes dead. B2 gives every asset a
-permanent, publicly accessible URL. The `persistVideo()` function downloads from
-the temporary URL, computes a SHA-256 hash, uploads to B2 with metadata, and
-returns the permanent URL. The same pattern applies to audio, images, traces,
-and manifests.
+durable storage, every shared video link goes dead. B2 stores every asset durably
+in a **private** bucket; the `persistVideo()` function downloads from the temporary
+URL, computes a SHA-256 hash, uploads to B2 with metadata, and the share API
+resolves it to a time-limited **presigned download URL** (7-day expiry) when a
+recipient loads the page. No public bucket required. The same pattern applies to
+audio, images, traces, and manifests.
 
 **S3-compatible integration**: B2's S3-compatible API means we use the standard
 `@aws-sdk/client-s3` (TypeScript, including `ListObjectsV2Command` for prefix
