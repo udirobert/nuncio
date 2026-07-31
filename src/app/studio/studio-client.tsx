@@ -1470,8 +1470,15 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                           Advanced settings
                         </button>
 
+<AnimatePresence>
                         {showAdvancedInput && (
-                          <div className="mt-3 space-y-3 pl-4 border-l-2 border-cream-dark">
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                            className="mt-3 space-y-3 pl-4 border-l-2 border-cream-dark overflow-hidden"
+                          >
                             <div>
                               <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
                                 Hook archetype
@@ -1553,8 +1560,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                               </p>
                             </div>
 
-                      </div>
-                    )}
+                      </motion.div>
+                        )}
+                        </AnimatePresence>
                   </div>
 
                 {detectingLanguage && (
