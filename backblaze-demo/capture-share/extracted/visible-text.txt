@@ -1,0 +1,12 @@
+[a] nuncio
+[a] Make your own →
+[h1] Hey
+[h1] Elad Gil
+[p] Nuncio Agent recorded this for you
+[button] Say thanks
+[a] Send one back
+[p] This video was researched, written, and rendered by AI — personalised specifically for you.
+[a] Send your own personalised video
+[p] Free · No account needed · 90 seconds
+[p] Powered by
+[p] — your intelligent emissary

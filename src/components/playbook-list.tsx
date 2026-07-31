@@ -193,7 +193,7 @@ function PlaybookCard({
           <div className="pt-2">
             <Link
               href={tryUrl}
-              className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-5 py-3 text-sm font-medium shadow-lg shadow-ink/10 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+        className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-5 py-3 text-sm font-medium shadow-lg shadow-ink/10 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
             >
               Try this example
               <svg

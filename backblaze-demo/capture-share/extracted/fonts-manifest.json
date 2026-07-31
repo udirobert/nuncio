@@ -1,0 +1,258 @@
+{
+  "files": [
+    {
+      "file": "4fa387ec64143e14-s.0wkzw~je483f-.woff2",
+      "family": "Geist Mono",
+      "rawFamily": "Geist Mono",
+      "subfamily": "Regular",
+      "postscript": "GeistMono-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [
+        "wght"
+      ],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "53b9e256198e5412-s.0-wfv7uh4i7h9.woff2",
+      "family": "Geist",
+      "rawFamily": "Geist",
+      "subfamily": "Regular",
+      "postscript": "Geist-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [
+        "wght"
+      ],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "5ce348bf30bf5439-s.0zgw-jeven.3w.woff2",
+      "family": "Geist Mono",
+      "rawFamily": "Geist Mono",
+      "subfamily": "Regular",
+      "postscript": "GeistMono-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [
+        "wght"
+      ],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "6306c77e7c8268e4-s.0rhz0arwfsn~5.woff2",
+      "family": "Geist Mono",
+      "rawFamily": "Geist Mono",
+      "subfamily": "Regular",
+      "postscript": "GeistMono-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [
+        "wght"
+      ],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "7178b3e590c64307-s.0nx0ww8fni_q3.woff2",
+      "family": "Geist",
+      "rawFamily": "Geist",
+      "subfamily": "Regular",
+      "postscript": "Geist-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [
+        "wght"
+      ],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "797e433ab948586e-s.p.08e28id.o-okb.woff2",
+      "family": "Geist Mono",
+      "rawFamily": "Geist Mono",
+      "subfamily": "Regular",
+      "postscript": "GeistMono-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [
+        "wght"
+      ],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "7d817b4c03b0c5f1-s.0l76wvqk9d84w.woff2",
+      "family": "Geist Mono",
+      "rawFamily": "Geist Mono",
+      "subfamily": "Regular",
+      "postscript": "GeistMono-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [
+        "wght"
+      ],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "7ebf22b5a21034f8-s.p.10_7676vm7pyy.woff2",
+      "family": "Instrument Serif",
+      "rawFamily": "Instrument Serif",
+      "subfamily": "Italic",
+      "postscript": "InstrumentSerif-Italic",
+      "weight": 400,
+      "style": "italic",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "8a480f0b521d4e75-s.0jzbimsg8vl84.woff2",
+      "family": "Geist",
+      "rawFamily": "Geist",
+      "subfamily": "Regular",
+      "postscript": "Geist-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [
+        "wght"
+      ],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "bbc41e54d2fcbd21-s.0k4k9394f2q-k.woff2",
+      "family": "Geist Mono",
+      "rawFamily": "Geist Mono",
+      "subfamily": "Regular",
+      "postscript": "GeistMono-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [
+        "wght"
+      ],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "caa3a2e1cccd8315-s.p.09~u27dqhyhd6.woff2",
+      "family": "Geist",
+      "rawFamily": "Geist",
+      "subfamily": "Regular",
+      "postscript": "Geist-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [
+        "wght"
+      ],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "ccf27e5a7366fb23-s.0hck6o0i8wq3a.woff2",
+      "family": "Instrument Serif",
+      "rawFamily": "Instrument Serif",
+      "subfamily": "Regular",
+      "postscript": "InstrumentSerif-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "e41d5df559864f9e-s.p.0gq7fw9.sy_5..woff2",
+      "family": "Instrument Serif",
+      "rawFamily": "Instrument Serif",
+      "subfamily": "Regular",
+      "postscript": "InstrumentSerif-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "fc0a7394b875fa43-s.0y1-r_vehenvp.woff2",
+      "family": "Instrument Serif",
+      "rawFamily": "Instrument Serif",
+      "subfamily": "Italic",
+      "postscript": "InstrumentSerif-Italic",
+      "weight": 400,
+      "style": "italic",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "fef07dbb0973bf53-s.12tyk43_3sh9u.woff2",
+      "family": "Geist",
+      "rawFamily": "Geist",
+      "subfamily": "Regular",
+      "postscript": "Geist-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [
+        "wght"
+      ],
+      "identified": true,
+      "isIcon": false
+    }
+  ],
+  "families": [
+    {
+      "family": "Geist",
+      "weights": [
+        400
+      ],
+      "variable": true,
+      "fileCount": 5,
+      "files": [
+        "53b9e256198e5412-s.0-wfv7uh4i7h9.woff2",
+        "7178b3e590c64307-s.0nx0ww8fni_q3.woff2",
+        "8a480f0b521d4e75-s.0jzbimsg8vl84.woff2",
+        "caa3a2e1cccd8315-s.p.09~u27dqhyhd6.woff2",
+        "fef07dbb0973bf53-s.12tyk43_3sh9u.woff2"
+      ]
+    },
+    {
+      "family": "Geist Mono",
+      "weights": [
+        400
+      ],
+      "variable": true,
+      "fileCount": 6,
+      "files": [
+        "4fa387ec64143e14-s.0wkzw~je483f-.woff2",
+        "5ce348bf30bf5439-s.0zgw-jeven.3w.woff2",
+        "6306c77e7c8268e4-s.0rhz0arwfsn~5.woff2",
+        "797e433ab948586e-s.p.08e28id.o-okb.woff2",
+        "7d817b4c03b0c5f1-s.0l76wvqk9d84w.woff2",
+        "bbc41e54d2fcbd21-s.0k4k9394f2q-k.woff2"
+      ]
+    },
+    {
+      "family": "Instrument Serif",
+      "weights": [
+        400
+      ],
+      "variable": false,
+      "fileCount": 4,
+      "files": [
+        "7ebf22b5a21034f8-s.p.10_7676vm7pyy.woff2",
+        "ccf27e5a7366fb23-s.0hck6o0i8wq3a.woff2",
+        "e41d5df559864f9e-s.p.0gq7fw9.sy_5..woff2",
+        "fc0a7394b875fa43-s.0y1-r_vehenvp.woff2"
+      ]
+    }
+  ],
+  "unidentified": [],
+  "meta": {
+    "generatedAt": "2026-07-31T20:39:30.844Z",
+    "tool": "fontkit"
+  }
+}

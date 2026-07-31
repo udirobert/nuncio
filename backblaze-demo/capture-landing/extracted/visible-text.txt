@@ -1,0 +1,162 @@
+[a] nuncio
+[span] Build video
+[a] Playbook
+[a] Dashboard
+[a] Sign in
+[p] Sarah Chen
+[span] LinkedIn
+[p] Head of Payments · Stripe
+[p] Pulled the Atlas international expansion as the hook — not her current title.
+[p] Tim Glaser
+[p] Co-founder · PostHog
+[p] Referenced his thread on session-replay sampling rather than the obvious 'congrats on the round'.
+[p] Anjney Midha
+[p] General Partner · a16z
+[p] Anchored on his open-source AI thesis, not the firm — and named one specific portfolio overlap.
+[p] Dax Raad
+[span] GitHub
+[p] Co-founder · Terminal
+[p] Skipped the company entirely — referenced a single SST commit that solved our exact problem.
+[p] Linnea Gandhi
+[span] LinkedIn
+[p] Behavioral scientist
+[p] Referenced her paper on noise audits — and admitted upfront we'd applied the framework imperfectly.
+[p] Cassidy Williams
+[span] GitHub
+[p] CTO · Contenda
+[p] Pointed at her `react-hooks-snippets` repo and asked for a 30-second sanity check on our hook design.
+[p] Sarah Chen
+[span] LinkedIn
+[p] Head of Payments · Stripe
+[p] Pulled the Atlas international expansion as the hook — not her current title.
+[p] Tim Glaser
+[p] Co-founder · PostHog
+[p] Referenced his thread on session-replay sampling rather than the obvious 'congrats on the round'.
+[p] Anjney Midha
+[p] General Partner · a16z
+[p] Anchored on his open-source AI thesis, not the firm — and named one specific portfolio overlap.
+[p] Dax Raad
+[span] GitHub
+[p] Co-founder · Terminal
+[p] Skipped the company entirely — referenced a single SST commit that solved our exact problem.
+[p] Linnea Gandhi
+[span] LinkedIn
+[p] Behavioral scientist
+[p] Referenced her paper on noise audits — and admitted upfront we'd applied the framework imperfectly.
+[p] Cassidy Williams
+[span] GitHub
+[p] CTO · Contenda
+[p] Pointed at her `react-hooks-snippets` repo and asked for a 30-second sanity check on our hook design.
+[p] Onee Yekeh
+[span] LinkedIn
+[p] Product · HeyGen
+[p] Opened on her recent post about developer-facing video agents, skipped the company pitch.
+[p] Gorkem Yurtseven
+[p] Co-founder · Fal
+[p] Led with the FLUX latency benchmark he shared last week, framed the ask as a swap of notes.
+[p] Guillermo Rauch
+[p] CEO · Vercel
+[p] Picked up his recent take on agentic UIs and reframed our pitch as one concrete answer to it.
+[p] Amjad Masad
+[p] CEO · Replit
+[p] Opened on his Replit Agent demo from Devcon, then made the ask a 10-minute reaction video.
+[p] Kelsey Hightower
+[p] Distinguished Engineer (ret.)
+[p] Quoted his 'no code is the best code' tweet back at him, then asked one specific question.
+[p] Paul Copplestone
+[p] CEO · Supabase
+[p] Anchored on the Postgres-as-everything thesis from his recent essay, not the YC association.
+[p] Onee Yekeh
+[span] LinkedIn
+[p] Product · HeyGen
+[p] Opened on her recent post about developer-facing video agents, skipped the company pitch.
+[p] Gorkem Yurtseven
+[p] Co-founder · Fal
+[p] Led with the FLUX latency benchmark he shared last week, framed the ask as a swap of notes.
+[p] Guillermo Rauch
+[p] CEO · Vercel
+[p] Picked up his recent take on agentic UIs and reframed our pitch as one concrete answer to it.
+[p] Amjad Masad
+[p] CEO · Replit
+[p] Opened on his Replit Agent demo from Devcon, then made the ask a 10-minute reaction video.
+[p] Kelsey Hightower
+[p] Distinguished Engineer (ret.)
+[p] Quoted his 'no code is the best code' tweet back at him, then asked one specific question.
+[p] Paul Copplestone
+[p] CEO · Supabase
+[p] Anchored on the Postgres-as-everything thesis from his recent essay, not the YC association.
+[h1] Open the accounts
+[span] that matter most.
+[p] For founders and small B2B teams pursuing high-value accounts, partnerships, and investor conversations. Make a personal video for one person—not another sequence for thousands.
+[a] Make a strategic-account video
+[p] Review every word before it leaves your name
+[span] Pick the account
+[p] Start with the person or company you genuinely want to reach.
+[span] Make your case
+[p] Give Nuncio the reason this conversation should happen now.
+[span] Review before sending
+[p] Approve the research, hook, and every word in your name.
+[span] person at a time
+[span] 100%
+[span] human reviewed
+[span] clear reason to reach out
+[p] Nuncio is for the account you would research properly yourself—the one where a thoughtful first message can change the relationship.
+[p] Real output — generated automatically
+[a] View share page →
+[p] Personalised video for Onee Yekeh
+[p] Product Manager at HeyGen · Generated via nuncio pipeline
+[p] Enriched from LinkedIn · Script by Claude · Rendered by HeyGen Video Agent · Captions by HeyGen
+[p] Recent nuncios
+[span] Swipe →
+[p] Sarah Chen
+[span] LinkedIn
+[p] Head of Payments · Stripe
+[p] Pulled the Atlas international expansion as the hook — not her current title.
+[p] Onee Yekeh
+[span] LinkedIn
+[p] Product · HeyGen
+[p] Opened on her recent post about developer-facing video agents, skipped the company pitch.
+[p] Tim Glaser
+[p] Co-founder · PostHog
+[p] Referenced his thread on session-replay sampling rather than the obvious 'congrats on the round'.
+[p] Gorkem Yurtseven
+[p] Co-founder · Fal
+[p] Led with the FLUX latency benchmark he shared last week, framed the ask as a swap of notes.
+[p] Anjney Midha
+[p] General Partner · a16z
+[p] Anchored on his open-source AI thesis, not the firm — and named one specific portfolio overlap.
+[p] Guillermo Rauch
+[p] CEO · Vercel
+[p] Picked up his recent take on agentic UIs and reframed our pitch as one concrete answer to it.
+[p] Dax Raad
+[span] GitHub
+[p] Co-founder · Terminal
+[p] Skipped the company entirely — referenced a single SST commit that solved our exact problem.
+[p] Amjad Masad
+[p] CEO · Replit
+[p] Opened on his Replit Agent demo from Devcon, then made the ask a 10-minute reaction video.
+[p] Linnea Gandhi
+[span] LinkedIn
+[p] Behavioral scientist
+[p] Referenced her paper on noise audits — and admitted upfront we'd applied the framework imperfectly.
+[p] Kelsey Hightower
+[p] Distinguished Engineer (ret.)
+[p] Quoted his 'no code is the best code' tweet back at him, then asked one specific question.
+[p] Cassidy Williams
+[span] GitHub
+[p] CTO · Contenda
+[p] Pointed at her `react-hooks-snippets` repo and asked for a 30-second sanity check on our hook design.
+[p] Paul Copplestone
+[p] CEO · Supabase
+[p] Anchored on the Postgres-as-everything thesis from his recent essay, not the YC association.
+[p] How nuncio works
+[h2] A considered first message for the conversations that can change your business.
+[p] Research accelerates the work. You retain the judgement. Review the context, the hook, and the final script before anything is sent in your name.
+[h3] Choose
+[p] Start with a person or company worth real effort—not a list you plan to blast.
+[h3] Ground it
+[p] Nuncio turns public context and your reason for reaching out into a relevant, specific opening.
+[h3] Make it yours
+[p] Edit the hook, script, and creative direction until it sounds like a message you would actually send.
+[h3] Open a door
+[p] Send a polished personal video and give a high-value conversation the attention it deserves.

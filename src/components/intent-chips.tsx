@@ -84,17 +84,22 @@ export function IntentChips({ value, onChange }: IntentChipsProps) {
         <span className="text-[10px] text-ink-faint/70">Optional · sharpens the script</span>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
-        {INTENT_OPTIONS.map((option) => {
+      <motion.div className="flex flex-wrap gap-1.5">
+        {INTENT_OPTIONS.map((option, i) => {
           const isActive = value === option.id;
           return (
-            <button
+            <motion.button
               key={option.id}
               type="button"
               onClick={() => handlePick(option)}
               aria-pressed={isActive}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.03, duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
               className={`
-                btn-press text-[11px] px-2.5 py-1.5 rounded-full border transition-all
+                text-[11px] px-2.5 py-1.5 rounded-full border transition-colors
                 ${
                   isActive
                     ? "bg-ink text-cream border-ink shadow-sm"
@@ -103,10 +108,10 @@ export function IntentChips({ value, onChange }: IntentChipsProps) {
               `}
             >
               {option.label}
-            </button>
+            </motion.button>
           );
         })}
-      </div>
+      </motion.div>
 
       <AnimatePresence mode="wait">
         {active && (

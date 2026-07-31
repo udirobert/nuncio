@@ -1,0 +1,9 @@
+# Never commit credentials.
+.env
+.env.*
+*.key
+secrets.*
+# Build artifacts stay local too.
+renders/*.mp4
+assets/audio/*.mp3
+assets/audio/*.wav

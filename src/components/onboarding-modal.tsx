@@ -65,21 +65,21 @@ export function OnboardingModal() {
           />
 
           <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.96 }}
+            initial={{ opacity: 0, y: 24, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.96 }}
-            transition={{ duration: 0.25, type: "spring", stiffness: 300, damping: 25 }}
+exit={{ opacity: 0, y: 16, scale: 0.95 }}
+            transition={{ duration: 0.35, type: "spring", stiffness: 280, damping: 24 }}
             className="relative w-full max-w-sm rounded-2xl border border-cream-dark bg-white p-6 shadow-xl"
-          >
-            <button
-              onClick={handleDismiss}
-              className="absolute top-4 right-4 text-ink-faint hover:text-ink transition-colors"
-              aria-label="Close"
-            >
+          >            <motion.button
+                  onClick={handleDismiss}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="absolute top-4 right-4 text-ink-faint hover:text-ink transition-colors"
+                  aria-label="Close"
+                >
               <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M4 4l8 8M12 4l-8 8" />
-              </svg>
-            </button>
+              </svg>                </motion.button>
 
             <div className="flex items-center gap-1.5 mb-5">
               {TIPS.map((_, i) => (
@@ -111,18 +111,21 @@ export function OnboardingModal() {
               </AnimatePresence>
 
               <div className="flex items-center justify-between pt-2">
-                <button
+                <motion.button
                   onClick={handleDismiss}
+                  whileHover={{ x: -2 }}
                   className="text-[11px] uppercase tracking-widest text-ink-faint hover:text-ink transition-colors"
                 >
                   Skip
-                </button>
-                <button
+                </motion.button>
+                <motion.button
                   onClick={handleNext}
-                  className="btn-press rounded-xl bg-ink px-5 py-2.5 text-[11px] uppercase tracking-widest font-medium text-cream hover:bg-ink-light transition-colors"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="rounded-xl bg-ink px-5 py-2.5 text-[11px] uppercase tracking-widest font-medium text-cream hover:bg-ink-light transition-colors"
                 >
                   {step < TIPS.length - 1 ? "Next" : "Got it"}
-                </button>
+                </motion.button>
               </div>
             </div>
           </motion.div>

@@ -1,0 +1,407 @@
+{
+  "summary": {
+    "webAnimations": 20,
+    "cssDeclarations": 32,
+    "scrollTargets": 51,
+    "cdpAnimations": 64,
+    "canvases": 0
+  },
+  "namedAnimations": [
+    "drift-up",
+    "drift-down",
+    "spin"
+  ],
+  "scrollTriggeredElements": 51,
+  "representativeAnimations": [
+    {
+      "type": "CSSTransition",
+      "playState": "running",
+      "animationName": null,
+      "targetSelector": "div.flex.items-center.gap-3",
+      "targetRect": {
+        "x": 690,
+        "y": 457.5,
+        "width": 540,
+        "height": 59.5,
+        "top": 457.5,
+        "right": 1230,
+        "bottom": 517,
+        "left": 690
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "linear",
+          "composite": "auto",
+          "backgroundColor": "rgb(232, 229, 255)",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "linear",
+          "composite": "auto",
+          "backgroundColor": "rgb(247, 245, 241)",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 700,
+        "delay": 0,
+        "iterations": 1,
+        "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "direction": "normal"
+      }
+    },
+    {
+      "type": "CSSTransition",
+      "playState": "running",
+      "animationName": null,
+      "targetSelector": "div.flex.items-center.gap-3",
+      "targetRect": {
+        "x": 690,
+        "y": 457.5,
+        "width": 540,
+        "height": 59.5,
+        "top": 457.5,
+        "right": 1230,
+        "bottom": 517,
+        "left": 690
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "linear",
+          "composite": "auto",
+          "borderBottomColor": "oklab(0.517237 0.0228065 -0.271076 / 0.2)",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "linear",
+          "composite": "auto",
+          "borderBottomColor": "rgb(240, 237, 232)",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 700,
+        "delay": 0,
+        "iterations": 1,
+        "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "direction": "normal"
+      }
+    },
+    {
+      "type": "CSSTransition",
+      "playState": "running",
+      "animationName": null,
+      "targetSelector": "div.flex.items-center.gap-3",
+      "targetRect": {
+        "x": 690,
+        "y": 457.5,
+        "width": 540,
+        "height": 59.5,
+        "top": 457.5,
+        "right": 1230,
+        "bottom": 517,
+        "left": 690
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "linear",
+          "composite": "auto",
+          "borderLeftColor": "oklab(0.517237 0.0228065 -0.271076 / 0.2)",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "linear",
+          "composite": "auto",
+          "borderLeftColor": "rgb(240, 237, 232)",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 700,
+        "delay": 0,
+        "iterations": 1,
+        "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "direction": "normal"
+      }
+    },
+    {
+      "type": "CSSTransition",
+      "playState": "running",
+      "animationName": null,
+      "targetSelector": "div.flex.items-center.gap-3",
+      "targetRect": {
+        "x": 690,
+        "y": 457.5,
+        "width": 540,
+        "height": 59.5,
+        "top": 457.5,
+        "right": 1230,
+        "bottom": 517,
+        "left": 690
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "linear",
+          "composite": "auto",
+          "borderRightColor": "oklab(0.517237 0.0228065 -0.271076 / 0.2)",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "linear",
+          "composite": "auto",
+          "borderRightColor": "rgb(240, 237, 232)",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 700,
+        "delay": 0,
+        "iterations": 1,
+        "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "direction": "normal"
+      }
+    },
+    {
+      "type": "CSSTransition",
+      "playState": "running",
+      "animationName": null,
+      "targetSelector": "div.flex.items-center.gap-3",
+      "targetRect": {
+        "x": 690,
+        "y": 457.5,
+        "width": 540,
+        "height": 59.5,
+        "top": 457.5,
+        "right": 1230,
+        "bottom": 517,
+        "left": 690
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "linear",
+          "composite": "auto",
+          "borderTopColor": "oklab(0.517237 0.0228065 -0.271076 / 0.2)",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "linear",
+          "composite": "auto",
+          "borderTopColor": "rgb(240, 237, 232)",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 700,
+        "delay": 0,
+        "iterations": 1,
+        "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "direction": "normal"
+      }
+    },
+    {
+      "type": "CSSTransition",
+      "playState": "running",
+      "animationName": null,
+      "targetSelector": "div.flex.items-center.gap-3",
+      "targetRect": {
+        "x": 690,
+        "y": 457.5,
+        "width": 540,
+        "height": 59.5,
+        "top": 457.5,
+        "right": 1230,
+        "bottom": 517,
+        "left": 690
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "linear",
+          "composite": "auto",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "linear",
+          "composite": "auto",
+          "boxShadow": "none",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 700,
+        "delay": 0,
+        "iterations": 1,
+        "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "direction": "normal"
+      }
+    },
+    {
+      "type": "CSSTransition",
+      "playState": "running",
+      "animationName": null,
+      "targetSelector": "span.text-xs.font-medium.transition-colors",
+      "targetRect": {
+        "x": 743,
+        "y": 470.5,
+        "width": 94.46875,
+        "height": 16,
+        "top": 470.5,
+        "right": 837.46875,
+        "bottom": 486.5,
+        "left": 743
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "linear",
+          "composite": "auto",
+          "color": "rgb(74, 58, 255)",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "linear",
+          "composite": "auto",
+          "color": "rgb(26, 26, 26)",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 150,
+        "delay": 0,
+        "iterations": 1,
+        "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "direction": "normal"
+      }
+    },
+    {
+      "type": "CSSTransition",
+      "playState": "running",
+      "animationName": null,
+      "targetSelector": "div.flex.items-center.gap-3",
+      "targetRect": {
+        "x": 690,
+        "y": 525,
+        "width": 540,
+        "height": 59.5,
+        "top": 525,
+        "right": 1230,
+        "bottom": 584.5,
+        "left": 690
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "linear",
+          "composite": "auto",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "linear",
+          "composite": "auto",
+          "backgroundColor": "rgb(232, 229, 255)",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 700,
+        "delay": 0,
+        "iterations": 1,
+        "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "direction": "normal"
+      }
+    },
+    {
+      "type": "CSSTransition",
+      "playState": "running",
+      "animationName": null,
+      "targetSelector": "div.flex.items-center.gap-3",
+      "targetRect": {
+        "x": 690,
+        "y": 525,
+        "width": 540,
+        "height": 59.5,
+        "top": 525,
+        "right": 1230,
+        "bottom": 584.5,
+        "left": 690
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "linear",
+          "composite": "auto",
+          "borderBottomColor": "rgb(240, 237, 232)",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "linear",
+          "composite": "auto",
+          "borderBottomColor": "oklab(0.517237 0.0228065 -0.271076 / 0.2)",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 700,
+        "delay": 0,
+        "iterations": 1,
+        "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "direction": "normal"
+      }
+    },
+    {
+      "type": "CSSTransition",
+      "playState": "running",
+      "animationName": null,
+      "targetSelector": "div.flex.items-center.gap-3",
+      "targetRect": {
+        "x": 690,
+        "y": 525,
+        "width": 540,
+        "height": 59.5,
+        "top": 525,
+        "right": 1230,
+        "bottom": 584.5,
+        "left": 690
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "linear",
+          "composite": "auto",
+          "borderLeftColor": "rgb(240, 237, 232)",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "linear",
+          "composite": "auto",
+          "borderLeftColor": "oklab(0.517237 0.0228065 -0.271076 / 0.2)",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 700,
+        "delay": 0,
+        "iterations": 1,
+        "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "direction": "normal"
+      }
+    }
+  ]
+}

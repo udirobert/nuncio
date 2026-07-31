@@ -62,7 +62,7 @@ export function HowItWorks() {
                 delay: i * 0.08,
                 ease: [0.22, 1, 0.36, 1],
               }}
-              className="rounded-2xl border border-cream-dark bg-white/70 p-6 hover:bg-white hover:shadow-md transition-all"
+  className="rounded-2xl border border-cream-dark bg-white/70 p-6 card-hover hover:bg-white"
             >
               <div className="flex items-baseline justify-between mb-4">
                 <span className="text-[10px] uppercase tracking-widest text-accent font-medium">

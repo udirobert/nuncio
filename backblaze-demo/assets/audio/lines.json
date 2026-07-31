@@ -1,0 +1,23 @@
+{
+  "voice_id": "EXAVITQu4vr4xnSDxMaL",
+  "model_id": "eleven_multilingual_v2",
+  "voice_settings": {
+    "stability": 0.45,
+    "similarity_boost": 0.8,
+    "style": 0.25,
+    "use_speaker_boost": true
+  },
+  "lines": [
+    {"id": "01", "text": "Meet Nuncio. You give it one URL. You get back a personalized video."},
+    {"id": "02", "text": "It's not a video tool. It's a conversational SDR. Research, synthesis, script, render, delivery. Autonomous."},
+    {"id": "03", "text": "Drop in a prospect. Three research providers build a profile. Recent posts. Company signals. Personalization hooks. The sender brief writes itself."},
+    {"id": "04", "text": "Then the script writes itself, and the avatar renders. HeyGen. About eight minutes, from prompt to a personalized video."},
+    {"id": "05a", "text": "This is real output. Watch."},
+    {"id": "05b", "text": "Researched, written, and rendered by AI. Personalized for this one recipient."},
+    {"id": "06", "text": "But generative media has a half-life. Signed URLs expire. Twenty-four hours, and the video dies. Every share link. Gone."},
+    {"id": "07", "text": "So Nuncio stores everything on Backblaze B2. Video. Audio. Thumbnails. Traces. Every object hashed, tagged, and indexed. The dead link becomes a private bucket. And a presigned URL."},
+    {"id": "08", "text": "And the media is orchestrated by Genblaze. Not three separate API calls. One declarative pipeline. Thumbnail. Soundscape. Voice. Three assets. Two providers. One B2 sink. One canonical hash."},
+    {"id": "09", "text": "Every share is anchored in an immutable proof. Content hash. Manifest. Model version. And the whole loop runs autonomously. Research to delivery to reply to a booked meeting. Earning fifty dollars over Stripe."},
+    {"id": "10", "text": "Generate with Genblaze. Store on Backblaze B2. Nuncio. Your intelligent emissary."}
+  ]
+}

@@ -74,14 +74,16 @@ export function AngleCards({
           return (
             <motion.button
               key={angle.id}
-              initial={{ opacity: 0, y: 12 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.4, delay: i * 0.06, ease: [0.23, 1, 0.32, 1] }}
+              whileHover={{ scale: 1.01, y: -2 }}
+              whileTap={{ scale: 0.99 }}
               onClick={() => onSelect(angle)}
               className={`w-full text-left rounded-xl border-2 p-4 transition-all duration-200 ${
                 isSelected
-                  ? "border-accent bg-accent-soft/40 shadow-sm"
-                  : "border-cream-dark bg-white hover:border-accent/30 hover:shadow-sm hover:-translate-y-0.5"
+                  ? "border-accent bg-accent-soft/40 shadow-md"
+                  : "border-cream-dark bg-white hover:border-accent/30 hover:shadow-lg"
               }`}
             >
               <div className="flex items-start justify-between gap-3">

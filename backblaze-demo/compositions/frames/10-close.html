@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Instrument Serif"; font-style: normal; font-weight: 400; src: url("assets/fonts/InstrumentSerif-Regular.woff2") format("woff2"); }
+      @font-face { font-family: "Instrument Serif"; font-style: italic; font-weight: 400; src: url("assets/fonts/InstrumentSerif-Italic.woff2") format("woff2"); }
+      @font-face { font-family: "Geist"; font-style: normal; font-weight: 100 900; src: url("assets/fonts/Geist-Variable.woff2") format("woff2"); }
+      @font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 100 900; src: url("assets/fonts/GeistMono-Variable.woff2") format("woff2"); }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #FAF9F6; font-family: "Geist", system-ui, sans-serif; }
+      :root { --ink: #1A1A1A; --cream: #FAF9F6; --tile: #F7F5F1; --tile-strong: #F0EDE8; --accent: #4A3AFF; --warm: #C4704B; --ink-muted: #6B6B6B; --ink-faint: #A3A3A3; }
+      .clip { position: absolute; inset: 0; container-type: size; }
+
+      .stage { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 26px; }
+      .spike { font-family: "Geist Mono"; font-size: 42px; color: var(--accent); }
+
+      .signoff { font-family: "Instrument Serif"; font-size: 138px; line-height: 0.98; letter-spacing: -0.028em; color: var(--ink); }
+      .signoff em { font-style: italic; color: var(--accent); }
+
+      .lockup { display: flex; align-items: center; gap: 22px; }
+      .mark { width: 84px; height: 84px; border-radius: 22px; background: var(--ink); display: flex; align-items: center; justify-content: center; }
+      .mark svg { width: 52px; height: 52px; }
+      .word { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
+      .word .name { font-family: "Instrument Serif"; font-size: 60px; line-height: 0.95; color: var(--ink); letter-spacing: -0.02em; }
+      .word .tag { font-family: "Geist"; font-size: 24px; color: var(--ink-muted); font-style: italic; }
+
+      .url { font-family: "Geist Mono"; font-size: 22px; letter-spacing: 0.08em; color: var(--ink-muted); }
+
+      .provider { position: absolute; font-family: "Geist Mono"; font-size: 19px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 9999px; padding: 10px 24px; border: 1px solid rgba(26,26,26,0.14); background: #fff; color: var(--ink-muted); }
+      .provider.b2 { color: var(--accent); border-color: rgba(74,58,255,0.4); }
+      .provider.gz { color: #955532; border-color: rgba(196,112,75,0.45); }
+
+      .caption { position: absolute; left: 0; right: 0; bottom: 40px; display: flex; justify-content: center; }
+      .caption span { font-family: "Geist"; font-size: 26px; font-weight: 500; color: var(--ink); background: rgba(250,249,246,0.85); border: 1px solid rgba(26,26,26,0.1); padding: 10px 26px; border-radius: 9999px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="f10" data-start="0" data-width="1920" data-height="1080" data-duration="13.07">
+      <div id="f10-scene" class="clip" data-start="0" data-duration="13.07" data-track-index="1">
+        <!-- scattered provider marks -->
+        <span id="f10-b2" class="provider b2" style="top:150px; left:220px;">Backblaze B2</span>
+        <span id="f10-gz" class="provider gz" style="top:210px; right:260px;">Genblaze</span>
+        <span id="f10-el" class="provider" style="top:720px; left:280px;">ElevenLabs</span>
+        <span id="f10-gmi" class="provider" style="top:660px; right:300px;">GMI Cloud</span>
+        <span id="f10-hg" class="provider" style="bottom:220px; left:480px;">HeyGen</span>
+        <span id="f10-gv" class="provider" style="bottom:250px; right:520px;">Grove</span>
+
+        <div class="stage">
+          <div id="f10-spike" class="spike">✱</div>
+          <h1 id="f10-signoff" class="signoff">Generate with <em>Genblaze.</em><br/>Store on <em>Backblaze B2.</em></h1>
+          <div id="f10-lockup" class="lockup">
+            <div class="mark">
+              <svg viewBox="0 0 32 32" fill="none">
+                <path d="M9 10.5C9 9.67 9.67 9 10.5 9H18.5C19.33 9 20 9.67 20 10.5V17.5C20 18.33 19.33 19 18.5 19H10.5C9.67 19 9 18.33 9 17.5V10.5Z" stroke="#FAF9F6" stroke-width="1.8"/>
+                <path d="M12 22L22 22C22.83 22 23.5 21.33 23.5 20.5V13.5" stroke="#4A3AFF" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M12 22L22 12" stroke="#4A3AFF" stroke-width="1.8" stroke-linecap="round"/>
+                <circle cx="14.5" cy="14" r="1.8" fill="#4A3AFF"/>
+              </svg>
+            </div>
+            <div class="word">
+              <span class="name">nuncio</span>
+              <span class="tag">your intelligent emissary</span>
+            </div>
+          </div>
+          <div id="f10-url" class="url">nuncio.persidian.com</div>
+        </div>
+
+        <div id="f10-caption" class="caption"><span>A Backblaze Generative AI Media Hackathon submission</span></div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      const marks = ["#f10-b2","#f10-gz","#f10-el","#f10-gmi","#f10-hg","#f10-gv"];
+      gsap.set(marks, { opacity: 0, scale: 0.7 });
+      gsap.set(["#f10-spike","#f10-signoff","#f10-lockup","#f10-url","#f10-caption"], { opacity: 0, y: 22 });
+
+      tl.to("#f10-spike", { opacity: 1, y: 0, duration: 0.35 }, 0.3)
+        .to("#f10-signoff", { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }, 0.5);
+
+      // provider marks spring in scattered, then drift slowly outward (deterministic)
+      const drift = [
+        { m: "#f10-b2",  y: -16, x: -10 },
+        { m: "#f10-gz",  y: -12, x: 12 },
+        { m: "#f10-el",  y: 14,  x: -8 },
+        { m: "#f10-gmi", y: 12,  x: 10 },
+        { m: "#f10-hg",  y: 10,  x: -12 },
+        { m: "#f10-gv",  y: 12,  x: 8 },
+      ];
+      tl.to(marks, { opacity: 1, scale: 1, duration: 0.5, stagger: 0.18, ease: "back.out(2)" }, 2.0);
+      drift.forEach((d, i) => {
+        tl.to(d.m, { y: d.y, x: d.x, duration: 6.5, ease: "sine.inOut" }, 3.5 + i * 0.15);
+      });
+
+      tl.to("#f10-lockup", { opacity: 1, y: 0, duration: 0.6, ease: "back.out(1.6)" }, 4.5)
+        .to("#f10-url", { opacity: 1, y: 0, duration: 0.5 }, 5.6)
+        .to("#f10-caption", { opacity: 1, y: 0, duration: 0.5 }, 6.8);
+
+      window.__timelines["f10"] = tl;
+    </script>
+  </body>
+</html>

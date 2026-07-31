@@ -1,0 +1,32 @@
+[a] nuncio
+[span] Build video
+[a] Playbook
+[a] Dashboard
+[a] Sign in
+[h2] Paste a social URL
+[p] LinkedIn, Twitter, or any profile link. Nuncio enriches public context to personalise your video.
+[button] Skip
+[button] Next
+[span] AI-powered · personalised video
+[h1] Brief an agent.
+[span] Get personalised creative.
+[span] Account
+[span] Reason
+[span] Review
+[span] Send
+[a] Need to reach multiple people? Try Batch →
+[p] Talk to your video agent
+[span] Speech Engine
+[p] Say who you want to reach and why. Nuncio interviews you, extracts the brief, then fills this studio for you.
+[button] Start voice brief
+[label] Profile URL
+[button] Try
+[button] Sundar Pichai
+[button] Try
+[button] Vercel CEO
+[label] Your name
+[span] — how you sign off in the video
+[label] Brief
+[span] — optional, but the agent uses it
+[button] Advanced settings
+[button] Research & write script

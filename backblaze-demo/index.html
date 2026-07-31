@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Nuncio — Backblaze Generative AI Media Hackathon</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Instrument Serif"; font-style: normal; font-weight: 400; src: url("assets/fonts/InstrumentSerif-Regular.woff2") format("woff2"); }
+      @font-face { font-family: "Instrument Serif"; font-style: italic; font-weight: 400; src: url("assets/fonts/InstrumentSerif-Italic.woff2") format("woff2"); }
+      @font-face { font-family: "Geist"; font-style: normal; font-weight: 100 900; src: url("assets/fonts/Geist-Variable.woff2") format("woff2"); }
+      @font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 100 900; src: url("assets/fonts/GeistMono-Variable.woff2") format("woff2"); }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        margin: 0; width: 1920px; height: 1080px; overflow: hidden;
+        background: #FAF9F6;
+        font-family: "Geist", system-ui, sans-serif;
+      }
+      .clip { position: absolute; inset: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-width="1920" data-height="1080" data-duration="126.33">
+
+      <!-- ═══ Master audio track ═══ -->
+      <audio id="master-audio" src="assets/audio/master.mp3" data-start="0" data-duration="126.33" data-track-index="0" data-volume="1"></audio>
+
+      <!-- ═══ Frame 01: Cold open (0.00 – 6.47) ═══ -->
+      <div id="host-f01" class="clip" data-composition-id="host-f01" data-composition-src="compositions/frames/01-cold-open.html" data-start="0" data-duration="6.47" data-track-index="1"></div>
+
+      <!-- ═══ Frame 02: Thesis (6.47 – 16.42) ═══ -->
+      <div id="host-f02" class="clip" data-composition-id="host-f02" data-composition-src="compositions/frames/02-thesis.html" data-start="6.47" data-duration="9.95" data-track-index="1"></div>
+
+      <!-- ═══ Frame 03: Research (16.42 – 28.31) ═══ -->
+      <div id="host-f03" class="clip" data-composition-id="host-f03" data-composition-src="compositions/frames/03-research.html" data-start="16.42" data-duration="11.89" data-track-index="1"></div>
+
+      <!-- ═══ Frame 04: Script & render (28.31 – 40.15) ═══ -->
+      <div id="host-f04" class="clip" data-composition-id="host-f04" data-composition-src="compositions/frames/04-script-render.html" data-start="28.31" data-duration="11.84" data-track-index="1"></div>
+
+      <!-- ═══ Frame 05: Payoff / avatar speaks (40.15 – 55.98) ═══ -->
+      <div id="host-f05" class="clip" data-composition-id="host-f05" data-composition-src="compositions/frames/05-payoff.html" data-start="40.15" data-duration="15.83" data-track-index="1"></div>
+
+      <!-- ═══ Frame 06: The turn / half-life (55.98 – 66.02) ═══ -->
+      <div id="host-f06" class="clip" data-composition-id="host-f06" data-composition-src="compositions/frames/06-half-life.html" data-start="55.98" data-duration="10.04" data-track-index="1"></div>
+
+      <!-- ═══ Frame 07: B2 vault (66.02 – 81.99) ═══ -->
+      <div id="host-f07" class="clip" data-composition-id="host-f07" data-composition-src="compositions/frames/07-b2-vault.html" data-start="66.02" data-duration="15.97" data-track-index="1"></div>
+
+      <!-- ═══ Frame 08: Genblaze pipeline (81.99 – 97.96) ═══ -->
+      <div id="host-f08" class="clip" data-composition-id="host-f08" data-composition-src="compositions/frames/08-genblaze.html" data-start="81.99" data-duration="15.97" data-track-index="1"></div>
+
+      <!-- ═══ Frame 09: Proof + loop (97.96 – 113.26) ═══ -->
+      <div id="host-f09" class="clip" data-composition-id="host-f09" data-composition-src="compositions/frames/09-proof-loop.html" data-start="97.96" data-duration="15.30" data-track-index="1"></div>
+
+      <!-- ═══ Frame 10: Close (113.26 – 126.33) ═══ -->
+      <div id="host-f10" class="clip" data-composition-id="host-f10" data-composition-src="compositions/frames/10-close.html" data-start="113.26" data-duration="13.07" data-track-index="1"></div>
+
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

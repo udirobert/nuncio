@@ -159,20 +159,38 @@ export default function HomeClient() {
 
           <section className="px-6 py-8 max-w-[540px] mx-auto">
             <div className="flex items-center gap-6 justify-center">
-              <div className="text-center">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1, duration: 0.4 }}
+                className="text-center"
+              >
                 <span className="block font-display text-2xl text-ink">1</span>
                 <span className="text-[10px] uppercase tracking-widest text-ink-faint">person at a time</span>
-              </div>
+              </motion.div>
               <div className="w-px h-8 bg-cream-dark" />
-              <div className="text-center">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2, duration: 0.4 }}
+                className="text-center"
+              >
                 <span className="block font-display text-2xl text-ink">100%</span>
                 <span className="text-[10px] uppercase tracking-widest text-ink-faint">human reviewed</span>
-              </div>
+              </motion.div>
               <div className="w-px h-8 bg-cream-dark" />
-              <div className="text-center">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.3, duration: 0.4 }}
+                className="text-center"
+              >
                 <span className="block font-display text-2xl text-ink">1</span>
                 <span className="text-[10px] uppercase tracking-widest text-ink-faint">clear reason to reach out</span>
-              </div>
+              </motion.div>
             </div>
             <p className="text-center text-xs text-ink-muted mt-5 max-w-[390px] mx-auto leading-relaxed">
               Nuncio is for the account you would research properly yourself—the

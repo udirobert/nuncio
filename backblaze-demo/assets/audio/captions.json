@@ -1,0 +1,79 @@
+[
+  {
+    "frame": "01",
+    "lineId": "01",
+    "start": 0.5,
+    "end": 5.469,
+    "duration": 4.969
+  },
+  {
+    "frame": "02",
+    "lineId": "02",
+    "start": 7.469,
+    "end": 15.921,
+    "duration": 8.452
+  },
+  {
+    "frame": "03",
+    "lineId": "03",
+    "start": 17.421,
+    "end": 27.313,
+    "duration": 9.892
+  },
+  {
+    "frame": "04",
+    "lineId": "04",
+    "start": 29.313,
+    "end": 36.65,
+    "duration": 7.338
+  },
+  {
+    "frame": "05",
+    "lineId": "05a",
+    "start": 41.15,
+    "end": 43.054,
+    "duration": 1.904
+  },
+  {
+    "frame": "05",
+    "lineId": "05b",
+    "start": 50.354,
+    "end": 55.277,
+    "duration": 4.923
+  },
+  {
+    "frame": "06",
+    "lineId": "06",
+    "start": 56.477,
+    "end": 65.022,
+    "duration": 8.545
+  },
+  {
+    "frame": "07",
+    "lineId": "07",
+    "start": 67.022,
+    "end": 80.49,
+    "duration": 13.468
+  },
+  {
+    "frame": "08",
+    "lineId": "08",
+    "start": 82.99,
+    "end": 97.757,
+    "duration": 14.768
+  },
+  {
+    "frame": "09",
+    "lineId": "09",
+    "start": 98.957,
+    "end": 113.261,
+    "duration": 14.303
+  },
+  {
+    "frame": "10",
+    "lineId": "10",
+    "start": 113.761,
+    "end": 119.334,
+    "duration": 5.573
+  }
+]

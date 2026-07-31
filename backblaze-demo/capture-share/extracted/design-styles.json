@@ -1,0 +1,130 @@
+{
+  "typography": [
+    {
+      "role": "display",
+      "fontFamily": "Instrument Serif",
+      "fontSize": "48px",
+      "fontWeight": "400",
+      "lineHeight": "43.2px",
+      "letterSpacing": "-1.2px",
+      "color": "#1A1A1A",
+      "sampleText": "Hey Elad Gil"
+    },
+    {
+      "role": "link",
+      "fontFamily": "Instrument Serif",
+      "fontSize": "18px",
+      "fontWeight": "400",
+      "lineHeight": "28px",
+      "letterSpacing": "-0.45px",
+      "color": "#1A1A1A",
+      "sampleText": "nuncio"
+    },
+    {
+      "role": "code",
+      "fontFamily": "ui-sans-serif",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "lineHeight": "24px",
+      "letterSpacing": "normal",
+      "color": "#1A1A1A",
+      "sampleText": "nuncio — your intelligent emissarynuncioMake your own →Hey E"
+    },
+    {
+      "role": "body",
+      "fontFamily": "Geist",
+      "fontSize": "15px",
+      "fontWeight": "400",
+      "lineHeight": "22.5px",
+      "letterSpacing": "normal",
+      "color": "#6B6B6B",
+      "sampleText": "Nuncio Agent recorded this for you"
+    }
+  ],
+  "spacing": {
+    "observed": [
+      6,
+      8,
+      10,
+      12,
+      16,
+      20,
+      24,
+      32
+    ],
+    "baseUnit": 8
+  },
+  "radius": [
+    "12px"
+  ],
+  "shadows": [
+    {
+      "value": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklab(0.217785 0.00000996143 0.00000435114 / 0.15) 0px 10px 15px -3px, oklab(0.217785 0.00000996143 0.00000435114 / 0.15) 0px 4px 6px -4px",
+      "count": 1
+    }
+  ],
+  "buttons": [
+    {
+      "label": "button",
+      "background": "transparent",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "#1A1A1A",
+      "padding": "0px",
+      "borderRadius": "0px",
+      "border": "0px solid rgb(26, 26, 26)",
+      "boxShadow": "none",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "height": "405px"
+    },
+    {
+      "label": "Say thanks",
+      "background": "oklab(0.999994 0.0000455677 0.0000200868 / 0.8)",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "#1A1A1A",
+      "padding": "10px 20px",
+      "borderRadius": "12px",
+      "border": "1px solid rgb(240, 237, 232)",
+      "boxShadow": "none",
+      "fontSize": "12px",
+      "fontWeight": "500",
+      "height": "38px"
+    },
+    {
+      "label": "Send one back",
+      "background": "#1A1A1A",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "#FAF9F6",
+      "padding": "10px 20px",
+      "borderRadius": "12px",
+      "border": "0px solid rgb(250, 249, 246)",
+      "boxShadow": "none",
+      "fontSize": "12px",
+      "fontWeight": "500",
+      "height": "36px"
+    }
+  ],
+  "cards": [],
+  "nav": {
+    "label": "navigation",
+    "background": "transparent",
+    "backgroundImage": "",
+    "backdropFilter": "",
+    "color": "#1A1A1A",
+    "padding": "20px 24px",
+    "borderRadius": "0px",
+    "border": "0px solid rgb(26, 26, 26)",
+    "boxShadow": "none",
+    "fontSize": "16px",
+    "fontWeight": "400",
+    "height": "68px"
+  },
+  "chips": [],
+  "statCells": [],
+  "tabs": [],
+  "backgrounds": [],
+  "glass": []
+}

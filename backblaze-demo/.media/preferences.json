@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "preferences": {
+    "flow": {
+      "value": "automation",
+      "confirmed_in": [
+        "backblaze-demo"
+      ],
+      "updated_at": "2026-07-31T20:38:27.416Z"
+    },
+    "storyboard": {
+      "value": "yes",
+      "confirmed_in": [
+        "backblaze-demo"
+      ],
+      "updated_at": "2026-07-31T20:38:27.471Z"
+    },
+    "style_preset.product-launch-video": {
+      "value": "code-editorial",
+      "confirmed_in": [
+        "backblaze-demo"
+      ],
+      "updated_at": "2026-07-31T20:49:51.289Z"
+    }
+  },
+  "sightings": {}
+}

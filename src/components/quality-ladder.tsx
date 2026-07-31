@@ -207,7 +207,7 @@ function TierButton({
           ? "border-accent bg-accent-soft/30 shadow-sm"
           : isLocked
             ? "border-dashed border-cream-dark bg-cream/20 opacity-70"
-            : "border-cream-dark bg-white hover:border-accent/30 hover:shadow-sm"
+            : "border-cream-dark bg-white hover:border-accent/30 card-hover"
       }`}
     >
       <div className="flex items-start justify-between gap-3">

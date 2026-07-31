@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "motion/react";
 import Link from "next/link";
 
 interface Transaction {
@@ -82,7 +81,7 @@ export function CreditCard() {
 
       <Link
         href="/pricing"
-        className="block text-center text-[11px] uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors pt-2 border-t border-cream-dark"
+        className="block text-center text-[11px] uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors pt-2 border-t border-cream-dark hover:bg-accent-soft/30 -mx-5 -mb-5 px-5 pb-5 rounded-b-2xl"
       >
         Buy credits
       </Link>
