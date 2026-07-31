@@ -18,6 +18,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { chatCompletion } from "@/lib/llm";
+import { resolvePublicOrigin } from "@/lib/url";
 
 type ReplyIntent = "interested" | "not_now" | "unsubscribe" | "question" | "unknown";
 
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
     // GET /api/agent/reply-webhook?intent=interested to discover them.
     const agentToken = process.env.NUNCIO_AGENT_TOKEN;
     if (agentToken) {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const appUrl = resolvePublicOrigin(request);
       const internalResponse = await fetch(`${appUrl}/api/agent/reply-webhook`, {
         method: "POST",
         headers: {

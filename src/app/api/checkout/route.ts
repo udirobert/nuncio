@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { readAccountSession } from "@/lib/auth/session";
 import { getAccountStorageProvider } from "@/lib/storage";
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+import { absoluteUrl } from "@/lib/url";
 
 export async function POST(request: NextRequest) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
@@ -42,8 +41,8 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${APP_URL}/studio?purchased=${planType}`,
-      cancel_url: `${APP_URL}/pricing?canceled=true`,
+      success_url: absoluteUrl(`/studio?purchased=${planType}`, request),
+      cancel_url: absoluteUrl(`/pricing?canceled=true`, request),
       ...(stripeCustomerId
         ? { customer: stripeCustomerId }
         : { customer_email: accountSession.email }),

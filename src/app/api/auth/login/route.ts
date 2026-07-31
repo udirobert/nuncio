@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createMagicLinkToken } from "@/lib/auth/magic-link";
 import { sendMagicLinkEmail } from "@/lib/email";
+import { absoluteUrl } from "@/lib/url";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -13,8 +14,7 @@ export async function POST(request: NextRequest) {
   }
 
   const token = await createMagicLinkToken(normalized);
-  const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const link = `${appUrl}/api/auth/verify?token=${token}`;
+  const link = absoluteUrl(`/api/auth/verify?token=${token}`, request);
 
   sendMagicLinkEmail(normalized, link);
 

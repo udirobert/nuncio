@@ -51,8 +51,11 @@ Current phase: extend the existing dual-mode architecture (Band studio + Hermes 
 - **Hermes uses Nemotron 3 Ultra** (`nvidia/nemotron-3-ultra-550b-a55b` via build.nvidia.com) for reasoning/orchestration; nuncio's existing LLM fallback chain handles content generation. Clean separation — no model config duplication.
 - **Stripe Skills installed in Hermes**, not built in nuncio. `stripe-projects` provisions HeyGen/ElevenLabs credits autonomously; `stripe-link-cli` handles earning (checkout for booked meetings). Nuncio's `/api/agent/earn-checkout` is a thin server-side proxy for Stripe Checkout creation.
 - **Hybrid mode**: Hermes can queue draft videos for human review in the studio — best of autonomous scale + human quality control. This is the primary product mode; fully-autonomous is a config toggle.
+- **Proxy-aware URL resolution**: `src/lib/url.ts` (`resolvePublicOrigin`, `absoluteUrl`) resolves the public origin from `APP_URL` env var → `X-Forwarded-Host`/`X-Forwarded-Proto` headers → request host → localhost fallback. All auth redirects, magic-link emails, and Stripe checkout URLs use this — prevents the `localhost:3000` redirect bug behind reverse proxies (Coolify/Caddy/Traefik).
+- **Credit guard consistency**: every credit-gated route (pipeline, video, live session, etc.) respects `creditsEnforced()` — in shadow mode (`NUNCIO_CREDITS_ENFORCED` unset), no route hard-blocks with a 402. This keeps the app judge-accessible without a paywall.
 
 ## Recent Commits
+- (pending) — fix: proxy-aware auth redirects + live session credit guard consistency
 - (pending) — Backblaze hackathon: B2 media store, Genblaze multi-step orchestration worker, Grove proof v2, composite assets, CI
 - `dd25738` — HeyGen captions via v3 API + mode switch UX toast
 - `ecd1c43` — captions toggle + circular flow on advanced ready screen
@@ -203,6 +206,8 @@ The `/api/webhook/resend` endpoint receives inbound email replies from Resend, f
 - `src/app/api/thumbnail/route.ts`: Custom thumbnail generation via Genblaze worker (GMI Cloud)
 - `workers/genblaze/`: Genblaze orchestration worker (FastAPI). `main.py` (endpoints), `providers.py` (multi-step pipelines), `Dockerfile`, `README.md`
 - `docs/DEVPOST-BACKBLAZE.md`: Backblaze Generative AI Media Hackathon submission writeup
+- `docs/HACKATHON-REPO-ACCESS.md`: Checklist for granting `b2genblaze` judge access to the private repo
+- `src/lib/url.ts`: Proxy-aware public URL resolution (`resolvePublicOrigin`, `absoluteUrl`) — prevents localhost redirects behind reverse proxies
 - `agents/nuncio_agents/`: Band agents (researcher, copywriter) — human-driven studio mode, NOT deprecated
 - `~/.hermes/skills/nuncio/`: Hermes skills for autonomous SDR mode (8 SKILL.md files)
 

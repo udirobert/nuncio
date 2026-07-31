@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getShareRecord } from "@/lib/share-store";
 import { getAccountStorageProvider } from "@/lib/storage";
-import { getCreditBalance, reserveCredits, commitCreditReservation, refundCreditReservation } from "@/lib/billing/credits";
+import { creditsEnforced, getCreditBalance, reserveCredits, commitCreditReservation, refundCreditReservation } from "@/lib/billing/credits";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 import type { Profile } from "@/lib/claude";
 import type { WorkspaceAccount } from "@/lib/storage/types";
@@ -114,16 +114,20 @@ export async function POST(request: NextRequest) {
 
     // Light credit guard: live sessions are metered by Anam, so we require the
     // workspace to have a non-negative balance before we create a session token.
+    // Respects NUNCIO_CREDITS_ENFORCED — in shadow mode the check is skipped so
+    // the app never hard-blocks (consistent with every other credit-gated route).
     if (share.workspaceId) {
-      const balance = await getCreditBalance({
-        workspaceId: share.workspaceId,
-        anonymous: false,
-      });
-      if (balance <= 0) {
-        return NextResponse.json(
-          { error: "Live sessions are unavailable while this account has no credits" },
-          { status: 402 }
-        );
+      if (creditsEnforced()) {
+        const balance = await getCreditBalance({
+          workspaceId: share.workspaceId,
+          anonymous: false,
+        });
+        if (balance <= 0) {
+          return NextResponse.json(
+            { error: "Live sessions are unavailable while this account has no credits" },
+            { status: 402 }
+          );
+        }
       }
 
       const reservation = await reserveCredits({
