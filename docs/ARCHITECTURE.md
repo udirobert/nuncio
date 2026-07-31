@@ -23,6 +23,7 @@ Recorded video is the wedge. Live conversation is the product. The same research
 | `/api/persist` | POST | Persist HeyGen video to Backblaze B2 |
 | `/api/persist/trace` | POST | Persist pipeline trace + asset manifest to B2 |
 | `/api/thumbnail` | POST | Generate thumbnail via Genblaze worker (GMI Cloud) |
+| `/api/live/session` | POST | Create a short-lived Anam LiveLink session token from a share record |
 
 ---
 
@@ -37,7 +38,9 @@ User input (URL + brief)
         │
         ├── ElevenLabs ──→ { soundscape, cinematic entrance }
         │
-        ├── HeyGen ──→ { video URL }
+        ├── HeyGen ──→ { video URL }                         [video mode]
+        │
+        ├── Anam ──→ { short-lived live session token }       [livelink mode]
         │
         ├── Backblaze B2 ──→ { durable media storage + asset manifest, served via presigned URLs }
         │
@@ -59,6 +62,8 @@ User input (URL + brief)
 | LLM | Rate limit | Provider fallback (Anthropic → Google → Featherless → Venice → TokenRouter) |
 | HeyGen Video Agent | API unavailable | Fallback to direct `/v3/videos` |
 | HeyGen | Timeout (>10 min) | Surface error, preserve script |
+| Anam | Missing configuration or token failure | Current path returns a safe error and refunds the reservation when applicable; recorded-video fallback is planned |
+| Anam/WebRTC | Connection, mobile, or provider failure | Current path ends/reports the session error; lifecycle recording and recorded-share fallback are planned |
 | Speechmatics | Transcription fails | Non-blocking, text-only |
 
 ---
@@ -119,7 +124,20 @@ The pipeline is intentionally agnostic to the final delivery format. A single `d
 
 Shared steps (research, synthesis, script/playbook generation) stay the same. Only the final render step changes.
 
-## Cross-Cutting Concerns
+## LiveLink rollout architecture
+
+LiveLink is an additive delivery mode, not a replacement for the recorded-video path.
+
+- **Shared context:** research, synthesis, script, Sender Playbook, language, and recipient context are generated once and reused by either mode.
+- **Provider boundary (planned):** the live route currently calls Anam directly; introduce provider-neutral session outcomes before adding another live provider.
+- **Feature control:** `NUNCIO_LIVELINK_ENABLED=true` gates LiveLink share creation, pipeline mode selection, session-token creation, and the studio toggle. It defaults off; sender/workspace allowlisting remains planned.
+- **Session safety:** the browser enforces a five-minute maximum and cleans up the SDK client/timer on manual end, provider disconnect, unload, and unmount. Idle timeout and server-side cleanup remain planned.
+- **Identity and safety (planned hardening):** disclose that the prospect is speaking with an AI avatar; enforce the Sender Playbook for pricing, claims, commitments, and competitor statements; use explicit tools for booking rather than implied promises.
+- **Fallback (planned):** if LiveLink cannot start or drops, show a useful recorded-video or follow-up path rather than a dead-end error. The current page shows an error/retry state.
+- **Usage accounting:** the current `live.session` credit reservation protects session creation but does not yet reconcile actual Anam minutes. Duration-aware accounting is required before broad or paid rollout.
+- **Telemetry:** the browser currently emits PostHog requested, connected, ended (duration/reason), and failed events. Token-issued, server-side duration/provider reconciliation, latency, and meeting outcome remain planned. Do not retain raw prospect audio by default.
+
+### Cross-cutting rollout concerns
 
 ### Retry Logic
 All external API calls use exponential backoff with configurable max attempts.

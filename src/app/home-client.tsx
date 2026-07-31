@@ -83,7 +83,7 @@ export default function HomeClient() {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                    className="text-ink-muted text-[14px] leading-relaxed max-w-[380px]"
+                    className="text-ink-muted text-body-sm leading-relaxed max-w-[380px]"
                   >
                     For founders and small B2B teams pursuing high-value accounts,
                     partnerships, and investor conversations. Make a personal video
@@ -97,19 +97,27 @@ export default function HomeClient() {
                 >
                   <Link
                     href="/studio"
-                    className="btn-press w-full rounded-2xl px-6 py-4 text-sm font-medium bg-ink text-cream shadow-xl shadow-ink/15 hover:shadow-2xl hover:shadow-ink/20 hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2"
+                    className="btn-press w-full rounded-2xl px-6 py-4 text-body-sm font-medium bg-ink text-cream shadow-xl shadow-ink/15 hover:shadow-2xl hover:shadow-ink/20 hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2"
                   >
                     Make a strategic-account video
                     <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M3 8h10M9 4l4 4-4 4" />
                     </svg>
                   </Link>
-                  <p className="text-center text-[11px] text-ink-faint mt-3">
+                  <p className="text-center text-label-base text-ink-faint mt-3">
                     Review every word before it leaves your name
                   </p>
                 </motion.div>
 
-                <div className="mt-10 space-y-2">
+                {/* Account flow — collapsible on mobile to reduce scroll length */}
+                <details className="mt-10 sm:mt-10 group">
+                  <summary className="flex items-center gap-2 cursor-pointer list-none text-label-base text-ink-muted hover:text-ink transition-colors">
+                    <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M6 4l4 4-4 4" />
+                    </svg>
+                    How it works
+                  </summary>
+                <div className="mt-3 space-y-2">
                   {ACCOUNT_FLOW.map((step, i) => {
                     const active = activeStep === i;
                     const complete = activeStep > i;
@@ -124,7 +132,7 @@ export default function HomeClient() {
                               : "border-cream-dark bg-white opacity-40"
                         }`}
                       >
-                        <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-mono transition-all duration-700">
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-label-sm font-mono transition-all duration-700">
                           {complete ? (
                             <svg className="w-3.5 h-3.5 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                               <polyline points="20 6 9 17 4 12" />
@@ -137,13 +145,13 @@ export default function HomeClient() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className={`text-xs font-medium transition-colors ${
+                            <span className={`text-body-xs font-medium transition-colors ${
                               active ? "text-accent" : complete ? "text-ink" : "text-ink-muted"
                             }`}>
                               {step.label}
                             </span>
                           </div>
-                          <p className={`text-[11px] mt-px transition-colors ${
+                          <p className={`text-label-base mt-px transition-colors ${
                             active || complete ? "text-ink-muted" : "text-ink-faint"
                           }`}>
                             {step.desc}
@@ -153,6 +161,7 @@ export default function HomeClient() {
                     );
                   })}
                 </div>
+                </details>
               </div>
             </div>
           </section>
@@ -167,7 +176,7 @@ export default function HomeClient() {
                 className="text-center"
               >
                 <span className="block font-display text-2xl text-ink">1</span>
-                <span className="text-[10px] uppercase tracking-widest text-ink-faint">person at a time</span>
+                <span className="text-label-sm uppercase tracking-widest text-ink-faint">person at a time</span>
               </motion.div>
               <div className="w-px h-8 bg-cream-dark" />
               <motion.div
@@ -178,7 +187,7 @@ export default function HomeClient() {
                 className="text-center"
               >
                 <span className="block font-display text-2xl text-ink">100%</span>
-                <span className="text-[10px] uppercase tracking-widest text-ink-faint">human reviewed</span>
+                <span className="text-label-sm uppercase tracking-widest text-ink-faint">human reviewed</span>
               </motion.div>
               <div className="w-px h-8 bg-cream-dark" />
               <motion.div
@@ -189,10 +198,10 @@ export default function HomeClient() {
                 className="text-center"
               >
                 <span className="block font-display text-2xl text-ink">1</span>
-                <span className="text-[10px] uppercase tracking-widest text-ink-faint">clear reason to reach out</span>
+                <span className="text-label-sm uppercase tracking-widest text-ink-faint">clear reason to reach out</span>
               </motion.div>
             </div>
-            <p className="text-center text-xs text-ink-muted mt-5 max-w-[390px] mx-auto leading-relaxed">
+            <p className="text-center text-body-xs text-ink-muted mt-5 max-w-[390px] mx-auto leading-relaxed">
               Nuncio is for the account you would research properly yourself—the
               one where a thoughtful first message can change the relationship.
             </p>

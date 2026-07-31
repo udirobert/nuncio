@@ -13,6 +13,7 @@ import {
 import { PipelineActivityEmitter } from "@/lib/pipeline/activity-emitter";
 import { formatProfileSummary } from "@/lib/pipeline/format";
 import { getBandActivityProvider } from "@/lib/storage";
+import { isLiveLinkEnabled } from "@/lib/live-link";
 import {
   buildSenderProfile,
   buildOutreachIntent,
@@ -115,6 +116,12 @@ export async function POST(request: NextRequest) {
       try {
         const body = await request.json();
         const { url, sessionId, archetype } = body;
+
+        if (body.deliveryMode === "livelink" && !isLiveLinkEnabled()) {
+          send({ error: "LiveLink is not enabled" });
+          controller.close();
+          return;
+        }
         const researchTier = body.researchTier as string | undefined;
         const deepResearchEnabled = body.deepResearchEnabled === true;
         const languageOverride = body.language as string | undefined;

@@ -104,7 +104,7 @@ exit={{ opacity: 0, y: 16, scale: 0.95 }}
                   <h2 className="font-display text-xl text-ink">
                     {TIPS[step].title}
                   </h2>
-                  <p className="text-sm text-ink-muted mt-2 leading-relaxed">
+                  <p className="text-body-sm text-ink-muted mt-2 leading-relaxed">
                     {TIPS[step].description}
                   </p>
                 </motion.div>
@@ -114,7 +114,7 @@ exit={{ opacity: 0, y: 16, scale: 0.95 }}
                 <motion.button
                   onClick={handleDismiss}
                   whileHover={{ x: -2 }}
-                  className="text-[11px] uppercase tracking-widest text-ink-faint hover:text-ink transition-colors"
+                  className="text-label-base uppercase tracking-widest text-ink-faint hover:text-ink transition-colors"
                 >
                   Skip
                 </motion.button>
@@ -122,7 +122,7 @@ exit={{ opacity: 0, y: 16, scale: 0.95 }}
                   onClick={handleNext}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="rounded-xl bg-ink px-5 py-2.5 text-[11px] uppercase tracking-widest font-medium text-cream hover:bg-ink-light transition-colors"
+                  className="rounded-xl bg-ink px-5 py-2.5 text-label-base uppercase tracking-widest font-medium text-cream hover:bg-ink-light transition-colors"
                 >
                   {step < TIPS.length - 1 ? "Next" : "Got it"}
                 </motion.button>

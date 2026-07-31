@@ -11,6 +11,12 @@ This doc evaluates the two layers required for a LiveLink prototype:
 1. **Avatar / face layer** — real-time video of the sender's likeness.
 2. **Voice / audio layer** — low-latency TTS and STT for natural turn-taking.
 
+## Decision: controlled experiment, not immediate upsell
+
+Keep HeyGen as Nuncio's default provider for recorded personalized outreach. Pursue Anam only as the initial LiveLink avatar provider, behind a feature gate and a small pilot. The customer-facing proposition is not "choose Anam"; it is **"let your prospect talk to an AI version of you."**
+
+Do not market LiveLink as a paid upsell until the pilot demonstrates conversion lift, safe playbook adherence, reliable browser/mobile behavior, and a cost per booked meeting that supports margin. Do not build HeyGen LiveAvatar and Anam in parallel during the first experiment; retain HeyGen LiveAvatar Lite as a fallback decision, not a second MVP.
+
 ## Use-Case Requirements
 
 | Requirement | Target | Why |
@@ -198,9 +204,28 @@ The biggest wins will come from:
 
 **For the LiveLink MVP:**
 
-1. **Build with Anam.ai + ElevenLabs.** This gives the fastest path to a working real-time conversation using the sender's face and voice, without needing new voice-vendor integration.
+1. **Build with Anam.ai + ElevenLabs.** This gives the fastest path to a working real-time conversation using the sender's face and voice, without needing a new voice-vendor integration.
 2. **Use the existing nuncio pipeline** to produce the profile, script, and Sender Playbook; feed those into the live session's system prompt.
-3. **Prototype with one test sender** and 5–10 prospects to measure end-to-end latency and conversion to booked meetings.
-4. **If latency > 800 ms**, swap TTS to Cartesia Sonic; if cost or realism is an issue, evaluate HeyGen LiveAvatar Lite.
+3. **Put the provider behind a small adapter boundary** so the live page does not depend on Anam-specific response shapes and a recorded HeyGen share can remain the fallback.
+4. **Add controls before pilot traffic:** feature flag, sender/workspace allowlist, maximum duration, idle timeout, disconnect cleanup, explicit AI disclosure, and lifecycle telemetry.
+5. **Prototype with one test sender** and 5–10 prospects to measure end-to-end latency, session cost, guardrail adherence, and conversion to booked meetings.
+6. **If latency > 800 ms**, first optimize turn-taking and streaming; then evaluate Cartesia Sonic as a TTS replacement. If cost, reliability, or realism is the issue, evaluate HeyGen LiveAvatar Lite.
 
-The strategic bet is that a prospect will book a meeting faster when they can talk back than when they watch a recording. This stack lets us test that bet in weeks, not months.
+### Implementation sequence
+
+1. **Stabilize:** verify the existing `/live/[id]` page and `/api/live/session` route, document `ANAM_*` secrets, and keep LiveLink disabled by default until the gate exists.
+2. **Instrument:** capture session requested, token issued, WebRTC connected, disconnected, duration, failure reason, latency samples, and meeting outcome. Avoid raw audio retention by default.
+3. **Protect spend:** replace the current token-start-only credit assumption with a bounded session policy and duration-aware reconciliation before opening the link broadly.
+4. **Harden behavior:** test playbook constraints, unknown questions, pricing requests, competitor questions, booking handoff, consent/disclosure, tab close, reconnect, and provider failure.
+5. **Pilot:** compare HeyGen-only and HeyGen-plus-LiveLink paths for one sender and 5–10 prospects.
+6. **Decide:** promote to a premium feature only if conversion, reliability, safety, and unit economics clear the go/no-go gate in `docs/ROADMAP.md`.
+
+### Pilot success criteria
+
+- p50 and p95 turn latency are measured in real browsers; p95 is acceptable for natural conversation.
+- Live sessions have a bounded duration, an idle timeout, and a reliable fallback.
+- No critical playbook violations or misleading identity disclosures.
+- Session cost and cost per booked meeting are known, not estimated from token creation.
+- LiveLink produces a meaningful improvement in qualified conversations or meetings versus the recorded-video path.
+
+The strategic bet is that a prospect will book a meeting faster when they can talk back than when they watch a recording. This sequence tests that bet without putting the existing HeyGen product or margins at risk.

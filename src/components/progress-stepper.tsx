@@ -36,7 +36,7 @@ function EnrichmentWarnings({ warnings }: { warnings?: EnrichmentWarning[] }) {
               <path d="M8 4v4M8 10.5v.5" />
               <circle cx="8" cy="8" r="6" />
             </svg>
-            <p className="text-xs text-ink-muted leading-relaxed">
+            <p className="text-body-xs text-ink-muted leading-relaxed">
               <span className="font-medium text-ink-light">{hostname}</span>{" "}
               — {w.reason}
             </p>
@@ -55,7 +55,7 @@ function RenderMilestones() {
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="text-center text-xs text-ink-muted"
+      className="text-center text-body-xs text-ink-muted"
     >
       Your video is being rendered — this typically takes 3–5 minutes.
     </motion.p>
@@ -77,10 +77,10 @@ function TypingScript({ script }: { script: string }) {
 
   return (
     <div className="rounded-xl bg-cream-dark/40 border border-cream-dark p-4 max-h-36 overflow-y-auto">
-      <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-2">
+      <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium mb-2">
         Your script
       </p>
-      <p className="text-xs text-ink-muted leading-relaxed whitespace-pre-wrap">
+      <p className="text-body-xs text-ink-muted leading-relaxed whitespace-pre-wrap">
         &ldquo;{visible}
         {showCursor && <span className="inline-block w-[2px] h-3 bg-accent animate-pulse ml-0.5" />}
         {!showCursor && "&rdquo;"}
@@ -111,7 +111,7 @@ function RotatingTips({ elapsed }: { elapsed: number }) {
         transition={{ duration: 0.4 }}
         className="mt-4 rounded-lg bg-warm-soft/30 border border-warm/10 px-3 py-2"
       >
-        <p className="text-[10px] text-ink-faint">
+        <p className="text-label-sm text-ink-faint">
           <span className="text-warm font-medium">Tip:</span> {TIPS[tipIndex]}
         </p>
       </motion.div>
@@ -293,7 +293,7 @@ export function ProgressStepper({ steps, warnings, urls, script, recipientName }
                 )}
                 {step.status === "failed" && (
                   <div className="w-10 h-10 rounded-full bg-error-soft flex items-center justify-center">
-                    <span className="text-error text-sm font-bold">✕</span>
+                    <span className="text-error text-body-sm font-bold">✕</span>
                   </div>
                 )}
               </div>
@@ -301,7 +301,7 @@ export function ProgressStepper({ steps, warnings, urls, script, recipientName }
               {/* Label + description */}
               <div className="flex-1 min-w-0">
                 <span
-                  className={`text-sm block transition-colors duration-300 ${
+                  className={`text-body-sm block transition-colors duration-300 ${
                     step.status === "active"
                       ? "text-ink font-medium"
                       : step.status === "pending"
@@ -312,7 +312,7 @@ export function ProgressStepper({ steps, warnings, urls, script, recipientName }
                   {step.label}
                 </span>
                 {step.creditLabel && (
-                  <span className="mt-0.5 block text-[10px] text-ink-faint">
+                  <span className="mt-0.5 block text-label-sm text-ink-faint">
                     {step.status === "complete"
                       ? "Used"
                       : step.status === "active"
@@ -328,7 +328,7 @@ export function ProgressStepper({ steps, warnings, urls, script, recipientName }
                 <motion.span
                   initial={{ opacity: 0, x: 8 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="text-xs text-ink-faint font-[family-name:var(--font-mono)] tabular-nums"
+                  className="text-body-xs text-ink-faint font-[family-name:var(--font-mono)] tabular-nums"
                 >
                   {step.elapsed.toFixed(1)}s
                 </motion.span>
@@ -376,10 +376,10 @@ export function ProgressStepper({ steps, warnings, urls, script, recipientName }
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent" />
               </span>
-              <span className="text-sm text-ink-light">
+              <span className="text-body-sm text-ink-light">
                 Rendering{recipientName ? ` for ${recipientName}` : ""}...
               </span>
-              <span className="font-[family-name:var(--font-mono)] text-sm text-ink-faint tabular-nums ml-auto">
+              <span className="font-[family-name:var(--font-mono)] text-body-sm text-ink-faint tabular-nums ml-auto">
                 {Math.floor(elapsed / 60)}:{(elapsed % 60).toString().padStart(2, "0")}
               </span>
             </div>
@@ -393,7 +393,7 @@ export function ProgressStepper({ steps, warnings, urls, script, recipientName }
             {/* Rotating tips */}
             <RotatingTips elapsed={elapsed} />
 
-            <p className="text-center text-[11px] text-ink-faint">
+            <p className="text-center text-label-base text-ink-faint">
               HeyGen renders take 3–5 minutes. You can leave this page open — it&apos;ll update when ready.
             </p>
           </motion.div>
@@ -404,7 +404,7 @@ export function ProgressStepper({ steps, warnings, urls, script, recipientName }
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
-          className="text-center text-xs text-ink-faint mt-12"
+          className="text-center text-body-xs text-ink-faint mt-12"
         >
           Credit usage is shown per stage · Exact cost displayed before each render
         </motion.p>

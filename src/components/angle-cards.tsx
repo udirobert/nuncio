@@ -55,10 +55,10 @@ export function AngleCards({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+        <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
           Recommended angles
         </span>
-        <span className="text-[10px] font-mono text-ink-faint/60">
+        <span className="text-label-sm font-mono text-ink-faint/60">
           {angles.length} angle{angles.length !== 1 ? "s" : ""} · ranked by relevance
         </span>
       </div>
@@ -98,7 +98,7 @@ export function AngleCards({
                       {angle.label}
                     </span>
                     <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${meta.bg} ${meta.color} ${meta.border} border`}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-label-sm font-medium ${meta.bg} ${meta.color} ${meta.border} border`}
                     >
                       <span className="w-1 h-1 rounded-full bg-current" />
                       {meta.label}
@@ -121,20 +121,20 @@ export function AngleCards({
                     >
                       <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" />
                     </svg>
-                    <span className="text-[11px] text-ink-faint leading-relaxed">
+                    <span className="text-label-base text-ink-faint leading-relaxed">
                       {angle.evidence}
                     </span>
                   </div>
 
                   {/* Relevance to outreach */}
-                  <span className="inline-block text-[10px] text-ink-faint/60 italic">
+                  <span className="inline-block text-label-sm text-ink-faint/60 italic">
                     {angle.relevanceToOutreach}
                   </span>
                 </div>
 
                 {/* Archetype hint */}
                 {archetype && (
-                  <span className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md bg-cream-dark/30 text-[10px] font-mono text-ink-faint">
+                  <span className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md bg-cream-dark/30 text-label-sm font-mono text-ink-faint">
                     <span>{archetype.icon}</span>
                     <span>{archetype.label}</span>
                   </span>

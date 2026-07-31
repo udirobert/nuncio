@@ -59,6 +59,61 @@ SMOKE_VIDEO=1 pnpm smoke
 
 This starts one short HeyGen render job but does not poll for completion. Use sparingly because it can consume video credits.
 
+## LiveLink / Anam validation
+
+LiveLink is a metered, real-time experiment. Keep tests split into credit-free contract checks, one controlled external smoke test, and a small human pilot.
+
+### Credit-free checks
+
+Before calling Anam, add a mockable provider boundary so tests can verify:
+
+- missing `ANAM_API_KEY`, `ANAM_AVATAR_ID`, or `ANAM_VOICE_ID` returns a safe configuration error;
+- an unknown share returns 404;
+- rate limiting returns 429 without calling Anam;
+- token-provider failure returns 502 and refunds a reserved credit when applicable;
+- a successful token response is passed to the client without exposing the Anam API key;
+- the live page handles loading, connection, disconnect, retry, five-minute cap, and fallback states;
+- Sender Playbook constraints and explicit AI disclosure are present in the generated live prompt.
+
+These checks must not require live Anam credentials or consume provider minutes.
+
+### Controlled external smoke test (planned)
+
+Add a dedicated live smoke-test path before running this command. Once implemented, run it only when the Anam secrets are configured and a test share is available:
+
+```bash
+SMOKE_LIVE=1 pnpm smoke
+```
+
+The planned smoke test should start at most one short session, record token/connection timing and the provider result, and never poll or retry indefinitely. Keep it separate from the default `pnpm smoke` run. Do not use production prospect data for this check. `SMOKE_LIVE` is not currently handled by `scripts/smoke.mjs`.
+
+### Browser pilot checks
+
+Use Playwright or a real browser on desktop and mobile Safari/Chrome to verify the planned hardening:
+
+- the recorded HeyGen share remains the default path;
+- a gated LiveLink share can start only for an allowlisted sender/workspace;
+- the page clearly discloses the AI avatar and microphone behavior;
+- first connection, interruption, tab close, reconnect, idle timeout, and manual end behave safely;
+- Anam failure falls back to a useful recorded-video or follow-up path;
+- session duration, connection state, and failure reason are captured without raw audio by default.
+
+The current page supports the initial connection/error/retry flow, active five-minute cap, SDK cleanup, and client lifecycle telemetry. Allowlist, idle timeout, durable server-side lifecycle records, fallback, and duration reconciliation remain implementation work.
+
+### Pilot measurement
+
+For one sender and 5–10 prospects, compare HeyGen-only with HeyGen-plus-LiveLink where practical. Capture:
+
+- video click → live-session start;
+- live-session completion and duration;
+- p50/p95 time to first response and turn latency;
+- qualified conversation and booked-meeting rate;
+- failure/fallback rate;
+- live cost per session and cost per booked meeting;
+- playbook violations, misleading claims, and consent issues.
+
+Promote LiveLink only after the go/no-go criteria in `docs/ROADMAP.md` are met. A passing token smoke test is not evidence of product-market or unit-economic fit.
+
 ## Golden-path artifact
 
 ```bash
@@ -85,6 +140,7 @@ Use Playwright for credit-free UX checks, especially `/?demo=true`:
 - demo fill button works
 - progress/review/done states are understandable
 - share page `/v/[id]` displays trace/canvas receipts when a record exists
+- gated live share `/live/[id]` shows safe loading, disclosure, connection, disconnect, and fallback states
 - mobile/desktop screenshots look presentable
 
 Recommended artifacts to keep from browser runs:

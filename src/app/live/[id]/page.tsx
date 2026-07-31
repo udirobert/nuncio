@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { createClient, AnamEvent, type AnamClient } from "@anam-ai/js-sdk";
 import type { ShareRecord } from "@/lib/artifacts";
+import {
+  trackLiveSessionConnected,
+  trackLiveSessionEnded,
+  trackLiveSessionFailed,
+  trackLiveSessionRequested,
+} from "@/lib/analytics";
+import { LIVE_SESSION_MAX_DURATION_MS } from "@/lib/live-link";
 
 export default function LiveAvatarLandingPage({
   params,
@@ -20,6 +27,9 @@ export default function LiveAvatarLandingPage({
   const [live, setLive] = useState(false);
   const clientRef = useRef<AnamClient | null>(null);
   const startedRef = useRef(false);
+  const shareIdRef = useRef<string | null>(null);
+  const sessionStartedAtRef = useRef<number | null>(null);
+  const maxDurationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -41,7 +51,30 @@ export default function LiveAvatarLandingPage({
     load();
   }, [params]);
 
-  function endSession() {
+  const recordSessionEnd = useCallback((reason: "manual" | "provider_closed" | "max_duration" | "unload") => {
+    const shareId = shareIdRef.current;
+    const startedAt = sessionStartedAtRef.current;
+    if (!shareId || startedAt === null) return;
+
+    trackLiveSessionEnded({
+      shareId,
+      durationMs: Math.max(0, Date.now() - startedAt),
+      reason,
+    });
+    sessionStartedAtRef.current = null;
+  }, []);
+
+  const clearMaxDurationTimer = useCallback(() => {
+    if (maxDurationTimerRef.current) {
+      clearTimeout(maxDurationTimerRef.current);
+      maxDurationTimerRef.current = null;
+    }
+  }, []);
+
+  const endSession = useCallback((reason: "manual" | "provider_closed" | "max_duration" | "unload" = "manual") => {
+    clearMaxDurationTimer();
+    recordSessionEnd(reason);
+
     if (clientRef.current) {
       try {
         clientRef.current.stopStreaming?.();
@@ -55,24 +88,26 @@ export default function LiveAvatarLandingPage({
         setStatus("Click below to start the live conversation");
       }
     }
-  }
+  }, [clearMaxDurationTimer, recordSessionEnd]);
 
   useEffect(() => {
     function handleBeforeUnload() {
-      endSession();
+      endSession("unload");
     }
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      endSession();
+      endSession("unload");
     };
-  }, []);
+  }, [endSession]);
 
   async function startSession() {
     if (startedRef.current) return;
     const id = (await params).id;
+    shareIdRef.current = id;
     setStarting(true);
     setError(null);
+    trackLiveSessionRequested({ shareId: id });
 
     try {
       const res = await fetch("/api/live/session", {
@@ -91,11 +126,21 @@ export default function LiveAvatarLandingPage({
       clientRef.current = client;
 
       client.addListener(AnamEvent.CONNECTION_ESTABLISHED, () => {
+        sessionStartedAtRef.current = Date.now();
+        trackLiveSessionConnected({ shareId: id });
+        maxDurationTimerRef.current = setTimeout(() => {
+          setStatus("Session limit reached");
+          endSession("max_duration");
+        }, LIVE_SESSION_MAX_DURATION_MS);
         setStatus("Connected — say hello!");
         setLive(true);
       });
 
       client.addListener(AnamEvent.CONNECTION_CLOSED, () => {
+        clearMaxDurationTimer();
+        recordSessionEnd("provider_closed");
+        clientRef.current = null;
+        startedRef.current = false;
         setStatus("Session ended");
         setLive(false);
       });
@@ -104,6 +149,18 @@ export default function LiveAvatarLandingPage({
       startedRef.current = true;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not start live session";
+      clearMaxDurationTimer();
+      sessionStartedAtRef.current = null;
+      if (clientRef.current) {
+        try {
+          clientRef.current.stopStreaming?.();
+          (clientRef.current as { disconnect?: () => void }).disconnect?.();
+        } catch {
+          // best-effort cleanup after a failed start
+        }
+        clientRef.current = null;
+      }
+      trackLiveSessionFailed({ shareId: id, reason: message });
       setError(message);
       setStatus("Click below to try again");
       startedRef.current = false;
@@ -238,7 +295,7 @@ export default function LiveAvatarLandingPage({
               </button>
             ) : (
               <button
-                onClick={endSession}
+                onClick={() => endSession("manual")}
                 className="btn-press rounded-xl bg-warm text-white px-6 py-3 text-sm font-medium hover:bg-warm/90 transition-colors flex items-center gap-2"
               >
                 <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">

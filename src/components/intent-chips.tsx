@@ -78,10 +78,10 @@ export function IntentChips({ value, onChange }: IntentChipsProps) {
   return (
     <div className="mb-3">
       <div className="flex items-center justify-between mb-2">
-        <label className="block text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+        <label className="block text-label-sm uppercase tracking-widest text-ink-faint font-medium">
           What kind of message?
         </label>
-        <span className="text-[10px] text-ink-faint/70">Optional · sharpens the script</span>
+        <span className="text-label-sm text-ink-faint/70">Optional · sharpens the script</span>
       </div>
 
       <motion.div className="flex flex-wrap gap-1.5">
@@ -99,7 +99,7 @@ export function IntentChips({ value, onChange }: IntentChipsProps) {
 whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
               className={`
-                text-[11px] px-2.5 py-1.5 rounded-full border transition-colors
+                text-label-base px-2.5 py-1.5 rounded-full border transition-colors
                 ${
                   isActive
                     ? "bg-ink text-cream border-ink shadow-sm"
@@ -121,7 +121,7 @@ whileHover={{ scale: 1.02 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.2 }}
-            className="text-[11px] text-ink-faint mt-2 leading-relaxed"
+            className="text-label-base text-ink-faint mt-2 leading-relaxed"
           >
             {active.hint}
           </motion.p>

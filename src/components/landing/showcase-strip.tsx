@@ -37,7 +37,7 @@ export function ShowcaseStrip({ items }: ShowcaseStripProps) {
   return (
     <section className="md:hidden border-t border-cream-dark/60 py-6">
       <div className="px-6 mb-4 flex items-baseline justify-between">
-        <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+        <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
           Recent nuncios
         </p>
         <motion.span
@@ -47,7 +47,7 @@ export function ShowcaseStrip({ items }: ShowcaseStripProps) {
               ? { duration: 0.3 }
               : { duration: 1.6, repeat: Infinity, ease: "easeInOut" }
           }
-          className="text-[11px] text-ink-faint/80"
+          className="text-label-base text-ink-faint/80"
         >
           Swipe →
         </motion.span>

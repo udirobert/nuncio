@@ -74,10 +74,10 @@ export function QualityLadder({
       className="space-y-3"
     >
       <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+        <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
           Research depth
         </span>
-        <span className="text-[10px] font-mono text-ink-faint/60">
+        <span className="text-label-sm font-mono text-ink-faint/60">
           {TIER_OPTIONS[currentRank]?.label || "Quick"}
         </span>
       </div>
@@ -117,7 +117,7 @@ function CompactLadder({
 }: CompactLadderProps) {
   return (
     <div className="space-y-2">
-      <span className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+      <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
         Research depth
       </span>
       <div className="flex gap-1.5">
@@ -146,7 +146,7 @@ function CompactLadder({
             >
               <div className="flex items-center justify-center gap-1">
                 <span
-                  className={`text-[10px] font-medium ${
+                  className={`text-label-sm font-medium ${
                     isLocked ? "line-through" : ""
                   }`}
                 >
@@ -163,7 +163,7 @@ function CompactLadder({
                 )}
               </div>
               {isSelected && (
-                <span className="block text-[9px] text-accent/70 mt-0.5">
+                <span className="block text-label-xs text-accent/70 mt-0.5">
                   {tier.features[0]}
                 </span>
               )}
@@ -214,7 +214,7 @@ function TierButton({
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-2">
             <span
-              className={`text-sm font-medium ${
+              className={`text-body-sm font-medium ${
                 isSelected
                   ? "text-accent"
                   : isLocked
@@ -226,7 +226,7 @@ function TierButton({
             </span>
             {tier.badge && (
               <span
-                className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-medium ${
+                className={`px-1.5 py-0.5 rounded text-label-xs font-mono font-medium ${
                   isSelected
                     ? "bg-accent-soft text-accent"
                     : isLocked
@@ -238,7 +238,7 @@ function TierButton({
               </span>
             )}
             {isLocked && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] text-ink-faint">
+              <span className="inline-flex items-center gap-0.5 text-label-sm text-ink-faint">
                 <svg
                   viewBox="0 0 12 12"
                   className="w-2.5 h-2.5"
@@ -253,7 +253,7 @@ function TierButton({
             )}
           </div>
           <p
-            className={`text-[11px] leading-relaxed ${
+            className={`text-label-base leading-relaxed ${
               isSelected
                 ? "text-ink-muted"
                 : isLocked
@@ -267,7 +267,7 @@ function TierButton({
             {tier.features.map((f) => (
               <span
                 key={f}
-                className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                className={`text-label-xs font-mono px-1.5 py-0.5 rounded ${
                   isSelected
                     ? "bg-accent-soft/60 text-accent/80"
                     : isLocked

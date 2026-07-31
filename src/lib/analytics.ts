@@ -6,6 +6,7 @@
  * - Funnel: form_submitted → enrichment_complete → script_reviewed → video_rendered → video_shared
  * - Engagement: playbook_viewed, example_clicked, intent_selected, voice_input_used
  * - Quality: enrichment_partial_failure, script_edited, translation_requested
+ * - LiveLink: live_session_requested, live_session_connected, live_session_ended, live_session_failed
  */
 
 import posthog from "posthog-js";
@@ -124,6 +125,35 @@ export function trackTranslationRequested(props: {
 export function trackCaptionsGenerated() {
   if (!isReady()) return;
   posthog.capture("captions_generated");
+}
+
+// ─── LiveLink experiment ─────────────────────────────────────────────────────
+
+export function trackLiveSessionRequested(props: { shareId: string }) {
+  if (!isReady()) return;
+  posthog.capture("live_session_requested", props);
+}
+
+export function trackLiveSessionConnected(props: { shareId: string }) {
+  if (!isReady()) return;
+  posthog.capture("live_session_connected", props);
+}
+
+export function trackLiveSessionEnded(props: {
+  shareId: string;
+  durationMs: number;
+  reason: "manual" | "provider_closed" | "max_duration" | "unload";
+}) {
+  if (!isReady()) return;
+  posthog.capture("live_session_ended", props);
+}
+
+export function trackLiveSessionFailed(props: {
+  shareId: string;
+  reason: string;
+}) {
+  if (!isReady()) return;
+  posthog.capture("live_session_failed", props);
 }
 
 // ─── Wait screen engagement ─────────────────────────────────────────────────

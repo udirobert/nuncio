@@ -17,7 +17,7 @@ Never commit `.env.local` or push secrets to your repository.
 
 ### API key hygiene
 
-- Each API key used by nuncio (TinyFish, Anthropic, Featherless, HeyGen, Speechmatics, Turso)
+- Each API key used by nuncio (TinyFish, Anthropic, Featherless, HeyGen, Anam, Speechmatics, Turso)
   grants access to a paid service. Treat them as credentials, not configuration.
 - Rotate keys if they are ever exposed in logs, error messages, or commit history.
 - The `NEXT_PUBLIC_*` prefix in Next.js exposes variables to the browser. Only use it for values
@@ -32,6 +32,8 @@ API routes implement per-IP sliding-window rate limits (`src/lib/rate-limit.ts`)
 - Translation: 5 req/min
 - Transcription: 10 req/min
 - Live avatar session: 3 req/min
+
+LiveLink also needs provider-level spend protection: a feature gate/allowlist, maximum session duration, idle timeout, and a fallback path. The route now reads `NUNCIO_LIVELINK_ENABLED` (opt-in, default off), and the browser caps sessions at five minutes with disconnect/unload cleanup. The current `live.session` credit protection still happens at session creation and does **not** reconcile actual session duration; allowlisting, idle timeout, and recorded-video fallback remain. Do not open the feature broadly until those controls exist.
 
 By default, limits are stored in-memory and reset on server restart. For multi-instance or
 production deployments, enable Redis-backed rate limiting:
@@ -146,6 +148,12 @@ HEYGEN_API_KEY=
 HEYGEN_AVATAR_ID=
 HEYGEN_VOICE_ID=
 
+# Anam — gated LiveLink avatar sessions (keep disabled until pilot controls are ready)
+ANAM_API_KEY=
+ANAM_AVATAR_ID=
+ANAM_VOICE_ID=
+NUNCIO_LIVELINK_ENABLED=false
+
 # Speechmatics — speech-to-text
 SPEECHMATICS_API_KEY=
 
@@ -254,6 +262,9 @@ cd nuncio
 cp .env.example .env.local
 nano .env.local
 # Add all API keys. See .env.example for the full list of variables.
+# For the future LiveLink pilot, also set ANAM_API_KEY, ANAM_AVATAR_ID, ANAM_VOICE_ID.
+# NUNCIO_LIVELINK_ENABLED is an opt-in server-side gate; keep it false until
+# the allowlist, idle timeout, fallback, and duration reconciliation are ready.
 # Protect the file: chmod 600 .env.local
 
 pnpm install
@@ -338,6 +349,8 @@ Once deployed, verify:
 1. **Homepage loads:** `https://your-domain.com`
 2. **Demo mode works:** `https://your-domain.com?demo=true`
 3. **API routes respond:** `curl -X POST https://your-domain.com/api/enrich -H "Content-Type: application/json" -d '{"urls":["https://linkedin.com/in/test"]}'`
+4. **LiveLink remains gated:** keep `NUNCIO_LIVELINK_ENABLED=false` except for the controlled pilot. The gate is active, but allowlisting, idle timeout, recorded-video fallback, and duration reconciliation are still pending.
+5. **LiveLink pilot:** when enabled for a test share, verify HTTPS/WebRTC connection, microphone disclosure, maximum duration, idle timeout, disconnect cleanup, safe provider failure, and recorded-video fallback.
 
 ---
 

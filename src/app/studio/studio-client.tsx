@@ -92,6 +92,7 @@ const ARCHETYPE_OPTIONS: { id: ArchetypeSelection; label: string; description: s
 interface StudioClientProps {
   initialAvatars?: HeyGenAvatar[];
   initialVoices?: HeyGenVoice[];
+  liveLinkEnabled: boolean;
 }
 
 function friendlyError(raw: string): { title: string; detail: string; tip?: string } {
@@ -138,10 +139,11 @@ function friendlyError(raw: string): { title: string; detail: string; tip?: stri
   };
 }
 
-function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
+function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: StudioClientProps) {
   const [showProgressDetails, setShowProgressDetails] = useState(false);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [showAdvancedInput, setShowAdvancedInput] = useState(false);
+  const [showVoiceCard, setShowVoiceCard] = useState(false);
   const [scriptEditing, setScriptEditing] = useState(false);
   const [url, setUrl] = useState(() => {
     if (typeof window !== "undefined") {
@@ -205,10 +207,11 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   const [deliveryMode, setDeliveryMode] = useState<"video" | "livelink">(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("nuncio_delivery_mode");
-      if (stored === "video" || stored === "livelink") return stored;
+      if (stored === "video" || (stored === "livelink" && liveLinkEnabled)) return stored;
     }
     return "video";
   });
+
   const [playbookOffer, setPlaybookOffer] = useState("");
   const [playbookWants, setPlaybookWants] = useState("");
   const [playbookWiggleRoom, setPlaybookWiggleRoom] = useState("");
@@ -380,7 +383,10 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         if (data.playbookConstraints && !localStorage.getItem("nuncio_playbook_constraints")) {
           setPlaybookConstraints(data.playbookConstraints);
         }
-        if (!localStorage.getItem("nuncio_delivery_mode") && (data.deliveryMode === "video" || data.deliveryMode === "livelink")) {
+        if (
+          !localStorage.getItem("nuncio_delivery_mode") &&
+          (data.deliveryMode === "video" || (data.deliveryMode === "livelink" && liveLinkEnabled))
+        ) {
           setDeliveryMode(data.deliveryMode);
         }
         if (data.plan) {
@@ -388,7 +394,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
         }
       })
       .catch(() => {});
-  }, [searchParams]);
+  }, [liveLinkEnabled, searchParams]);
 
   // Auto-detect language from URL
   const urlRef = useRef(url);
@@ -475,6 +481,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
   }
 
   function handleDeliveryModeChange(mode: "video" | "livelink") {
+    if (mode === "livelink" && !liveLinkEnabled) return;
     setDeliveryMode(mode);
     saveSenderMemory({ deliveryMode: mode });
   }
@@ -1243,8 +1250,8 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-ink">Credits added!</p>
-                  <p className="text-[11px] text-ink-muted">
+                  <p className="text-body-sm font-medium text-ink">Credits added!</p>
+                  <p className="text-label-base text-ink-muted">
                     {purchasedPlan.includes("credit") ? "Your credit pack" : "Your Pro subscription"} is active. Start building.
                   </p>
                 </div>
@@ -1273,7 +1280,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   <div className="space-y-7 text-center">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15">
                       <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-                      <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
+                      <span className="text-label-sm uppercase tracking-widest font-medium text-accent">
                         AI-powered · personalised video
                       </span>
                     </div>
@@ -1282,24 +1289,24 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       <br />
                       <span className="text-ink-muted">Get personalised creative.</span>
                     </h1>
-                    <div className="flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest text-ink-faint">
-                      <span className="text-accent">Account</span>
-                      <span>→</span>
-                      <span>Reason</span>
-                      <span>→</span>
-                      <span>Review</span>
-                      <span>→</span>
-                      <span>Send</span>
-                    </div>
-                    <Link
-                      href="/batch"
-                      className="text-[11px] text-accent hover:text-accent/80 transition-colors inline-block"
-                    >
-                      Need to reach multiple people? Try Batch →
-                    </Link>
 
+                    {/* Voice brief — full card on desktop (sm:block), collapsible on mobile */}
                     <div className="space-y-3 text-left">
-                      <div className="rounded-2xl border border-accent/20 bg-gradient-to-br from-accent-soft/60 via-white to-warm-soft/30 p-4 shadow-sm space-y-3">
+                      {/* Mobile toggle */}
+                      <button
+                        onClick={() => setShowVoiceCard(!showVoiceCard)}
+                        className="sm:hidden flex items-center gap-2 text-label-base text-ink-muted hover:text-ink transition-colors py-2 w-full"
+                      >
+                        <svg viewBox="0 0 16 16" className="w-4 h-4 text-accent" fill="none" stroke="currentColor" strokeWidth="1.6">
+                          <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
+                          <path d="M3 8a5 5 0 0010 0M8 13v2" />
+                        </svg>
+                        Brief with voice
+                        <svg viewBox="0 0 16 16" className={`w-3 h-3 ml-auto transition-transform ${showVoiceCard ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M6 4l4 4-4 4" />
+                        </svg>
+                      </button>
+                      <div className={`${showVoiceCard ? "block" : "hidden"} sm:block rounded-2xl border border-accent/20 bg-gradient-to-br from-accent-soft/60 via-white to-warm-soft/30 p-4 shadow-sm space-y-3`}>
                         <div className="flex items-start gap-3">
                           <div className="relative w-11 h-11 rounded-2xl bg-accent text-white flex items-center justify-center shadow-sm shrink-0">
                             <span className="absolute inset-0 rounded-2xl bg-accent animate-ping opacity-15" />
@@ -1310,19 +1317,19 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <p className="text-sm font-medium text-ink">Talk to your video agent</p>
-                              <span className="rounded-full bg-white/70 border border-accent/15 px-2 py-0.5 text-[9px] uppercase tracking-widest text-accent">
+                              <p className="text-body-sm font-medium text-ink">Talk to your video agent</p>
+                              <span className="rounded-full bg-white/70 border border-accent/15 px-2 py-0.5 text-label-xs uppercase tracking-widest text-accent">
                                 Speech Engine
                               </span>
                             </div>
-                            <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+                            <p className="mt-1 text-body-xs leading-relaxed text-ink-muted">
                               Say who you want to reach and why. Nuncio interviews you, extracts the brief, then fills this studio for you.
                             </p>
                           </div>
                         </div>
                         <button
                           onClick={() => setVoiceOverlayOpen(true)}
-                          className="btn-press w-full rounded-xl bg-ink text-cream py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
+                          className="btn-press w-full rounded-xl bg-ink text-cream py-3 text-body-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
                         >
                           Start voice brief
                           <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1339,38 +1346,38 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div>
-                              <p className="text-sm font-medium text-ink">Voice brief captured</p>
-                              <p className="text-xs text-ink-muted">Review the extracted campaign context before researching.</p>
+                              <p className="text-body-sm font-medium text-ink">Voice brief captured</p>
+                              <p className="text-body-xs text-ink-muted">Review the extracted campaign context before researching.</p>
                             </div>
                             <button
                               onClick={() => setVoiceOverlayOpen(true)}
-                              className="text-[11px] text-success hover:text-success/80 transition-colors"
+                              className="text-label-base text-success hover:text-success/80 transition-colors"
                             >
                               Re-record
                             </button>
                           </div>
-                          <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="grid grid-cols-2 gap-2 text-body-xs">
                             {voiceBrief.name && (
                               <div className="rounded-xl bg-white/70 border border-success/10 p-2">
-                                <span className="block text-[9px] uppercase tracking-widest text-ink-faint">Recipient</span>
+                                <span className="block text-label-xs uppercase tracking-widest text-ink-faint">Recipient</span>
                                 <span className="text-ink">{voiceBrief.name}</span>
                               </div>
                             )}
                             {(voiceBrief.company || voiceBrief.role) && (
                               <div className="rounded-xl bg-white/70 border border-success/10 p-2">
-                                <span className="block text-[9px] uppercase tracking-widest text-ink-faint">Context</span>
+                                <span className="block text-label-xs uppercase tracking-widest text-ink-faint">Context</span>
                                 <span className="text-ink">{[voiceBrief.role, voiceBrief.company].filter(Boolean).join(" · ")}</span>
                               </div>
                             )}
                             {voiceBrief.tone && (
                               <div className="rounded-xl bg-white/70 border border-success/10 p-2">
-                                <span className="block text-[9px] uppercase tracking-widest text-ink-faint">Tone</span>
+                                <span className="block text-label-xs uppercase tracking-widest text-ink-faint">Tone</span>
                                 <span className="text-ink capitalize">{voiceBrief.tone}</span>
                               </div>
                             )}
                             {voiceBrief.archetype && (
                               <div className="rounded-xl bg-white/70 border border-success/10 p-2">
-                                <span className="block text-[9px] uppercase tracking-widest text-ink-faint">Hook</span>
+                                <span className="block text-label-xs uppercase tracking-widest text-ink-faint">Hook</span>
                                 <span className="text-ink">{ARCHETYPE_OPTIONS.find((option) => option.id === voiceBrief.archetype)?.label || voiceBrief.archetype}</span>
                               </div>
                             )}
@@ -1379,18 +1386,18 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       )}
 
                       <div>
-                        <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                        <label className="text-label-sm uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
                           Profile URL
                         </label>
                         <input
                           value={url}
                           onChange={(e) => setUrl(e.target.value)}
                           placeholder="https://linkedin.com/in/…"
-                          className={`w-full rounded-xl border bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voicePopulatedFields.has("url") ? "border-success/50" : "border-cream-dark"}`}
+                          className={`w-full rounded-xl border bg-white px-4 py-3 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voicePopulatedFields.has("url") ? "border-success/50" : "border-cream-dark"}`}
                           onKeyDown={(e) => e.key === "Enter" && handleEnrich()}
                         />
                         {voicePopulatedFields.has("url") && (
-                          <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-success">
+                          <span className="inline-flex items-center gap-1 mt-1 text-label-sm text-success">
                             <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <polyline points="20 6 9 17 4 12" />
                             </svg>
@@ -1405,7 +1412,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                             <button
                               key={example.label}
                               onClick={() => setUrl(example.url)}
-                              className="text-[11px] text-ink-muted hover:text-accent transition-colors px-2.5 py-1 rounded-md border border-cream-dark/70 hover:border-accent/30 bg-white/60"
+                              className="text-label-base text-ink-muted hover:text-accent transition-colors px-2.5 py-1 rounded-md border border-cream-dark/70 hover:border-accent/30 bg-white/60"
                             >
                               Try {example.label}
                             </button>
@@ -1414,7 +1421,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       </div>
 
                       <div>
-                        <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                        <label className="text-label-sm uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
                           Your name <span className="normal-case text-ink-faint">— how you sign off in the video</span>
                         </label>
                           <input
@@ -1425,10 +1432,10 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                               if (typeof window !== "undefined") localStorage.setItem("nuncio_sender_name", e.target.value);
                             }}
                             placeholder="e.g. Udi"
-                            className={`w-full rounded-xl border bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voicePopulatedFields.has("senderName") ? "border-success/50" : "border-cream-dark"}`}
+                            className={`w-full rounded-xl border bg-white px-4 py-3 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voicePopulatedFields.has("senderName") ? "border-success/50" : "border-cream-dark"}`}
                           />
                           {voicePopulatedFields.has("senderName") && (
-                            <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-success">
+                            <span className="inline-flex items-center gap-1 mt-1 text-label-sm text-success">
                               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <polyline points="20 6 9 17 4 12" />
                               </svg>
@@ -1438,7 +1445,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                         </div>
 
                         <div>
-                          <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                          <label className="text-label-sm uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
                             Brief <span className="normal-case text-ink-faint">— optional, but the agent uses it</span>
                           </label>
                           <textarea
@@ -1446,10 +1453,10 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                             onChange={(e) => setSenderBrief(e.target.value)}
                             placeholder="What are you reaching out for? The more honest, the better."
                             rows={2}
-                            className={`w-full rounded-xl border bg-white px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voicePopulatedFields.has("senderBrief") ? "border-success/50" : "border-cream-dark"}`}
+                            className={`w-full rounded-xl border bg-white px-4 py-3 text-body-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voicePopulatedFields.has("senderBrief") ? "border-success/50" : "border-cream-dark"}`}
                           />
                           {voicePopulatedFields.has("senderBrief") && (
-                            <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-success">
+                            <span className="inline-flex items-center gap-1 mt-1 text-label-sm text-success">
                               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <polyline points="20 6 9 17 4 12" />
                               </svg>
@@ -1462,7 +1469,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       <div className="pt-2">
                         <button
                           onClick={() => setShowAdvancedInput(!showAdvancedInput)}
-                          className="text-[11px] text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5"
+                          className="text-label-base text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5"
                         >
                           <svg viewBox="0 0 16 16" className={`w-3.5 h-3.5 transition-transform ${showAdvancedInput ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5">
                             <path d="M6 4l4 4-4 4" />
@@ -1480,7 +1487,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                             className="mt-3 space-y-3 pl-4 border-l-2 border-cream-dark overflow-hidden"
                           >
                             <div>
-                              <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                              <label className="text-label-sm uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
                                 Hook archetype
                               </label>
                               <div className="flex flex-wrap gap-2">
@@ -1488,7 +1495,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                                   <div key={option.id} className="flex flex-col">
                                     <button
                                       onClick={() => setArchetype(option.id)}
-                                      className={`rounded-md border px-2.5 py-1 text-[11px] transition-colors ${
+                                      className={`rounded-md border px-2.5 py-1 text-label-base transition-colors ${
                                         archetype === option.id
                                           ? "border-accent bg-accent-soft text-accent"
                                           : "border-cream-dark/70 bg-white/60 text-ink-muted hover:border-accent/30 hover:text-accent"
@@ -1497,7 +1504,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                                       {option.label}
                                     </button>
                                     {archetype === option.id && (
-                                      <span className="text-[10px] text-ink-muted mt-1 max-w-[160px] leading-relaxed">
+                                      <span className="text-label-sm text-ink-muted mt-1 max-w-[160px] leading-relaxed">
                                         {option.description}
                                       </span>
                                     )}
@@ -1524,39 +1531,41 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                               />
                             </div>
 
-                            {/* Delivery mode — recorded video today, live link tomorrow */}
+                            {/* Delivery mode — LiveLink is opt-in for the controlled pilot */}
                             <div>
-                              <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                              <label className="text-label-sm uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
                                 Delivery mode
                               </label>
-                              <div className="flex rounded-xl border border-cream-dark bg-white p-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeliveryModeChange("video")}
-                                  className={`flex-1 rounded-lg py-2 text-xs font-medium transition-all ${
-                                    deliveryMode === "video"
-                                      ? "bg-accent text-white shadow-sm"
-                                      : "text-ink-muted hover:text-ink"
-                                  }`}
-                                >
-                                  Video
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeliveryModeChange("livelink")}
-                                  className={`flex-1 rounded-lg py-2 text-xs font-medium transition-all ${
-                                    deliveryMode === "livelink"
-                                      ? "bg-accent text-white shadow-sm"
-                                      : "text-ink-muted hover:text-ink"
-                                  }`}
-                                >
-                                  Live link
-                                </button>
-                              </div>
-                              <p className="mt-1.5 text-[10px] text-ink-muted">
-                                {deliveryMode === "video"
+                              {liveLinkEnabled ? (
+                                <div className="flex rounded-xl border border-cream-dark bg-white p-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeliveryModeChange("video")}
+                                    className={`flex-1 rounded-lg py-2 text-body-xs font-medium transition-all ${
+                                      deliveryMode === "video"
+                                        ? "bg-accent text-white shadow-sm"
+                                        : "text-ink-muted hover:text-ink"
+                                    }`}
+                                  >
+                                    Video
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeliveryModeChange("livelink")}
+                                    className={`flex-1 rounded-lg py-2 text-body-xs font-medium transition-all ${
+                                      deliveryMode === "livelink"
+                                        ? "bg-accent text-white shadow-sm"
+                                        : "text-ink-muted hover:text-ink"
+                                    }`}
+                                  >
+                                    Live link
+                                  </button>
+                                </div>
+                              ) : null}
+                              <p className="mt-1.5 text-label-sm text-ink-muted">
+                                {deliveryMode === "video" || !liveLinkEnabled
                                   ? "Render an MP4 share page."
-                                  : "Prepare a live avatar session (preview)."}
+                                  : "Prepare a live avatar session (pilot)."}
                               </p>
                             </div>
 
@@ -1564,21 +1573,22 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                         )}
                         </AnimatePresence>
                   </div>
+                </div>
 
                 {detectingLanguage && (
-                  <span className="text-[10px] text-ink-faint animate-pulse block text-center">
+                  <span className="text-label-sm text-ink-faint animate-pulse block text-center">
                     Detecting language…
                   </span>
                 )}
                 {detectedLanguage && !detectingLanguage && (
                   <div className="rounded-xl border border-warm/20 bg-warm-soft/40 p-3 flex items-center justify-between gap-3">
-                    <span className="text-[11px] text-ink-muted">
+                    <span className="text-label-base text-ink-muted">
                       {detectedLanguage === "en" ? "English detected." : `${detectedLanguage.toUpperCase()} detected. Script stays English unless you choose otherwise.`}
                     </span>
                     {detectedLanguage !== "en" && (
                       <button
                         onClick={() => setTranslateEnabled(!translateEnabled)}
-                        className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-medium transition-colors ${
+                        className={`shrink-0 rounded-full px-3 py-1 text-label-sm font-medium transition-colors ${
                           translateEnabled ? "bg-warm text-white" : "bg-white text-warm border border-warm/20"
                         }`}
                       >
@@ -1591,7 +1601,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 <button
                   onClick={() => handleEnrich()}
                   disabled={!url.trim()}
-                  className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
+                  className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-body-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
                 >
                   Research & write script
                   <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1599,7 +1609,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   </svg>
                 </button>
                 {session?.authenticated && typeof session.balance === "number" && (
-                  <div className="flex items-center justify-between text-[10px] text-ink-faint mt-1.5 px-1">
+                  <div className="flex items-center justify-between text-label-sm text-ink-faint mt-1.5 px-1">
                     <span>
                       Estimated cost: {researchTier === "deep" ? "~11" : researchTier === "balanced" ? "~8" : "~3"} credits
                       {" · "}Full video: {researchTier === "deep" ? "~19" : researchTier === "balanced" ? "~16" : "~11"}
@@ -1609,7 +1619,27 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     </span>
                   </div>
                 )}
+
+                {/* Flow steps + batch link — below CTA to reduce mobile scroll */}
+                <div className="pt-4 space-y-3">
+                  <div className="flex items-center justify-center gap-2 text-label-sm uppercase tracking-widest text-ink-faint">
+                    <span className="text-accent">Account</span>
+                    <span>→</span>
+                    <span>Reason</span>
+                    <span>→</span>
+                    <span>Review</span>
+                    <span>→</span>
+                    <span>Send</span>
                   </div>
+                  <div className="text-center">
+                    <Link
+                      href="/batch"
+                      className="text-label-base text-accent hover:text-accent/80 transition-colors inline-block"
+                    >
+                      Need to reach multiple people? Try Batch →
+                    </Link>
+                  </div>
+                </div>
                 </div>
                 </div>
               </section>
@@ -1628,14 +1658,14 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               <div className="text-center mb-10">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15 mb-4">
                   <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-                  <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
+                  <span className="text-label-sm uppercase tracking-widest font-medium text-accent">
                     Researching
                   </span>
                 </div>
                 <h1 className="font-display text-3xl tracking-tight">
                   Reading their profile
                 </h1>
-                <p className="text-sm text-ink-muted mt-2">
+                <p className="text-body-sm text-ink-muted mt-2">
                   Three agents working together to research and personalise your video.
                 </p>
               </div>
@@ -1661,7 +1691,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                             : "border-cream-dark bg-white opacity-50"
                       }`}
                     >
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-mono font-medium transition-all duration-500">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-body-xs font-mono font-medium transition-all duration-500">
                         {complete ? (
                           <svg className="w-4 h-4 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                             <polyline points="20 6 9 17 4 12" />
@@ -1674,14 +1704,14 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className={`text-sm font-medium transition-colors ${
+                          <span className={`text-body-sm font-medium transition-colors ${
                             active ? "text-accent" : complete ? "text-ink" : "text-ink-muted"
                           }`}>
                             {step.label}
                           </span>
-                          <span className="text-[10px] font-mono text-ink-faint">{step.tool}</span>
+                          <span className="text-label-sm font-mono text-ink-faint">{step.tool}</span>
                         </div>
-                        <p className={`text-xs mt-0.5 transition-colors ${
+                        <p className={`text-body-xs mt-0.5 transition-colors ${
                           active || complete ? "text-ink-muted" : "text-ink-faint"
                         }`}>
                           {step.desc}
@@ -1736,7 +1766,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               <div className="flex items-center justify-between mb-6">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-success-soft border border-success/15">
                   <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                  <span className="text-[10px] uppercase tracking-widest font-medium text-success">
+                  <span className="text-label-sm uppercase tracking-widest font-medium text-success">
                     Review
                   </span>
                 </div>
@@ -1744,7 +1774,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               <h1 className="font-display text-3xl tracking-tight">
                 Review the script
               </h1>
-              <p className="text-sm text-ink-muted mt-2 mb-8">
+              <p className="text-body-sm text-ink-muted mt-2 mb-8">
                 Edit anything below, then build the final video.
               </p>
 
@@ -1756,15 +1786,15 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                     </svg>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-amber-900">
+                      <p className="text-body-sm font-medium text-amber-900">
                         Low-confidence profile — review before rendering
                       </p>
-                      <p className="text-xs text-amber-800 mt-1">
+                      <p className="text-body-xs text-amber-800 mt-1">
                         Research found {researchQuality.sourceCount} source(s) and {researchQuality.recentPostCount} recent post(s).
                         {researchQuality.usedSearchFallback && " Search fallback was used."}
                         {researchQuality.warnings.length > 0 && ` ${researchQuality.warnings[0]}`}
                       </p>
-                      <p className="text-xs text-amber-700 mt-2">
+                      <p className="text-body-xs text-amber-700 mt-2">
                         The profile may be incomplete or mischaracterized. Consider editing the details below or trying a different URL (e.g. LinkedIn instead of Twitter) before spending a render credit.
                       </p>
                     </div>
@@ -1773,7 +1803,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
               )}
               {researchQuality && researchQuality.confidence === "medium" && researchQuality.warnings.length > 0 && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3 mb-6">
-                  <p className="text-xs text-amber-800">
+                  <p className="text-body-xs text-amber-800">
                     ⚠ Research degraded: {researchQuality.warnings[0]}
                   </p>
                 </div>
@@ -1783,10 +1813,10 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 {/* Profile card — collapsed by default */}
                 <div className="rounded-xl border border-cream-dark bg-white p-5 space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className="text-[10px] uppercase tracking-widest font-medium text-ink-muted">Profile</div>
+                    <div className="text-label-sm uppercase tracking-widest font-medium text-ink-muted">Profile</div>
                     <button
                       onClick={() => setShowProfileEditor(!showProfileEditor)}
-                      className="text-[11px] text-accent hover:text-accent/80 transition-colors flex items-center gap-1"
+                      className="text-label-base text-accent hover:text-accent/80 transition-colors flex items-center gap-1"
                     >
                       {showProfileEditor ? "Collapse" : "Edit details"}
                       <svg viewBox="0 0 16 16" className={`w-3 h-3 transition-transform ${showProfileEditor ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -1795,8 +1825,8 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     </button>
                   </div>
                   <div>
-                    <p className="text-sm text-ink font-medium">{reviewProfile.name}</p>
-                    <p className="text-xs text-ink-muted">
+                    <p className="text-body-sm text-ink font-medium">{reviewProfile.name}</p>
+                    <p className="text-body-xs text-ink-muted">
                       {[reviewProfile.current_role, reviewProfile.company && `at ${reviewProfile.company}`].filter(Boolean).join(" ") || "No role detected"}
                     </p>
                   </div>
@@ -1805,107 +1835,107 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     <>
                       <div className="grid grid-cols-2 gap-3 pt-2 border-t border-cream-dark">
                         <div>
-                          <label className="text-[10px] text-ink-faint block mb-1">Name</label>
+                          <label className="text-label-sm text-ink-faint block mb-1">Name</label>
                           <input
                             type="text"
                             value={reviewProfile.name}
                             onChange={(e) => setReviewProfile({ ...reviewProfile, name: e.target.value })}
-                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-ink-faint block mb-1">Company</label>
+                          <label className="text-label-sm text-ink-faint block mb-1">Company</label>
                           <input
                             type="text"
                             value={reviewProfile.company}
                             onChange={(e) => setReviewProfile({ ...reviewProfile, company: e.target.value })}
-                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
                         <div className="col-span-2">
-                          <label className="text-[10px] text-ink-faint block mb-1">Role</label>
+                          <label className="text-label-sm text-ink-faint block mb-1">Role</label>
                           <input
                             type="text"
                             value={reviewProfile.current_role}
                             onChange={(e) => setReviewProfile({ ...reviewProfile, current_role: e.target.value })}
-                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-cream-dark">
                         <div>
-                          <label className="text-[10px] text-ink-faint block mb-1">Your business</label>
+                          <label className="text-label-sm text-ink-faint block mb-1">Your business</label>
                           <input
                             type="text"
                             value={senderBusiness}
                             onChange={(e) => setSenderBusiness(e.target.value)}
-                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-ink-faint block mb-1">Brand</label>
+                          <label className="text-label-sm text-ink-faint block mb-1">Brand</label>
                           <input
                             type="text"
                             value={senderBrand}
                             onChange={(e) => setSenderBrand(e.target.value)}
                             placeholder="e.g. thoughtful, technical, premium"
-                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-ink-faint block mb-1">Personality</label>
+                          <label className="text-label-sm text-ink-faint block mb-1">Personality</label>
                           <input
                             type="text"
                             value={senderPersonality}
                             onChange={(e) => setSenderPersonality(e.target.value)}
                             placeholder="e.g. founder-led, direct, curious"
-                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-ink-faint block mb-1">Audience / ICP</label>
+                          <label className="text-label-sm text-ink-faint block mb-1">Audience / ICP</label>
                           <input
                             type="text"
                             value={senderAudience}
                             onChange={(e) => setSenderAudience(e.target.value)}
-                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
                         <div className="sm:col-span-2">
-                          <label className="text-[10px] text-ink-faint block mb-1">Offer</label>
+                          <label className="text-label-sm text-ink-faint block mb-1">Offer</label>
                           <input
                             type="text"
                             value={senderOffer}
                             onChange={(e) => setSenderOffer(e.target.value)}
                             placeholder="What are you offering this person?"
-                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-ink-faint block mb-1">Goal</label>
+                          <label className="text-label-sm text-ink-faint block mb-1">Goal</label>
                           <input
                             type="text"
                             value={outreachGoal}
                             onChange={(e) => setOutreachGoal(e.target.value)}
-                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-ink-faint block mb-1">Desired outcome</label>
+                          <label className="text-label-sm text-ink-faint block mb-1">Desired outcome</label>
                           <input
                             type="text"
                             value={desiredOutcome}
                             onChange={(e) => setDesiredOutcome(e.target.value)}
-                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-ink-faint block mb-1">Relationship</label>
+                          <label className="text-label-sm text-ink-faint block mb-1">Relationship</label>
                           <select
                             value={relationshipWarmth}
                             onChange={(e) => setRelationshipWarmth(e.target.value as "cold" | "warm" | "existing")}
-                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-white"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-white"
                           >
                             <option value="cold">Cold</option>
                             <option value="warm">Warm</option>
@@ -1913,45 +1943,45 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                           </select>
                         </div>
                         <div>
-                          <label className="text-[10px] text-ink-faint block mb-1">Tone preference</label>
+                          <label className="text-label-sm text-ink-faint block mb-1">Tone preference</label>
                           <input
                             type="text"
                             value={tonePreference}
                             onChange={(e) => setTonePreference(e.target.value)}
                             placeholder="e.g. warm, crisp, bold"
-                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
                         <div className="sm:col-span-2">
-                          <label className="text-[10px] text-ink-faint block mb-1">Why now</label>
+                          <label className="text-label-sm text-ink-faint block mb-1">Why now</label>
                           <textarea
                             value={reasonForReachingOutNow}
                             onChange={(e) => setReasonForReachingOutNow(e.target.value)}
                             rows={2}
-                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
                         <div className="sm:col-span-2">
-                          <label className="text-[10px] text-ink-faint block mb-1">Proof points</label>
+                          <label className="text-label-sm text-ink-faint block mb-1">Proof points</label>
                           <textarea
                             value={senderProofPoints}
                             onChange={(e) => setSenderProofPoints(e.target.value)}
                             rows={3}
                             placeholder="One per line: traction, customers, credibility, outcomes"
-                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30"
+                            className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
                       </div>
 
                       {/* Tone selector */}
                       <div>
-                        <label className="text-[10px] text-ink-faint block mb-2">Tone</label>
+                        <label className="text-label-sm text-ink-faint block mb-2">Tone</label>
                         <div className="flex gap-2">
                           {(["conversational", "formal", "technical"] as const).map((t) => (
                             <button
                               key={t}
                               onClick={() => setReviewProfile({ ...reviewProfile, tone: t })}
-                              className={`px-3 py-1.5 rounded-md border text-xs transition-colors ${
+                              className={`px-3 py-1.5 rounded-md border text-body-xs transition-colors ${
                                 reviewProfile.tone === t
                                   ? "border-accent bg-accent-soft text-accent"
                                   : "border-cream-dark text-ink-muted hover:border-accent/30"
@@ -1966,11 +1996,11 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       {/* Language selector */}
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <label className="text-[10px] text-ink-faint block">
+                          <label className="text-label-sm text-ink-faint block">
                             Language
                             <span className="ml-1.5 text-warm">(auto-detected)</span>
                           </label>
-                          <label className="flex items-center gap-1.5 text-[10px] text-ink-faint cursor-pointer select-none">
+                          <label className="flex items-center gap-1.5 text-label-sm text-ink-faint cursor-pointer select-none">
                             <span className={translateEnabled ? "text-warm" : "text-ink-faint"}>
                               {translateEnabled ? `Translate` : `English`}
                             </span>
@@ -1991,7 +2021,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                         <select
                           value={reviewProfile.language || "en"}
                           onChange={(e) => setReviewProfile({ ...reviewProfile, language: e.target.value })}
-                          className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-white"
+                          className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-white"
                         >
                           {LANGUAGES.map((l) => (
                             <option key={l.code} value={l.code}>{l.label}</option>
@@ -2005,11 +2035,11 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 {/* Suggested outreach angles — helps user pick a direction before rendering */}
                 {reviewProfile.suggestedAngles && reviewProfile.suggestedAngles.length > 0 && (
                   <div className="rounded-xl border border-cream-dark bg-white p-5 space-y-3">
-                    <div className="text-[10px] uppercase tracking-widest font-medium text-ink-muted">Suggested angles</div>
+                    <div className="text-label-sm uppercase tracking-widest font-medium text-ink-muted">Suggested angles</div>
                     <div className="space-y-2">
                       {reviewProfile.suggestedAngles.map((angle, i) => (
                         <div key={angle.id || i} className="flex items-start gap-2">
-                          <span className={`text-[9px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded shrink-0 mt-0.5 ${
+                          <span className={`text-label-xs uppercase tracking-wider font-medium px-1.5 py-0.5 rounded shrink-0 mt-0.5 ${
                             angle.confidence === "high" ? "bg-success-soft text-success" :
                             angle.confidence === "medium" ? "bg-amber-50 text-amber-700" :
                             "bg-cream-dark text-ink-muted"
@@ -2017,10 +2047,10 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                             {angle.confidence}
                           </span>
                           <div className="flex-1">
-                            <p className="text-xs font-medium text-ink">{angle.label}</p>
-                            <p className="text-[11px] text-ink-muted mt-0.5">{angle.description}</p>
+                            <p className="text-body-xs font-medium text-ink">{angle.label}</p>
+                            <p className="text-label-base text-ink-muted mt-0.5">{angle.description}</p>
                             {angle.evidence && (
-                              <p className="text-[10px] text-ink-faint mt-1 italic">{angle.evidence}</p>
+                              <p className="text-label-sm text-ink-faint mt-1 italic">{angle.evidence}</p>
                             )}
                           </div>
                         </div>
@@ -2033,10 +2063,10 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 <div className="rounded-xl border border-cream-dark bg-white p-5 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="text-[10px] uppercase tracking-widest font-medium text-ink-muted">Script</div>
+                      <div className="text-label-sm uppercase tracking-widest font-medium text-ink-muted">Script</div>
                       <button
                         onClick={() => setScriptEditing(!scriptEditing)}
-                        className="text-[11px] text-accent hover:text-accent/80 transition-colors"
+                        className="text-label-base text-accent hover:text-accent/80 transition-colors"
                       >
                         {scriptEditing ? "Done" : "Edit"}
                       </button>
@@ -2044,7 +2074,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     <button
                       onClick={() => handleRegenerate()}
                       disabled={reviewRegenerating}
-                      className="text-[11px] text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1"
+                      className="text-label-base text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1"
                     >
                       {reviewRegenerating ? (
                         <span className="w-3 h-3 border border-accent/30 border-t-accent rounded-full animate-spin" />
@@ -2063,7 +2093,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     <div className="flex gap-2">
                       <button
                         onClick={() => { setReviewSelectedVariant("a"); setReviewScript(reviewScriptVariantA); }}
-                        className={`flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
+                        className={`flex-1 px-3 py-2 rounded-lg border text-body-xs font-medium transition-colors ${
                           reviewSelectedVariant === "a"
                             ? "border-accent bg-accent-soft text-accent"
                             : "border-cream-dark text-ink-muted hover:border-accent/30"
@@ -2074,7 +2104,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       </button>
                       <button
                         onClick={() => { setReviewSelectedVariant("b"); setReviewScript(reviewScriptVariantB); }}
-                        className={`flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
+                        className={`flex-1 px-3 py-2 rounded-lg border text-body-xs font-medium transition-colors ${
                           reviewSelectedVariant === "b"
                             ? "border-accent bg-accent-soft text-accent"
                             : "border-cream-dark text-ink-muted hover:border-accent/30"
@@ -2091,21 +2121,21 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       value={reviewScript}
                       onChange={(e) => { setReviewScript(e.target.value); setTtsAudioUrl(null); }}
                       rows={6}
-                      className="w-full rounded-lg border border-cream-dark px-3 py-2 text-sm leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-accent/30"
+                      className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-accent/30"
                     />
                   ) : (
-                    <div className="w-full rounded-lg border border-cream-dark/50 bg-cream/30 px-3 py-3 text-sm leading-relaxed text-ink whitespace-pre-wrap">
+                    <div className="w-full rounded-lg border border-cream-dark/50 bg-cream/30 px-3 py-3 text-body-sm leading-relaxed text-ink whitespace-pre-wrap">
                       {reviewScript}
                     </div>
                   )}
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] text-ink-faint">
+                    <p className="text-label-base text-ink-faint">
                       {reviewScript.split(/\s+/).filter(Boolean).length} words · ~{Math.round(reviewScript.split(/\s+/).filter(Boolean).length / 2.5)}s at natural pace
                     </p>
                     <button
                       onClick={handleTtsPreview}
                       disabled={ttsLoading || !reviewScript.trim()}
-                      className="text-[11px] text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1.5 transition-colors"
+                      className="text-label-base text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1.5 transition-colors"
                     >
                       {ttsLoading ? (
                         <span className="w-3 h-3 border border-accent/30 border-t-accent rounded-full animate-spin" />
@@ -2133,10 +2163,10 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       className="w-full flex items-center justify-between p-4 text-left"
                     >
                       <div className="flex items-center gap-3">
-                        <span className="px-2 py-0.5 rounded bg-warm-soft border border-warm/20 text-[11px] text-warm font-medium">
+                        <span className="px-2 py-0.5 rounded bg-warm-soft border border-warm/20 text-label-base text-warm font-medium">
                           {reviewHook.archetype}
                         </span>
-                        <span className="text-xs text-ink-muted">{reviewHook.format}</span>
+                        <span className="text-body-xs text-ink-muted">{reviewHook.format}</span>
                       </div>
                       <svg viewBox="0 0 16 16" className={`w-3.5 h-3.5 text-ink-faint transition-transform ${showHookReasoning ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5">
                         <path d="M4 6l4 4 4-4" />
@@ -2144,7 +2174,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     </button>
                     {showHookReasoning && (
                       <div className="px-4 pb-4">
-                        <p className="text-xs text-ink-muted leading-relaxed">{reviewHook.reasoning}</p>
+                        <p className="text-body-xs text-ink-muted leading-relaxed">{reviewHook.reasoning}</p>
                       </div>
                     )}
                   </div>
@@ -2161,7 +2191,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                         <circle cx="8" cy="5" r="3" />
                         <path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5" />
                       </svg>
-                      <span className="text-xs font-medium text-ink">Customize avatar & voice</span>
+                      <span className="text-body-xs font-medium text-ink">Customize avatar & voice</span>
                     </div>
                     <svg viewBox="0 0 16 16" className={`w-3.5 h-3.5 text-ink-faint transition-transform ${showCustomization ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M4 6l4 4 4-4" />
@@ -2192,14 +2222,14 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 <div className="sticky bottom-4 z-10 bg-gradient-to-t from-cream via-cream/95 to-transparent pt-6 pb-2 -mx-6 px-6 space-y-2">
                   {session?.authenticated && typeof session.balance === "number" && (
                     <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px]">
+                      <div className="flex items-center justify-between text-label-base">
                         <span className="text-ink-faint">{session.balance} credits remaining</span>
                         <span className="text-ink-faint">Render: 8 · Soundscape: 1</span>
                       </div>
                       {session.balance < 9 && (
                         <div className="flex items-center justify-between rounded-lg bg-warm-soft/50 border border-warm/15 px-3 py-2">
-                          <span className="text-[11px] text-warm font-medium">Low balance — you need 9 credits to render</span>
-                          <a href="/pricing" className="text-[10px] text-accent font-bold uppercase tracking-widest hover:text-accent/80 transition-colors">
+                          <span className="text-label-base text-warm font-medium">Low balance — you need 9 credits to render</span>
+                          <a href="/pricing" className="text-label-sm text-accent font-bold uppercase tracking-widest hover:text-accent/80 transition-colors">
                             Top up
                           </a>
                         </div>
@@ -2209,13 +2239,13 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   <div className="flex gap-3">
                     <button
                       onClick={() => setStage("input")}
-                      className="flex-1 rounded-xl border border-cream-dark bg-white py-3 text-sm font-medium text-ink-muted hover:border-ink/30 transition-colors"
+                      className="flex-1 rounded-xl border border-cream-dark bg-white py-3 text-body-sm font-medium text-ink-muted hover:border-ink/30 transition-colors"
                     >
                       Back
                     </button>
                     <button
                       onClick={handleConfirmBuild}
-                      className="flex-[2] btn-press rounded-xl bg-ink text-cream py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2 shadow-lg"
+                      className="flex-[2] btn-press rounded-xl bg-ink text-cream py-3 text-body-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2 shadow-lg"
                     >
                       {deliveryMode === "livelink" ? "Create live link" : "Build final video"}
                       <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -2265,21 +2295,21 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     </svg>
                   </div>
                   <h3 className="text-lg font-semibold text-ink">Not enough credits</h3>
-                  <p className="text-sm text-ink-muted">
+                  <p className="text-body-sm text-ink-muted">
                     This action needs <span className="font-semibold text-ink">{insufficientCredits.required} credits</span> but you have <span className="font-semibold text-ink">{insufficientCredits.available}</span>.
                   </p>
                   <div className="rounded-xl border border-cream-dark bg-white p-4 space-y-3 text-left">
-                    <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">Top up options</p>
+                    <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">Top up options</p>
                     <a
                       href="/pricing"
-                      className="btn-press flex items-center justify-between rounded-xl bg-ink text-cream px-4 py-3 text-sm font-medium hover:bg-ink-light transition-colors"
+                      className="btn-press flex items-center justify-between rounded-xl bg-ink text-cream px-4 py-3 text-body-sm font-medium hover:bg-ink-light transition-colors"
                     >
                       <span>Get Pro — 200 credits/month</span>
                       <span className="text-cream/60">$39/mo</span>
                     </a>
                     <a
                       href="/pricing#packs"
-                      className="btn-press flex items-center justify-between rounded-xl border border-cream-dark px-4 py-3 text-sm font-medium text-ink hover:bg-cream-dark/30 transition-colors"
+                      className="btn-press flex items-center justify-between rounded-xl border border-cream-dark px-4 py-3 text-body-sm font-medium text-ink hover:bg-cream-dark/30 transition-colors"
                     >
                       <span>Buy a credit pack</span>
                       <span className="text-ink-faint">from $15</span>
@@ -2287,7 +2317,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   </div>
                   <button
                     onClick={() => { setInsufficientCredits(null); setStage("input"); }}
-                    className="text-[11px] text-ink-faint hover:text-accent transition-colors"
+                    className="text-label-base text-ink-faint hover:text-accent transition-colors"
                   >
                     Back to studio
                   </button>
@@ -2305,9 +2335,9 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     return (
                       <div className="space-y-2">
                         <h3 className="text-base font-semibold text-ink">{friendly.title}</h3>
-                        <p className="text-sm text-ink-light">{friendly.detail}</p>
+                        <p className="text-body-sm text-ink-light">{friendly.detail}</p>
                         {friendly.tip && (
-                          <p className="text-xs text-ink-faint italic">{friendly.tip}</p>
+                          <p className="text-body-xs text-ink-faint italic">{friendly.tip}</p>
                         )}
                       </div>
                     );
@@ -2316,7 +2346,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     {bandSessionId && (
                       <button
                         onClick={() => handleEnrich(bandSessionId)}
-                        className="btn-press rounded-xl bg-ink text-cream px-5 py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center gap-2"
+                        className="btn-press rounded-xl bg-ink text-cream px-5 py-3 text-body-sm font-medium hover:bg-ink-light transition-colors flex items-center gap-2"
                       >
                         <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M2 8a6 6 0 0111.5-2.5M14 8a6 6 0 01-11.5 2.5" />
@@ -2327,14 +2357,14 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     )}
                     <button
                       onClick={() => setStage("input")}
-                      className="btn-press rounded-xl border border-cream-dark px-5 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+                      className="btn-press rounded-xl border border-cream-dark px-5 py-3 text-body-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
                     >
                       Start over
                     </button>
                     {error.toLowerCase().includes("login wall") || error.toLowerCase().includes("could not access") ? (
                       <button
                         onClick={() => { setUrl(""); setStage("input"); }}
-                        className="btn-press rounded-xl border border-cream-dark px-5 py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
+                        className="btn-press rounded-xl border border-cream-dark px-5 py-3 text-body-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors"
                       >
                         Try a different URL
                       </button>
@@ -2358,11 +2388,11 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-success-soft border border-success/20">
                     <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                    <span className="text-[10px] uppercase tracking-widest font-medium text-success">
+                    <span className="text-label-sm uppercase tracking-widest font-medium text-success">
                       Creative ready
                     </span>
                   </div>
-                  <p className="text-sm text-ink">
+                  <p className="text-body-sm text-ink">
                     {videoRendering === "done"
                       ? <>Video rendered successfully.</>
                       : <>Rendering in progress…</>}
@@ -2379,7 +2409,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       setVideoRendering("idle");
                       setVideoRenderResult(null);
                     }}
-                    className="btn-press ml-auto rounded-lg border border-cream-dark px-3 py-1.5 text-[11px] font-medium text-ink-muted hover:text-ink hover:bg-cream-dark/40 transition-colors"
+                    className="btn-press ml-auto rounded-lg border border-cream-dark px-3 py-1.5 text-label-base font-medium text-ink-muted hover:text-ink hover:bg-cream-dark/40 transition-colors"
                   >
                     Start another
                   </button>
@@ -2392,7 +2422,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                         if (!capturedEmail) { openCapture("render"); } else { handleRenderVideo(); }
                       }}
                       disabled={videoRendering === "rendering"}
-                      className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-5 py-3 text-sm font-medium hover:bg-ink-light transition-colors shadow-sm disabled:opacity-40"
+                      className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-5 py-3 text-body-sm font-medium hover:bg-ink-light transition-colors shadow-sm disabled:opacity-40"
                     >
                       {videoRendering === "rendering" ? "Rendering…" : videoRendering === "done" ? "Video ready" : "Render video"}
                     </button>
@@ -2401,7 +2431,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
 
                     <button
                       onClick={handleShareClick}
-                      className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-2.5 text-xs font-medium text-ink-muted hover:bg-cream-dark/50 transition-colors"
+                      className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-3 py-2.5 text-body-xs font-medium text-ink-muted hover:bg-cream-dark/50 transition-colors"
                     >
                       <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <path d="M4 10l4 4 4-4M8 2v10" />
@@ -2420,7 +2450,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                           localStorage.setItem("nuncio_profile_company", reviewProfile.company || "");
                         }
                       }}
-                      className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-accent/20 bg-accent-soft/50 px-3 py-2.5 text-xs font-medium text-accent hover:bg-accent/10 transition-colors"
+                      className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-accent/20 bg-accent-soft/50 px-3 py-2.5 text-body-xs font-medium text-accent hover:bg-accent/10 transition-colors"
                     >
                       <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <path d="M2 4h12v10H2zM2 4l6 5 6-5M5 2h6" />
@@ -2433,7 +2463,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     <button
                       onClick={handleAudioMemo}
                       disabled={audioMemoLoading}
-                      className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-2.5 py-1.5 text-[11px] text-ink-faint hover:text-ink-muted hover:bg-cream-dark/30 transition-colors disabled:opacity-50"
+                      className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-2.5 py-1.5 text-label-base text-ink-faint hover:text-ink-muted hover:bg-cream-dark/30 transition-colors disabled:opacity-50"
                       title="Generate a voice memo teaser to send as a DM hook"
                     >
                       {audioMemoLoading ? (
@@ -2454,8 +2484,8 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 {audioMemoUrl && (
                   <div className="rounded-xl border border-accent/20 bg-accent-soft/30 p-4 flex items-center gap-3">
                     <div className="flex-1">
-                      <p className="text-[10px] uppercase tracking-widest font-medium text-accent mb-1">Audio Memo Ready</p>
-                      <p className="text-[11px] text-ink-muted">Send this as a DM teaser before sharing the full video link.</p>
+                      <p className="text-label-sm uppercase tracking-widest font-medium text-accent mb-1">Audio Memo Ready</p>
+                      <p className="text-label-base text-ink-muted">Send this as a DM teaser before sharing the full video link.</p>
                     </div>
                     <audio src={audioMemoUrl} controls className="h-8 w-48" />
                     <a
@@ -2474,17 +2504,17 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 {/* Saved draft message */}
                 {draftMessage && (
                   <div className="border-t border-cream-dark/50 pt-3 space-y-2">
-                    <p className="text-[10px] uppercase tracking-widest font-medium text-ink-faint">
+                    <p className="text-label-sm uppercase tracking-widest font-medium text-ink-faint">
                       Your {draftMessage.channel} draft
                     </p>
-                    <div className="rounded-lg bg-cream-dark/30 p-3 text-xs text-ink-light leading-relaxed whitespace-pre-wrap">
+                    <div className="rounded-lg bg-cream-dark/30 p-3 text-body-xs text-ink-light leading-relaxed whitespace-pre-wrap">
                       {draftMessage.message}
                     </div>
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(draftMessage.message);
                       }}
-                      className="text-[11px] text-accent hover:text-accent/80 transition-colors flex items-center gap-1"
+                      className="text-label-base text-accent hover:text-accent/80 transition-colors flex items-center gap-1"
                     >
                       <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <rect x="5" y="5" width="8" height="8" rx="1.5" />
@@ -2499,7 +2529,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 <div className="border-t border-cream-dark/50 pt-3 flex items-center justify-between">
                   <button
                     onClick={() => { setShowCustomization(true); setStage("review"); }}
-                    className="text-[11px] text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5"
+                    className="text-label-base text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5"
                   >
                     <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <circle cx="8" cy="5" r="3" />
@@ -2508,7 +2538,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     Change avatar or voice & re-render
                   </button>
                   {session?.authenticated && typeof session.balance === "number" && (
-                    <span className="text-[11px] text-ink-faint">
+                    <span className="text-label-base text-ink-faint">
                       {session.balance} credits remaining
                     </span>
                   )}
@@ -2535,7 +2565,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                       setVideoRendering("idle");
                       setVideoRenderResult(null);
                     }}
-                    className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
+                    className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-body-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
                   >
                     <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M3 8h10M9 4l4 4-4 4" />
@@ -2545,7 +2575,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   <div className="flex items-center gap-2">
                     <a
                       href="/dashboard"
-                      className="btn-press flex-1 rounded-xl border border-cream-dark py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
+                      className="btn-press flex-1 rounded-xl border border-cream-dark py-3 text-body-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
                     >
                       <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <rect x="2" y="2" width="5" height="5" rx="1" />
@@ -2557,7 +2587,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     </a>
                     <a
                       href="/batch"
-                      className="btn-press flex-1 rounded-xl border border-cream-dark py-3 text-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
+                      className="btn-press flex-1 rounded-xl border border-cream-dark py-3 text-body-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
                     >
                       <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <path d="M5 8h6M8 5v6" />
@@ -2598,7 +2628,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                         initial={{ opacity: 0, scale: 0.85 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ type: "spring", stiffness: 350, damping: 20, mass: 0.8 }}
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-widest ${meta.chipClass}`}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-label-sm font-medium uppercase tracking-widest ${meta.chipClass}`}
                       >
                         <span className={`w-4 h-4 rounded-full flex items-center justify-center ${meta.iconClass}`}>
                           {meta.icon}
@@ -2618,7 +2648,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 </div>
                 <button
                   onClick={() => setCaptureIntent(null)}
-                  className="rounded-lg border border-cream-dark px-2 py-1 text-xs text-ink-muted hover:text-ink hover:bg-cream/60 transition-colors"
+                  className="rounded-lg border border-cream-dark px-2 py-1 text-body-xs text-ink-muted hover:text-ink hover:bg-cream/60 transition-colors"
                 >
                   Close
                 </button>
@@ -2628,15 +2658,15 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.18, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                className="text-sm text-ink-muted leading-relaxed mb-5"
+                className="text-body-sm text-ink-muted leading-relaxed mb-5"
               >
                 {captureIntent === "download" && "Enter your email and we'll send you a download link for your video."}
                 {captureIntent === "share" && "Enter your email and we'll send you a shareable link you can copy."}
                 {captureIntent === "render" && "Enter your email and we'll render your video. We'll notify you when it's ready."}
                 {captureIntent === "saveBrief" && "Enter your email to save this brief to your account. We'll also send you a shareable link."}
                 {!session?.authenticated && (
-                  <span className="block mt-2 text-xs text-accent">
-                    Free account includes 10 starter credits. Go Pro for 200 credits/month.
+                  <span className="block mt-2 text-body-xs text-accent">
+                    Free account includes 15 starter credits — enough for a full video. Go Pro for 200 credits/month (~18 videos).
                   </span>
                 )}
               </motion.p>
@@ -2657,7 +2687,7 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                   aria-hidden="true"
                 />
                 <div>
-                  <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                  <label className="text-label-sm uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
                     Email
                   </label>
                   <input
@@ -2665,19 +2695,19 @@ function StudioClient({ initialAvatars, initialVoices }: StudioClientProps) {
                     value={captureEmail}
                     onChange={(e) => setCaptureEmail(e.target.value)}
                     placeholder="you@company.com"
-                    className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                    className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
                     autoFocus
                   />
                 </div>
 
                 {captureError && (
-                  <p className="text-xs text-error">{captureError}</p>
+                  <p className="text-body-xs text-error">{captureError}</p>
                 )}
 
                 <button
                   type="submit"
                   disabled={captureLoading || !captureEmail.trim()}
-                  className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors"
+                  className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-body-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors"
                 >
                   {captureLoading ? "Processing…" : captureIntent === "download" ? "Download video" : captureIntent === "share" ? "Get share link" : captureIntent === "saveBrief" ? "Save brief" : "Render video"}
                 </button>
@@ -2726,14 +2756,14 @@ function VideoResultSection({ videoUrl }: { videoUrl: string }) {
             </svg>
           </div>
           <div>
-            <h3 className="text-sm font-medium text-ink">HeyGen video ready</h3>
-            <p className="text-xs text-ink-muted">Personalised video rendered for your recipient</p>
+            <h3 className="text-body-sm font-medium text-ink">HeyGen video ready</h3>
+            <p className="text-body-xs text-ink-muted">Personalised video rendered for your recipient</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopy}
-            className={`btn-press inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-all ${
+            className={`btn-press inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-body-xs font-medium transition-all ${
               copied
                 ? "border-success/20 bg-success-soft text-success"
                 : "border-cream-dark text-ink hover:bg-cream-dark/50"
@@ -2745,7 +2775,7 @@ function VideoResultSection({ videoUrl }: { videoUrl: string }) {
             href={videoUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-press inline-flex items-center gap-1.5 rounded-lg bg-ink text-cream px-3 py-2 text-xs font-medium hover:bg-ink-light transition-colors"
+            className="btn-press inline-flex items-center gap-1.5 rounded-lg bg-ink text-cream px-3 py-2 text-body-xs font-medium hover:bg-ink-light transition-colors"
           >
             Open video
             <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2">

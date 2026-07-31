@@ -97,7 +97,7 @@ export function RecipientCard({ item, size = "lg" }: RecipientCardProps) {
               <span
                 className={`
                   font-display text-ink/80
-                  ${isLg ? "text-lg" : "text-sm"}
+                  ${isLg ? "text-lg" : "text-body-sm"}
                   transition-opacity duration-300
                   ${isHover ? "opacity-0" : "opacity-100"}
                 `}
@@ -123,7 +123,7 @@ export function RecipientCard({ item, size = "lg" }: RecipientCardProps) {
             <span
               className={`
                 font-display text-ink/80
-                ${isLg ? "text-lg" : "text-sm"}
+                ${isLg ? "text-lg" : "text-body-sm"}
               `}
             >
               {initials(item.name)}
@@ -137,19 +137,19 @@ export function RecipientCard({ item, size = "lg" }: RecipientCardProps) {
             <p
               className={`
                 font-medium text-ink truncate
-                ${isLg ? "text-sm" : "text-[13px]"}
+                ${isLg ? "text-body-sm" : "text-[13px]"}
               `}
             >
               {item.name}
             </p>
-            <span className="text-[9px] uppercase tracking-widest text-ink-faint/70 shrink-0">
+            <span className="text-label-xs uppercase tracking-widest text-ink-faint/70 shrink-0">
               {PLATFORM_LABEL[item.platform]}
             </span>
           </div>
           <p
             className={`
               text-ink-muted mt-0.5 truncate
-              ${isLg ? "text-[12px]" : "text-[11px]"}
+              ${isLg ? "text-[12px]" : "text-label-base"}
             `}
           >
             {item.role}

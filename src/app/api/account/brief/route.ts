@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readAccountSession } from "@/lib/auth/session";
 import { getAccountStorageProvider } from "@/lib/storage";
+import { isLiveLinkEnabled } from "@/lib/live-link";
 
 export async function GET(request: NextRequest) {
   const session = readAccountSession(request);
@@ -27,7 +28,9 @@ export async function GET(request: NextRequest) {
     playbookOffer: workspace.playbookOffer || null,
     playbookWiggleRoom: workspace.playbookWiggleRoom || null,
     playbookConstraints: workspace.playbookConstraints || null,
-    deliveryMode: workspace.deliveryMode || "video",
+    deliveryMode: workspace.deliveryMode === "livelink" && !isLiveLinkEnabled()
+      ? "video"
+      : (workspace.deliveryMode || "video"),
     plan: workspace.plan || (workspace.stripePlanType || "trial").toLowerCase(),
   });
 }
@@ -60,7 +63,9 @@ export async function PATCH(request: NextRequest) {
   if (typeof playbookOffer === "string") updates.playbookOffer = playbookOffer;
   if (typeof playbookWiggleRoom === "string") updates.playbookWiggleRoom = playbookWiggleRoom;
   if (typeof playbookConstraints === "string") updates.playbookConstraints = playbookConstraints;
-  if (deliveryMode === "video" || deliveryMode === "livelink") updates.deliveryMode = deliveryMode;
+  if (deliveryMode === "video" || (deliveryMode === "livelink" && isLiveLinkEnabled())) {
+    updates.deliveryMode = deliveryMode;
+  }
 
   await provider.updateWorkspace(session.workspaceId, updates);
 

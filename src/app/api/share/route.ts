@@ -3,6 +3,7 @@ import { createShareRecord } from "@/lib/share-store";
 import type { AgentTraceItem } from "@/lib/artifacts";
 import type { Profile } from "@/lib/claude";
 import { readAccountSession } from "@/lib/auth/session";
+import { isLiveLinkEnabled } from "@/lib/live-link";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -36,6 +37,9 @@ export async function POST(request: NextRequest) {
 
   // Live links don't need a rendered video. Recorded videos do.
   const mode = deliveryMode === "livelink" ? "livelink" : "video";
+  if (mode === "livelink" && !isLiveLinkEnabled()) {
+    return NextResponse.json({ error: "LiveLink is not enabled" }, { status: 404 });
+  }
   if (mode === "video" && videoUrl === undefined) {
     return NextResponse.json({ error: "videoUrl is required" }, { status: 400 });
   }

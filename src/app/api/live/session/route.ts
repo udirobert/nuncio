@@ -5,6 +5,7 @@ import { creditsEnforced, getCreditBalance, reserveCredits, commitCreditReservat
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 import type { Profile } from "@/lib/claude";
 import type { WorkspaceAccount } from "@/lib/storage/types";
+import { isLiveLinkEnabled } from "@/lib/live-link";
 
 interface AnamPersonaConfig {
   avatarId: string;
@@ -76,6 +77,12 @@ export async function POST(request: NextRequest) {
 
     if (!shareId || typeof shareId !== "string") {
       return NextResponse.json({ error: "shareId is required" }, { status: 400 });
+    }
+
+    // LiveLink is opt-in. Keep the recorded HeyGen path unaffected when the
+    // experiment is disabled, and avoid spending rate-limit/provider budget.
+    if (!isLiveLinkEnabled()) {
+      return NextResponse.json({ error: "LiveLink is not enabled" }, { status: 404 });
     }
 
     // Rate limit per IP to protect the metered Anam endpoint.

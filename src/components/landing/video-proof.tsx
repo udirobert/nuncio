@@ -29,12 +29,12 @@ export function VideoProof() {
       >
         {/* Label */}
         <div className="flex items-center justify-between mb-4">
-          <p className="text-xs uppercase tracking-widest text-ink-faint font-medium">
+          <p className="text-body-xs uppercase tracking-widest text-ink-faint font-medium">
             Real output — generated automatically
           </p>
           <Link
             href={GOLDEN_SHARE_PAGE}
-            className="text-xs text-ink-faint hover:text-accent transition-colors"
+            className="text-body-xs text-ink-faint hover:text-accent transition-colors"
           >
             View share page →
           </Link>
@@ -67,8 +67,8 @@ export function VideoProof() {
               {/* Poster — dark bg with subtle text */}
               <div className="w-full h-full bg-gradient-to-br from-ink to-ink-light flex items-end p-6">
                 <div className="text-left">
-                  <p className="text-cream/90 text-sm font-medium">Personalised video for Onee Yekeh</p>
-                  <p className="text-cream/50 text-xs">Product Manager at HeyGen · Generated via nuncio pipeline</p>
+                  <p className="text-cream/90 text-body-sm font-medium">Personalised video for Onee Yekeh</p>
+                  <p className="text-cream/50 text-body-xs">Product Manager at HeyGen · Generated via nuncio pipeline</p>
                 </div>
               </div>
             </button>
@@ -86,7 +86,7 @@ export function VideoProof() {
         </div>
 
         {/* Caption */}
-        <p className="text-center text-[11px] text-ink-faint mt-3">
+        <p className="text-center text-label-base text-ink-faint mt-3">
           Enriched from LinkedIn · Script by Claude · Rendered by HeyGen Video Agent · Captions by HeyGen
         </p>
       </motion.div>

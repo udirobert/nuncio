@@ -36,7 +36,7 @@ export function HowItWorks() {
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           className="mb-8 md:mb-10 max-w-2xl"
         >
-          <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-3">
+          <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium mb-3">
             How nuncio works
           </p>
           <h2 className="font-display text-4xl md:text-5xl tracking-tight leading-[1] mb-4">
@@ -65,7 +65,7 @@ export function HowItWorks() {
   className="rounded-2xl border border-cream-dark bg-white/70 p-6 card-hover hover:bg-white"
             >
               <div className="flex items-baseline justify-between mb-4">
-                <span className="text-[10px] uppercase tracking-widest text-accent font-medium">
+                <span className="text-label-sm uppercase tracking-widest text-accent font-medium">
                   {tile.step}
                 </span>
                 <span className="font-display text-xl text-ink-faint/60">

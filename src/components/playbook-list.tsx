@@ -80,7 +80,7 @@ function PlaybookCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
             <span
-              className={`text-[10px] uppercase tracking-widest font-medium px-2 py-0.5 rounded-full ${entry.categoryColor}`}
+              className={`text-label-sm uppercase tracking-widest font-medium px-2 py-0.5 rounded-full ${entry.categoryColor}`}
             >
               {entry.category}
             </span>
@@ -88,7 +88,7 @@ function PlaybookCard({
           <h3 className="text-base font-medium text-ink mb-1">
             {entry.recipient.name}
           </h3>
-          <p className="text-sm text-ink-muted">
+          <p className="text-body-sm text-ink-muted">
             {entry.recipient.role} at {entry.recipient.company} ·{" "}
             {entry.recipient.platform}
           </p>
@@ -114,17 +114,17 @@ function PlaybookCard({
         >
           {/* Brief */}
           <div>
-            <h4 className="text-xs uppercase tracking-widest text-ink-faint font-medium mb-2">
+            <h4 className="text-body-xs uppercase tracking-widest text-ink-faint font-medium mb-2">
               Sender brief
             </h4>
-            <p className="text-sm text-ink-muted leading-relaxed italic">
+            <p className="text-body-sm text-ink-muted leading-relaxed italic">
               &ldquo;{entry.brief}&rdquo;
             </p>
           </div>
 
           {/* Generated script */}
           <div>
-            <h4 className="text-xs uppercase tracking-widest text-ink-faint font-medium mb-2">
+            <h4 className="text-body-xs uppercase tracking-widest text-ink-faint font-medium mb-2">
               Generated script
             </h4>
             <div className="rounded-xl bg-cream-dark/40 p-4">
@@ -136,7 +136,7 @@ function PlaybookCard({
 
           {/* Teardown */}
           <div className="space-y-4">
-            <h4 className="text-xs uppercase tracking-widest text-ink-faint font-medium">
+            <h4 className="text-body-xs uppercase tracking-widest text-ink-faint font-medium">
               Why this works
             </h4>
 
@@ -154,18 +154,18 @@ function PlaybookCard({
                       <path d="M3 8.5l3.5 3.5L13 5" />
                     </svg>
                   </span>
-                  <p className="text-sm text-ink-light leading-relaxed">{point}</p>
+                  <p className="text-body-sm text-ink-light leading-relaxed">{point}</p>
                 </div>
               ))}
             </div>
 
-            <p className="text-sm text-ink-muted leading-relaxed bg-accent-soft/30 rounded-xl px-4 py-3 border border-accent/10">
+            <p className="text-body-sm text-ink-muted leading-relaxed bg-accent-soft/30 rounded-xl px-4 py-3 border border-accent/10">
               {entry.teardown.whyItLands}
             </p>
 
             {/* What was skipped */}
             <div>
-              <h5 className="text-[11px] uppercase tracking-widest text-ink-faint font-medium mb-2">
+              <h5 className="text-label-base uppercase tracking-widest text-ink-faint font-medium mb-2">
                 Deliberately skipped
               </h5>
               <div className="space-y-1.5">
@@ -182,7 +182,7 @@ function PlaybookCard({
                         <path d="M4 8h8" />
                       </svg>
                     </span>
-                    <p className="text-xs text-ink-faint leading-relaxed">{point}</p>
+                    <p className="text-body-xs text-ink-faint leading-relaxed">{point}</p>
                   </div>
                 ))}
               </div>
@@ -193,7 +193,7 @@ function PlaybookCard({
           <div className="pt-2">
             <Link
               href={tryUrl}
-        className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-5 py-3 text-sm font-medium shadow-lg shadow-ink/10 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
+        className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-5 py-3 text-body-sm font-medium shadow-lg shadow-ink/10 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
             >
               Try this example
               <svg

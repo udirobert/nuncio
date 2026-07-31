@@ -207,3 +207,45 @@ button, a, [role="button"] {
     animation: none !important;
   }
 }
+
+/* ── Mobile type scale ────────────────────────────────────────────────
+   Hardcoded pixel sizes (text-[9px], text-[10px], text-[11px]) are
+   illegible on phones at typical viewing distance. These utilities
+   bump them up on mobile and restore the desktop size at the sm:
+   breakpoint (640px+). Apply by replacing e.g. text-[10px] with
+   text-label-xs (mobile: 12px, desktop: 10px).
+
+   Mapping:
+     text-[9px]  → text-label-xs   (mobile 11px, sm: 9px)
+     text-[10px] → text-label-sm   (mobile 12px, sm: 10px)
+     text-[11px] → text-label-base (mobile 14px, sm: 11px)
+     text-xs     → text-body-xs    (mobile 14px, sm: 12px)
+     text-sm     → text-body-sm    (mobile 16px, sm: 14px)
+*/
+@utility text-label-xs {
+  font-size: 11px;
+  line-height: 1.4;
+}
+@utility text-label-sm {
+  font-size: 12px;
+  line-height: 1.4;
+}
+@utility text-label-base {
+  font-size: 14px;
+  line-height: 1.4;
+}
+@utility text-body-xs {
+  font-size: 14px;
+  line-height: 1.5;
+}
+@utility text-body-sm {
+  font-size: 16px;
+  line-height: 1.5;
+}
+@media (min-width: 640px) {
+  .text-label-xs { font-size: 9px; }
+  .text-label-sm { font-size: 10px; }
+  .text-label-base { font-size: 11px; }
+  .text-body-xs { font-size: 12px; }
+  .text-body-sm { font-size: 14px; }
+}

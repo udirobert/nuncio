@@ -71,13 +71,13 @@ export function Header({ stage, isDemo }: HeaderProps) {
                   <Link
                     href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`block rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
+                    className={`block rounded-xl px-4 py-3 text-body-sm font-medium transition-colors ${
                       isActive ? "bg-accent-soft text-accent" : "text-ink hover:bg-cream-dark/50"
                     }`}
                   >
                     {link.label}
                     {link.subtitle && (
-                      <span className="block text-[11px] font-normal text-ink-faint">{link.subtitle}</span>
+                      <span className="block text-label-base font-normal text-ink-faint">{link.subtitle}</span>
                     )}
                   </Link>
                 </motion.div>
@@ -155,13 +155,13 @@ export function Header({ stage, isDemo }: HeaderProps) {
               >
                 <Link
                   href={link.href}
-                  className={`text-[11px] uppercase tracking-widest font-medium transition-colors ${
+                  className={`text-label-base uppercase tracking-widest font-medium transition-colors ${
                     isActive ? "text-accent" : "text-ink-muted hover:text-ink"
                   }`}
                 >
                   {link.label}
                   {link.subtitle && (
-                    <span className="normal-case tracking-normal text-[9px] text-ink-faint ml-1">
+                    <span className="normal-case tracking-normal text-label-xs text-ink-faint ml-1">
                       {link.subtitle}
                     </span>
                   )}
@@ -174,7 +174,7 @@ export function Header({ stage, isDemo }: HeaderProps) {
           {creditBalance !== null && (
             <Link
               href="/pricing"
-              className={`text-[10px] font-bold tabular-nums px-2 py-0.5 rounded-md transition-colors ${
+              className={`text-label-sm font-bold tabular-nums px-2 py-0.5 rounded-md transition-colors ${
                 creditBalance < 11
                   ? "bg-warm-soft text-warm hover:bg-warm-soft/80"
                   : "bg-cream-dark text-ink-muted hover:bg-cream-dark/80"
@@ -187,7 +187,7 @@ export function Header({ stage, isDemo }: HeaderProps) {
           <AccountMenu />
 
           {isDemo && (
-            <span className="text-[10px] uppercase tracking-widest font-medium text-warm bg-warm-soft px-2 py-0.5 rounded-full">
+            <span className="text-label-sm uppercase tracking-widest font-medium text-warm bg-warm-soft px-2 py-0.5 rounded-full">
               Demo
             </span>
           )}
@@ -209,7 +209,7 @@ export function Header({ stage, isDemo }: HeaderProps) {
               {stage === "done" && (
                 <span className="flex h-2 w-2 rounded-full bg-success" />
               )}
-              <span className="text-[10px] uppercase tracking-widest text-ink-light font-medium">
+              <span className="text-label-sm uppercase tracking-widest text-ink-light font-medium">
                 {STAGE_LABELS[stage]}
               </span>
             </motion.div>
