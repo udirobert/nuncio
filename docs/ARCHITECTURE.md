@@ -39,7 +39,7 @@ User input (URL + brief)
         │
         ├── HeyGen ──→ { video URL }
         │
-        ├── Backblaze B2 ──→ { permanent media URLs + asset manifest }
+        ├── Backblaze B2 ──→ { durable media storage + asset manifest, served via presigned URLs }
         │
         ├── Grove ──→ { immutable provenance proof }
         │

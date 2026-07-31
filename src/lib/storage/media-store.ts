@@ -38,7 +38,7 @@ function baseMetadata(shareId: string, role: string, sha256?: string): Record<st
 
 /**
  * Download a video from a temporary URL and persist to B2.
- * Returns the permanent URL, or the original URL on failure.
+ * Returns the durable B2 URL (served to recipients via presigned URL), or the original URL on failure.
  */
 export async function persistVideo(
   temporaryUrl: string,
