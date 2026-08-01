@@ -23,7 +23,9 @@ Recorded video is the wedge. Live conversation is the product. The same research
 | `/api/persist` | POST | Persist HeyGen video to Backblaze B2 |
 | `/api/persist/trace` | POST | Persist pipeline trace + asset manifest to B2 |
 | `/api/thumbnail` | POST | Generate thumbnail via Genblaze worker (GMI Cloud) |
-| `/api/live/session` | POST | Create a short-lived Anam LiveLink session token from a share record |
+| `/api/live/session` | POST | Create a short-lived Anam LiveLink session token and durable lifecycle record |
+| `/api/live/sync` | POST | Reconcile a browser terminal event using a per-session sync token |
+| `/api/live/expire` | POST | Secret-protected scheduled expiry/reconciliation for stale sessions |
 
 ---
 
@@ -130,12 +132,12 @@ LiveLink is an additive delivery mode, not a replacement for the recorded-video 
 
 - **Shared context:** research, synthesis, script, Sender Playbook, language, and recipient context are generated once and reused by either mode.
 - **Provider boundary (planned):** the live route currently calls Anam directly; introduce provider-neutral session outcomes before adding another live provider.
-- **Feature control:** `NUNCIO_LIVELINK_ENABLED=true` gates LiveLink share creation, pipeline mode selection, session-token creation, and the studio toggle. It defaults off; sender/workspace allowlisting remains planned.
-- **Session safety:** the browser enforces a five-minute maximum and cleans up the SDK client/timer on manual end, provider disconnect, unload, and unmount. Idle timeout and server-side cleanup remain planned.
+- **Feature control:** `NUNCIO_LIVELINK_ENABLED=true` is necessary but insufficient: `NUNCIO_LIVELINK_WORKSPACE_IDS` and/or `NUNCIO_LIVELINK_SENDER_EMAILS` must explicitly allowlist the pilot. The gate fails closed when both lists are empty.
+- **Session safety:** the browser enforces a five-minute maximum and cleans up the SDK client/timer on manual end, provider disconnect, unload, and unmount. Each token has a durable session record and hashed sync token; `/api/live/expire` reconciles stale records when invoked by a scheduler.
 - **Identity and safety (planned hardening):** disclose that the prospect is speaking with an AI avatar; enforce the Sender Playbook for pricing, claims, commitments, and competitor statements; use explicit tools for booking rather than implied promises.
 - **Fallback (planned):** if LiveLink cannot start or drops, show a useful recorded-video or follow-up path rather than a dead-end error. The current page shows an error/retry state.
-- **Usage accounting:** the current `live.session` credit reservation protects session creation but does not yet reconcile actual Anam minutes. Duration-aware accounting is required before broad or paid rollout.
-- **Telemetry:** the browser currently emits PostHog requested, connected, ended (duration/reason), and failed events. Token-issued, server-side duration/provider reconciliation, latency, and meeting outcome remain planned. Do not retain raw prospect audio by default.
+- **Usage accounting:** the route reserves the five-credit pilot maximum. Provider-start failures refund the reservation; browser-reported duration is retained as telemetry but is not trusted to reduce billing. Stale expiry is conservative and keeps the maximum charge because Anam does not expose a server-authoritative duration endpoint.
+- **Telemetry:** the browser emits PostHog requested, connected, ended (duration/reason), and failed events; the server stores terminal duration and reason without raw audio. Provider-authoritative duration and meeting outcome remain future work.
 
 ### Cross-cutting rollout concerns
 

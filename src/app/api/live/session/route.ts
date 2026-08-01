@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "node:crypto";
 import { getShareRecord } from "@/lib/share-store";
 import { getAccountStorageProvider } from "@/lib/storage";
-import { creditsEnforced, getCreditBalance, reserveCredits, commitCreditReservation, refundCreditReservation } from "@/lib/billing/credits";
+import { creditsEnforced, getCreditBalance, reserveCredits, refundCreditReservation } from "@/lib/billing/credits";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 import type { Profile } from "@/lib/claude";
 import type { WorkspaceAccount } from "@/lib/storage/types";
-import { isLiveLinkEnabled } from "@/lib/live-link";
+import { isLiveLinkAllowed, LIVE_SESSION_MAX_CREDITS } from "@/lib/live-link";
+import { createLiveSessionRecord, hashLiveSessionToken, reconcileLiveSession } from "@/lib/live-session";
 
 interface AnamPersonaConfig {
   avatarId: string;
@@ -69,6 +71,7 @@ Instructions for the conversation:
 }
 
 export async function POST(request: NextRequest) {
+  let sessionRecord: Awaited<ReturnType<typeof createLiveSessionRecord>> | undefined;
   let reservationId: string | undefined;
 
   try {
@@ -79,13 +82,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "shareId is required" }, { status: 400 });
     }
 
-    // LiveLink is opt-in. Keep the recorded HeyGen path unaffected when the
-    // experiment is disabled, and avoid spending rate-limit/provider budget.
-    if (!isLiveLinkEnabled()) {
+    if (process.env.NUNCIO_LIVELINK_ENABLED !== "true") {
       return NextResponse.json({ error: "LiveLink is not enabled" }, { status: 404 });
     }
 
-    // Rate limit per IP to protect the metered Anam endpoint.
+    const share = await getShareRecord(shareId);
+    if (!share || share.deliveryMode !== "livelink") {
+      return NextResponse.json({ error: "Live link not found" }, { status: 404 });
+    }
+
+    if (!isLiveLinkAllowed({ workspaceId: share.workspaceId, senderEmail: share.senderEmail })) {
+      return NextResponse.json({ error: "LiveLink is not enabled for this pilot" }, { status: 404 });
+    }
+
+    // Every live session must be attributable to a workspace so the maximum
+    // reservation cannot be bypassed through legacy or manually-created
+    // sender-only share records.
+    if (!share.workspaceId) {
+      return NextResponse.json({ error: "Live link is not available for this share" }, { status: 404 });
+    }
+
     const clientId = getClientId(request);
     const rateLimit = await checkRateLimit(clientId, "live.session", RATE_LIMITS.live);
     if (!rateLimit.allowed) {
@@ -101,7 +117,6 @@ export async function POST(request: NextRequest) {
     const anamApiKey = process.env.ANAM_API_KEY;
     const avatarId = process.env.ANAM_AVATAR_ID;
     const voiceId = process.env.ANAM_VOICE_ID;
-
     if (!anamApiKey || !avatarId || !voiceId) {
       return NextResponse.json(
         { error: "Live avatar is not configured on this server" },
@@ -109,29 +124,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const share = await getShareRecord(shareId);
-    if (!share) {
-      return NextResponse.json({ error: "Share not found" }, { status: 404 });
-    }
-
     let workspace: WorkspaceAccount | null = null;
     if (share.workspaceId) {
       workspace = await getAccountStorageProvider().getWorkspace(share.workspaceId);
     }
 
-    // Light credit guard: live sessions are metered by Anam, so we require the
-    // workspace to have a non-negative balance before we create a session token.
-    // Respects NUNCIO_CREDITS_ENFORCED — in shadow mode the check is skipped so
-    // the app never hard-blocks (consistent with every other credit-gated route).
     if (share.workspaceId) {
       if (creditsEnforced()) {
-        const balance = await getCreditBalance({
-          workspaceId: share.workspaceId,
-          anonymous: false,
-        });
-        if (balance <= 0) {
+        const balance = await getCreditBalance({ workspaceId: share.workspaceId, anonymous: false });
+        if (balance < LIVE_SESSION_MAX_CREDITS) {
           return NextResponse.json(
-            { error: "Live sessions are unavailable while this account has no credits" },
+            { error: "Live sessions are unavailable while this account has insufficient credits" },
             { status: 402 }
           );
         }
@@ -140,9 +143,31 @@ export async function POST(request: NextRequest) {
       const reservation = await reserveCredits({
         subject: { workspaceId: share.workspaceId, anonymous: false },
         action: "live.session",
-        reason: "Anam live avatar session token",
+        amount: LIVE_SESSION_MAX_CREDITS,
+        reason: "Anam live avatar session maximum reservation",
+        provider: "anam",
       });
       reservationId = reservation.id;
+    }
+
+    const syncToken = randomBytes(32).toString("base64url");
+    sessionRecord = await createLiveSessionRecord({
+      shareId,
+      workspaceId: share.workspaceId,
+      reservationId,
+      syncTokenHash: hashLiveSessionToken(syncToken),
+      reservedCredits: reservationId ? LIVE_SESSION_MAX_CREDITS : 0,
+      creditsEnforced: creditsEnforced(),
+    });
+
+    if (!sessionRecord) {
+      if (reservationId) {
+        await refundCreditReservation(reservationId, "live_session_already_open");
+      }
+      return NextResponse.json(
+        { error: "A live session is already open for this link" },
+        { status: 409 },
+      );
     }
 
     const personaConfig: AnamPersonaConfig = {
@@ -172,41 +197,25 @@ export async function POST(request: NextRequest) {
     if (!anamRes.ok) {
       const text = await anamRes.text();
       console.error("[anam] session token error:", anamRes.status, text);
-      if (reservationId) {
-        await refundCreditReservation(reservationId, "anam_token_failure");
-      }
-      return NextResponse.json(
-        { error: "Failed to create live avatar session" },
-        { status: 502 }
-      );
+      await reconcileLiveSession({ record: sessionRecord, durationMs: 0, reason: "start_failed" });
+      return NextResponse.json({ error: "Failed to create live avatar session" }, { status: 502 });
     }
 
     const anamData = (await anamRes.json()) as AnamSessionResponse;
     const sessionToken = anamData.sessionToken || anamData.token;
-
     if (!sessionToken) {
-      if (reservationId) {
-        await refundCreditReservation(reservationId, "missing_anam_token");
-      }
-      return NextResponse.json(
-        { error: "Anam did not return a session token" },
-        { status: 502 }
-      );
+      await reconcileLiveSession({ record: sessionRecord, durationMs: 0, reason: "start_failed" });
+      return NextResponse.json({ error: "Anam did not return a session token" }, { status: 502 });
     }
 
-    if (reservationId) {
-      await commitCreditReservation(reservationId);
-    }
-
-    return NextResponse.json({ sessionToken });
+    return NextResponse.json({ sessionToken, sessionId: sessionRecord.id, syncToken });
   } catch (error) {
     console.error("[api/live/session] error:", error);
-    if (reservationId) {
-      await refundCreditReservation(reservationId, "live_session_exception");
+    if (sessionRecord) {
+      await reconcileLiveSession({ record: sessionRecord, durationMs: 0, reason: "start_failed" }).catch(() => {});
+    } else if (reservationId) {
+      await refundCreditReservation(reservationId, "live_session_record_failure").catch(() => {});
     }
-    return NextResponse.json(
-      { error: "Failed to start live session" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to start live session" }, { status: 500 });
   }
 }

@@ -91,7 +91,6 @@ async function ensureAnonymousWorkspace(anonId: string): Promise<string> {
     return anonId;
   }
 
-  const now = new Date().toISOString();
   const anonUser = await provider.upsertUserByEmail(`anon-${anonId.slice(5)}@anonymous.local`, {
     id: anonId,
   });

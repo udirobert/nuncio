@@ -3,7 +3,7 @@ import { createShareRecord } from "@/lib/share-store";
 import type { AgentTraceItem } from "@/lib/artifacts";
 import type { Profile } from "@/lib/claude";
 import { readAccountSession } from "@/lib/auth/session";
-import { isLiveLinkEnabled } from "@/lib/live-link";
+import { isLiveLinkAllowed } from "@/lib/live-link";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
 
   // Live links don't need a rendered video. Recorded videos do.
   const mode = deliveryMode === "livelink" ? "livelink" : "video";
-  if (mode === "livelink" && !isLiveLinkEnabled()) {
-    return NextResponse.json({ error: "LiveLink is not enabled" }, { status: 404 });
+  if (mode === "livelink" && !isLiveLinkAllowed({ workspaceId: session?.workspaceId, senderEmail: session?.email })) {
+    return NextResponse.json({ error: "LiveLink is not enabled for this pilot" }, { status: 404 });
   }
   if (mode === "video" && videoUrl === undefined) {
     return NextResponse.json({ error: "videoUrl is required" }, { status: 400 });
@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
     videoId,
     recipientName,
     senderName,
+    senderEmail: mode === "livelink" ? session?.email : undefined,
     profile,
     sources,
     trace,
@@ -60,5 +61,8 @@ export async function POST(request: NextRequest) {
   });
 
   const sharePath = mode === "livelink" ? `/live/${record.id}` : `/v/${record.id}`;
-  return NextResponse.json({ record, shareUrl: sharePath });
+  // Keep the internal sender identity out of the public creation response.
+  const publicRecord = { ...record };
+  delete publicRecord.senderEmail;
+  return NextResponse.json({ record: publicRecord, shareUrl: sharePath });
 }

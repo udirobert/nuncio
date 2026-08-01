@@ -13,7 +13,7 @@ import {
 import { PipelineActivityEmitter } from "@/lib/pipeline/activity-emitter";
 import { formatProfileSummary } from "@/lib/pipeline/format";
 import { getBandActivityProvider } from "@/lib/storage";
-import { isLiveLinkEnabled } from "@/lib/live-link";
+import { isLiveLinkAllowed } from "@/lib/live-link";
 import {
   buildSenderProfile,
   buildOutreachIntent,
@@ -117,10 +117,17 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { url, sessionId, archetype } = body;
 
-        if (body.deliveryMode === "livelink" && !isLiveLinkEnabled()) {
-          send({ error: "LiveLink is not enabled" });
-          controller.close();
-          return;
+        if (body.deliveryMode === "livelink") {
+          const { readAccountSession } = await import("@/lib/auth/session");
+          const accountSession = readAccountSession(request);
+          if (!isLiveLinkAllowed({
+            workspaceId: accountSession?.workspaceId,
+            senderEmail: accountSession?.email,
+          })) {
+            send({ error: "LiveLink is not enabled for this pilot" });
+            controller.close();
+            return;
+          }
         }
         const researchTier = body.researchTier as string | undefined;
         const deepResearchEnabled = body.deepResearchEnabled === true;

@@ -21,6 +21,7 @@ export class FileAccountStorageProvider implements AccountStorageProvider {
   readonly name = "file";
   private data: BillingFile = { users: [], workspaces: [], transactions: [] };
   private loaded = false;
+  private writeLock: Promise<void> = Promise.resolve();
 
   async upsertUserByEmail(email: string, updates?: Partial<AccountUser>): Promise<AccountUser> {
     await this.load();
@@ -127,15 +128,24 @@ export class FileAccountStorageProvider implements AccountStorageProvider {
   }
 
   async appendCreditTransaction(input: Omit<CreditTransactionRecord, "id" | "createdAt">): Promise<CreditTransactionRecord> {
-    await this.load();
-    const transaction: CreditTransactionRecord = {
-      ...input,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-    };
-    this.data.transactions.push(transaction);
-    await this.persist();
-    return transaction;
+    return this.withWriteLock(async () => {
+      await this.load();
+      if (input.idempotencyKey) {
+        const existing = this.data.transactions.find(
+          (transaction) => transaction.idempotencyKey === input.idempotencyKey,
+        );
+        if (existing) return existing;
+      }
+
+      const transaction: CreditTransactionRecord = {
+        ...input,
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+      };
+      this.data.transactions.push(transaction);
+      await this.persist();
+      return transaction;
+    });
   }
 
   private async load(): Promise<void> {
@@ -152,5 +162,19 @@ export class FileAccountStorageProvider implements AccountStorageProvider {
   private async persist(): Promise<void> {
     await mkdir(DATA_DIR, { recursive: true });
     await writeFile(BILLING_FILE, JSON.stringify(this.data, null, 2), "utf8");
+  }
+
+  private async withWriteLock<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = this.writeLock;
+    let release!: () => void;
+    this.writeLock = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
   }
 }

@@ -1294,7 +1294,10 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                     <div className="space-y-3 text-left">
                       {/* Mobile toggle */}
                       <button
+                        type="button"
                         onClick={() => setShowVoiceCard(!showVoiceCard)}
+                        aria-expanded={showVoiceCard}
+                        aria-controls="voice-brief-card"
                         className="sm:hidden flex items-center gap-2 text-label-base text-ink-muted hover:text-ink transition-colors py-2 w-full"
                       >
                         <svg viewBox="0 0 16 16" className="w-4 h-4 text-accent" fill="none" stroke="currentColor" strokeWidth="1.6">
@@ -1306,7 +1309,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                           <path d="M6 4l4 4-4 4" />
                         </svg>
                       </button>
-                      <div className={`${showVoiceCard ? "block" : "hidden"} sm:block rounded-2xl border border-accent/20 bg-gradient-to-br from-accent-soft/60 via-white to-warm-soft/30 p-4 shadow-sm space-y-3`}>
+                      <div id="voice-brief-card" className={`${showVoiceCard ? "block" : "hidden"} sm:block rounded-2xl border border-accent/20 bg-gradient-to-br from-accent-soft/60 via-white to-warm-soft/30 p-4 shadow-sm space-y-3`}>
                         <div className="flex items-start gap-3">
                           <div className="relative w-11 h-11 rounded-2xl bg-accent text-white flex items-center justify-center shadow-sm shrink-0">
                             <span className="absolute inset-0 rounded-2xl bg-accent animate-ping opacity-15" />
@@ -1468,7 +1471,10 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                       {/* Advanced settings — collapsed by default */}
                       <div className="pt-2">
                         <button
+                          type="button"
                           onClick={() => setShowAdvancedInput(!showAdvancedInput)}
+                          aria-expanded={showAdvancedInput}
+                          aria-controls="advanced-studio-settings"
                           className="text-label-base text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5"
                         >
                           <svg viewBox="0 0 16 16" className={`w-3.5 h-3.5 transition-transform ${showAdvancedInput ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -1484,6 +1490,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
                             transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                            id="advanced-studio-settings"
                             className="mt-3 space-y-3 pl-4 border-l-2 border-cream-dark overflow-hidden"
                           >
                             <div>

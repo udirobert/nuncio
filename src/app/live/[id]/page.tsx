@@ -28,7 +28,10 @@ export default function LiveAvatarLandingPage({
   const clientRef = useRef<AnamClient | null>(null);
   const startedRef = useRef(false);
   const shareIdRef = useRef<string | null>(null);
+  const liveSessionIdRef = useRef<string | null>(null);
+  const liveSessionSyncTokenRef = useRef<string | null>(null);
   const sessionStartedAtRef = useRef<number | null>(null);
+  const sessionSyncedRef = useRef(false);
   const maxDurationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -53,14 +56,31 @@ export default function LiveAvatarLandingPage({
 
   const recordSessionEnd = useCallback((reason: "manual" | "provider_closed" | "max_duration" | "unload") => {
     const shareId = shareIdRef.current;
+    const sessionId = liveSessionIdRef.current;
     const startedAt = sessionStartedAtRef.current;
-    if (!shareId || startedAt === null) return;
+    if (!shareId || !sessionId || startedAt === null || sessionSyncedRef.current) return;
 
-    trackLiveSessionEnded({
+    const durationMs = Math.max(0, Date.now() - startedAt);
+    trackLiveSessionEnded({ shareId, durationMs, reason });
+    sessionSyncedRef.current = true;
+
+    const payload = JSON.stringify({
+      sessionId,
       shareId,
-      durationMs: Math.max(0, Date.now() - startedAt),
+      durationMs,
       reason,
+      syncToken: liveSessionSyncTokenRef.current,
     });
+    if (reason === "unload" && typeof navigator !== "undefined" && navigator.sendBeacon) {
+      navigator.sendBeacon("/api/live/sync", new Blob([payload], { type: "application/json" }));
+    } else {
+      fetch("/api/live/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+        keepalive: true,
+      }).catch(() => {});
+    }
     sessionStartedAtRef.current = null;
   }, []);
 
@@ -105,6 +125,9 @@ export default function LiveAvatarLandingPage({
     if (startedRef.current) return;
     const id = (await params).id;
     shareIdRef.current = id;
+    liveSessionIdRef.current = null;
+    liveSessionSyncTokenRef.current = null;
+    sessionSyncedRef.current = false;
     setStarting(true);
     setError(null);
     trackLiveSessionRequested({ shareId: id });
@@ -121,7 +144,9 @@ export default function LiveAvatarLandingPage({
         throw new Error(data.error || "Could not start live session");
       }
 
-      const data = (await res.json()) as { sessionToken: string };
+      const data = (await res.json()) as { sessionToken: string; sessionId: string; syncToken: string };
+      liveSessionIdRef.current = data.sessionId;
+      liveSessionSyncTokenRef.current = data.syncToken;
       const client = createClient(data.sessionToken);
       clientRef.current = client;
 
@@ -151,6 +176,9 @@ export default function LiveAvatarLandingPage({
       const message = err instanceof Error ? err.message : "Could not start live session";
       clearMaxDurationTimer();
       sessionStartedAtRef.current = null;
+      liveSessionIdRef.current = null;
+      liveSessionSyncTokenRef.current = null;
+      sessionSyncedRef.current = false;
       if (clientRef.current) {
         try {
           clientRef.current.stopStreaming?.();
@@ -260,7 +288,7 @@ export default function LiveAvatarLandingPage({
                       <circle cx="12" cy="12" r="4" />
                     </svg>
                   </div>
-                  <p className="text-sm text-cream/70 mb-1">{status}</p>
+                  <p role="status" aria-live="polite" className="text-sm text-cream/70 mb-1">{status}</p>
                   {error && <p className="text-xs text-red-300 mt-2">{error}</p>}
                 </div>
               )}
@@ -277,6 +305,7 @@ export default function LiveAvatarLandingPage({
               <button
                 onClick={startSession}
                 disabled={starting}
+                aria-label={starting ? "Starting live conversation" : "Start live conversation"}
                 className="btn-press rounded-xl bg-accent text-white px-6 py-3 text-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {starting ? (
@@ -296,6 +325,7 @@ export default function LiveAvatarLandingPage({
             ) : (
               <button
                 onClick={() => endSession("manual")}
+                aria-label="End live conversation"
                 className="btn-press rounded-xl bg-warm text-white px-6 py-3 text-sm font-medium hover:bg-warm/90 transition-colors flex items-center gap-2"
               >
                 <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">

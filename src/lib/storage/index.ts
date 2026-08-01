@@ -1,4 +1,6 @@
-import type { AccountStorageProvider, BandActivityStorageProvider, BatchStorageProvider, MediaStorageProvider, ProofStorageProvider, ShareStorageProvider, TokenStorageProvider } from "./types";
+import type { AccountStorageProvider, BandActivityStorageProvider, BatchStorageProvider, LiveSessionStorageProvider, MediaStorageProvider, ProofStorageProvider, ShareStorageProvider, TokenStorageProvider } from "./types";
+import { FileLiveSessionStorageProvider } from "./file-live-session-provider";
+import { TursoLiveSessionStorageProvider } from "./turso-live-session-provider";
 import { FileShareStorageProvider } from "./file-provider";
 import { FileAccountStorageProvider } from "./file-account-provider";
 import { FileBatchStorageProvider } from "./file-batch-provider";
@@ -19,6 +21,7 @@ let tokenProvider: TokenStorageProvider | null = null;
 let batchProvider: BatchStorageProvider | null = null;
 let bandActivityProvider: BandActivityStorageProvider | null = null;
 let mediaProvider: MediaStorageProvider | null = null;
+let liveSessionProvider: LiveSessionStorageProvider | null = null;
 
 export type {
   AccountStorageProvider,
@@ -28,6 +31,9 @@ export type {
   BatchStorageProvider,
   CreditAccountSummary,
   CreditTransactionRecord,
+  LiveSessionRecord,
+  LiveSessionStatus,
+  LiveSessionStorageProvider,
   MagicLinkToken,
   MediaStorageProvider,
   ProofPublishResult,
@@ -121,6 +127,20 @@ export function getBandActivityProvider(): BandActivityStorageProvider {
   return bandActivityProvider;
 }
 
+export function getLiveSessionStorageProvider(): LiveSessionStorageProvider {
+  if (liveSessionProvider) return liveSessionProvider;
+
+  if (process.env.TURSO_DATABASE_URL) {
+    liveSessionProvider = new TursoLiveSessionStorageProvider();
+    console.log("[storage] Using Turso live session storage");
+    return liveSessionProvider;
+  }
+
+  liveSessionProvider = new FileLiveSessionStorageProvider();
+  console.log("[storage] Using file live session storage");
+  return liveSessionProvider;
+}
+
 export function getMediaStorageProvider(): MediaStorageProvider | null {
   if (mediaProvider) return mediaProvider;
 
@@ -141,4 +161,5 @@ export function resetStorageProvidersForTests(): void {
   batchProvider = null;
   bandActivityProvider = null;
   mediaProvider = null;
+  liveSessionProvider = null;
 }

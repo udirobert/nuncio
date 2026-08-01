@@ -177,54 +177,87 @@ export class TursoAccountStorageProvider implements AccountStorageProvider {
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
     };
-    await this.client.execute({
-      sql: `INSERT INTO credit_transactions (id, workspace_id, type, amount, record_json, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+    const result = await this.client.execute({
+      sql: `INSERT OR IGNORE INTO credit_transactions
+        (id, workspace_id, type, amount, idempotency_key, record_json, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       args: [
         transaction.id,
         transaction.workspaceId,
         transaction.type,
         transaction.amount,
+        transaction.idempotencyKey || null,
         JSON.stringify(transaction),
         transaction.createdAt,
       ],
     });
+
+    if (result.rowsAffected === 0) {
+      if (transaction.idempotencyKey) {
+        const existing = await this.client.execute({
+          sql: `SELECT record_json FROM credit_transactions WHERE idempotency_key = ? LIMIT 1`,
+          args: [transaction.idempotencyKey],
+        });
+        const stored = parseRow<CreditTransactionRecord>(existing.rows[0]?.record_json);
+        if (stored) return stored;
+      }
+      throw new Error("Credit transaction was not inserted");
+    }
+
     return transaction;
   }
 
   private async ensureSchema(): Promise<void> {
     if (!this.ready) {
-      this.ready = Promise.all([
-        this.client.execute(`
-          CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY,
-            email TEXT UNIQUE NOT NULL,
-            stripe_customer_id TEXT,
-            record_json TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-          )
-        `),
-        this.client.execute(`
-          CREATE TABLE IF NOT EXISTS workspaces (
-            id TEXT PRIMARY KEY,
-            owner_user_id TEXT,
-            stripe_customer_id TEXT,
-            record_json TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-          )
-        `),
-        this.client.execute(`
-          CREATE TABLE IF NOT EXISTS credit_transactions (
-            id TEXT PRIMARY KEY,
-            workspace_id TEXT NOT NULL,
-            type TEXT NOT NULL,
-            amount INTEGER NOT NULL,
-            record_json TEXT NOT NULL,
-            created_at TEXT NOT NULL
-          )
-        `),
-      ]).then(() => undefined);
+      this.ready = (async () => {
+        await Promise.all([
+          this.client.execute(`
+            CREATE TABLE IF NOT EXISTS users (
+              id TEXT PRIMARY KEY,
+              email TEXT UNIQUE NOT NULL,
+              stripe_customer_id TEXT,
+              record_json TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            )
+          `),
+          this.client.execute(`
+            CREATE TABLE IF NOT EXISTS workspaces (
+              id TEXT PRIMARY KEY,
+              owner_user_id TEXT,
+              stripe_customer_id TEXT,
+              record_json TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            )
+          `),
+          this.client.execute(`
+            CREATE TABLE IF NOT EXISTS credit_transactions (
+              id TEXT PRIMARY KEY,
+              workspace_id TEXT NOT NULL,
+              type TEXT NOT NULL,
+              amount INTEGER NOT NULL,
+              idempotency_key TEXT,
+              record_json TEXT NOT NULL,
+              created_at TEXT NOT NULL
+            )
+          `),
+        ]);
+
+        // Migrate databases created before idempotency was introduced. Only
+        // the expected already-applied-column error is ignored.
+        try {
+          await this.client.execute(`ALTER TABLE credit_transactions ADD COLUMN idempotency_key TEXT`);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (!/duplicate column name: idempotency_key/i.test(message)) throw error;
+        }
+        await this.client.execute(`
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_idempotency
+          ON credit_transactions(idempotency_key)
+          WHERE idempotency_key IS NOT NULL
+        `);
+      })();
     }
 
     return this.ready;

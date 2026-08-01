@@ -76,6 +76,7 @@ describe("estimateCreditCost", () => {
     expect(estimateCreditCost("script.generate")).toBe(1);
     expect(estimateCreditCost("canvas.build")).toBe(1);
     expect(estimateCreditCost("video.render")).toBe(8);
+    expect(estimateCreditCost("live.session")).toBe(5);
 
     expect(estimateCreditCost("video.render", 2)).toBe(16);
   });
@@ -107,6 +108,13 @@ describe("getCreditBalance", () => {
     const subject = { workspaceId: "anon:test-1", anonymous: true };
     const balance = await getCreditBalance(subject);
     expect(balance).toBe(10);
+  });
+
+  it("defaults anonymous trial credits to 15 when no override is set", async () => {
+    delete process.env.NUNCIO_TRIAL_CREDITS;
+    const subject = { workspaceId: "anon:test-default-trial", anonymous: true };
+    const balance = await getCreditBalance(subject);
+    expect(balance).toBe(15);
   });
 
   it("returns 0 for unknown non-anonymous subjects", async () => {

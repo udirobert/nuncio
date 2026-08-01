@@ -33,7 +33,7 @@ API routes implement per-IP sliding-window rate limits (`src/lib/rate-limit.ts`)
 - Transcription: 10 req/min
 - Live avatar session: 3 req/min
 
-LiveLink also needs provider-level spend protection: a feature gate/allowlist, maximum session duration, idle timeout, and a fallback path. The route now reads `NUNCIO_LIVELINK_ENABLED` (opt-in, default off), and the browser caps sessions at five minutes with disconnect/unload cleanup. The current `live.session` credit protection still happens at session creation and does **not** reconcile actual session duration; allowlisting, idle timeout, and recorded-video fallback remain. Do not open the feature broadly until those controls exist.
+LiveLink is a tightly controlled pilot. It requires `NUNCIO_LIVELINK_ENABLED=true` plus a non-empty `NUNCIO_LIVELINK_WORKSPACE_IDS` and/or `NUNCIO_LIVELINK_SENDER_EMAILS` allowlist; otherwise it fails closed. The browser caps sessions at five minutes and syncs terminal lifecycle events using a per-session token. The server stores durable session records, permits only one open session per link, and reserves a five-credit maximum; provider-start failures refund, while client-reported duration is telemetry only because Anam has no server-authoritative duration endpoint. Configure a scheduler to POST `/api/live/expire` with `Authorization: Bearer $NUNCIO_LIVELINK_CRON_TOKEN` at least every minute. For multi-instance deployments, configure Turso; file-based live-session admission and billing idempotency locks are process-local and are intended only for a single app process. If a reservation/refund write fails, reconcile the affected reservation before re-enabling the pilot. Idle timeout and recorded-video fallback remain future work. Do not open the feature broadly until those controls and a fallback are in place.
 
 By default, limits are stored in-memory and reset on server restart. For multi-instance or
 production deployments, enable Redis-backed rate limiting:
@@ -153,6 +153,9 @@ ANAM_API_KEY=
 ANAM_AVATAR_ID=
 ANAM_VOICE_ID=
 NUNCIO_LIVELINK_ENABLED=false
+NUNCIO_LIVELINK_WORKSPACE_IDS=
+NUNCIO_LIVELINK_SENDER_EMAILS=
+NUNCIO_LIVELINK_CRON_TOKEN=
 
 # Speechmatics — speech-to-text
 SPEECHMATICS_API_KEY=
@@ -263,8 +266,9 @@ cp .env.example .env.local
 nano .env.local
 # Add all API keys. See .env.example for the full list of variables.
 # For the future LiveLink pilot, also set ANAM_API_KEY, ANAM_AVATAR_ID, ANAM_VOICE_ID.
-# NUNCIO_LIVELINK_ENABLED is an opt-in server-side gate; keep it false until
-# the allowlist, idle timeout, fallback, and duration reconciliation are ready.
+# NUNCIO_LIVELINK_ENABLED is an opt-in server-side gate; keep it false unless
+# the pilot allowlists and cron token are configured. Run every minute:
+# curl -X POST https://your-domain.com/api/live/expire -H "Authorization: Bearer $NUNCIO_LIVELINK_CRON_TOKEN"
 # Protect the file: chmod 600 .env.local
 
 pnpm install
@@ -349,7 +353,7 @@ Once deployed, verify:
 1. **Homepage loads:** `https://your-domain.com`
 2. **Demo mode works:** `https://your-domain.com?demo=true`
 3. **API routes respond:** `curl -X POST https://your-domain.com/api/enrich -H "Content-Type: application/json" -d '{"urls":["https://linkedin.com/in/test"]}'`
-4. **LiveLink remains gated:** keep `NUNCIO_LIVELINK_ENABLED=false` except for the controlled pilot. The gate is active, but allowlisting, idle timeout, recorded-video fallback, and duration reconciliation are still pending.
+4. **LiveLink remains gated:** keep `NUNCIO_LIVELINK_ENABLED=false` except for the controlled pilot. When enabled, verify the workspace/sender allowlist and scheduled `/api/live/expire` job; the gate fails closed without explicit allowlist entries.
 5. **LiveLink pilot:** when enabled for a test share, verify HTTPS/WebRTC connection, microphone disclosure, maximum duration, idle timeout, disconnect cleanup, safe provider failure, and recorded-video fallback.
 
 ---

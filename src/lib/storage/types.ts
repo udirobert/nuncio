@@ -79,6 +79,8 @@ export interface CreditTransactionRecord {
   flowId?: string;
   provider?: string;
   reservationId?: string;
+  /** Stable key for an operation that must be applied at most once. */
+  idempotencyKey?: string;
   metadata?: Record<string, unknown>;
   createdAt: string;
 }
@@ -87,6 +89,50 @@ export interface CreditAccountSummary {
   workspace: WorkspaceAccount;
   balance: number;
   transactions: CreditTransactionRecord[];
+}
+
+export type LiveSessionStatus = "pending" | "active" | "ended" | "expired" | "failed";
+
+export interface LiveSessionRecord {
+  id: string;
+  shareId: string;
+  workspaceId?: string;
+  reservationId?: string;
+  syncTokenHash: string;
+  provider?: string;
+  reservedCredits: number;
+  chargedCredits: number;
+  creditsEnforced: boolean;
+  status: LiveSessionStatus;
+  createdAt: string;
+  startedAt?: string;
+  endedAt?: string;
+  durationMs?: number;
+  terminalReason?: string;
+}
+
+export interface LiveSessionStorageProvider {
+  readonly name: string;
+  create(record: LiveSessionRecord): Promise<LiveSessionRecord>;
+  /** Create a session only when the share has no pending/active session. */
+  createIfNoOpen(record: LiveSessionRecord): Promise<LiveSessionRecord | null>;
+  get(id: string): Promise<LiveSessionRecord | null>;
+  update(record: LiveSessionRecord): Promise<void>;
+  listOpen(): Promise<LiveSessionRecord[]>;
+}
+
+export interface AccountStorageProvider {
+  readonly name: string;
+  upsertUserByEmail(email: string, updates?: Partial<AccountUser>): Promise<AccountUser>;
+  getUserByEmail(email: string): Promise<AccountUser | null>;
+  getUserByStripeCustomerId(customerId: string): Promise<AccountUser | null>;
+  updateUser(id: string, updates: Partial<AccountUser>): Promise<AccountUser | null>;
+  upsertWorkspaceForUser(user: AccountUser, updates?: Partial<WorkspaceAccount>): Promise<WorkspaceAccount>;
+  getWorkspace(id: string): Promise<WorkspaceAccount | null>;
+  getWorkspaceByStripeCustomerId(customerId: string): Promise<WorkspaceAccount | null>;
+  updateWorkspace(id: string, updates: Partial<WorkspaceAccount>): Promise<WorkspaceAccount | null>;
+  getCreditSummary(workspaceId: string): Promise<CreditAccountSummary | null>;
+  appendCreditTransaction(input: Omit<CreditTransactionRecord, "id" | "createdAt">): Promise<CreditTransactionRecord>;
 }
 
 export interface MagicLinkToken {
@@ -114,20 +160,6 @@ export interface BatchStorageProvider {
   list(): Promise<Batch[]>;
   update(record: Batch): Promise<void>;
   delete(id: string): Promise<void>;
-}
-
-export interface AccountStorageProvider {
-  readonly name: string;
-  upsertUserByEmail(email: string, updates?: Partial<AccountUser>): Promise<AccountUser>;
-  getUserByEmail(email: string): Promise<AccountUser | null>;
-  getUserByStripeCustomerId(customerId: string): Promise<AccountUser | null>;
-  updateUser(id: string, updates: Partial<AccountUser>): Promise<AccountUser | null>;
-  upsertWorkspaceForUser(user: AccountUser, updates?: Partial<WorkspaceAccount>): Promise<WorkspaceAccount>;
-  getWorkspace(id: string): Promise<WorkspaceAccount | null>;
-  getWorkspaceByStripeCustomerId(customerId: string): Promise<WorkspaceAccount | null>;
-  updateWorkspace(id: string, updates: Partial<WorkspaceAccount>): Promise<WorkspaceAccount | null>;
-  getCreditSummary(workspaceId: string): Promise<CreditAccountSummary | null>;
-  appendCreditTransaction(input: Omit<CreditTransactionRecord, "id" | "createdAt">): Promise<CreditTransactionRecord>;
 }
 
 export interface BandActivityEvent {

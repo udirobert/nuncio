@@ -13,7 +13,7 @@ Runs local, low/no-credit checks:
 - share record create/read round-trip
 - script endpoint timing on a tiny synthetic enrichment payload using the deterministic fallback path
 
-Results are saved to `artifacts/test-runs/*.json` and ignored by git.
+Results are saved to `artifacts/test-runs/*.json` and ignored by git. The smoke runner may reuse a reachable local server via `SMOKE_BASE_URL`; otherwise it starts `pnpm dev`. Because Next.js permits only one dev server per repository `.next` directory, stop any existing dev server before asking the runner to start on a different port, or reuse the existing server's port.
 
 By default this exercises the active share metadata provider:
 
@@ -65,7 +65,16 @@ LiveLink is a metered, real-time experiment. Keep tests split into credit-free c
 
 ### Credit-free checks
 
-Before calling Anam, add a mockable provider boundary so tests can verify:
+The current credit-free contract suite verifies:
+
+- disabled `/api/share`, `/api/live/session`, and pipeline LiveLink gates;
+- recorded-video share creation remains available when LiveLink is disabled;
+- fail-closed workspace/sender allowlisting;
+- five-minute/max-credit policy and conservative reconciliation math;
+- durable lifecycle token hashing, provider-start refund, retry idempotence, and stale expiry;
+- mobile collapsible controls expose `aria-expanded`/`aria-controls` and live status uses an announcement region.
+
+Before calling Anam, keep the provider boundary mockable so tests can verify:
 
 - missing `ANAM_API_KEY`, `ANAM_AVATAR_ID`, or `ANAM_VOICE_ID` returns a safe configuration error;
 - an unknown share returns 404;
@@ -77,15 +86,19 @@ Before calling Anam, add a mockable provider boundary so tests can verify:
 
 These checks must not require live Anam credentials or consume provider minutes.
 
-### Controlled external smoke test (planned)
+### Controlled external smoke test
 
-Add a dedicated live smoke-test path before running this command. Once implemented, run it only when the Anam secrets are configured and a test share is available:
+The smoke script now supports a deliberately guarded provider check. It requires a dedicated allowlisted test share, explicit confirmation, and starts at most one Anam token session:
 
 ```bash
-SMOKE_LIVE=1 pnpm smoke
+NUNCIO_CREDITS_ENFORCED=true \
+SMOKE_LIVE=1 \
+SMOKE_LIVE_CONFIRM=1 \
+SMOKE_LIVE_SHARE_ID=<dedicated-test-share-id> \
+pnpm smoke
 ```
 
-The planned smoke test should start at most one short session, record token/connection timing and the provider result, and never poll or retry indefinitely. Keep it separate from the default `pnpm smoke` run. Do not use production prospect data for this check. `SMOKE_LIVE` is not currently handled by `scripts/smoke.mjs`.
+The check validates token issuance and sends one bounded terminal sync to `/api/live/sync`; it never retries indefinitely. It can reserve the full five-credit maximum even when the reported duration is zero. It does **not** establish browser WebRTC/media, so it must be followed by the browser pilot checks below. Run it only with Anam secrets configured, credits enforced, and a disposable test share. Never use production prospect data. Results record whether the paid check was enabled and are written to `artifacts/test-runs/*.json`. If `liveCleanupNeedsReview` is true, stop and reconcile through `/api/live/expire` and the credit ledger before rerunning.
 
 ### Browser pilot checks
 
@@ -98,7 +111,7 @@ Use Playwright or a real browser on desktop and mobile Safari/Chrome to verify t
 - Anam failure falls back to a useful recorded-video or follow-up path;
 - session duration, connection state, and failure reason are captured without raw audio by default.
 
-The current page supports the initial connection/error/retry flow, active five-minute cap, SDK cleanup, and client lifecycle telemetry. Allowlist, idle timeout, durable server-side lifecycle records, fallback, and duration reconciliation remain implementation work.
+The current page supports the initial connection/error/retry flow, active five-minute cap, SDK cleanup, client lifecycle telemetry, and durable terminal sync. Allowlisting, scheduled stale expiry, conservative reservation reconciliation, and the guarded provider smoke path are implemented. Idle timeout, recorded-video fallback, and provider-authoritative duration remain launch work.
 
 ### Pilot measurement
 

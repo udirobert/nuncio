@@ -8,6 +8,10 @@ const OUT_DIR = process.env.SMOKE_OUT_DIR || "artifacts/test-runs";
 const RUN_EXTERNAL = process.env.SMOKE_EXTERNAL === "1";
 const RUN_LLM = process.env.SMOKE_LLM === "1";
 const RUN_VIDEO = process.env.SMOKE_VIDEO === "1";
+const RUN_LIVE = process.env.SMOKE_LIVE === "1";
+const LIVE_CONFIRM = process.env.SMOKE_LIVE_CONFIRM === "1";
+let liveExecuted = false;
+let liveCleanupNeedsReview = false;
 const startedAt = new Date();
 const results = [];
 
@@ -30,9 +34,21 @@ async function main() {
     if (RUN_VIDEO) {
       await testHeyGenStartOnly();
     }
+
+    if (RUN_LIVE) {
+      await testLiveLinkTokenAndCleanup();
+    }
   } finally {
     if (server) server.kill("SIGTERM");
     await saveResults();
+  }
+
+  if (liveCleanupNeedsReview) {
+    console.warn("⚠ LiveLink cleanup needs review: check /api/live/expire and the credit ledger before rerunning.");
+  }
+
+  if (results.some((result) => result.ok === false)) {
+    process.exitCode = 1;
   }
 }
 
@@ -146,6 +162,68 @@ async function testHeyGenStartOnly() {
   });
 }
 
+async function testLiveLinkTokenAndCleanup() {
+  await timed("livelink.token_and_cleanup", async () => {
+    if (!LIVE_CONFIRM) {
+      throw new Error("SMOKE_LIVE_CONFIRM=1 is required because this test calls the metered Anam provider");
+    }
+    if (process.env.NUNCIO_CREDITS_ENFORCED !== "true") {
+      throw new Error("NUNCIO_CREDITS_ENFORCED=true is required before running the metered LiveLink smoke test");
+    }
+
+    const shareId = process.env.SMOKE_LIVE_SHARE_ID;
+    if (!shareId) {
+      throw new Error("SMOKE_LIVE_SHARE_ID is required and must identify a dedicated allowlisted test share");
+    }
+
+    let session;
+    let cleanupCompleted = false;
+    try {
+      liveExecuted = true;
+      session = await post("/api/live/session", { shareId }, 30000);
+      assert(session.sessionId, "missing live sessionId");
+      assert(session.syncToken, "missing live syncToken");
+      assert(session.sessionToken, "missing Anam session token");
+
+      const synced = await post("/api/live/sync", {
+        sessionId: session.sessionId,
+        shareId,
+        durationMs: 0,
+        reason: "manual",
+        syncToken: session.syncToken,
+      }, 15000);
+      assert(synced.status === "ended", `unexpected live cleanup status: ${synced.status}`);
+      cleanupCompleted = true;
+
+      return {
+        shareId,
+        sessionId: session.sessionId,
+        cleanupStatus: synced.status,
+        chargedCredits: synced.chargedCredits,
+      };
+    } finally {
+      // The smoke path never retries. If token creation succeeded but the
+      // normal sync failed, make one bounded best-effort cleanup attempt.
+      if (!cleanupCompleted && session?.sessionId && session?.syncToken) {
+        await post("/api/live/sync", {
+          sessionId: session.sessionId,
+          shareId,
+          durationMs: 0,
+          reason: "manual",
+          syncToken: session.syncToken,
+        }, 5000).catch(() => {
+          liveCleanupNeedsReview = true;
+        });
+      } else if (liveExecuted) {
+        // A provider/network failure may have created a durable session even
+        // though the response was incomplete. Surface this explicitly so an
+        // operator checks /api/live/expire and the credit ledger before retrying.
+        liveCleanupNeedsReview = true;
+      }
+    }
+  });
+}
+
 async function timed(name, fn) {
   const start = performance.now();
   try {
@@ -210,6 +288,10 @@ async function saveResults() {
     external: RUN_EXTERNAL,
     llm: RUN_LLM,
     video: RUN_VIDEO,
+    liveRequested: RUN_LIVE,
+    liveConfirmationProvided: LIVE_CONFIRM,
+    liveExecuted,
+    liveCleanupNeedsReview,
     results,
   };
   const file = path.join(

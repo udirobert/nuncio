@@ -24,6 +24,8 @@ export interface ShareRecord {
   videoId?: string;
   recipientName?: string;
   senderName?: string;
+  /** Internal sender identity used for pilot allowlisting; never expose from public share GET responses. */
+  senderEmail?: string;
   email?: string;
   workspaceId?: string;
   createdAt: string;
