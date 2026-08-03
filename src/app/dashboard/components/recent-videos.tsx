@@ -116,6 +116,7 @@ export function RecentVideos() {
   const [videos, setVideos] = useState<VideoData[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -136,7 +137,7 @@ export function RecentVideos() {
       type: "video" as const,
       label: v.recipientName || "Untitled video",
       status: "completed" as const,
-      url: v.videoUrl,
+      url: `/v/${v.id}`,
       detail: "Studio video",
       createdAt: v.createdAt,
     })),
@@ -234,14 +235,30 @@ export function RecentVideos() {
                       <span className="text-[10px] text-accent">In progress</span>
                     )}
                     {entry.status === "completed" && entry.type === "video" && (
-                      <Link
-                        href={entry.url || "#"}
-                        target="_blank"
-                        className="text-[10px] uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors opacity-0 group-hover:opacity-100"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        View
-                      </Link>
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (entry.url) {
+                              const shareUrl = new URL(entry.url, window.location.origin).toString();
+                              navigator.clipboard?.writeText(shareUrl);
+                              setCopiedId(entry.id);
+                              setTimeout(() => setCopiedId(null), 2000);
+                            }
+                          }}
+                          className="text-[10px] uppercase tracking-widest font-medium text-ink-faint hover:text-ink transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          {copiedId === entry.id ? "Copied!" : "Copy link"}
+                        </button>
+                        <Link
+                          href={entry.url || "#"}
+                          target="_blank"
+                          className="text-[10px] uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors opacity-0 group-hover:opacity-100"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          View
+                        </Link>
+                      </>
                     )}
                     {entry.type === "batch" && (
                       <Link

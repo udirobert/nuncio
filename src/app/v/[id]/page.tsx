@@ -103,6 +103,17 @@ export default function VideoLandingPage({
   }
 
   const hasVideo = Boolean(videoData.videoUrl);
+  const senderName = videoData.senderName || "";
+  const recipientName = videoData.recipientName || "";
+  const senderCompany = videoData.profile?.company || "";
+  const senderRole = videoData.profile?.current_role || "";
+
+  // Build a "why you're seeing this" line from the profile
+  const senderContext = senderName
+    ? senderRole || senderCompany
+      ? `${senderName}${senderRole ? ` — ${senderRole}` : ""}${senderCompany ? ` at ${senderCompany}` : ""}`
+      : senderName
+    : "";
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
@@ -135,17 +146,22 @@ export default function VideoLandingPage({
             className="mb-8 text-center"
           >
             <h1 className="font-display text-4xl md:text-5xl tracking-tight leading-[0.9] mb-3">
-              Hey{videoData.recipientName ? ` ${videoData.recipientName}` : ""}
+              Hey{recipientName ? ` ${recipientName}` : ""}
             </h1>
             <p className="text-ink-muted text-[15px]">
               {hasVideo
-                ? videoData.senderName
-                  ? `${videoData.senderName} recorded this for you`
+                ? senderName
+                  ? `${senderName} recorded this for you`
                   : "Someone recorded this video just for you"
-                : videoData.senderName
-                  ? `${videoData.senderName} is preparing a video for you`
+                : senderName
+                  ? `${senderName} is preparing a video for you`
                   : "A video is being prepared for you"}
             </p>
+            {senderContext && (
+              <p className="text-ink-faint text-xs mt-1.5">
+                {senderContext}
+              </p>
+            )}
           </motion.div>
 
           {/* Video — scales up from card with clip-path reveal */}
@@ -262,8 +278,25 @@ export default function VideoLandingPage({
             >
               <button
                 onClick={() => {
+                  const replySubject = `Re: your video${recipientName ? ` for ${recipientName}` : ""}`;
+                  const replyBody = senderName
+                    ? `Hi ${senderName},\n\nThanks for the personalised video — really appreciated the personal touch.\n\nI'd love to learn more. When are you free for a quick call?`
+                    : `Thanks for the personalised video — really appreciated the personal touch.\n\nI'd love to learn more. When are you free for a quick call?`;
+                  const mailto = `mailto:?subject=${encodeURIComponent(replySubject)}&body=${encodeURIComponent(replyBody)}`;
+                  window.location.href = mailto;
+                }}
+                className="btn-press rounded-xl bg-ink text-cream px-5 py-2.5 text-xs font-medium hover:bg-ink-light transition-colors flex items-center gap-1.5"
+              >
+                <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M2 4h12v8H2z" />
+                  <path d="M2 4l6 5 6-5" />
+                </svg>
+                Reply
+              </button>
+              <button
+                onClick={() => {
                   navigator.clipboard?.writeText(
-                    `Thanks for the video${videoData.senderName ? `, ${videoData.senderName}` : ""}! Really appreciate the personal touch.`
+                    `Thanks for the video${senderName ? `, ${senderName}` : ""}! Really appreciate the personal touch.`
                   );
                   setThanksCopied(true);
                   setTimeout(() => setThanksCopied(false), 2000);
@@ -273,8 +306,8 @@ export default function VideoLandingPage({
                 {thanksCopied ? "Copied!" : "Say thanks"}
               </button>
               <Link
-                href={`/?reply=${encodeURIComponent(videoData.senderName || "")}`}
-                className="btn-press rounded-xl bg-ink text-cream px-5 py-2.5 text-xs font-medium hover:bg-ink-light transition-colors flex items-center gap-1.5"
+                href={`/?reply=${encodeURIComponent(senderName || "")}`}
+                className="btn-press rounded-xl border border-cream-dark bg-white/80 px-5 py-2.5 text-xs font-medium text-ink hover:bg-white transition-colors flex items-center gap-1.5"
               >
                 <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M14 2L7 9M14 2l-5 12-2-5-5-2 12-5z" />

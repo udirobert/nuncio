@@ -34,11 +34,24 @@
 - [ ] Record 3-min demo video showing:
   - User creates video in studio
   - Video renders via HeyGen
+  - Genblaze composite pipeline runs (thumbnail + soundscape + narration in one run)
   - B2 persist endpoint called (check network tab)
   - Share page loads video via presigned URL
   - Genblaze worker logs show composite generation
 - [ ] Verify demo video is < 3 minutes
 - [ ] Submit via Devpost before **Aug 4, 2026 @ 12:00am GMT+3**
+
+## Key Files for Judges
+
+| File | What to look for |
+|------|-----------------|
+| `src/lib/pipeline/steps.ts` | Pipeline single source of truth — `generateMediaAssets()` is Step 6, calls Genblaze composite + persists to B2 |
+| `src/app/api/pipeline/route.ts` | Studio pipeline route — calls `generateMediaAssets()` after `renderVideo()` |
+| `src/app/api/agent/prospect-queue/route.ts` | Autonomous agent endpoint — same shared `generateMediaAssets()` step (DRY) |
+| `workers/genblaze/providers.py` | Genblaze SDK usage — `Pipeline("nuncio-composite")` with GMI Cloud + ElevenLabs |
+| `src/lib/storage/b2-provider.ts` | B2 S3-compatible storage — presigned URLs, user-defined metadata, `listKeys` |
+| `src/lib/storage/media-store.ts` | B2 persistence layer — `persistVideo`, `persistTrace`, `persistAssetManifest` |
+| `src/lib/genblaze-client.ts` | TypeScript client for the Genblaze worker |
 
 ## Notes
 

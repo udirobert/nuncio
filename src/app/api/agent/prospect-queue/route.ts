@@ -28,8 +28,10 @@ import {
   generateOutreachScript,
   reviewScript,
   renderVideo,
+  generateMediaAssets,
   type PipelineInput,
 } from "@/lib/pipeline/steps";
+import { chooseArchetype } from "@/lib/hooks/select";
 import { getShareStorageProvider } from "@/lib/storage";
 
 // ── In-memory queue (same pattern as batch processor) ─────────────────
@@ -49,6 +51,13 @@ interface QueueEntry {
     vibeId?: string;
     researchQuality?: import("@/lib/pipeline/steps").ResearchQuality;
     needsReview?: boolean;
+    mediaAssets?: {
+      usedGenblaze: boolean;
+      providers?: string[];
+      thumbnailUrl?: string;
+      soundscapeUrl?: string;
+      manifestUri?: string;
+    };
   };
   error?: string;
   createdAt: string;
@@ -196,8 +205,8 @@ async function processQueueEntry(
       { recentActivity, companyContext },
     );
 
-    // Step 4: Review
-    const { passed } = reviewScript(scriptResult, profile);
+    // Step 4: Review (advisory in agent mode — doesn't gate rendering)
+    reviewScript(scriptResult, profile);
 
     // Step 5: Render (if autoRender enabled)
     // For the autonomous agent, render regardless of review issues —
@@ -207,12 +216,38 @@ async function processQueueEntry(
     // low-confidence profile.
     let videoUrl: string | undefined;
     let videoId: string | undefined;
+    let mediaAssets: import("@/lib/pipeline/steps").MediaAssets | undefined;
     const lowConfidence = researchQuality?.confidence === "low";
+
+    // Pre-generate shareId so media assets can be grouped under it
+    // before the ShareRecord is created.
+    const shareId = crypto.randomUUID();
 
     if (input.autoRender && !lowConfidence) {
       const renderResult = await renderVideo(scriptResult.script, profile, input.customization);
       videoUrl = renderResult.videoUrl;
       videoId = renderResult.videoId;
+
+      // Step 6: Generate media assets via Genblaze composite pipeline + persist to B2
+      // Same shared step as the studio pipeline — DRY. Generates thumbnail,
+      // soundscape, and narration via Genblaze, persists all assets to B2 with
+      // provenance manifests. Non-blocking: failures don't invalidate the video.
+      try {
+        const hookChoice = chooseArchetype(profile, input.senderBrief);
+        const soundscapePrompt = `Ambient professional soundscape for: ${hookChoice.archetype.label}. Subtle, non-distracting, high quality.`;
+
+        mediaAssets = await generateMediaAssets(
+          videoUrl,
+          scriptResult.script,
+          profile,
+          shareId,
+          hookChoice.concept,
+          soundscapePrompt,
+        );
+        if (mediaAssets.videoUrl) videoUrl = mediaAssets.videoUrl;
+      } catch (mediaError) {
+        console.warn("[agent-queue] Media asset generation failed:", mediaError);
+      }
     }
 
     // Persist as ShareRecord
@@ -241,6 +276,13 @@ async function processQueueEntry(
       vibeId: scriptResult.vibeId,
       researchQuality,
       needsReview: lowConfidence,
+      mediaAssets: mediaAssets ? {
+        usedGenblaze: mediaAssets.usedGenblaze,
+        providers: mediaAssets.genblazeProviders,
+        thumbnailUrl: mediaAssets.thumbnailUrl,
+        soundscapeUrl: mediaAssets.soundscapeUrl,
+        manifestUri: mediaAssets.manifestUri,
+      } : undefined,
     };
   } catch (error) {
     entry.status = "failed";

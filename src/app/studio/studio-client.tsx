@@ -143,6 +143,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
   const [showProgressDetails, setShowProgressDetails] = useState(false);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [showAdvancedInput, setShowAdvancedInput] = useState(false);
+  const [urlError, setUrlError] = useState<string | null>(null);
   const [showVoiceCard, setShowVoiceCard] = useState(false);
   const [scriptEditing, setScriptEditing] = useState(false);
   const [url, setUrl] = useState(() => {
@@ -282,6 +283,14 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
   const [audioMemoUrl, setAudioMemoUrl] = useState<string | null>(null);
   const [audioMemoLoading, setAudioMemoLoading] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Auto-dismiss toast after 6 seconds
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => setToastMessage(null), 6000);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
 
   const searchParams = useSearchParams();
 
@@ -519,8 +528,33 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
     setCaptureEmail("");
   }
 
+  function validateUrl(input: string): string | null {
+    const trimmed = input.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
+      const host = parsed.hostname.replace(/^www\./, "");
+      const knownProfiles = ["linkedin.com", "x.com", "twitter.com", "github.com", "instagram.com"];
+      const isKnown = knownProfiles.some((p) => host === p || host.endsWith(`.${p}`));
+      if (!isKnown && !trimmed.startsWith("http")) {
+        return "This doesn't look like a URL. Try pasting a LinkedIn or Twitter profile link.";
+      }
+      if (!isKnown) {
+        return "Tip: LinkedIn or Twitter profiles work best. Other URLs may have less data.";
+      }
+      return null;
+    } catch {
+      return "This doesn't look like a valid URL. Try pasting a LinkedIn or Twitter profile link.";
+    }
+  }
+
   async function handleEnrich(resumeFromSession?: string) {
     if (!url.trim()) return;
+    const urlValidation = validateUrl(url);
+    if (urlValidation && urlValidation.includes("doesn't look like a URL")) {
+      setUrlError(urlValidation);
+      return;
+    }
 
     const demoAgents = typeof window !== "undefined" && (
       localStorage.getItem("nuncio_demo_agents") === "band" ||
@@ -822,6 +856,46 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
     };
   }, []);
 
+  // Resume pending render if user navigated away and came back
+  useEffect(() => {
+    try {
+      const pending = sessionStorage.getItem("nuncio_pending_render");
+      if (!pending) return;
+      const { videoId } = JSON.parse(pending) as { videoId: string; recipientName?: string; startedAt?: number };
+      if (!videoId) return;
+
+      let cancelled = false;
+      const checkRenderStatus = async () => {
+        if (cancelled) return;
+        try {
+          const res = await fetch(`/api/video/${videoId}`);
+          if (!res.ok) return;
+          const status = await res.json();
+          if (status.status === "completed" && status.videoUrl) {
+            clearInterval(checkInterval);
+            sessionStorage.removeItem("nuncio_pending_render");
+            setVideoRenderResult({ videoUrl: status.videoUrl, videoId });
+            setVideoRendering("done");
+            if (typeof Notification !== "undefined" && Notification.permission === "granted" && document.hidden) {
+              new Notification("Your video is ready!", {
+                body: "Your nuncio video has finished rendering.",
+                icon: "/icon-192.png",
+              });
+            }
+          } else if (status.status === "failed") {
+            clearInterval(checkInterval);
+            sessionStorage.removeItem("nuncio_pending_render");
+            setVideoRendering("failed");
+          }
+        } catch { /* keep polling */ }
+      };
+      const checkInterval = setInterval(checkRenderStatus, 10000);
+      // Check immediately
+      checkRenderStatus();
+      return () => { cancelled = true; clearInterval(checkInterval); };
+    } catch { /* ignore */ }
+  }, []);
+
   async function handleRegenerate(adjustments?: string) {
     if (!reviewProfile) return;
     setReviewRegenerating(true);
@@ -867,7 +941,10 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
         }),
       });
 
-      if (!res.ok) return;
+      if (!res.ok) {
+        setToastMessage("Couldn't regenerate script — your current script is still here. Try again or edit it manually.");
+        return;
+      }
 
       const reader = res.body?.getReader();
       if (!reader) return;
@@ -901,7 +978,9 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
           } catch { /* skip malformed */ }
         }
       }
-    } catch { /* keep current script */ }
+    } catch {
+      setToastMessage("Couldn't regenerate script — your current script is still here. Try again or edit it manually.");
+    }
     setPipelineStep("idle");
     setReviewRegenerating(false);
   }
@@ -941,9 +1020,11 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
         ttsAudioRef.current = audio;
         audio.play().catch(() => {});
         setTtsPlaying(true);
+      } else {
+        setToastMessage("Couldn't generate voice preview — the TTS service may be busy. You can still render the video.");
       }
-    } catch (error) {
-      console.error("[tts] Preview failed:", error);
+    } catch {
+      setToastMessage("Couldn't generate voice preview — the TTS service may be busy. You can still render the video.");
     }
     setTtsLoading(false);
   }
@@ -964,9 +1045,11 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
       if (res.ok) {
         const data = await res.json();
         setAudioMemoUrl(data.audio);
+      } else {
+        setToastMessage("Couldn't generate audio memo — the TTS service may be busy.");
       }
-    } catch (error) {
-      console.error("[audio-memo] Generation failed:", error);
+    } catch {
+      setToastMessage("Couldn't generate audio memo — the TTS service may be busy.");
     }
     setAudioMemoLoading(false);
   }
@@ -1104,11 +1187,47 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
   }
 
   async function handleShareClick() {
-    if (!capturedEmail || !shareUrl) {
+    // If we already have the email but not the share URL, create the share directly without re-prompting
+    if (capturedEmail && !shareUrl) {
+      if (deliveryMode === "livelink" && reviewProfile) {
+        const liveLinkUrl = await handleCreateLiveLink();
+        if (liveLinkUrl) {
+          await copyShareUrl(liveLinkUrl);
+          setStage("ready");
+        }
+      } else {
+        // For video mode, create the share record directly
+        try {
+          const res = await fetch("/api/share", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              videoUrl: videoRenderResult?.videoUrl,
+              videoId: videoRenderResult?.videoId,
+              recipientName: reviewProfile?.name,
+              senderName: senderName.trim() || undefined,
+              profile: reviewProfile || undefined,
+              privacy: "private",
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.shareUrl) {
+              setShareUrl(data.shareUrl);
+              await copyShareUrl(data.shareUrl);
+            }
+          }
+        } catch { /* ignore — will show error on next click */ }
+      }
+      return;
+    }
+    if (!capturedEmail) {
       openCapture("share");
       return;
     }
-    await copyShareUrl(shareUrl);
+    if (shareUrl) {
+      await copyShareUrl(shareUrl);
+    }
   }
 
   async function handleRenderVideo(email = capturedEmail) {
@@ -1147,6 +1266,11 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
 
       const { videoId } = await res.json();
 
+      // Persist render job so user can navigate away and resume
+      try {
+        sessionStorage.setItem("nuncio_pending_render", JSON.stringify({ videoId, recipientName: recipientName || "", startedAt: Date.now() }));
+      } catch { /* ignore */ }
+
       let videoUrl: string | undefined;
       let attempts = 0;
       const MAX_ATTEMPTS = 60;
@@ -1165,8 +1289,13 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
         }
       }
       if (!videoUrl) {
-        throw new Error("Video render timed out — it may still be running.");
+        // Don't throw — keep the job alive in sessionStorage so user can check later
+        try { sessionStorage.removeItem("nuncio_pending_render"); } catch { /* ignore */ }
+        throw new Error("Video render timed out — it may still be running. Check your dashboard in a few minutes.");
       }
+
+      // Clear pending render
+      try { sessionStorage.removeItem("nuncio_pending_render"); } catch { /* ignore */ }
 
       setVideoRenderResult({ videoUrl, videoId });
       setVideoRendering("done");
@@ -1394,11 +1523,21 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                         </label>
                         <input
                           value={url}
-                          onChange={(e) => setUrl(e.target.value)}
+                          onChange={(e) => { setUrl(e.target.value); setUrlError(null); }}
+                          onBlur={() => setUrlError(validateUrl(url))}
                           placeholder="https://linkedin.com/in/…"
-                          className={`w-full rounded-xl border bg-white px-4 py-3 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voicePopulatedFields.has("url") ? "border-success/50" : "border-cream-dark"}`}
+                          className={`w-full rounded-xl border bg-white px-4 py-3 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${urlError ? "border-warm/50" : voicePopulatedFields.has("url") ? "border-success/50" : "border-cream-dark"}`}
                           onKeyDown={(e) => e.key === "Enter" && handleEnrich()}
                         />
+                        {urlError && (
+                          <p className="mt-1.5 text-label-sm text-warm flex items-center gap-1">
+                            <svg viewBox="0 0 16 16" className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5">
+                              <circle cx="8" cy="8" r="6" />
+                              <path d="M8 5v3.5M8 10.5v.5" />
+                            </svg>
+                            {urlError}
+                          </p>
+                        )}
                         {voicePopulatedFields.has("url") && (
                           <span className="inline-flex items-center gap-1 mt-1 text-label-sm text-success">
                             <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1409,12 +1548,16 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                         )}
                           <div className="flex flex-wrap gap-2 mt-2">
                           {[
-                            { label: "Sundar Pichai", url: "https://linkedin.com/in/sundarpichai" },
-                            { label: "Vercel CEO", url: "https://x.com/rauchg" },
+                            { label: "Sundar Pichai", url: "https://linkedin.com/in/sundarpichai", name: "Alex", brief: "I build developer tools and want to share how our platform can help Google Cloud teams ship faster." },
+                            { label: "Vercel CEO", url: "https://x.com/rauchg", name: "Sam", brief: "We're building an AI-powered SDR tool and want to explore partnership opportunities with Vercel." },
                           ].map((example) => (
                             <button
                               key={example.label}
-                              onClick={() => setUrl(example.url)}
+                              onClick={() => {
+                                setUrl(example.url);
+                                if (!senderName.trim()) setSenderName(example.name);
+                                if (!senderBrief.trim()) setSenderBrief(example.brief);
+                              }}
                               className="text-label-base text-ink-muted hover:text-accent transition-colors px-2.5 py-1 rounded-md border border-cream-dark/70 hover:border-accent/30 bg-white/60"
                             >
                               Try {example.label}
@@ -2396,13 +2539,15 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                   <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-success-soft border border-success/20">
                     <span className="w-1.5 h-1.5 rounded-full bg-success" />
                     <span className="text-label-sm uppercase tracking-widest font-medium text-success">
-                      Creative ready
+                      {deliveryMode === "livelink" ? "Live link ready" : videoRendering === "done" ? "Video ready" : "Creative ready"}
                     </span>
                   </div>
                   <p className="text-body-sm text-ink">
-                    {videoRendering === "done"
-                      ? <>Video rendered successfully.</>
-                      : <>Rendering in progress…</>}
+                    {deliveryMode === "livelink"
+                      ? <>Share the link to start a live conversation.</>
+                      : videoRendering === "done"
+                        ? <>Video rendered successfully.</>
+                        : <>Rendering in progress…</>}
                   </p>
                   <button
                     onClick={() => {
@@ -2424,17 +2569,21 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
 
                 <div className="border-t border-cream-dark/50 pt-4 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={() => {
-                        if (!capturedEmail) { openCapture("render"); } else { handleRenderVideo(); }
-                      }}
-                      disabled={videoRendering === "rendering"}
-                      className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-5 py-3 text-body-sm font-medium hover:bg-ink-light transition-colors shadow-sm disabled:opacity-40"
-                    >
-                      {videoRendering === "rendering" ? "Rendering…" : videoRendering === "done" ? "Video ready" : "Render video"}
-                    </button>
+                    {deliveryMode !== "livelink" && (
+                      <button
+                        onClick={() => {
+                          if (!capturedEmail) { openCapture("render"); } else { handleRenderVideo(); }
+                        }}
+                        disabled={videoRendering === "rendering"}
+                        className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-5 py-3 text-body-sm font-medium hover:bg-ink-light transition-colors shadow-sm disabled:opacity-40"
+                      >
+                        {videoRendering === "rendering" ? "Rendering…" : videoRendering === "done" ? "Video ready" : "Render video"}
+                      </button>
+                    )}
 
-                    <span className="w-px h-8 bg-cream-dark" />
+                    {deliveryMode !== "livelink" && (
+                      <span className="w-px h-8 bg-cream-dark" />
+                    )}
 
                     <button
                       onClick={handleShareClick}
@@ -2467,12 +2616,13 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={handleAudioMemo}
-                      disabled={audioMemoLoading}
-                      className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-2.5 py-1.5 text-label-base text-ink-faint hover:text-ink-muted hover:bg-cream-dark/30 transition-colors disabled:opacity-50"
-                      title="Generate a voice memo teaser to send as a DM hook"
-                    >
+                    {deliveryMode !== "livelink" && (
+                      <button
+                        onClick={handleAudioMemo}
+                        disabled={audioMemoLoading}
+                        className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark px-2.5 py-1.5 text-label-base text-ink-faint hover:text-ink-muted hover:bg-cream-dark/30 transition-colors disabled:opacity-50"
+                        title="Generate a voice memo teaser to send as a DM hook"
+                      >
                       {audioMemoLoading ? (
                         <span className="w-3 h-3 border border-accent/30 border-t-accent rounded-full animate-spin" />
                       ) : (
@@ -2483,7 +2633,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                       )}
                       {audioMemoUrl ? "Memo ready" : "Audio memo"}
                     </button>
-
+                    )}
                   </div>
                 </div>
 
@@ -2533,6 +2683,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                 )}
 
                 {/* Re-render with different customization */}
+                {deliveryMode !== "livelink" && (
                 <div className="border-t border-cream-dark/50 pt-3 flex items-center justify-between">
                   <button
                     onClick={() => { setShowCustomization(true); setStage("review"); }}
@@ -2550,6 +2701,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                     </span>
                   )}
                 </div>
+                )}
               </div>
 
               {/* Video result */}
@@ -2720,6 +2872,37 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                 </button>
               </motion.form>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast for non-blocking errors */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            key="toast"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md"
+          >
+            <div className="flex items-center gap-3 rounded-xl border border-warm/30 bg-white px-4 py-3 shadow-lg">
+              <div className="w-5 h-5 rounded-full bg-warm-soft flex items-center justify-center shrink-0">
+                <svg viewBox="0 0 16 16" className="w-3 h-3 text-warm" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M8 1v6M8 9v.5" />
+                  <path d="M1.5 12.5L8 1.5l6.5 11H1.5z" />
+                </svg>
+              </div>
+              <p className="text-body-xs text-ink flex-1">{toastMessage}</p>
+              <button
+                onClick={() => setToastMessage(null)}
+                className="text-ink-faint hover:text-ink transition-colors shrink-0"
+              >
+                <svg viewBox="0 0 12 12" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M3 3l6 6M9 3l-6 6" />
+                </svg>
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

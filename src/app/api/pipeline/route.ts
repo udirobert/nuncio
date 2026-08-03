@@ -22,7 +22,9 @@ import {
   generateOutreachScript,
   reviewScript,
   renderVideo,
+  generateMediaAssets,
   type PipelineInput,
+  type MediaAssets,
 } from "@/lib/pipeline/steps";
 
 interface EnrichResponse {
@@ -242,9 +244,14 @@ export async function POST(request: NextRequest) {
         // ── Step 4: Review ──────────────────────────────────────────────
         const { passed } = reviewScript(scriptResult, profile, emitter);
 
+        // Compute hook once — used by both the Genblaze media step and the response
+        const hookChoice = chooseArchetype(profile, senderBrief, archetype as HookArchetypeId | undefined);
+        const hookFormat = pickFormat(profile);
+
         // ── Step 5: Optional Auto-Render ────────────────────────────────
         let videoUrl: string | undefined;
         let videoId: string | undefined;
+        let mediaAssets: MediaAssets | undefined;
 
         // Gate auto-render on research quality: if the profile is low-confidence,
         // don't auto-spend a HeyGen credit. Let the user review the script and
@@ -281,15 +288,37 @@ export async function POST(request: NextRequest) {
             videoUrl = renderResult.videoUrl;
             videoId = renderResult.videoId;
             await commitCreditReservation(renderReservation.id);
+
+            // ── Step 6: Generate media assets via Genblaze + persist to B2 ──
+            // After HeyGen renders the video, the Genblaze composite pipeline
+            // generates supporting media (thumbnail, soundscape, narration) in a
+            // single run, and everything is persisted to B2 with provenance manifests.
+            // Non-blocking: failures don't invalidate the rendered video.
+            try {
+              const shareId = crypto.randomUUID();
+              const hookConcept = hookChoice?.concept || hookFormat?.label || "Outreach video";
+              const soundscapePrompt = `Ambient professional soundscape for: ${hookChoice?.archetype?.label || "outreach"}. Subtle, non-distracting, high quality.`;
+
+              mediaAssets = await generateMediaAssets(
+                videoUrl,
+                scriptResult.script,
+                profile,
+                shareId,
+                hookConcept,
+                soundscapePrompt,
+                emitter,
+              );
+              // Use the B2-durable video URL if persistence succeeded
+              if (mediaAssets.videoUrl) videoUrl = mediaAssets.videoUrl;
+            } catch (mediaError) {
+              emitter.error("producer", `Media asset generation failed: ${mediaError instanceof Error ? mediaError.message : "unknown"}`);
+            }
           } catch (renderError) {
             emitter.error("producer", `Render failed: ${renderError instanceof Error ? renderError.message : "unknown"}`);
           }
         }
 
         // ── Done ────────────────────────────────────────────────────────
-        const hookChoice = chooseArchetype(profile, senderBrief, archetype as HookArchetypeId | undefined);
-        const hookFormat = pickFormat(profile);
-
         await commitCreditReservation(reservation.id);
 
         const response: EnrichResponse = {
@@ -321,8 +350,27 @@ export async function POST(request: NextRequest) {
             profile,
             videoUrl,
             videoId,
+            mediaAssets: mediaAssets ? {
+              usedGenblaze: mediaAssets.usedGenblaze,
+              providers: mediaAssets.genblazeProviders,
+              thumbnailUrl: mediaAssets.thumbnailUrl,
+              soundscapeUrl: mediaAssets.soundscapeUrl,
+              narrationUrl: mediaAssets.narrationUrl,
+              manifestUri: mediaAssets.manifestUri,
+              traceUrl: mediaAssets.traceUrl,
+              assetManifestUrl: mediaAssets.assetManifestUrl,
+            } : undefined,
           });
-          send({ type: "ready", result: response, videoUrl, videoId });
+          send({
+            type: "ready",
+            result: response,
+            videoUrl,
+            videoId,
+            mediaAssets: mediaAssets ? {
+              usedGenblaze: mediaAssets.usedGenblaze,
+              providers: mediaAssets.genblazeProviders,
+            } : undefined,
+          });
         } else {
           emitter.complete("producer", "Script ready for review", {
             script: scriptResult.script,

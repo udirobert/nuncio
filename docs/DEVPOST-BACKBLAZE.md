@@ -12,18 +12,25 @@ Nuncio turns a prospect's URL into a fully personalized outreach package:
 
 1. **Research** — three-provider orchestrator (TinyFish, Firecrawl, EXA) builds a rich prospect profile
 2. **Script** — LLM fallback chain (Featherless → Venice → TokenRouter) writes a tailored outreach script
-3. **Generate media** — HeyGen renders the video, Genblaze worker orchestrates ElevenLabs TTS + soundscape audio + GMI Cloud thumbnails
-4. **Store on B2** — every asset (video, audio, thumbnail, pipeline trace) is uploaded to Backblaze B2 with SHA-256 content hashing
-5. **Anchor provenance** — an immutable Grove proof record references B2 URLs, content hashes, Genblaze manifests, and model versions
-6. **Deliver** — outreach email with a shareable link to the B2-hosted media package
-7. **Autonomous loop** — a scheduled agent runs the full cycle unattended: research → generate → store → deliver → classify replies → book meetings
+3. **Render video** — HeyGen renders the personalized talking-head video
+4. **Generate media via Genblaze** — the `generateMediaAssets` pipeline step calls the Genblaze composite pipeline to generate thumbnail (GMI Cloud), soundscape (ElevenLabs SFX), and narration (ElevenLabs v3) in a single run, then persists all assets to B2 with provenance manifests
+5. **Store on B2** — every asset (video, audio, thumbnail, pipeline trace) is uploaded to Backblaze B2 with SHA-256 content hashing
+6. **Anchor provenance** — an immutable Grove proof record references B2 URLs, content hashes, Genblaze manifests, and model versions
+7. **Deliver** — outreach email with a shareable link to the B2-hosted media package
+8. **Autonomous loop** — a scheduled agent runs the full cycle unattended: research → generate → store → deliver → classify replies → book meetings
 
 ## Architecture: three-tier storage
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        nuncio pipeline                              │
-│  research → synthesize → script → render → persist → prove → send  │
+│  research → synthesize → script → render → generate media → persist │
+│                                           ↑               ↑         │
+│                                    HeyGen video    Genblaze + B2    │
+│                                    (talking head)  (thumbnail,      │
+│                                                     soundscape,     │
+│                                                     narration,      │
+│                                                     trace, manifest)│
 └───────────────────────────┬─────────────────────────────────────────┘
                             │
           ┌─────────────────┼─────────────────┐
@@ -100,7 +107,10 @@ direct ElevenLabs API calls. Neither failure breaks the product.
 
 The Genblaze SDK is the single orchestration point for generative media, running
 as a product-owned Python worker (`workers/genblaze/`) inside the nuncio
-repository.
+repository. Genblaze is called **directly from the main pipeline** — not from
+scattered API routes — via the `generateMediaAssets()` step in
+`src/lib/pipeline/steps.ts`, which is the single source of truth shared by both
+the studio pipeline route and the autonomous agent endpoint.
 
 **Multi-step composite pipeline**: the flagship usage is a single Genblaze
 `Pipeline` that chains three steps across two providers and two modalities in one
@@ -141,8 +151,12 @@ Genblaze: thumbnail: gmi-cloud, video: heygen, ...") so Genblaze's contribution
 is visible at runtime, not buried in JSON.
 
 **HeyGen note**: HeyGen has no Genblaze adapter, so video rendering calls
-HeyGen's API directly from TypeScript. The rendered video is then persisted to B2
-via the same `MediaStorageProvider` interface and indexed in the same manifest.
+HeyGen's API directly from TypeScript. After the video renders, the
+`generateMediaAssets()` pipeline step takes over: it persists the HeyGen video
+to B2, then runs the Genblaze composite pipeline for supporting media
+(thumbnail + soundscape + narration), and finally writes a per-share asset
+manifest and pipeline trace to B2. Both the studio pipeline route and the
+autonomous agent endpoint call this same shared step.
 
 ## Provenance (Grove)
 
@@ -189,7 +203,7 @@ The share page shows a "View generation proof" badge linking to the Grove gatewa
 - **Autonomous agent** — runs the full pipeline on a cron schedule inside an NVIDIA NemoClaw sandbox
 - **Graceful degradation** — every external dependency (B2, Genblaze, Grove, ElevenLabs, HeyGen) has a fallback path
 - **CI on every push** — GitHub Actions runs typecheck, lint, tests, and a worker syntax check
-- **44 tests passing** — credits, rate limiting, B2 provider, Genblaze client
+- **72 tests passing** — credits, rate limiting, B2 provider, Genblaze client, live sessions, URL resolution
 
 ## Setup
 

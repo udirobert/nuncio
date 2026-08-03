@@ -24,6 +24,8 @@ export default function LiveAvatarLandingPage({
   const [starting, setStarting] = useState(false);
   const [status, setStatus] = useState<string>("Click below to start the live conversation");
   const [error, setError] = useState<string | null>(null);
+  const [errorReason, setErrorReason] = useState<"connection" | "mic" | "provider" | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [live, setLive] = useState(false);
   const clientRef = useRef<AnamClient | null>(null);
   const startedRef = useRef(false);
@@ -130,7 +132,37 @@ export default function LiveAvatarLandingPage({
     sessionSyncedRef.current = false;
     setStarting(true);
     setError(null);
+    setErrorReason(null);
     trackLiveSessionRequested({ shareId: id });
+
+    // Check microphone permission before starting
+    try {
+      if (typeof navigator !== "undefined" && navigator.permissions) {
+        const perm = await navigator.permissions.query({ name: "microphone" as PermissionName });
+        if (perm.state === "denied") {
+          setError("Microphone access is blocked. Please allow microphone access in your browser settings to start the live conversation.");
+          setErrorReason("mic");
+          setStatus("Microphone access required");
+          setStarting(false);
+          return;
+        }
+      }
+      // Also try getUserMedia to prompt for permission
+      if (typeof navigator !== "undefined" && navigator.mediaDevices) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach((t) => t.stop());
+        } catch {
+          setError("Microphone access is required for the live conversation. Please allow access and try again.");
+          setErrorReason("mic");
+          setStatus("Microphone access required");
+          setStarting(false);
+          return;
+        }
+      }
+    } catch {
+      // Permissions API not available — proceed and let the SDK handle it
+    }
 
     try {
       const res = await fetch("/api/live/session", {
@@ -153,6 +185,7 @@ export default function LiveAvatarLandingPage({
       client.addListener(AnamEvent.CONNECTION_ESTABLISHED, () => {
         sessionStartedAtRef.current = Date.now();
         trackLiveSessionConnected({ shareId: id });
+        setRetryCount(0);
         maxDurationTimerRef.current = setTimeout(() => {
           setStatus("Session limit reached");
           endSession("max_duration");
@@ -189,6 +222,17 @@ export default function LiveAvatarLandingPage({
         clientRef.current = null;
       }
       trackLiveSessionFailed({ shareId: id, reason: message });
+      const newRetryCount = retryCount + 1;
+      setRetryCount(newRetryCount);
+      // Classify the error for better messaging
+      const lowerMessage = message.toLowerCase();
+      if (lowerMessage.includes("network") || lowerMessage.includes("fetch") || lowerMessage.includes("connection")) {
+        setErrorReason("connection");
+      } else if (lowerMessage.includes("token") || lowerMessage.includes("auth") || lowerMessage.includes("unavailable")) {
+        setErrorReason("provider");
+      } else {
+        setErrorReason("connection");
+      }
       setError(message);
       setStatus("Click below to try again");
       startedRef.current = false;
@@ -289,7 +333,23 @@ export default function LiveAvatarLandingPage({
                     </svg>
                   </div>
                   <p role="status" aria-live="polite" className="text-sm text-cream/70 mb-1">{status}</p>
-                  {error && <p className="text-xs text-red-300 mt-2">{error}</p>}
+                  {error && errorReason === "mic" && (
+                    <p className="text-xs text-amber-300 mt-2 max-w-xs mx-auto">{error}</p>
+                  )}
+                  {error && errorReason !== "mic" && (
+                    <p className="text-xs text-red-300 mt-2 max-w-xs mx-auto">{error}</p>
+                  )}
+                  {error && errorReason !== "mic" && retryCount >= 2 && (
+                    <Link
+                      href={`/v/${share.id}`}
+                      className="inline-flex items-center gap-1.5 mt-4 text-xs text-accent hover:text-accent/80 transition-colors"
+                    >
+                      <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M3 8h10M9 4l4 4-4 4" />
+                      </svg>
+                      Or watch the recorded video instead
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
@@ -346,7 +406,7 @@ export default function LiveAvatarLandingPage({
               How this works
             </p>
             <p className="text-xs text-ink-muted leading-relaxed">
-              This is an AI avatar of {sender}. It can answer questions, explain the reason for reaching out, and book a meeting — all within the sender&apos;s playbook. Your microphone is only active while the session is running.
+              This is an AI avatar of {sender}. It can answer questions, explain the reason for reaching out, and book a meeting — all within the sender&apos;s playbook. You&apos;ll need to allow microphone access to talk. Your mic is only active while the session is running.
             </p>
           </motion.div>
         </div>
