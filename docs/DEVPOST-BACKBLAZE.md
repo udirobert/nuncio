@@ -196,7 +196,7 @@ The share page shows a "View generation proof" badge linking to the Grove gatewa
 ## Production readiness
 
 - **Live at https://nuncio.persidian.com** — not a demo, a deployed product
-- **Stripe billing** — live checkout, subscriptions, webhooks, credit system
+- **Stripe billing** — live checkout (not test mode), subscriptions, webhooks, credit system. Credits are enforced (`NUNCIO_CREDITS_ENFORCED=true`): each visitor gets 15 trial credits (~1-2 pipeline runs), then a 402 prompts purchase via Stripe Checkout. This demonstrates production-grade metering rather than an unlimited demo.
 - **Sentry monitoring** — opt-in error tracking
 - **Turso persistence** — SQLite at the edge for share records, accounts, credits
 - **Rate limiting** — Redis-backed with in-memory fallback
