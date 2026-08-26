@@ -119,17 +119,19 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { url, sessionId, archetype } = body;
 
-        if (body.deliveryMode === "livelink") {
-          const { readAccountSession } = await import("@/lib/auth/session");
-          const accountSession = readAccountSession(request);
-          if (!isLiveLinkAllowed({
-            workspaceId: accountSession?.workspaceId,
-            senderEmail: accountSession?.email,
-          })) {
-            send({ error: "LiveLink is not enabled for this pilot" });
-            controller.close();
-            return;
-          }
+        // Live link is the default artifact for allowlisted senders; an
+        // explicit "video" deliveryMode is always respected.
+        const { readAccountSession } = await import("@/lib/auth/session");
+        const accountSession = readAccountSession(request);
+        const liveLinkAllowed = isLiveLinkAllowed({
+          workspaceId: accountSession?.workspaceId,
+          senderEmail: accountSession?.email,
+        });
+        const deliveryMode = body.deliveryMode ?? (liveLinkAllowed ? "livelink" : "video");
+        if (deliveryMode === "livelink" && !liveLinkAllowed) {
+          send({ error: "LiveLink is not enabled for this pilot" });
+          controller.close();
+          return;
         }
         const researchTier = body.researchTier as string | undefined;
         const deepResearchEnabled = body.deepResearchEnabled === true;
@@ -189,7 +191,7 @@ export async function POST(request: NextRequest) {
           senderBrief,
           senderProfile,
           outreachIntent,
-          deliveryMode: body.deliveryMode === "livelink" ? "livelink" : "video",
+          deliveryMode,
           researchTier: researchTier as "quick" | "balanced" | "deep" | undefined,
           deepResearchEnabled,
           languageOverride,

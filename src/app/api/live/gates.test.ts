@@ -134,3 +134,41 @@ describe("LiveLink route gates", () => {
     expect(response.status).toBe(404);
   });
 });
+
+describe("Pipeline deliveryMode defaults", () => {
+  it("runs as video when LiveLink is disabled and no deliveryMode is given", async () => {
+    vi.stubEnv("NUNCIO_LIVELINK_ENABLED", "false");
+    const response = await runPipeline(jsonRequest("http://localhost/api/pipeline", {
+      url: "https://example.com/profile",
+    }) as never);
+    const text = await response.text();
+    expect(text).not.toContain("LiveLink is not enabled");
+  });
+
+  it("defaults to livelink for an allowlisted sender when no deliveryMode is given", async () => {
+    vi.stubEnv("NUNCIO_LIVELINK_ENABLED", "true");
+    vi.stubEnv("NUNCIO_LIVELINK_SENDER_EMAILS", "pilot@example.com");
+    vi.mocked(readAccountSession).mockReturnValueOnce({
+      workspaceId: "ws-1",
+      email: "pilot@example.com",
+    } as never);
+
+    const response = await runPipeline(jsonRequest("http://localhost/api/pipeline", {
+      url: "https://example.com/profile",
+    }) as never);
+    const text = await response.text();
+    expect(text).not.toContain("LiveLink is not enabled");
+  });
+
+  it("respects an explicit video deliveryMode when the pilot is enabled", async () => {
+    vi.stubEnv("NUNCIO_LIVELINK_ENABLED", "true");
+    vi.stubEnv("NUNCIO_LIVELINK_SENDER_EMAILS", "pilot@example.com");
+    const response = await runPipeline(jsonRequest("http://localhost/api/pipeline", {
+      url: "https://example.com/profile",
+      deliveryMode: "video",
+    }) as never);
+    const text = await response.text();
+    expect(text).not.toContain("LiveLink is not enabled");
+  });
+});
+
