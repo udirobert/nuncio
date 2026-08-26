@@ -1,11 +1,13 @@
 # nuncio — Agent Context
 
 ## Goal
-Build a creative monopoly in **conversational SDR**. nuncio moves from "personalised video outreach" to a live, agentic AI avatar of the sender — trained on their face, voice, and playbook — that can hold real-time conversations with prospects, answer questions within bounded guardrails, and book meetings.
+Build a creative monopoly in **conversational SDR** — honest presence, not disguised volume.
 
-Recorded video is the wedge. Live conversation is the product. The schlep (latency, guardrails, booking, compliance) is the moat.
+**Thesis:** in the age of infinite AI content, the scarce resource in sales is credible presence. nuncio makes the actual sender honestly present at every first touch — a live AI twin trained on their face, voice, and playbook — where the artifact doesn't advertise the conversation, it *is* the conversation. Recorded video is the fallback artifact inside the live link; the `SenderPlaybook` is the compounding moat; the schlep (latency, guardrails, booking, compliance) is the barrier to entry.
 
-Current phase: extend the existing dual-mode architecture (Band studio + Hermes autonomous) with a `SenderPlaybook` and a `deliveryMode` so the same research → synthesize → script pipeline can power both recorded video and live-link conversations.
+**Full thesis, first market, phased plan, falsification criteria, and scoreboard: `docs/STRATEGY.md` — the single source of truth for strategy. Do not restate strategy in other docs.**
+
+Current phase: STRATEGY Phase 1 — live-link-first defaults + live-session instrumentation. `SenderPlaybook`, `deliveryMode`, and the LiveLink POC are built; the dual-mode architecture (Band studio + Hermes autonomous) is in place.
 
 ## Core Principles
 - **ENHANCEMENT FIRST**: Always prioritize enhancing existing components over creating new ones
@@ -33,14 +35,13 @@ Current phase: extend the existing dual-mode architecture (Band studio + Hermes 
 ## Key Decisions
 - Recent activity fires **before** synthesis (reordered) so the LLM sees the full picture (identity + recent posts) before committing to a characterization; company enrichment still fires after synthesis (needs `profile.company`)
 - Script variants use **single LLM call** (not two) to save cost and time
-- A/B variants default to **off in quick mode** — only advanced mode shows the picker
 - Cinematic entrance generated **non-blocking** (try/catch) like soundscape — build succeeds even if ElevenLabs fails
 - `WorkspaceAccount.lastSenderBrief` persisted server-side rather than localStorage for cross-device continuity
 - Sentry configured as **opt-in** — no-op until `SENTRY_DSN` env var is set
 - Speech Engine voice agent uses `engine.attach()` on the same HTTP server as Next.js; conversation token generated via `POST /v1/convai/conversation/token`; browser connects via `@elevenlabs/client` `Conversation.startSession({ conversationToken })`
-- Voice overlay ("Brief with voice") is an alternative input channel in the studio; LLM extracts structured profile from natural conversation
-- Nomenclature uses "AI-powered · personalised video" for badge, "Build video" for CTA, "Background audio" for soundscape selector
-- Email gate captured on explicit render/share/download actions, not session start
+- Voice overlay ("Brief with voice") is an alternative input channel in the studio; LLM extracts structured profile from natural conversation. Per STRATEGY Phase 2, it is also the intended capture instrument for hand-built `SenderPlaybook` interviews.
+- Nomenclature currently uses "AI-powered · personalised video" for badge, "Build video" for CTA, "Background audio" for soundscape selector — **superseded pending STRATEGY Phase 3 positioning rewrite** (honest-twin framing)
+- Email gate captured on explicit render/share/download actions, not session start; **once-per-session** — `capturedEmail` reused for all subsequent actions, modal only re-opens when genuinely absent
 - **Three-tier storage** (Backblaze hackathon): B2 = media asset store (videos, audio, thumbnails, traces, per-share asset manifests, S3 user-defined metadata), Grove = immutable provenance anchor (proof v2 with content hashes + Genblaze manifest URIs), Genblaze worker = orchestration SDK. No overlap between tiers.
 - **Genblaze worker owned by nuncio** at `workers/genblaze/` (Python/FastAPI), not by Hermes. Multi-step `Pipeline("nuncio-composite")` chains thumbnail (GMI Cloud) + soundscape + TTS (ElevenLabs) in one run. HeyGen video stays outside Genblaze (no adapter); rendered video persisted to B2 via `MediaStorageProvider`.
 - **Hermes demoted** to an optional cron trigger over `/api/agent/*`; all generation logic lives in nuncio's repo.
@@ -50,151 +51,56 @@ Current phase: extend the existing dual-mode architecture (Band studio + Hermes 
 - **Agent API layer** lives under `src/app/api/agent/` — clean domain boundary. Auth via `NUNCIO_AGENT_TOKEN` env var (single shared token, not per-user).
 - **Hermes uses Nemotron 3 Ultra** (`nvidia/nemotron-3-ultra-550b-a55b` via build.nvidia.com) for reasoning/orchestration; nuncio's existing LLM fallback chain handles content generation. Clean separation — no model config duplication.
 - **Stripe Skills installed in Hermes**, not built in nuncio. `stripe-projects` provisions HeyGen/ElevenLabs credits autonomously; `stripe-link-cli` handles earning (checkout for booked meetings). Nuncio's `/api/agent/earn-checkout` is a thin server-side proxy for Stripe Checkout creation.
-- **Hybrid mode**: Hermes can queue draft videos for human review in the studio — best of autonomous scale + human quality control. This is the primary product mode; fully-autonomous is a config toggle.
+- **Hybrid mode**: Hermes can queue draft videos for human review in the studio — best of autonomous scale + human quality control. Per STRATEGY Phase 4, hybrid is the default when Hermes becomes the scale layer; fully-autonomous is a config toggle.
 - **Proxy-aware URL resolution**: `src/lib/url.ts` (`resolvePublicOrigin`, `absoluteUrl`) resolves the public origin from `APP_URL` env var → `X-Forwarded-Host`/`X-Forwarded-Proto` headers → request host → localhost fallback. All auth redirects, magic-link emails, and Stripe checkout URLs use this — prevents the `localhost:3000` redirect bug behind reverse proxies (Coolify/Caddy/Traefik).
 - **Credit guard consistency**: every credit-gated route (pipeline, video, live session, etc.) respects `creditsEnforced()`. In production, `NUNCIO_CREDITS_ENFORCED=true` — credits are enforced and a 402 is returned when exhausted. Each visitor gets 15 trial credits (~1-2 pipeline runs); after that, Stripe Checkout prompts purchase of credit packs. In shadow mode (`NUNCIO_CREDITS_ENFORCED` unset, e.g. local dev), no route hard-blocks with a 402. Local `.env.local` is aligned with production (`NUNCIO_CREDITS_ENFORCED=true`).
 - **Research quality gate**: `assessResearchQuality()` in `src/lib/pipeline/steps.ts` evaluates source count, recent post count, search-fallback usage, and TinyFish API warnings to assign a confidence level (`high` / `medium` / `low`). Low-confidence profiles block auto-render (no wasted HeyGen credit) and surface an amber warning banner in the studio. The pipeline emits a `research_quality` SSE phase event immediately after synthesis so the client can warn before the script is generated. In agent mode, low-confidence profiles get `needsReview: true` for hybrid-mode human review.
 - **TinyFish failure is loud, not silent**: `TinyFishApiError` (`src/lib/tinyfish.ts`) is thrown on 401/403 (auth/quota), 429 (rate limit), and 5xx (unavailable) — instead of silently returning empty arrays. Warnings propagate through `EnrichmentResult.warning` and `RecentActivityResult.warning` to the pipeline, which surfaces them to the user.
 - **Twitter/X de-biasing**: identity-first search (`-site:x.com` for LinkedIn/GitHub/personal sites) runs *before* tweet searches; tweet results are capped at 5; the synthesis prompt explicitly instructs the LLM to weight stable sources over ephemeral tweets and to mark confidence as `low` when data is thin.
 - **Resumable render polling**: render job `videoId` is persisted to `sessionStorage` on start. A `useEffect` on studio mount checks for a pending render and polls it in the background (every 10s). This lets users tab away during the 2–5 min HeyGen render and come back without losing progress.
-- **Email gate is once-per-session**: `capturedEmail` is set on first capture and reused for all subsequent actions (share, render, download, saveBrief). The modal only re-opens when `capturedEmail` is genuinely absent. Share click when `capturedEmail` is set but `shareUrl` is missing creates the share record directly without re-prompting.
 - **Livelink ready state**: the studio ready screen adapts to `deliveryMode`. In livelink mode it shows "Live link ready" and hides the render button, audio memo button, and re-render section. In video mode it shows the full render/share/download flow.
-- **Error surfacing**: `handleRegenerate`, `handleTtsPreview`, and `handleAudioMemo` previously swallowed errors silently. All three now surface user-facing toast messages (auto-dismissed after 6s) via a `toastMessage` state on the studio client.
-- **Share page trust**: `/v/[id]` now shows sender name + role + company below the greeting. The primary CTA is a "Reply" button (mailto with pre-filled subject + body) instead of a clipboard-only "Say thanks". The share page also polls for video completion (every 10s) if the video isn't rendered yet.
+- **Error surfacing**: `handleRegenerate`, `handleTtsPreview`, and `handleAudioMemo` surface user-facing toast messages (auto-dismissed after 6s) via a `toastMessage` state on the studio client — no silently swallowed errors.
+- **Share page trust**: `/v/[id]` shows sender name + role + company below the greeting. Primary CTA is a "Reply" button (mailto with pre-filled subject + body). Polls for video completion (every 10s) if not rendered yet. Per STRATEGY Phase 3, this page becomes the recipient→sender viral surface.
 - **Live page resilience**: `/live/[id]` checks `navigator.permissions` + `getUserMedia` for microphone access before starting the session. On repeated failures (2+ retries), a fallback link to the recorded video (`/v/[id]`) is shown. Error type is classified (`connection` vs `mic` vs `provider`) for targeted messaging.
-- **Dashboard share links**: `RecentVideos` links to `/v/{id}` (branded share page) instead of the raw `videoUrl`. Added a "Copy link" button alongside "View" for quick share-link copying.
+- **Dashboard share links**: `RecentVideos` links to `/v/{id}` (branded share page) instead of the raw `videoUrl`, with a "Copy link" button alongside "View".
 - **URL validation on input**: studio URL input validates on blur via `validateUrl()` — checks for valid URL format and warns (soft) if the host isn't a recognized social profile. Hard error only for malformed URLs.
 
 ## Recent Commits
-- (pending) — UX: share page sender context + reply CTA, resumable render polling, livelink ready state, error surfacing (regenerate/TTS/audio-memo), email-gate skip when captured, sample briefs on studio input, live page fallback + mic permission prompt, dashboard share-page links, URL validation
-- (pending) — research quality gate: loud TinyFish failure, Twitter de-biasing, auto-render block on low confidence, suggested angles in review UI
-- (pending) — fix: proxy-aware auth redirects + live session credit guard consistency
-- (pending) — Backblaze hackathon: B2 media store, Genblaze multi-step orchestration worker, Grove proof v2, composite assets, CI
-- `dd25738` — HeyGen captions via v3 API + mode switch UX toast
-- `ecd1c43` — captions toggle + circular flow on advanced ready screen
-- `4b430b0` — TokenRouter (MiniMax-M3) free LLM fallback provider
-- `b45e3bc` — LLM provider fallback chain + dead-end UX improvements
-- `564e049` — close dead-ends: dashboard CTA, share page reply, error state, post-login redirect
-- `24b066f` — dashboard shows past videos + circular flow on ready screen
-- `e8509b7` — overhaul build-wait screen + fix credit tests
-- `56d8d84` — fallback to email upsert when workspace not found in Turso
-- `22a1390` — credits use Turso as single source of truth
-- `517d283` — studio simplification (Phase 7)
-- `8ddd233` — multi-language delivery
-- `35bd035` — cinematic entrance integration + responsive email templates
-- `009f120` — phase 8: nomenclature, batch link from studio, footer, studio polish
-- `ccaae6e` — speech engine integration: voice agent, overlay UI, conversation token endpoint, LLM prompt, standalone voice server
-- (pending) — LiveLink POC: deliveryMode on ShareRecord, /api/share livelink path, studio client creates live link, QuickReady shows live link card
+Not maintained — use `git log --oneline`. Milestone order: Band studio pipeline → speech engine / voice overlay → LiveLink POC (Anam, `deliveryMode`) → Backblaze hackathon (B2 / Genblaze / Grove) → Phase 9 Hermes agent layer (verified end-to-end 2026-06-30).
 
 ## Next Steps
-- Voice agent: wire production server, test end-to-end, create submission video for ElevenLabs Hack #10 (closes May 28)
-- Multi-language delivery — auto-detect target language, offer translation in studio UI
-- Multi-channel distribution — link batch from studio ready page (done)
-- **Studio mode unification** — merge Quick and Advanced modes into a single progressive-disclosure component. *(Partially addressed: the studio already uses a single input stage with a collapsible "Advanced settings" section; the old `quickMode` toggle has been replaced with progressive disclosure. The "Try with a sample" buttons now fill both URL and sender brief.)*
-- **Script quality** — profile synthesis and script generation rely on LLM fallback chain (Featherless → Venice → TokenRouter). The `fallbackScript()` heuristic produces raw data dumps when all LLM providers fail. Improve fallback to clean hooks and generate meaningfully different variants. *(Partially addressed: research quality gate now prevents wasted render credits on bad research; Twitter de-biasing reduces mischaracterization from tweet-only data; regenerate/TTS/audio-memo failures now surface as toast messages instead of silently failing.)*
-- **Band agent progress events** — researcher agent posts intermediate progress events to activity bridge during enrichment, but WebSocket instability may cause gaps. Consider adding server-side progress events from the pipeline route as a fallback.
-- **Credit spend transparency** — show credits spent during the current session on the ready screen (currently only shows remaining balance).
-- **Resumable render recovery UI** — render job is persisted to `sessionStorage` and polled in the background on studio mount, but the dashboard doesn't yet show "video still rendering" for jobs started in another tab. *(Addressed: studio resumes polling; dashboard RecentVideos already polls `/api/videos/recent`.)*
-- **Share page trust signals** — the share page now shows sender name + role + company and a Reply CTA (mailto). Consider adding sender photo, company logo, or a verified sender badge to further increase prospect trust.
+Strategic plan (phases, gates, scoreboard) lives in `docs/STRATEGY.md`. Engineering backlog:
 
-## Phase 9: Autonomous SDR Agent (Hermes Hackathon + Product)
+- **Live-link-first defaults** (STRATEGY Phase 1) — make the live link the primary artifact; recorded video becomes the fallback inside it
+- **Live-session instrumentation** (STRATEGY Phase 1) — started, turns, question topics, booking event, drop-off point
+- **Playbook capture** (STRATEGY Phase 2) — productize the 30-minute founder interview via voice overlay into `SenderPlaybook`
+- **Share-page viral loop** (STRATEGY Phase 3) — turn "How this was made" into an explicit recipient→sender signup surface
+- **Voice agent** — wire production server, test end-to-end, ElevenLabs Hack #10 submission video (closes May 28)
+- **Script quality** — `fallbackScript()` produces raw data dumps when all LLM providers fail; improve to clean hooks + meaningfully different variants
+- **Band agent progress events** — server-side progress events from the pipeline route as fallback for WebSocket gaps
+- **Credit spend transparency** — show credits spent this session on the ready screen
+- **Share page trust signals** — sender photo, company logo, or verified-sender badge (feeds STRATEGY S2 honest-disclosure framing)
 
-### Architecture: Dual-Mode, Single Pipeline
-```
-  Band agents (existing)          Hermes agent (new)
-  Human-driven studio             Autonomous background
-         │                              │
-         ▼                              ▼
-  ┌──────────────────────────────────────────┐
-  │  Shared API Layer (src/lib/pipeline/)    │
-  │  research → synthesize → script →        │
-  │  render → deliver                        │
-  └──────────────────────────────────────────┘
-```
+## Phase 9: Autonomous SDR Agent (DONE — summary)
 
-### Implementation Plan
+Hermes is an optional autonomous client over nuncio's agent API layer. All generation logic lives in this repo; Hermes supplies orchestration (Nemotron 3 Ultra) + skills + cron. Verified end-to-end 2026-06-30 (research → script → HeyGen render → email → reply classified "interested" → Stripe checkout → Telegram report), running inside the NemoClaw/OpenShell sandbox on a Brev GCP VM with declarative egress policies. Production: https://nuncio.persidian.com.
 
-**Phase 0 — DRY Refactor (DONE)**
-- Extracted pipeline step functions from `src/app/api/pipeline/route.ts` into `src/lib/pipeline/steps.ts`
-- Route is now a thin SSE handler calling shared steps (`researchAndSynthesize`, `generateOutreachScript`, `reviewScript`, `renderVideo`)
-- Band agents continue calling the route over HTTP — unchanged, zero behavior change
-- Typecheck passes clean
-
-**Phase 1 — Agent API Layer (DONE, verified end-to-end)**
-- `src/lib/agent-auth.ts`: token validation (NUNCIO_AGENT_TOKEN env var), resolves to CreditSubject
-- `POST/GET /api/agent/prospect-queue`: enqueue prospect for end-to-end processing, poll status
-- `POST/GET /api/agent/reply-webhook`: receive + classify email replies via existing LLM fallback chain
-- `POST /api/agent/earn-checkout`: create Stripe Checkout for booked meetings (reuses existing Stripe integration)
-- All endpoints verified: auth rejection, successful pipeline execution, reply classification, Stripe checkout creation
-
-**Phase 2 — Hermes Skills (DONE, all 8 enabled)**
-- `sdr-orchestrator/SKILL.md`: the autonomous loop (blueprint, cron-scheduled 9am weekdays, Telegram delivery)
-- `nuncio-research/SKILL.md`: enqueue prospect via prospect-queue API
-- `nuncio-synthesize/SKILL.md`: profile synthesis
-- `nuncio-script/SKILL.md`: script generation/regeneration
-- `nuncio-render/SKILL.md`: video render + poll
-- `nuncio-deliver/SKILL.md`: multi-channel delivery (email, LinkedIn, Twitter, WhatsApp)
-- `nuncio-handle-reply/SKILL.md`: poll reply-webhook, classify, respond
-- `sdr-earn/SKILL.md`: create Stripe checkout for booked meetings
-- All skills visible in `hermes skills list` under `nuncio` category
-
-**Phase 3 — NVIDIA + Stripe Wiring (DONE)**
-- Hermes config: Nemotron 3 Ultra via build.nvidia.com (set as default model)
-- NVIDIA_API_KEY set in both nuncio `.env` and Hermes `~/.hermes/.env`
-- Stripe Skills installed: `stripe-projects`, `stripe-link-cli`, `mpp-agent` (from NousResearch/hermes-agent repo)
-- NUNCIO_AGENT_TOKEN set in both nuncio `.env` and Hermes `~/.hermes/.env`
-- Agent provisions own HeyGen/ElevenLabs credits when low (spends)
-- Agent creates Stripe Checkout for booked meetings (earns)
-
-**Phase 4 — Demo & Submission (DONE)**
-- Full autonomous loop: prospect → research → video → deliver → reply → book → earn
-- Hybrid mode: agent queues drafts for human review in studio
-- Reports via Telegram: prospects contacted, replies, meetings, revenue, spend
-- End-to-end test verified via Hermes + Nemotron: eladgil.com → profile synthesized → script generated → video rendered → email sent → Telegram report → reply classified "interested" → Stripe checkout created → final Telegram report
-- **NemoClaw sandbox deployed on Brev GCP VM** — agent runs inside OpenShell with Landlock + seccomp + network policies
-- **Resend inbound email verified** — `replies.persidian.com` domain verified (DKIM + SPF + MX), webhook → `/api/webhook/resend` → classify → reply-webhook
-- **Video render timeout fixed** — increased from 5 min to 10 min (HeyGen can take 5-8 min)
-
-**Verified End-to-End Results (2026-06-30)**
-| Step | Component | Result |
-|------|-----------|--------|
-| NemoClaw sandbox | OpenShell isolation | Hermes v0.14.0 running inside sandbox (Landlock + seccomp + netns) on Brev GCP VM |
-| Nemotron 3 Ultra | Routed inference | `nvidia/nemotron-3-ultra-550b-a55b` via OpenShell gateway → `inference.local` |
-| Network policies | Declarative egress | `nuncio.persidian.com`, `api.resend.com`, `api.telegram.org`, `integrate.api.nvidia.com` — all verified from inside sandbox |
-| Hermes SDR loop | Full autonomous cycle | Research → script → HeyGen render → Stripe earn → Telegram report — all from inside sandbox |
-| Video rendering | HeyGen | Personalized video for Elad Gil rendered in ~8 min, share page live at `https://nuncio.persidian.com/v/b46b1f69-3f0` |
-| Stripe earn (live) | `POST /api/agent/earn-checkout` | Live Stripe Checkout session `cs_live_a1qnZHAL...` created from inside sandbox for $50 consultation |
-| Stripe webhook | `https://nuncio.persidian.com/api/webhook` | Live endpoint registered with signature verification |
-| Resend inbound | `replies.persidian.com` | Domain verified (DKIM + SPF + MX), inbound email → `/api/webhook/resend` → classify → reply-webhook |
-| Telegram channel | @nuncioappbot | Registered in sandbox, network policy active, tunnel started |
-| Production deploy | https://nuncio.persidian.com | All agent endpoints live with Turso persistence + Let's Encrypt SSL |
-
-**Stripe Integration (live mode)**
-- `STRIPE_SECRET_KEY`: live restricted key (`rk_live_...`) deployed via Coolify env vars
-- `STRIPE_PUBLISHABLE_KEY`: live publishable key (`pk_live_...`)
-- `STRIPE_WEBHOOK_SECRET`: live webhook signing secret (`whsec_...`)
-- Webhook endpoint registered in live mode at `https://nuncio.persidian.com/api/webhook`
-- Events: `checkout.session.completed`, `checkout.session.expired`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.deleted`, `customer.subscription.updated`
-- earn-checkout: customer reuse by email lookup, idempotency keys, dynamic product creation
-- webhook: handles expired sessions (logs for agent follow-up), credit grants, subscription lifecycle
-
-**Reply Webhook Wiring (DONE)**
-The `/api/webhook/resend` endpoint receives inbound email replies from Resend, fetches the full body, classifies intent via LLM, and forwards to `/api/agent/reply-webhook` for agent processing.
-1. `RESEND_API_KEY` set in `.env.local` — DONE
-2. Resend inbound domain `replies.persidian.com` — verified (DKIM + SPF + MX all green)
-3. Resend webhook endpoint → `https://nuncio.persidian.com/api/webhook/resend` — created with Svix signature verification
-4. `RESEND_WEBHOOK_SECRET` set on production — DONE
-5. `nuncio-deliver` skill updated with `replyTo: nuncio@replies.persidian.com` — prospects reply to inbound domain
-6. Reply flow: email → Resend inbound → `/api/webhook/resend` (Svix verified) → fetch body → classify (interested/not_now/unsubscribe/question) → `/api/agent/reply-webhook` → agent polls → creates Stripe checkout if interested
+- **Agent API** (`src/app/api/agent/`, auth via `NUNCIO_AGENT_TOKEN`): `prospect-queue` (enqueue + poll), `reply-webhook` (receive + classify replies), `earn-checkout` (Stripe Checkout for booked meetings)
+- **Hermes skills**: 8 SKILL.md files in `~/.hermes/skills/nuncio/` (orchestrator, research, synthesize, script, render, deliver, handle-reply, earn)
+- **Reply flow**: prospect email → Resend inbound (`replies.persidian.com`, DKIM/SPF/MX verified) → `/api/webhook/resend` (Svix-verified) → fetch body → LLM classify (interested/not_now/unsubscribe/question) → `/api/agent/reply-webhook` → agent polls → Stripe checkout if interested
+- **Stripe (live mode)**: keys + webhook secret via Coolify env vars; webhook at `/api/webhook` handles `checkout.session.completed/expired`, `invoice.paid/payment_failed`, subscription lifecycle; earn-checkout does customer reuse by email, idempotency keys, dynamic product creation
+- **Ops**: Hermes + nuncio share `NUNCIO_AGENT_TOKEN` and `NVIDIA_API_KEY` via `~/.hermes/.env`; Stripe Skills (`stripe-projects`, `stripe-link-cli`) let the agent provision HeyGen/ElevenLabs credits (spend) and create checkouts (earn); HeyGen render timeout is 10 min
 
 ### Operating Modes
 | Mode | Driver | Band agents | Hermes | Use case |
 |------|--------|-------------|--------|----------|
 | Studio (existing) | Human | Yes | No | Craft perfect outreach with full control |
-| Autonomous (new) | Hermes | No | Yes | Run outreach unattended, report via chat |
-| Hybrid (new) | Hermes + Human | No | Yes (drafts) | Agent generates drafts, human approves in studio |
+| Autonomous | Hermes | No | Yes | Run outreach unattended, report via chat |
+| Hybrid (default per STRATEGY Phase 4) | Hermes + Human | No | Yes (drafts) | Agent generates drafts, human approves in studio |
 
 ## Relevant Files
+- `docs/STRATEGY.md`: **Strategy single source of truth** — thesis, secrets, first market, phased plan, falsification criteria, scoreboard
+- `docs/ROADMAP.md`: Engineering roadmap — LiveLink gates/implementation, artifact quality, validation; references STRATEGY.md for positioning
 - `src/lib/voice-agent/prompt.ts`: LLM prompt for conversation-to-structed-profile extraction
 - `src/lib/voice-agent/types.ts`: `VoiceExtractedProfile`, `ConversationTurn` types
 - `src/server/production.ts`: Production server combining Next.js + Speech Engine WebSocket

@@ -2,8 +2,8 @@
 
 ## Principles
 
-**1. The video is the product, not the app.**
-The UI exists to collect an input and deliver an output. Every design decision should reduce friction between "I want to send someone a video" and "the video is ready." Avoid feature creep in the interface.
+**1. The conversation is the product; the video is the artifact.**
+Per `docs/STRATEGY.md`, the live conversation is the product — the recorded video is the fallback artifact inside the live link. The UI exists to collect an input and deliver a first touch. Every design decision should reduce friction between "I want to reach this person" and "they're talking to my twin." Avoid feature creep in the interface.
 
 **2. Specificity must be visible.**
 The recipient should be able to tell, within the first few seconds, that the video was made for them. Vocal personalisation is not enough. The visual system should reference the recipient, the sender's offer, and the reason for reaching out.

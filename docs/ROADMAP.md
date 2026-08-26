@@ -16,23 +16,17 @@ nuncio is in production. The core multi-agent pipeline — research → write �
 
 ## Strategic Direction
 
-nuncio is redefining the category from "AI video outreach" to **conversational SDR** — a live AI avatar of the sender that prospects can actually talk to, negotiate with, and book meetings with.
+Positioning, first market, phased plan, falsification criteria, and scoreboard live in **`docs/STRATEGY.md`** (single source of truth — do not restate here). One-paragraph summary:
 
-- **Recorded video is the wedge**: a personalized 30–60s HeyGen video breaks through noise and creates trust at scale.
-- **Live conversation is the product**: a real-time avatar session (Anam / HeyGen LiveAvatar + low-latency voice) lets the prospect ask questions, object, and negotiate.
-- **Sender Playbook is the control layer**: structured capture of intent, offer, constraints, and wiggle room keeps the agent on-message without micromanagement.
+nuncio's thesis is that the scarce resource in sales is no longer attention but **credible presence**. The product makes the actual sender honestly present at every first touch — a live AI twin (face, voice, `SenderPlaybook`) where the artifact *is* the conversation, not an ad for one. Recorded HeyGen video is the fallback artifact inside the live link. This file tracks the **engineering roadmap** underneath that thesis.
 
 ## Current Focus
 
 ### Conversational SDR / LiveLink
 
-The product decision is to keep **HeyGen as the default recorded-video wedge** and use **Anam as the experimental live-conversation layer**. This is not a second video-rendering product or an immediate provider migration:
+Per `docs/STRATEGY.md`, the live link is becoming the **primary artifact** with recorded video as its fallback (STRATEGY Phase 1). Provider posture: **HeyGen remains the default recorded-video layer; Anam is the experimental live-conversation layer**, opt-in via `NUNCIO_LIVELINK_ENABLED=true` and limited to one sender during validation. HeyGen LiveAvatar Lite is retained as fallback vendor; do not build both live providers during the first experiment.
 
-> HeyGen gets the prospect's attention; Anam helps convert interest into a conversation and, eventually, a meeting.
-
-The existing LiveLink page and Anam session-token path are the technical starting point. The next goal is not broad commercialization; it is to prove that an AI version of the sender increases qualified conversations and booked meetings enough to justify live-session cost and operational complexity.
-
-After LiveLink is proven end-to-end, account-specific video compositions become supporting assets that the live agent can also show or reference during conversation.
+The next goal is not broad commercialization; it is to prove that an honest, disclosed AI twin of the sender increases qualified conversations and booked meetings enough to justify live-session cost and operational complexity (see STRATEGY falsification criteria).
 
 #### LiveLink decision gate
 
@@ -80,9 +74,9 @@ After the gate passes, the account-specific video compositions below become supp
 
 ### Strategic Account Videos
 
-nuncio is being sharpened around a narrower wedge: founders and small B2B teams pursuing high-value accounts, partnerships, investors, and other conversations where one thoughtful first message can change the relationship.
+Supports the recorded-artifact side of the thesis (fallback inside the live link). Narrow wedge: founders and small B2B teams pursuing high-value accounts, partnerships, investors, and other conversations where one thoughtful first message can change the relationship.
 
-The product should not feel like another outbound sequence tool. It should feel like the fastest way to produce the account-specific video the sender would make manually if they had enough time.
+The product should not feel like another outbound sequence tool — and per STRATEGY's stop-doing list, never like a volume tool. It should feel like the fastest way to produce the account-specific video the sender would make manually if they had enough time.
 
 - [x] Reposition landing page around high-value accounts, human review, and one-person-at-a-time quality
 - [x] Reframe studio input around account, reason, review, and send
@@ -118,33 +112,37 @@ Use London founder/operator access as a practical test bed before broadening the
 
 ## Next Steps
 
-### Strategic (LiveLink / Conversational SDR)
-1. ✅ **Sender playbook data model** — capture wants, offers, constraints, and wiggle room
-2. ✅ **Voice agent playbook extraction** — gather playbook fields conversationally
-3. ✅ **Pipeline delivery mode** — add `video` / `livelink` mode to pipeline input
-4. ✅ **LiveLink share + studio wiring** — `deliveryMode` on `ShareRecord`, `/api/share` handles livelink, studio client creates live share + QuickReady shows live link card
-5. ✅ **LiveLink conversation page (initial path)** — `/live/[id]` and `/api/live/session` use Anam; production hardening and pilot controls remain
-6. **LiveLink experiment controls** — allowlist, idle timeout, fallback, and provider-neutral errors (feature gate and initial session cap are in place)
-7. **Guardrails and booking integration** — hard constraints, explicit AI disclosure, fallback answers, and calendar booking
-8. **LiveLink measurement** — session lifecycle, latency, cost, failure, and meeting-outcome events
-9. **Reply-to-live escalation** — email replies can open a live avatar session instead of static follow-up
+Sequencing and gates come from `docs/STRATEGY.md` phases. Engineering items:
 
-### High Priority
-1. **LiveLink pilot** - one Anam sender/avatar, 5-10 prospects, explicit AI disclosure, short capped sessions, and a HeyGen-only comparison where practical
-2. **Visual proof brief** - collect 1-3 sender assets: product screenshot, logo, proof point, case study, deck slide, or relevant URL
-3. **Proof-first render path** - create one reusable composition that combines recipient research, sender asset, motion graphic, and avatar close
-4. **Pre-send review** - make the research, hook, script, and visual plan reviewable before credits are spent
-5. **Outcome tracking** - capture sent, watched, replied, meeting booked, live-session-started, live-session-completed, live-session-failed, duration, and second-video-created events
+### STRATEGY Phase 1 — commit and instrument
+1. **Live-link-first defaults** — make the live link the primary artifact; recorded video becomes the fallback inside it
+2. **Live-session instrumentation** — started, turns, question topics, booking event, drop-off point (question topics write the playbook spec)
+3. **LiveLink experiment controls** — allowlist, idle timeout, fallback, provider-neutral errors (feature gate and initial session cap are in place)
+4. **Guardrails and booking integration** — hard constraints, explicit AI disclosure (S2: disclosure as a feature), fallback answers, calendar booking
+5. **Reply-to-live escalation** — email replies can open a live avatar session instead of static follow-up (the artifact stays a conversation)
 
-### Medium Priority
-1. **LinkedIn-first format** - optimise one aspect ratio and playback context before expanding to Instagram, X, and other channels
-2. **Playbooks** - create a small set of opinionated flows: investor intro, strategic customer, partnership, recruiting, founder-to-founder
-3. **Credit spend transparency** - show credits spent during the current session on the ready screen; replace the current token-start reservation with duration-aware live usage reconciliation before commercialization
+### STRATEGY Phase 2 — ten founders, hand-served
+6. **Playbook capture** — productize the 30-minute founder interview via voice overlay into `SenderPlaybook`
+7. **LiveLink pilot** — one Anam sender/avatar, 5–10 prospects, explicit AI disclosure, short capped sessions, HeyGen-only comparison where practical
+8. **Outcome tracking** — sent, watched, replied, meeting booked, live-session lifecycle events, second-artifact-created
+9. **Pre-send review** — research, hook, script, and visual plan reviewable before credits are spent
+
+### STRATEGY Phase 3 — positioning rewrite (parallel)
+10. **Share-page viral loop** — turn "How this was made" into an explicit recipient→sender signup surface (S6)
+11. **Honest-twin framing** — replace "AI-powered · personalised video" nomenclature; disclosure badge; trust signals (sender photo, verified badge)
+12. **Value-metric experiment** — anchor pricing toward meetings booked, never "more sends"
+
+### Artifact quality (supports recorded fallback)
+13. **Visual proof brief** — collect 1–3 sender assets: product screenshot, logo, proof point, case study, deck slide, or relevant URL
+14. **Proof-first render path** — one reusable composition combining recipient research, sender asset, motion graphic, and avatar close
+15. **LinkedIn-first format** — optimise one aspect ratio and playback context before expanding
+16. **Playbook templates** — opinionated flows: investor intro, strategic customer, partnership, recruiting, founder-to-founder
 
 ### Lower Priority
 1. **Persistent magic links** — move from in-memory to Turso/file storage
 2. **One video player** — unify `/v/[id]` and `VideoPlayer` components
-3. **Multi-language delivery** - auto-detect target language, offer in studio UI
+3. **Multi-language delivery** — auto-detect target language, offer in studio UI (kept: amplifies presence, not volume)
+4. **Credit spend transparency** — show credits spent this session on the ready screen; replace token-start reservation with duration-aware live usage reconciliation before commercialization
 
 ---
 

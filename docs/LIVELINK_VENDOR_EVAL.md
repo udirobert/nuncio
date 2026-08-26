@@ -4,7 +4,7 @@
 
 ## Executive Summary
 
-Nuncio's strategic pivot is from "AI-powered personalized video" to a **conversational SDR**: an AI avatar of the sender that prospects can talk to, negotiate with, and book meetings with. Recorded HeyGen videos remain the scalable wedge; the **live avatar session** is the conversion surface.
+Nuncio's strategic pivot is from "AI-powered personalized video" to a **conversational SDR**: an AI avatar of the sender that prospects can talk to, negotiate with, and book meetings with. Recorded HeyGen videos remain the fallback artifact inside the live link; the **live avatar session** is the conversion surface. Full thesis and plan: `docs/STRATEGY.md`.
 
 This doc evaluates the two layers required for a LiveLink prototype:
 

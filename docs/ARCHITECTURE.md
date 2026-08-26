@@ -4,7 +4,7 @@
 
 nuncio is a multi-agent platform for personalized outreach. The current product is video-first: agents research a prospect, draft a script, and render a personalized video. The next chapter is a **conversational SDR** — a live AI avatar of the sender that can hold a real-time conversation with the prospect.
 
-Recorded video is the wedge. Live conversation is the product. The same research and synthesis pipeline powers both.
+Recorded video is the fallback artifact; live conversation is the product; the same research and synthesis pipeline powers both. Full thesis and plan: `docs/STRATEGY.md` (single source of truth for strategy).
 
 ---
 
