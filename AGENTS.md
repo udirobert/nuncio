@@ -7,7 +7,7 @@ Build a creative monopoly in **conversational SDR** — honest presence, not dis
 
 **Full thesis, first market, phased plan, falsification criteria, and scoreboard: `docs/STRATEGY.md` — the single source of truth for strategy. Do not restate strategy in other docs.**
 
-Current phase: STRATEGY Phase 1 — live-link-first defaults + live-session instrumentation. `SenderPlaybook`, `deliveryMode`, and the LiveLink POC are built; the dual-mode architecture (Band studio + Hermes autonomous) is in place.
+Current phase: STRATEGY Phase 1 ✅ (defaults flipped, instrumentation live, predictions derived) → Phase 2 — ten founders hand-served; playbook capture via voice overlay. `SenderPlaybook`, `deliveryMode`, and the LiveLink POC are built; the dual-mode architecture (Band studio + Hermes autonomous) is in place.
 
 ## Core Principles
 - **ENHANCEMENT FIRST**: Always prioritize enhancing existing components over creating new ones
@@ -40,7 +40,12 @@ Current phase: STRATEGY Phase 1 — live-link-first defaults + live-session inst
 - Sentry configured as **opt-in** — no-op until `SENTRY_DSN` env var is set
 - Speech Engine voice agent uses `engine.attach()` on the same HTTP server as Next.js; conversation token generated via `POST /v1/convai/conversation/token`; browser connects via `@elevenlabs/client` `Conversation.startSession({ conversationToken })`
 - Voice overlay ("Brief with voice") is an alternative input channel in the studio; LLM extracts structured profile from natural conversation. Per STRATEGY Phase 2, it is also the intended capture instrument for hand-built `SenderPlaybook` interviews.
-- Nomenclature currently uses "AI-powered · personalised video" for badge, "Build video" for CTA, "Background audio" for soundscape selector — **superseded pending STRATEGY Phase 3 positioning rewrite** (honest-twin framing)
+- **Honest-twin nomenclature shipped (Phase 3)**: "AI-powered · personalised video" is gone — studio badge reads "AI twin · disclosed to your recipient"; live page headline "Meet {sender} — anytime" with disclosure badge ("disclosed, never disguised"); landing/metadata/pricing aligned. Disclosure is a feature, never hidden
+- **Live-link-first defaults (Phase 1)**: studio, `/api/share`, and `/api/pipeline` default to `livelink` when the pilot allows (`isLiveLinkAllowed`); explicit `"video"` is always respected; a supplied `videoUrl` implies video on share creation
+- **Live-session instrumentation (Phase 1)**: `LiveSessionRecord.metrics` (`userTurns`, `agentTurns`, `questionTopics`, `bookingClicked`, `lastEvent` drop-off marker, `firstUserTurnAt`) heartbeated every 15s from `/live/[id]` and finalized on terminal `/api/live/sync` (heartbeat = POST without `reason`). Question topics are classified in-browser by `src/lib/live-topics.ts` into 9 buckets — **labels only, raw transcript never leaves the browser**. Read path: `GET /api/live/sessions` (workspace-scoped)
+- **Booking event**: `WorkspaceAccount.bookingUrl` (studio field, brief PATCH) snapshots onto `ShareRecord.bookingUrl`; "Book time with {sender}" CTA on `/live/[id]` and `/v/[id]`; twin's system prompt points warm prospects at it; `booking_clicked` PostHog event is the north-star proxy
+- **Viral loop (S6)**: share-page CTA rewritten as recipient→sender signup ("This researched you… Make yours →") with `?ref=share-{id}` / `?ref=live-{id}` links; landing captures via `trackViralLanding`
+- **Value metric**: credits remain the meter; pricing copy anchors on meetings booked / twin first touches — never "more sends"
 - Email gate captured on explicit render/share/download actions, not session start; **once-per-session** — `capturedEmail` reused for all subsequent actions, modal only re-opens when genuinely absent
 - **Three-tier storage** (Backblaze hackathon): B2 = media asset store (videos, audio, thumbnails, traces, per-share asset manifests, S3 user-defined metadata), Grove = immutable provenance anchor (proof v2 with content hashes + Genblaze manifest URIs), Genblaze worker = orchestration SDK. No overlap between tiers.
 - **Genblaze worker owned by nuncio** at `workers/genblaze/` (Python/FastAPI), not by Hermes. Multi-step `Pipeline("nuncio-composite")` chains thumbnail (GMI Cloud) + soundscape + TTS (ElevenLabs) in one run. HeyGen video stays outside Genblaze (no adapter); rendered video persisted to B2 via `MediaStorageProvider`.
@@ -71,8 +76,9 @@ Not maintained — use `git log --oneline`. Milestone order: Band studio pipelin
 ## Next Steps
 Strategic plan (phases, gates, scoreboard) lives in `docs/STRATEGY.md`. Engineering backlog:
 
-- **Live-link-first defaults** (STRATEGY Phase 1) — make the live link the primary artifact; recorded video becomes the fallback inside it
-- **Live-session instrumentation** (STRATEGY Phase 1) — started, turns, question topics, booking event, drop-off point
+- **Playbook capture** (STRATEGY Phase 2) — productize the 30-minute founder interview via voice overlay into `SenderPlaybook`; question-topic distribution from live sessions seeds the interview outline
+- **Scoreboard dashboard** — surface `LiveSessionRecord.metrics` aggregates (start rate, median turns, topic distribution, bookings) in the dashboard; `GET /api/live/sessions` is the read path
+- **Reply-to-live escalation** — email replies can open a live avatar session instead of static follow-up
 - **Playbook capture** (STRATEGY Phase 2) — productize the 30-minute founder interview via voice overlay into `SenderPlaybook`
 - **Share-page viral loop** (STRATEGY Phase 3) — turn "How this was made" into an explicit recipient→sender signup surface
 - **Voice agent** — wire production server, test end-to-end, ElevenLabs Hack #10 submission video (closes May 28)
@@ -131,6 +137,10 @@ Hermes is an optional autonomous client over nuncio's agent API layer. All gener
 - `workers/genblaze/`: Genblaze orchestration worker (FastAPI). `main.py` (endpoints), `providers.py` (multi-step pipelines), `Dockerfile`, `README.md`
 - `docs/DEVPOST-BACKBLAZE.md`: Backblaze Generative AI Media Hackathon submission writeup
 - `docs/HACKATHON-REPO-ACCESS.md`: Checklist for granting `b2genblaze` judge access to the private repo
+- `src/lib/live-topics.ts`: Question-topic classifier (9 buckets, pure function, browser+server) — labels only, transcript never leaves the browser
+- `src/lib/live-session.ts`: `recordLiveSessionTelemetry()` (heartbeat, pending→active, metric merge) + `reconcileLiveSession()` (terminal, metrics-aware)
+- `src/app/api/live/sync/route.ts`: Heartbeat (no `reason`) + terminal sync with sanitized metrics
+- `src/app/api/live/sessions/route.ts`: Workspace-scoped scoreboard read path for recent terminal sessions
 - `src/lib/url.ts`: Proxy-aware public URL resolution (`resolvePublicOrigin`, `absoluteUrl`) — prevents localhost redirects behind reverse proxies
 - `agents/nuncio_agents/`: Band agents (researcher, copywriter) — human-driven studio mode, NOT deprecated
 - `~/.hermes/skills/nuncio/`: Hermes skills for autonomous SDR mode (8 SKILL.md files)
