@@ -54,6 +54,18 @@ export class FileLiveSessionStorageProvider implements LiveSessionStorageProvide
     );
   }
 
+  async listRecent(input: { workspaceId: string; limit?: number }): Promise<LiveSessionRecord[]> {
+    await this.load();
+    const limit = input.limit ?? 50;
+    return Array.from(this.records.values())
+      .filter(
+        (record) => record.workspaceId === input.workspaceId
+          && (record.status === "ended" || record.status === "expired" || record.status === "failed"),
+      )
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit);
+  }
+
   private async load(): Promise<void> {
     if (this.loaded) return;
     this.loaded = true;

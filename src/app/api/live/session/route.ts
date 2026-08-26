@@ -47,6 +47,10 @@ function buildSystemPrompt(share: {
     ? workspace.playbookConstraints.split("\n").filter(Boolean).join("\n")
     : "- Be honest, concise, and respectful.\n- Do not promise pricing or terms the sender cannot commit to.\n- Do not disparage competitors.";
 
+  const bookingGuidance = workspace?.bookingUrl
+    ? `\n- A booking link is shown on this page. If the recipient wants time with ${sender}, invite them to use it: "Use the booking button below to grab time with ${sender}." Never invent specific times or promise meetings on ${sender}'s behalf beyond pointing to that link.`
+    : "";
+
   return `You are a live AI representative for ${sender}. You are speaking one-on-one with ${recipient}${role}${company}.
 
 Your goal is to represent ${sender} naturally, answer the recipient's questions, and move the conversation toward a clear next step. You should feel like a helpful colleague, not a sales script.
@@ -67,7 +71,7 @@ Instructions for the conversation:
 - Always stay within the playbook constraints above.
 - End by offering a clear next step (e.g., book a short call, answer follow-up questions, or share more information).
 - Address the recipient by name when it feels natural.
-- ${languageHint}`;
+- ${languageHint}${bookingGuidance}`;
 }
 
 export async function POST(request: NextRequest) {

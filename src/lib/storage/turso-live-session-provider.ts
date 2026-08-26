@@ -70,6 +70,17 @@ export class TursoLiveSessionStorageProvider implements LiveSessionStorageProvid
     return result.rows.map((row) => parseRow(row.record_json)).filter((row): row is LiveSessionRecord => Boolean(row));
   }
 
+  async listRecent(input: { workspaceId: string; limit?: number }): Promise<LiveSessionRecord[]> {
+    await this.ensureSchema();
+    const result = await this.client.execute({
+      sql: `SELECT record_json FROM live_sessions
+            WHERE workspace_id = ? AND status IN ('ended', 'expired', 'failed')
+            ORDER BY created_at DESC LIMIT ?`,
+      args: [input.workspaceId, input.limit ?? 50],
+    });
+    return result.rows.map((row) => parseRow(row.record_json)).filter((row): row is LiveSessionRecord => Boolean(row));
+  }
+
   private async ensureSchema(): Promise<void> {
     if (!this.ready) {
       this.ready = Promise.all([

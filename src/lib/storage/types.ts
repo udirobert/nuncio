@@ -147,6 +147,8 @@ export interface LiveSessionStorageProvider {
   get(id: string): Promise<LiveSessionRecord | null>;
   update(record: LiveSessionRecord): Promise<void>;
   listOpen(): Promise<LiveSessionRecord[]>;
+  /** Recent terminal sessions for a workspace (scoreboard read path), newest first. */
+  listRecent(input: { workspaceId: string; limit?: number }): Promise<LiveSessionRecord[]>;
 }
 
 export interface AccountStorageProvider {

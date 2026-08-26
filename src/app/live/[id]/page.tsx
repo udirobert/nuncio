@@ -3,15 +3,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import { createClient, AnamEvent, type AnamClient } from "@anam-ai/js-sdk";
+import { createClient, AnamEvent, type AnamClient, type Message } from "@anam-ai/js-sdk";
 import type { ShareRecord } from "@/lib/artifacts";
 import {
+  trackBookingClicked,
   trackLiveSessionConnected,
   trackLiveSessionEnded,
   trackLiveSessionFailed,
   trackLiveSessionRequested,
+  trackViralCtaClicked,
 } from "@/lib/analytics";
 import { LIVE_SESSION_MAX_DURATION_MS } from "@/lib/live-link";
+import { classifyQuestionTopics } from "@/lib/live-topics";
 
 export default function LiveAvatarLandingPage({
   params,
@@ -35,6 +38,16 @@ export default function LiveAvatarLandingPage({
   const sessionStartedAtRef = useRef<number | null>(null);
   const sessionSyncedRef = useRef(false);
   const maxDurationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const bookingUrlRef = useRef<string | null>(null);
+  const metricsRef = useRef({
+    userTurns: 0,
+    agentTurns: 0,
+    topics: new Set<string>(),
+    bookingClicked: false,
+    lastEvent: "requested",
+    firstUserTurnAt: null as string | null,
+  });
 
   useEffect(() => {
     async function load() {
@@ -46,6 +59,10 @@ export default function LiveAvatarLandingPage({
           return;
         }
         const data = (await res.json()) as ShareRecord;
+        shareIdRef.current = data.id;
+        bookingUrlRef.current = typeof data.bookingUrl === "string" && data.bookingUrl.startsWith("https://")
+          ? data.bookingUrl
+          : null;
         setShare(data);
       } catch {
         setNotFound(true);
@@ -63,7 +80,18 @@ export default function LiveAvatarLandingPage({
     if (!shareId || !sessionId || startedAt === null || sessionSyncedRef.current) return;
 
     const durationMs = Math.max(0, Date.now() - startedAt);
-    trackLiveSessionEnded({ shareId, durationMs, reason });
+    const metrics = metricsRef.current;
+    metrics.lastEvent = `ended:${reason}`;
+    const questionTopics = Array.from(metrics.topics);
+    trackLiveSessionEnded({
+      shareId,
+      durationMs,
+      reason,
+      userTurns: metrics.userTurns,
+      agentTurns: metrics.agentTurns,
+      questionTopics,
+      bookingClicked: metrics.bookingClicked,
+    });
     sessionSyncedRef.current = true;
 
     const payload = JSON.stringify({
@@ -72,6 +100,15 @@ export default function LiveAvatarLandingPage({
       durationMs,
       reason,
       syncToken: liveSessionSyncTokenRef.current,
+      metrics: {
+        userTurns: metrics.userTurns,
+        agentTurns: metrics.agentTurns,
+        questionTopics,
+        bookingClicked: metrics.bookingClicked,
+        bookingUrlPresent: Boolean(bookingUrlRef.current),
+        lastEvent: metrics.lastEvent,
+        firstUserTurnAt: metrics.firstUserTurnAt ?? undefined,
+      },
     });
     if (reason === "unload" && typeof navigator !== "undefined" && navigator.sendBeacon) {
       navigator.sendBeacon("/api/live/sync", new Blob([payload], { type: "application/json" }));
@@ -93,12 +130,93 @@ export default function LiveAvatarLandingPage({
     }
   }, []);
 
+  const clearHeartbeatTimer = useCallback(() => {
+    if (heartbeatTimerRef.current) {
+      clearInterval(heartbeatTimerRef.current);
+      heartbeatTimerRef.current = null;
+    }
+  }, []);
+
+  // Fire-and-forget telemetry heartbeat — only classified topic labels and
+  // counters leave the browser, never the raw transcript.
+  const sendHeartbeat = useCallback(() => {
+    const shareId = shareIdRef.current;
+    const sessionId = liveSessionIdRef.current;
+    const syncToken = liveSessionSyncTokenRef.current;
+    const startedAt = sessionStartedAtRef.current;
+    if (!shareId || !sessionId || !syncToken || startedAt === null || sessionSyncedRef.current) return;
+
+    const metrics = metricsRef.current;
+    fetch("/api/live/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        shareId,
+        syncToken,
+        durationMs: Math.max(0, Date.now() - startedAt),
+        metrics: {
+          userTurns: metrics.userTurns,
+          agentTurns: metrics.agentTurns,
+          questionTopics: Array.from(metrics.topics),
+          bookingClicked: metrics.bookingClicked,
+          bookingUrlPresent: Boolean(bookingUrlRef.current),
+          lastEvent: metrics.lastEvent,
+          firstUserTurnAt: metrics.firstUserTurnAt ?? undefined,
+        },
+      }),
+      keepalive: true,
+    }).catch(() => {});
+  }, []);
+
+  // Turn counters are derived from the full message history each time, so
+  // repeated events stay idempotent.
+  const handleMessageHistory = useCallback((messages: Message[]) => {
+    const metrics = metricsRef.current;
+    let userTurns = 0;
+    let agentTurns = 0;
+    for (const message of messages) {
+      if (message.role === "user") {
+        userTurns += 1;
+        for (const topic of classifyQuestionTopics(message.content)) {
+          metrics.topics.add(topic);
+        }
+      } else if (message.role === "persona") {
+        agentTurns += 1;
+      }
+    }
+    metrics.userTurns = userTurns;
+    metrics.agentTurns = agentTurns;
+    if (userTurns > 0) {
+      if (!metrics.firstUserTurnAt) {
+        metrics.firstUserTurnAt = new Date().toISOString();
+        metrics.lastEvent = "first_user_turn";
+      } else {
+        metrics.lastEvent = "conversation";
+      }
+    }
+  }, []);
+
+  const handleBookingClick = useCallback(() => {
+    const url = bookingUrlRef.current;
+    if (!url) return;
+    metricsRef.current.bookingClicked = true;
+    metricsRef.current.lastEvent = "booking_clicked";
+    const shareId = shareIdRef.current;
+    if (shareId) trackBookingClicked({ shareId, surface: "live_page" });
+    // Persist the click immediately in case the tab closes right after.
+    sendHeartbeat();
+    window.open(url, "_blank", "noopener,noreferrer");
+  }, [sendHeartbeat]);
+
   const endSession = useCallback((reason: "manual" | "provider_closed" | "max_duration" | "unload" = "manual") => {
     clearMaxDurationTimer();
+    clearHeartbeatTimer();
     recordSessionEnd(reason);
 
     if (clientRef.current) {
       try {
+        clientRef.current.removeListener(AnamEvent.MESSAGE_HISTORY_UPDATED, handleMessageHistory);
         clientRef.current.stopStreaming?.();
         (clientRef.current as { disconnect?: () => void }).disconnect?.();
       } catch {
@@ -110,7 +228,7 @@ export default function LiveAvatarLandingPage({
         setStatus("Click below to start the live conversation");
       }
     }
-  }, [clearMaxDurationTimer, recordSessionEnd]);
+  }, [clearMaxDurationTimer, clearHeartbeatTimer, recordSessionEnd, handleMessageHistory]);
 
   useEffect(() => {
     function handleBeforeUnload() {
@@ -130,6 +248,15 @@ export default function LiveAvatarLandingPage({
     liveSessionIdRef.current = null;
     liveSessionSyncTokenRef.current = null;
     sessionSyncedRef.current = false;
+    // Fresh per-session instrumentation; a pre-session booking click carries over.
+    metricsRef.current = {
+      userTurns: 0,
+      agentTurns: 0,
+      topics: new Set<string>(),
+      bookingClicked: metricsRef.current.bookingClicked,
+      lastEvent: "requested",
+      firstUserTurnAt: null,
+    };
     setStarting(true);
     setError(null);
     setErrorReason(null);
@@ -190,12 +317,14 @@ export default function LiveAvatarLandingPage({
           setStatus("Session limit reached");
           endSession("max_duration");
         }, LIVE_SESSION_MAX_DURATION_MS);
+        heartbeatTimerRef.current = setInterval(sendHeartbeat, 15_000);
         setStatus("Connected — say hello!");
         setLive(true);
       });
 
       client.addListener(AnamEvent.CONNECTION_CLOSED, () => {
         clearMaxDurationTimer();
+        clearHeartbeatTimer();
         recordSessionEnd("provider_closed");
         clientRef.current = null;
         startedRef.current = false;
@@ -203,17 +332,21 @@ export default function LiveAvatarLandingPage({
         setLive(false);
       });
 
+      client.addListener(AnamEvent.MESSAGE_HISTORY_UPDATED, handleMessageHistory);
+
       await client.streamToVideoElement("anam-video");
       startedRef.current = true;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not start live session";
       clearMaxDurationTimer();
+      clearHeartbeatTimer();
       sessionStartedAtRef.current = null;
       liveSessionIdRef.current = null;
       liveSessionSyncTokenRef.current = null;
       sessionSyncedRef.current = false;
       if (clientRef.current) {
         try {
+          clientRef.current.removeListener(AnamEvent.MESSAGE_HISTORY_UPDATED, handleMessageHistory);
           clientRef.current.stopStreaming?.();
           (clientRef.current as { disconnect?: () => void }).disconnect?.();
         } catch {
@@ -279,6 +412,7 @@ export default function LiveAvatarLandingPage({
 
   const sender = share.senderName || "your contact";
   const recipient = share.recipientName || "there";
+  const bookingUrl = share.bookingUrl && share.bookingUrl.startsWith("https://") ? share.bookingUrl : null;
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
@@ -299,11 +433,14 @@ export default function LiveAvatarLandingPage({
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="mb-8 text-center"
           >
+            {share.recipientName && (
+              <p className="text-sm text-ink-faint mb-2">Hey {recipient}</p>
+            )}
             <h1 className="font-display text-4xl md:text-5xl tracking-tight leading-[0.9] mb-3">
-              Hey {recipient}
+              Meet {sender} — anytime
             </h1>
-            <p className="text-ink-muted text-[15px]">
-              {sender} is here to talk live
+            <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+              AI twin of {sender} · trained on their playbook · disclosed, never disguised
             </p>
           </motion.div>
 
@@ -396,6 +533,27 @@ export default function LiveAvatarLandingPage({
             )}
           </motion.div>
 
+          {bookingUrl && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              className="mt-3 flex justify-center"
+            >
+              <button
+                onClick={handleBookingClick}
+                aria-label={`Book time with ${sender}`}
+                className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-5 py-2.5 text-sm font-medium hover:bg-white transition-colors flex items-center gap-2"
+              >
+                <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <rect x="2" y="3" width="12" height="11" rx="2" />
+                  <path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" />
+                </svg>
+                Book time with {sender}
+              </button>
+            </motion.div>
+          )}
+
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -415,7 +573,11 @@ export default function LiveAvatarLandingPage({
       <footer className="px-6 py-6 text-center">
         <p className="text-[11px] text-ink-faint">
           Powered by{" "}
-          <Link href="/" className="text-ink-muted hover:text-ink transition-colors font-medium">
+          <Link
+            href={`/?ref=live-${share.id}`}
+            onClick={() => trackViralCtaClicked({ shareId: share.id, ref: `live-${share.id}`, surface: "live_page" })}
+            className="text-ink-muted hover:text-ink transition-colors font-medium"
+          >
             nuncio
           </Link>{" "}
           — your intelligent emissary
