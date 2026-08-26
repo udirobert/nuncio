@@ -79,8 +79,6 @@ Strategic plan (phases, gates, scoreboard) lives in `docs/STRATEGY.md`. Engineer
 - **Playbook capture** (STRATEGY Phase 2) — productize the 30-minute founder interview via voice overlay into `SenderPlaybook`; question-topic distribution from live sessions seeds the interview outline
 - **Scoreboard dashboard** — surface `LiveSessionRecord.metrics` aggregates (start rate, median turns, topic distribution, bookings) in the dashboard; `GET /api/live/sessions` is the read path
 - **Reply-to-live escalation** — email replies can open a live avatar session instead of static follow-up
-- **Playbook capture** (STRATEGY Phase 2) — productize the 30-minute founder interview via voice overlay into `SenderPlaybook`
-- **Share-page viral loop** (STRATEGY Phase 3) — turn "How this was made" into an explicit recipient→sender signup surface
 - **Voice agent** — wire production server, test end-to-end, ElevenLabs Hack #10 submission video (closes May 28)
 - **Script quality** — `fallbackScript()` produces raw data dumps when all LLM providers fail; improve to clean hooks + meaningfully different variants
 - **Band agent progress events** — server-side progress events from the pipeline route as fallback for WebSocket gaps
