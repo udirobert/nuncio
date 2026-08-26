@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { ShareRecord } from "@/lib/artifacts";
 import { languageLabel } from "@/lib/languages";
 import { DuckingAudio } from "@/components/ducking-audio";
+import { trackBookingClicked, trackVideoWatchThrough, trackViralCtaClicked } from "@/lib/analytics";
 
 /**
  * Branded video landing page — /v/[id]
@@ -115,6 +116,9 @@ export default function VideoLandingPage({
       : senderName
     : "";
 
+  // Booking CTA is the control arm for prediction P-c — https links only.
+  const bookingUrl = videoData.bookingUrl?.startsWith("https://") ? videoData.bookingUrl : null;
+
   return (
     <div className="min-h-screen bg-cream flex flex-col">
       {/* Minimal header */}
@@ -127,7 +131,14 @@ export default function VideoLandingPage({
         </Link>
         {hasVideo && (
           <Link
-            href="/"
+            href={`/?ref=share-${videoData.id}-header`}
+            onClick={() =>
+              trackViralCtaClicked({
+                shareId: videoData.id,
+                ref: `share-${videoData.id}-header`,
+                surface: "header",
+              })
+            }
             className="text-xs text-ink-faint hover:text-accent transition-colors"
           >
             Make your own →
@@ -162,6 +173,11 @@ export default function VideoLandingPage({
                 {senderContext}
               </p>
             )}
+            <p className="mt-3 text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+              {senderName
+                ? `Made by ${senderName}'s AI twin · disclosed, never disguised`
+                : "Made by an AI twin · disclosed, never disguised"}
+            </p>
           </motion.div>
 
           {/* Video — scales up from card with clip-path reveal */}
@@ -235,6 +251,7 @@ export default function VideoLandingPage({
                     controls
                     autoPlay
                     playsInline
+                    onEnded={() => trackVideoWatchThrough({ shareId: videoData.id })}
                     className="w-full h-full object-contain"
                   >
                     <track kind="captions" />
@@ -314,6 +331,17 @@ export default function VideoLandingPage({
                 </svg>
                 Send one back
               </Link>
+              {bookingUrl && (
+                <button
+                  onClick={() => {
+                    trackBookingClicked({ shareId: videoData.id, surface: "share_page" });
+                    window.open(bookingUrl, "_blank", "noopener,noreferrer");
+                  }}
+                  className="btn-press rounded-xl border border-cream-dark bg-white/80 px-5 py-2.5 text-xs font-medium text-ink hover:bg-white transition-colors"
+                >
+                  Book time with {senderName || "the sender"}
+                </button>
+              )}
             </motion.div>
           )}
 
@@ -388,17 +416,25 @@ export default function VideoLandingPage({
             >
               <div className="inline-flex flex-col items-center gap-4 rounded-2xl border border-cream-dark bg-white/80 px-8 py-6 shadow-sm">
                 <p className="text-sm text-ink-light max-w-[320px]">
-                  This video was researched, written, and rendered by AI — personalised
-                  specifically for you.
+                  This researched you, wrote what you just watched, and can answer
+                  questions live.
+                </p>
+                <p className="text-xs text-ink-faint max-w-[320px]">
+                  It&apos;s {senderName ? `${senderName}'s` : "an"} AI twin — disclosed
+                  up front, built on their playbook.
                 </p>
                 <Link
-                  href="/"
+                  href={`/?ref=share-${videoData.id}`}
+                  onClick={() =>
+                    trackViralCtaClicked({
+                      shareId: videoData.id,
+                      ref: `share-${videoData.id}`,
+                      surface: "share_page",
+                    })
+                  }
                   className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-6 py-3 text-sm font-medium shadow-lg shadow-ink/15 hover:shadow-xl hover:-translate-y-0.5 transition-all"
                 >
-                  Send your own personalised video
-                  <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M3 8h10M9 4l4 4-4 4" />
-                  </svg>
+                  Make yours →
                 </Link>
                 <p className="text-[11px] text-ink-faint">
                   Free · No account needed · 90 seconds

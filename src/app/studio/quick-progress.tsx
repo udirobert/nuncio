@@ -54,7 +54,7 @@ const STEP_MOMENTS: Record<QuickProgressStep, string[]> = {
   render: [
     "HeyGen is rendering your avatar — usually 2–3 minutes",
     "You can tab away — we will move you forward automatically",
-    "Finalising your personalised video",
+    "Finalising your first touch",
   ],
 };
 

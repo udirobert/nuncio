@@ -21,7 +21,7 @@ const TILES = [
   {
     step: "04",
     title: "Open a door",
-    body: "Send a polished personal video and give a high-value conversation the attention it deserves.",
+    body: "Your disclosed AI twin takes the first meeting live — with a recorded video riding along as fallback.",
   },
 ];
 

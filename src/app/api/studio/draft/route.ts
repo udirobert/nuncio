@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { chatCompletion } from "@/lib/llm";
 
 const CHANNEL_GUIDELINES: Record<string, string> = {
-  email: "Write a short email (subject line + 2-3 sentence body). Professional but warm. Include a clear CTA to watch the video.",
+  email: "Write a short email (subject line + 2-3 sentence body). Professional but warm. Include a clear CTA to open the link — the sender's AI twin is live on the other side and can answer questions right away.",
   linkedin: "Write a LinkedIn DM. Keep it under 300 characters. Casual-professional tone. Reference something specific about the recipient.",
   twitter: "Write a tweet or Twitter DM. Max 280 characters for tweet, slightly longer for DM. Punchy, no fluff.",
   whatsapp: "Write a WhatsApp message. Very casual, 1-2 sentences max. Like texting a colleague.",
@@ -18,12 +18,12 @@ export async function POST(request: NextRequest) {
 
     const guidelines = CHANNEL_GUIDELINES[channel] || CHANNEL_GUIDELINES.email;
 
-    const systemPrompt = `You draft short outreach messages to accompany personalised videos. Write ONLY the message — no preamble, no quotes, no explanation. The message should feel human (not templated), create curiosity about the video without spoiling it, reference something specific to the recipient, and be ready to copy-paste as-is.`;
+    const systemPrompt = `You draft short outreach messages to accompany a personal first-touch link — the link opens a live conversation with the sender's disclosed AI twin (a recorded video is included as fallback). Write ONLY the message — no preamble, no quotes, no explanation. The message should feel human (not templated), create curiosity about the link without spoiling it, be upfront that an AI twin answers it, reference something specific to the recipient, and be ready to copy-paste as-is.`;
 
     const userMessage = `Draft a ${channel} message for:
 - Recipient: ${recipientName}
 - Sender: ${senderName || "the sender"}
-- Video script summary: ${script ? script.slice(0, 300) : "A personalised video message"}
+- Twin's talking points: ${script ? script.slice(0, 300) : "A personal first touch from the sender's AI twin"}
 ${recentActivity ? `- Recipient's recent activity: ${recentActivity.slice(0, 400)}` : ""}
 
 GUIDELINES: ${guidelines}

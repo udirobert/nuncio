@@ -24,21 +24,21 @@ const instrumentSerif = Instrument_Serif({
 export const metadata: Metadata = {
   title: "nuncio — your intelligent emissary",
   description:
-    "Drop a name or any social URL. Get a personalised video in minutes.",
+    "Drop a name or any social URL. Your AI twin takes the first meeting — live, disclosed, on your playbook.",
   icons: {
     icon: "/favicon.svg",
   },
   openGraph: {
     title: "nuncio — your intelligent emissary",
     description:
-      "Drop a name or any social URL. Get a personalised video in minutes.",
+      "Drop a name or any social URL. Your AI twin takes the first meeting — live, disclosed, on your playbook.",
     type: "website",
   },
   twitter: {
     card: "summary",
     title: "nuncio — your intelligent emissary",
     description:
-      "Drop a name or any social URL. Get a personalised video in minutes.",
+      "Drop a name or any social URL. Your AI twin takes the first meeting — live, disclosed, on your playbook.",
   },
   manifest: "/manifest.json",
 };
