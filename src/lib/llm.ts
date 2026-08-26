@@ -164,7 +164,9 @@ async function callProvider(
 
 /**
  * Send a chat completion request, trying each configured provider in order.
- * Falls back to the next provider on failure (auth errors, rate limits, timeouts).
+ * Falls back to the next provider on any failure — auth errors, rate limits,
+ * timeouts, and 400s (e.g. an unfunded Anthropic key: "credit balance is too
+ * low" must not stop the chain).
  */
 export async function chatCompletion(
   systemPrompt: string,
@@ -187,8 +189,10 @@ export async function chatCompletion(
       console.warn(`[llm] ${config.provider} failed: ${msg}`);
       lastError = err instanceof Error ? err : new Error(msg);
 
-      // Don't retry on client-side errors (bad prompt, etc.)
-      if (msg.includes("400") && !msg.includes("400 —")) break;
+      // Every failure falls through to the next provider — including 400s. An
+      // unfunded Anthropic key answers 400 "credit balance is too low", which
+      // must not stop the chain: the fallback providers are the point. 400s
+      // return instantly, so falling through costs nothing.
     }
   }
 
@@ -265,7 +269,8 @@ async function callAnthropic(
   );
 
   if (!response.ok) {
-    throw new Error(`Anthropic API error: ${response.status}`);
+    const error = await response.text();
+    throw new Error(`Anthropic API error: ${response.status} — ${error}`);
   }
 
   const data = await response.json();
