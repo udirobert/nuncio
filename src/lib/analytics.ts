@@ -7,6 +7,8 @@
  * - Engagement: playbook_viewed, example_clicked, intent_selected, voice_input_used
  * - Quality: enrichment_partial_failure, script_edited, translation_requested
  * - LiveLink: live_session_requested, live_session_connected, live_session_ended, live_session_failed
+ * - Scoreboard (STRATEGY Phase 1): booking_clicked, video_watch_through
+ * - Viral loop (STRATEGY S6): viral_cta_clicked, viral_landing
  */
 
 import posthog from "posthog-js";
@@ -143,6 +145,11 @@ export function trackLiveSessionEnded(props: {
   shareId: string;
   durationMs: number;
   reason: "manual" | "provider_closed" | "max_duration" | "unload";
+  /** STRATEGY Phase 1 scoreboard instrumentation. */
+  userTurns?: number;
+  agentTurns?: number;
+  questionTopics?: string[];
+  bookingClicked?: boolean;
 }) {
   if (!isReady()) return;
   posthog.capture("live_session_ended", props);
@@ -154,6 +161,37 @@ export function trackLiveSessionFailed(props: {
 }) {
   if (!isReady()) return;
   posthog.capture("live_session_failed", props);
+}
+
+/** Booking intent — the scoreboard's north star (meetings booked per artifact). */
+export function trackBookingClicked(props: {
+  shareId: string;
+  surface: "live_page" | "share_page";
+}) {
+  if (!isReady()) return;
+  posthog.capture("booking_clicked", props);
+}
+
+/** Recorded-video watch-through — the control-arm metric for prediction (b). */
+export function trackVideoWatchThrough(props: { shareId: string }) {
+  if (!isReady()) return;
+  posthog.capture("video_watch_through", props);
+}
+
+// ─── Recipient → sender viral loop (STRATEGY S6) ─────────────────────────────
+
+export function trackViralCtaClicked(props: {
+  shareId?: string;
+  ref: string;
+  surface: "share_page" | "live_page" | "header";
+}) {
+  if (!isReady()) return;
+  posthog.capture("viral_cta_clicked", props);
+}
+
+export function trackViralLanding(props: { ref: string }) {
+  if (!isReady()) return;
+  posthog.capture("viral_landing", props);
 }
 
 // ─── Wait screen engagement ─────────────────────────────────────────────────

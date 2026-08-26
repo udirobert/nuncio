@@ -4,6 +4,7 @@ import type { AgentTraceItem } from "@/lib/artifacts";
 import type { Profile } from "@/lib/claude";
 import { readAccountSession } from "@/lib/auth/session";
 import { isLiveLinkAllowed } from "@/lib/live-link";
+import { getAccountStorageProvider } from "@/lib/storage";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -35,13 +36,36 @@ export async function POST(request: NextRequest) {
 
   const session = readAccountSession(request);
 
+  const liveLinkAllowed = isLiveLinkAllowed({
+    workspaceId: session?.workspaceId,
+    senderEmail: session?.email,
+  });
+
+  // STRATEGY Phase 1: the live link is the primary artifact. An explicit
+  // deliveryMode always wins; otherwise a rendered videoUrl implies video,
+  // and livelink is the default whenever the pilot allows it.
+  const mode = deliveryMode === "livelink" || deliveryMode === "video"
+    ? deliveryMode
+    : videoUrl !== undefined
+      ? "video"
+      : liveLinkAllowed
+        ? "livelink"
+        : "video";
+
   // Live links don't need a rendered video. Recorded videos do.
-  const mode = deliveryMode === "livelink" ? "livelink" : "video";
-  if (mode === "livelink" && !isLiveLinkAllowed({ workspaceId: session?.workspaceId, senderEmail: session?.email })) {
+  if (mode === "livelink" && !liveLinkAllowed) {
     return NextResponse.json({ error: "LiveLink is not enabled for this pilot" }, { status: 404 });
   }
   if (mode === "video" && videoUrl === undefined) {
     return NextResponse.json({ error: "videoUrl is required" }, { status: 400 });
+  }
+
+  // Snapshot the sender's booking link onto the artifact so the live/share
+  // pages can offer "Book time with {sender}" (booking event instrumentation).
+  let bookingUrl: string | undefined;
+  if (session?.workspaceId) {
+    const workspace = await getAccountStorageProvider().getWorkspace(session.workspaceId);
+    bookingUrl = workspace?.bookingUrl?.trim() || undefined;
   }
 
   const record = await createShareRecord({
@@ -58,6 +82,7 @@ export async function POST(request: NextRequest) {
     videoStyle,
     workspaceId: session?.workspaceId,
     deliveryMode: mode,
+    bookingUrl,
   });
 
   const sharePath = mode === "livelink" ? `/live/${record.id}` : `/v/${record.id}`;

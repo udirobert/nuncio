@@ -47,9 +47,21 @@ Concentric expansion (gated on Phase 2 results): founders → high-ticket servic
 ## The plan
 
 ### Phase 1 — Commit and instrument (weeks 1–2)
-- Derive three falsifiable predictions: (a) disclosed twin > disguised AI email on reply quality; (b) live-link conversation starts > video watch-through as a predictor of meetings; (c) twin ≥ Calendly CTA on meetings-per-send.
+
+**The three falsifiable predictions (derived, thresholds set in advance):**
+
+- **P-a — Disclosed twin beats disguised AI email on reply quality.** *(tests S2)*
+  - **Metric:** qualified-reply rate = replies classified `interested` or `question` ÷ delivered artifacts, per arm (via the Resend → reply-webhook LLM classification that already exists). Guardrail: unsubscribe/complaint rate.
+  - **Threshold:** twin arm ≥ **1.5×** the disguised-email arm on qualified-reply rate after ≥ 100 sends per arm, with unsubscribe rate no worse. Below parity → S2 is false, disclosure is not the asset we think it is.
+- **P-b — Live-link conversation starts predict meetings better than video watch-through.** *(tests S3)*
+  - **Metric:** P(meeting booked | `live_session_started`) vs P(meeting booked | `video_watch_through`), tracked per artifact.
+  - **Threshold:** live-start conversion ≥ **2×** watch-through conversion after ≥ 50 started sessions and ≥ 50 watch-throughs. If not, the live link is an engagement toy, not a funnel collapse — S3 weakens and the artifact goes back to advertising a future call.
+- **P-c — Twin ≥ Calendly CTA on meetings-per-send.** *(tests S4)*
+  - **Metric:** meetings booked (`booking_clicked` on `/live/[id]` or `/v/[id]`) ÷ artifacts sent, per arm: live link with in-conversation booking vs recorded video + scheduling CTA.
+  - **Threshold:** non-inferiority at ≥ **0.8×**, superiority target **1.5×**, ≥ 100 sends per arm. Below 0.8× → S4 false → recorded video + booking CTA becomes the product, live becomes a premium tier (falsification criterion 1).
+
 - Flip `deliveryMode` defaults: live link is the **primary** artifact; recorded video is the fallback inside it (livelink-ready state, `/live/[id]` resilience, and fallback-to-video wiring already exist — mostly framing + defaults).
-- Instrument live sessions: started, turns, **question topics**, booking event, drop-off point. Question topics write the playbook spec.
+- Instrument live sessions: started, turns, **question topics**, booking event, drop-off point. Question topics write the playbook spec. Persisted as `LiveSessionRecord.metrics` (`userTurns`, `agentTurns`, `questionTopics` — classified bucket labels only, never raw transcript, `bookingClicked`, `lastEvent` drop-off marker); heartbeated during the session and finalized via `/api/live/sync`. PostHog events: `live_session_*`, `booking_clicked`, `video_watch_through`.
 
 ### Phase 2 — Ten founders, hand-served (weeks 2–6)
 - Recruit 10 seed founders doing founder-led outbound.
@@ -79,10 +91,11 @@ Concentric expansion (gated on Phase 2 results): founders → high-ticket servic
 4. HeyGen/ElevenLabs ship the full conversation+booking stack → accelerate playbook data accumulation + recipient→sender loop; that's the ground they can't take.
 
 ## Scoreboard
-- **North star:** meetings booked per artifact sent.
-- Conversation-start rate and median turns on live links.
-- Question-topic distribution → playbook coverage gaps.
-- Recipient→sender conversion coefficient.
+- **North star:** meetings booked per artifact sent (`booking_clicked` ÷ artifacts sent).
+- Conversation-start rate (`live_session_connected` ÷ live-link page loads) and median turns (`LiveSessionRecord.metrics.userTurns`) on live links.
+- Question-topic distribution (`metrics.questionTopics`) → playbook coverage gaps.
+- Video control arm: `video_watch_through` rate for P-b comparison.
+- Recipient→sender conversion coefficient (`viral_cta_clicked` → `viral_landing` → signup).
 - Sean Ellis %.
 
 ## The first move

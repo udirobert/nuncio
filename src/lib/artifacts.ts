@@ -49,6 +49,8 @@ export interface ShareRecord {
   language?: string;
   /** Delivery mode for this share: recorded video or live avatar link. */
   deliveryMode?: "video" | "livelink";
+  /** Snapshot of the sender's scheduling link — the booking CTA on /live and /v pages. */
+  bookingUrl?: string;
   /** Custom thumbnail generated via GMI Cloud through Genblaze. */
   thumbnailUrl?: string;
   /** Generation provenance (Genblaze manifests, content hashes, models used). */

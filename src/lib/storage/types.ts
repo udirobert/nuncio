@@ -60,6 +60,8 @@ export interface WorkspaceAccount {
   playbookOffer?: string;
   playbookWiggleRoom?: string;
   playbookConstraints?: string;
+  /** Sender's scheduling link (e.g. Calendly) — the twin points warm prospects here. */
+  bookingUrl?: string;
   /** Preferred delivery mode: recorded video or live avatar link. */
   deliveryMode?: "video" | "livelink";
   createdAt: string;
@@ -93,6 +95,30 @@ export interface CreditAccountSummary {
 
 export type LiveSessionStatus = "pending" | "active" | "ended" | "expired" | "failed";
 
+/**
+ * Live-session instrumentation (STRATEGY Phase 1 scoreboard).
+ * Question topics are stored as classified bucket labels only — never raw
+ * transcript text — so prospect conversations stay private.
+ */
+export interface LiveSessionMetrics {
+  /** Completed recipient utterances. */
+  userTurns: number;
+  /** Completed twin utterances. */
+  agentTurns: number;
+  /** Classified question-topic buckets raised by the recipient (labels only). */
+  questionTopics: string[];
+  /** Recipient clicked the sender's booking link. */
+  bookingClicked: boolean;
+  /** A booking link was available to click. */
+  bookingUrlPresent: boolean;
+  /** Drop-off marker: last notable client-side event before sync. */
+  lastEvent?: string;
+  /** When the recipient first spoke (ISO) — separates bounces from engagement. */
+  firstUserTurnAt?: string;
+  /** Last telemetry write (ISO). */
+  updatedAt: string;
+}
+
 export interface LiveSessionRecord {
   id: string;
   shareId: string;
@@ -109,6 +135,8 @@ export interface LiveSessionRecord {
   endedAt?: string;
   durationMs?: number;
   terminalReason?: string;
+  /** STRATEGY Phase 1 instrumentation: turns, question topics, booking, drop-off. */
+  metrics?: LiveSessionMetrics;
 }
 
 export interface LiveSessionStorageProvider {

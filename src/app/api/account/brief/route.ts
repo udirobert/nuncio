@@ -28,9 +28,11 @@ export async function GET(request: NextRequest) {
     playbookOffer: workspace.playbookOffer || null,
     playbookWiggleRoom: workspace.playbookWiggleRoom || null,
     playbookConstraints: workspace.playbookConstraints || null,
+    bookingUrl: workspace.bookingUrl || null,
+    // STRATEGY Phase 1: live link is the default primary artifact.
     deliveryMode: workspace.deliveryMode === "livelink" && !isLiveLinkEnabled()
       ? "video"
-      : (workspace.deliveryMode || "video"),
+      : (workspace.deliveryMode || (isLiveLinkEnabled() ? "livelink" : "video")),
     plan: workspace.plan || (workspace.stripePlanType || "trial").toLowerCase(),
   });
 }
@@ -42,7 +44,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { senderBrief, senderName, senderBusiness, senderBrand, senderPersonality, senderAudience, senderOffer, senderProofPoints, playbookWants, playbookOffer, playbookWiggleRoom, playbookConstraints, deliveryMode } = body;
+  const { senderBrief, senderName, senderBusiness, senderBrand, senderPersonality, senderAudience, senderOffer, senderProofPoints, playbookWants, playbookOffer, playbookWiggleRoom, playbookConstraints, bookingUrl, deliveryMode } = body;
 
   const provider = getAccountStorageProvider();
   const workspace = await provider.getWorkspace(session.workspaceId);
@@ -63,6 +65,12 @@ export async function PATCH(request: NextRequest) {
   if (typeof playbookOffer === "string") updates.playbookOffer = playbookOffer;
   if (typeof playbookWiggleRoom === "string") updates.playbookWiggleRoom = playbookWiggleRoom;
   if (typeof playbookConstraints === "string") updates.playbookConstraints = playbookConstraints;
+  if (typeof bookingUrl === "string") {
+    const trimmed = bookingUrl.trim();
+    if (!trimmed || /^https?:\/\//i.test(trimmed)) {
+      updates.bookingUrl = trimmed;
+    }
+  }
   if (deliveryMode === "video" || (deliveryMode === "livelink" && isLiveLinkEnabled())) {
     updates.deliveryMode = deliveryMode;
   }
