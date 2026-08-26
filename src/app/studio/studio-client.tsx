@@ -210,13 +210,17 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
       const stored = localStorage.getItem("nuncio_delivery_mode");
       if (stored === "video" || (stored === "livelink" && liveLinkEnabled)) return stored;
     }
-    return "video";
+    return liveLinkEnabled ? "livelink" : "video";
   });
 
   const [playbookOffer, setPlaybookOffer] = useState("");
   const [playbookWants, setPlaybookWants] = useState("");
   const [playbookWiggleRoom, setPlaybookWiggleRoom] = useState("");
   const [playbookConstraints, setPlaybookConstraints] = useState("");
+  const [bookingUrl, setBookingUrl] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("nuncio_booking_url") || "";
+    return "";
+  });
   const [stage, setStage] = useState<StudioStage>("input");
   const [buildResult, setBuildResult] = useState<{ soundscapeUrl?: string; cinematicEntranceUrl?: string; recommendedVibeId?: string } | null>(null);
   const [error, setError] = useState("");
@@ -392,6 +396,10 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
         if (data.playbookConstraints && !localStorage.getItem("nuncio_playbook_constraints")) {
           setPlaybookConstraints(data.playbookConstraints);
         }
+        if (data.bookingUrl && !localStorage.getItem("nuncio_booking_url")) {
+          setBookingUrl(data.bookingUrl);
+          localStorage.setItem("nuncio_booking_url", data.bookingUrl);
+        }
         if (
           !localStorage.getItem("nuncio_delivery_mode") &&
           (data.deliveryMode === "video" || (data.deliveryMode === "livelink" && liveLinkEnabled))
@@ -450,10 +458,12 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
     const playbookWantsValue = playbookWants.trim();
     const playbookWiggleRoomValue = playbookWiggleRoom.trim();
     const playbookConstraintsValue = playbookConstraints.trim();
+    const bookingUrlValue = bookingUrl.trim();
     const mode = overrides?.deliveryMode ?? deliveryMode;
     if (
       !brief && !name && !business && !brand && !personality && !audience && !offer && !proofPoints &&
       !playbookOfferValue && !playbookWantsValue && !playbookWiggleRoomValue && !playbookConstraintsValue &&
+      !bookingUrlValue &&
       mode === "video"
     ) return;
     fetch("/api/account/brief", {
@@ -472,6 +482,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
         playbookWants: playbookWantsValue || undefined,
         playbookWiggleRoom: playbookWiggleRoomValue || undefined,
         playbookConstraints: playbookConstraintsValue || undefined,
+        bookingUrl: bookingUrlValue || undefined,
         deliveryMode: mode,
       }),
     }).catch(() => {});
@@ -486,6 +497,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
     if (playbookWantsValue) localStorage.setItem("nuncio_playbook_wants", playbookWantsValue);
     if (playbookWiggleRoomValue) localStorage.setItem("nuncio_playbook_wiggle_room", playbookWiggleRoomValue);
     if (playbookConstraintsValue) localStorage.setItem("nuncio_playbook_constraints", playbookConstraintsValue);
+    if (bookingUrlValue) localStorage.setItem("nuncio_booking_url", bookingUrlValue);
     localStorage.setItem("nuncio_delivery_mode", mode);
   }
 
@@ -1410,7 +1422,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15">
                       <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
                       <span className="text-label-sm uppercase tracking-widest font-medium text-accent">
-                        AI-powered · personalised video
+                        AI twin · disclosed to your recipient
                       </span>
                     </div>
                     <h1 className="font-display text-5xl lg:text-6xl tracking-tight leading-[1.02]">
@@ -1681,13 +1693,24 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                               />
                             </div>
 
-                            {/* Delivery mode — LiveLink is opt-in for the controlled pilot */}
+                            {/* Delivery mode — live link is the primary artifact when the pilot is enabled; recorded video is the fallback */}
                             <div>
                               <label className="text-label-sm uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
                                 Delivery mode
                               </label>
                               {liveLinkEnabled ? (
                                 <div className="flex rounded-xl border border-cream-dark bg-white p-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeliveryModeChange("livelink")}
+                                    className={`flex-1 rounded-lg py-2 text-body-xs font-medium transition-all ${
+                                      deliveryMode === "livelink"
+                                        ? "bg-accent text-white shadow-sm"
+                                        : "text-ink-muted hover:text-ink"
+                                    }`}
+                                  >
+                                    Live link <span className="opacity-70 font-normal">· Recommended</span>
+                                  </button>
                                   <button
                                     type="button"
                                     onClick={() => handleDeliveryModeChange("video")}
@@ -1699,23 +1722,29 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                                   >
                                     Video
                                   </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeliveryModeChange("livelink")}
-                                    className={`flex-1 rounded-lg py-2 text-body-xs font-medium transition-all ${
-                                      deliveryMode === "livelink"
-                                        ? "bg-accent text-white shadow-sm"
-                                        : "text-ink-muted hover:text-ink"
-                                    }`}
-                                  >
-                                    Live link
-                                  </button>
                                 </div>
                               ) : null}
                               <p className="mt-1.5 text-label-sm text-ink-muted">
                                 {deliveryMode === "video" || !liveLinkEnabled
-                                  ? "Render an MP4 share page."
-                                  : "Prepare a live avatar session (pilot)."}
+                                  ? "Render a recorded MP4 share page instead."
+                                  : "Your AI twin takes the first meeting live — the recorded video rides along as fallback."}
+                              </p>
+                            </div>
+
+                            {/* Booking link — powers the booking CTA on the live link and share page */}
+                            <div>
+                              <label className="text-label-sm uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                                Booking link (optional)
+                              </label>
+                              <input
+                                type="text"
+                                value={bookingUrl}
+                                onChange={(e) => setBookingUrl(e.target.value)}
+                                placeholder="https://calendly.com/you/15min"
+                                className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+                              />
+                              <p className="mt-1.5 text-label-sm text-ink-muted">
+                                Shown as “Book time with you” on your live link and share page.
                               </p>
                             </div>
 

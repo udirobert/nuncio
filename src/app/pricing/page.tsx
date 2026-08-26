@@ -14,7 +14,7 @@ const CREDIT_PACKS = [
     price: "$15",
     priceId: process.env.NEXT_PUBLIC_STRIPE_CREDITS_100_PRICE_ID || "",
     note: "Top up for a short campaign.",
-    videos: "≈ 9 personalised videos",
+    videos: "≈ 9 first meetings taken live or rendered",
   },
   {
     id: "credits-500",
@@ -22,7 +22,7 @@ const CREDIT_PACKS = [
     price: "$99",
     priceId: process.env.NEXT_PUBLIC_STRIPE_CREDITS_500_PRICE_ID || "",
     note: "Best for founder-led prospecting.",
-    videos: "≈ 45 personalised videos",
+    videos: "≈ 45 first meetings taken live or rendered",
   },
 ] as const;
 
@@ -34,7 +34,7 @@ const PLAN_TIERS = [
     price: "$0",
     period: "monthly",
     hookModel: "15 starter credits",
-    hookEstimate: "≈ 1 full video, free",
+    hookEstimate: "≈ 1 full twin first touch, free",
     quality: "Account ledger",
     allowance: "Spend across research, scripts, canvas, render",
     speed: "5 credits per render",
@@ -52,13 +52,13 @@ const PLAN_TIERS = [
     period: "month",
     annualPeriod: "year",
     hookModel: "200 credits / month",
-    hookEstimate: "≈ 18 personalised videos / month",
+    hookEstimate: "≈ 18 twin first touches / month",
     quality: "Cinematic renders",
     allowance: "Credits spend across every Nuncio stage",
     speed: "Unused credits tracked in ledger",
     watermark: "No watermark",
     cta: "Get Pro",
-    note: "Best for reps and founders sending real social-ready outreach.",
+    note: "Your twin holds the first meeting — you take the ones that matter.",
     featured: true,
   },
   {
@@ -68,13 +68,13 @@ const PLAN_TIERS = [
     price: "$79+",
     period: "month",
     hookModel: "1,000+ credits / month",
-    hookEstimate: "90+ personalised videos / month",
+    hookEstimate: "90+ twin first touches / month",
     quality: "Team workspace",
     allowance: "Shared credit pool and usage history",
     speed: "Priority render capacity",
     watermark: "No watermark",
     cta: "Talk to us",
-    note: "For teams that want shared credits, brand review, and volume.",
+    note: "For teams that want shared credits, brand review, and many first meetings.",
     featured: false,
   },
 ] as const;
@@ -83,7 +83,7 @@ const FAQS = [
   { q: "What are Nuncio credits?", a: "Credits are the single balance used for research, script generation, canvas creation, rendering, translation, captions, and delivery." },
   { q: "Can I cancel anytime?", a: "Absolutely. Cancel through your dashboard in one click. No long-term commitments." },
   { q: "How many credits does a video use?", a: "A typical Quick-mode video costs ~11 credits total: 1 for research, 1 for script, 1 for canvas, 1 for soundscape, and 8 for rendering. Deep research or translation add a few more." },
-  { q: "Do you offer agency plans?", a: "We do. Studio is for teams that need higher monthly volume, shared credits, brand review, and usage reporting." },
+  { q: "Do you offer agency plans?", a: "We do. Studio is for teams that want more first meetings each month, shared credits, brand review, and usage reporting." },
 ];
 
 const CREDIT_COSTS = [
@@ -372,6 +372,10 @@ function PricingContent() {
           ))}
         </div>
       </div>
+
+      <p className="mt-6 text-center text-[11px] text-ink-faint">
+        Credits are the meter. Meetings booked are the metric — we never charge for “more sends”.
+      </p>
 
       <motion.section
         id="packs"

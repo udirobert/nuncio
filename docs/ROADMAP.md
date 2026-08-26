@@ -115,22 +115,22 @@ Use London founder/operator access as a practical test bed before broadening the
 Sequencing and gates come from `docs/STRATEGY.md` phases. Engineering items:
 
 ### STRATEGY Phase 1 — commit and instrument
-1. **Live-link-first defaults** — make the live link the primary artifact; recorded video becomes the fallback inside it
-2. **Live-session instrumentation** — started, turns, question topics, booking event, drop-off point (question topics write the playbook spec)
+1. ~~**Live-link-first defaults**~~ ✅ — studio + `/api/share` + `/api/pipeline` default to livelink when the pilot allows; explicit `video` always respected; recorded video remains the fallback inside the live link
+2. ~~**Live-session instrumentation**~~ ✅ — started, turns, question topics (classified labels only, never raw transcript), booking event, drop-off marker persisted as `LiveSessionRecord.metrics`; 15s heartbeats + terminal sync via `/api/live/sync`; read path `GET /api/live/sessions`
 3. **LiveLink experiment controls** — allowlist, idle timeout, fallback, provider-neutral errors (feature gate and initial session cap are in place)
-4. **Guardrails and booking integration** — hard constraints, explicit AI disclosure (S2: disclosure as a feature), fallback answers, calendar booking
+4. **Guardrails and booking integration** — hard constraints, explicit AI disclosure (S2: disclosure as a feature), fallback answers, calendar booking (booking-link field + on-page CTA + prompt guidance shipped; guardrail tuning continues in Phase 2)
 5. **Reply-to-live escalation** — email replies can open a live avatar session instead of static follow-up (the artifact stays a conversation)
 
 ### STRATEGY Phase 2 — ten founders, hand-served
-6. **Playbook capture** — productize the 30-minute founder interview via voice overlay into `SenderPlaybook`
+6. **Playbook capture** — productize the 30-minute founder interview via voice overlay into `SenderPlaybook` (question-topic distribution from live sessions seeds the interview outline)
 7. **LiveLink pilot** — one Anam sender/avatar, 5–10 prospects, explicit AI disclosure, short capped sessions, HeyGen-only comparison where practical
-8. **Outcome tracking** — sent, watched, replied, meeting booked, live-session lifecycle events, second-artifact-created
+8. **Outcome tracking** — sent, watched, replied, meeting booked, live-session lifecycle events, second-artifact-created (events live: `live_session_*`, `booking_clicked`, `video_watch_through`; aggregates/dashboard view still to build)
 9. **Pre-send review** — research, hook, script, and visual plan reviewable before credits are spent
 
 ### STRATEGY Phase 3 — positioning rewrite (parallel)
-10. **Share-page viral loop** — turn "How this was made" into an explicit recipient→sender signup surface (S6)
-11. **Honest-twin framing** — replace "AI-powered · personalised video" nomenclature; disclosure badge; trust signals (sender photo, verified badge)
-12. **Value-metric experiment** — anchor pricing toward meetings booked, never "more sends"
+10. ~~**Share-page viral loop**~~ ✅ — `/v/[id]` CTA rewritten as recipient→sender signup loop with `?ref=share-{id}` tracking; live-page footer carries `?ref=live-{id}`; landing captures `ref` via `trackViralLanding`
+11. ~~**Honest-twin framing**~~ ✅ — "AI-powered · personalised video" killed across studio badge, landing, metadata, share/live pages; disclosure worn as a badge ("disclosed, never disguised"). Remaining: trust signals (sender photo, verified badge)
+12. ~~**Value-metric experiment**~~ ✅ (copy anchor) — pricing anchored to meetings booked / twin first touches; "we never charge for more sends". Remaining: report meetings booked per workspace once booking data accumulates
 
 ### Artifact quality (supports recorded fallback)
 13. **Visual proof brief** — collect 1–3 sender assets: product screenshot, logo, proof point, case study, deck slide, or relevant URL

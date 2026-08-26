@@ -70,7 +70,7 @@ export default function DashboardClient() {
             >
               <div>
                 <span className="text-sm font-medium">Create a new video</span>
-                <p className="text-xs text-cream/60 mt-0.5">Drop a profile URL, get a personalised video in minutes</p>
+                <p className="text-xs text-cream/60 mt-0.5">Drop a profile URL — your twin takes the first meeting</p>
               </div>
               <svg viewBox="0 0 16 16" className="w-5 h-5 text-cream/50 group-hover:text-cream group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M3 8h10M9 4l4 4-4 4" />

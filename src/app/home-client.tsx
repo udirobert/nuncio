@@ -9,6 +9,7 @@ import { HowItWorks } from "@/components/landing/how-it-works";
 import { ShowcaseStrip } from "@/components/landing/showcase-strip";
 import { VideoProof } from "@/components/landing/video-proof";
 import { SHOWCASE_RECIPIENTS, splitShowcase } from "@/lib/showcase";
+import { trackViralLanding } from "@/lib/analytics";
 
 const ACCOUNT_FLOW: { id: string; label: string; desc: string }[] = [
   { id: "account", label: "Pick the account", desc: "Start with the person or company you genuinely want to reach." },
@@ -24,6 +25,12 @@ export default function HomeClient() {
     const t = setTimeout(() => setActiveStep((s) => (s + 1) % ACCOUNT_FLOW.length), 2600);
     return () => clearTimeout(t);
   }, [activeStep]);
+
+  // Recipient → sender viral loop (STRATEGY S6): capture the share-page ref once.
+  useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref) trackViralLanding({ ref });
+  }, []);
 
   return (
     <>
@@ -85,9 +92,9 @@ export default function HomeClient() {
                     transition={{ delay: 0.2, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                     className="text-ink-muted text-body-sm leading-relaxed max-w-[380px]"
                   >
-                    For founders and small B2B teams pursuing high-value accounts,
-                    partnerships, and investor conversations. Make a personal video
-                    for one person—not another sequence for thousands.
+                    For founders and small B2B teams pursuing high-value accounts.
+                    Your AI twin researches them, writes the approach, and takes the
+                    first meeting live — disclosed as AI, on your playbook, at any hour.
                   </motion.p>
                 </div>
                 <motion.div
@@ -99,7 +106,7 @@ export default function HomeClient() {
                     href="/studio"
                     className="btn-press w-full rounded-2xl px-6 py-4 text-body-sm font-medium bg-ink text-cream shadow-xl shadow-ink/15 hover:shadow-2xl hover:shadow-ink/20 hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2"
                   >
-                    Make a strategic-account video
+                    Build your twin&apos;s first touch
                     <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M3 8h10M9 4l4 4-4 4" />
                     </svg>

@@ -32,6 +32,7 @@ import { POST as createShare } from "../share/route";
 import { POST as createLiveSession } from "./session/route";
 import { POST as runPipeline } from "../pipeline/route";
 import { createShareRecord, getShareRecord } from "@/lib/share-store";
+import { readAccountSession } from "@/lib/auth/session";
 
 function jsonRequest(url: string, body: unknown): Request {
   return new Request(url, {
@@ -77,6 +78,46 @@ describe("LiveLink route gates", () => {
     expect(text).toContain("LiveLink is not enabled");
   });
 
+  it("defaults share creation to a live link when the pilot allows it and no video exists", async () => {
+    vi.stubEnv("NUNCIO_LIVELINK_ENABLED", "true");
+    vi.stubEnv("NUNCIO_LIVELINK_SENDER_EMAILS", "pilot@example.com");
+    vi.mocked(readAccountSession).mockReturnValueOnce({
+      workspaceId: "ws-1",
+      email: "pilot@example.com",
+    } as never);
+
+    const response = await createShare(jsonRequest("http://localhost/api/share", {}) as never);
+    expect(response.status).toBe(200);
+    expect((await response.json()).shareUrl).toBe("/live/share-test");
+    expect(createShareRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ deliveryMode: "livelink" }),
+    );
+  });
+
+  it("keeps video the default when LiveLink is disabled and no deliveryMode is given", async () => {
+    vi.stubEnv("NUNCIO_LIVELINK_ENABLED", "false");
+    const response = await createShare(jsonRequest("http://localhost/api/share", {}) as never);
+    expect(response.status).toBe(400);
+    expect(createShareRecord).not.toHaveBeenCalled();
+  });
+
+  it("treats a supplied videoUrl as an explicit recorded-video share", async () => {
+    vi.stubEnv("NUNCIO_LIVELINK_ENABLED", "true");
+    vi.stubEnv("NUNCIO_LIVELINK_SENDER_EMAILS", "pilot@example.com");
+    vi.mocked(readAccountSession).mockReturnValueOnce({
+      workspaceId: "ws-1",
+      email: "pilot@example.com",
+    } as never);
+
+    const response = await createShare(
+      jsonRequest("http://localhost/api/share", { videoUrl: "https://video.test/a.mp4" }) as never,
+    );
+    expect(response.status).toBe(200);
+    expect(createShareRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ deliveryMode: "video" }),
+    );
+  });
+
   it("rejects legacy sender-only live shares before any provider or credit work", async () => {
     vi.stubEnv("NUNCIO_LIVELINK_ENABLED", "true");
     vi.stubEnv("NUNCIO_LIVELINK_SENDER_EMAILS", "pilot@example.com");
@@ -93,3 +134,41 @@ describe("LiveLink route gates", () => {
     expect(response.status).toBe(404);
   });
 });
+
+describe("Pipeline deliveryMode defaults", () => {
+  it("runs as video when LiveLink is disabled and no deliveryMode is given", async () => {
+    vi.stubEnv("NUNCIO_LIVELINK_ENABLED", "false");
+    const response = await runPipeline(jsonRequest("http://localhost/api/pipeline", {
+      url: "https://example.com/profile",
+    }) as never);
+    const text = await response.text();
+    expect(text).not.toContain("LiveLink is not enabled");
+  });
+
+  it("defaults to livelink for an allowlisted sender when no deliveryMode is given", async () => {
+    vi.stubEnv("NUNCIO_LIVELINK_ENABLED", "true");
+    vi.stubEnv("NUNCIO_LIVELINK_SENDER_EMAILS", "pilot@example.com");
+    vi.mocked(readAccountSession).mockReturnValueOnce({
+      workspaceId: "ws-1",
+      email: "pilot@example.com",
+    } as never);
+
+    const response = await runPipeline(jsonRequest("http://localhost/api/pipeline", {
+      url: "https://example.com/profile",
+    }) as never);
+    const text = await response.text();
+    expect(text).not.toContain("LiveLink is not enabled");
+  });
+
+  it("respects an explicit video deliveryMode when the pilot is enabled", async () => {
+    vi.stubEnv("NUNCIO_LIVELINK_ENABLED", "true");
+    vi.stubEnv("NUNCIO_LIVELINK_SENDER_EMAILS", "pilot@example.com");
+    const response = await runPipeline(jsonRequest("http://localhost/api/pipeline", {
+      url: "https://example.com/profile",
+      deliveryMode: "video",
+    }) as never);
+    const text = await response.text();
+    expect(text).not.toContain("LiveLink is not enabled");
+  });
+});
+

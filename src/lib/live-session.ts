@@ -7,7 +7,7 @@ import {
   calculateLiveSessionCharge,
   LIVE_SESSION_MAX_DURATION_MS,
 } from "@/lib/live-link";
-import type { LiveSessionRecord } from "@/lib/storage";
+import type { LiveSessionMetrics, LiveSessionRecord } from "@/lib/storage";
 
 export type LiveSessionEndReason =
   | "manual"
@@ -63,6 +63,61 @@ export async function markLiveSessionActive(record: LiveSessionRecord, now = new
   return updated;
 }
 
+export type LiveSessionTelemetryMetrics = Omit<LiveSessionMetrics, "updatedAt">;
+
+/**
+ * Merge incoming client telemetry into the stored metrics. Client turn
+ * counters are monotonic so max wins; topics are unioned; booking flags are
+ * ORed; lastEvent is overwritten; the first user-turn timestamp is first-wins.
+ */
+function mergeLiveSessionMetrics(
+  existing: LiveSessionMetrics | undefined,
+  incoming: LiveSessionTelemetryMetrics,
+  now: Date,
+): LiveSessionMetrics {
+  return {
+    userTurns: Math.max(existing?.userTurns ?? 0, incoming.userTurns),
+    agentTurns: Math.max(existing?.agentTurns ?? 0, incoming.agentTurns),
+    questionTopics: Array.from(new Set([
+      ...(existing?.questionTopics ?? []),
+      ...incoming.questionTopics,
+    ])),
+    bookingClicked: Boolean(existing?.bookingClicked) || Boolean(incoming.bookingClicked),
+    bookingUrlPresent: Boolean(existing?.bookingUrlPresent) || Boolean(incoming.bookingUrlPresent),
+    lastEvent: incoming.lastEvent ?? existing?.lastEvent,
+    firstUserTurnAt: existing?.firstUserTurnAt ?? incoming.firstUserTurnAt,
+    updatedAt: now.toISOString(),
+  };
+}
+
+/**
+ * Record a mid-session telemetry heartbeat (STRATEGY Phase 1 instrumentation).
+ * The first heartbeat flips a pending session to active; terminal sessions are
+ * left untouched. durationMs is stored as telemetry only — it does not end the
+ * session and never touches credits.
+ */
+export async function recordLiveSessionTelemetry(input: {
+  record: LiveSessionRecord;
+  metrics: LiveSessionTelemetryMetrics;
+  durationMs?: number;
+  now?: Date;
+}): Promise<LiveSessionRecord> {
+  const { record } = input;
+  if (record.status === "ended" || record.status === "expired" || record.status === "failed") {
+    return record;
+  }
+
+  const now = input.now || new Date();
+  const current = await markLiveSessionActive(record, now);
+  const updated: LiveSessionRecord = {
+    ...current,
+    metrics: mergeLiveSessionMetrics(current.metrics, input.metrics, now),
+    ...(input.durationMs !== undefined ? { durationMs: input.durationMs } : {}),
+  };
+  await getLiveSessionStorageProvider().update(updated);
+  return updated;
+}
+
 /**
  * Reconcile a session exactly once. Client duration is retained as telemetry,
  * but only provider/server-authoritative terminal reasons can reduce a charge:
@@ -73,6 +128,7 @@ export async function reconcileLiveSession(input: {
   record: LiveSessionRecord;
   durationMs: number;
   reason: LiveSessionEndReason;
+  metrics?: LiveSessionTelemetryMetrics;
   now?: Date;
 }): Promise<LiveSessionRecord> {
   const existing = reconciliationLocks.get(input.record.id);
@@ -89,6 +145,7 @@ async function reconcileLiveSessionUnlocked(input: {
   record: LiveSessionRecord;
   durationMs: number;
   reason: LiveSessionEndReason;
+  metrics?: LiveSessionTelemetryMetrics;
   now?: Date;
 }): Promise<LiveSessionRecord> {
   const { record } = input;
@@ -144,6 +201,9 @@ async function reconcileLiveSessionUnlocked(input: {
     endedAt: now.toISOString(),
     durationMs,
     terminalReason: input.reason,
+    metrics: input.metrics
+      ? mergeLiveSessionMetrics(current.metrics, input.metrics, now)
+      : current.metrics,
   };
   await getLiveSessionStorageProvider().update(updated);
   return updated;

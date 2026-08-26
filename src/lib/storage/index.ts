@@ -31,6 +31,7 @@ export type {
   BatchStorageProvider,
   CreditAccountSummary,
   CreditTransactionRecord,
+  LiveSessionMetrics,
   LiveSessionRecord,
   LiveSessionStatus,
   LiveSessionStorageProvider,

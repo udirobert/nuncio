@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "The nuncio playbook",
     description:
-      "Worked examples of personalised video outreach — with teardowns of what made each one land.",
+      "Worked examples of AI-twin first touches — with teardowns of what made each one land.",
   },
 };
 
@@ -51,13 +51,14 @@ export default function PlaybookPage() {
               Ready to send yours?
             </h2>
             <p className="text-sm text-ink-muted mb-5">
-              Paste a profile URL. Get a personalised video in ~5 minutes.
+              Paste a profile URL. Get a disclosed AI twin that takes the first
+              meeting — live link first, recorded video included.
             </p>
             <Link
               href="/"
               className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-6 py-3.5 text-sm font-medium shadow-xl shadow-ink/15 hover:shadow-2xl hover:-translate-y-0.5 transition-all"
             >
-              Generate a video
+              Build your twin
               <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M3 8h10M9 4l4 4-4 4" />
               </svg>
