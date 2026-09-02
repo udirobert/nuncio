@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Header } from "@/components/header";
+import { AmbientCanvas } from "@/components/landing/ambient-canvas";
 import { CardWall } from "@/components/landing/card-wall";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { ShowcaseStrip } from "@/components/landing/showcase-strip";
@@ -46,7 +47,8 @@ export default function HomeClient() {
           transition={{ duration: 0.3 }}
           className="flex-1 flex flex-col"
         >
-          <section className="relative">
+          <section className="relative overflow-hidden">
+            <AmbientCanvas />
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0"
