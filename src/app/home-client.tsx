@@ -13,28 +13,41 @@ import { VideoProof } from "@/components/landing/video-proof";
 import { SHOWCASE_RECIPIENTS, splitShowcase } from "@/lib/showcase";
 import { trackViralLanding } from "@/lib/analytics";
 
-const ACCOUNT_FLOW: { id: string; label: string; desc: string }[] = [
+const OUTREACH_FLOW: { id: string; label: string; desc: string }[] = [
   { id: "account", label: "Pick the account", desc: "Start with the person or company you genuinely want to reach." },
   { id: "reason", label: "Make your case", desc: "Give Nuncio the reason this conversation should happen now." },
   { id: "review", label: "Review before sending", desc: "Approve the research, hook, and every word in your name." },
 ];
 
+const RECONNECT_FLOW: { id: string; label: string; desc: string }[] = [
+  { id: "friend", label: "Pick the friend", desc: "Start with someone you actually want to hear from again." },
+  { id: "memory", label: "Add your memory", desc: "Share one real detail only you would say. AI does the rest, but it never sends without you." },
+  { id: "review", label: "Review before sending", desc: "Read the script, hear it in your voice, and send only when it sounds like you." },
+];
+
 export default function HomeClient() {
   const [activeStep, setActiveStep] = useState(0);
   const { left, right } = splitShowcase(SHOWCASE_RECIPIENTS);
+  const [mode, setMode] = useState<"outreach" | "reconnect">("outreach");
+  const flow = mode === "reconnect" ? RECONNECT_FLOW : OUTREACH_FLOW;
 
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
     if (!detailsOpen) return;
-    const t = setTimeout(() => setActiveStep((s) => (s + 1) % ACCOUNT_FLOW.length), 2600);
+    const t = setTimeout(() => setActiveStep((s) => (s + 1) % flow.length), 2600);
     return () => clearTimeout(t);
-  }, [detailsOpen, activeStep]);
+  }, [detailsOpen, activeStep, flow]);
 
   // Recipient → sender viral loop (STRATEGY S6): capture the share-page ref once.
+  // Also detect ?mode=reconnect for a soft consumer experiment without changing the default.
   useEffect(() => {
-    const ref = new URLSearchParams(window.location.search).get("ref");
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
     if (ref) trackViralLanding({ ref });
+    // Sync external URL state into React state for the landing-page experiment.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (params.get("mode") === "reconnect") setMode("reconnect");
   }, []);
 
   return (
@@ -88,9 +101,19 @@ export default function HomeClient() {
                     transition={{ delay: 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                     className="font-display text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[0.95] mb-3"
                   >
-                    Open the accounts
-                    <br />
-                    <span className="text-ink-light">that matter most.</span>
+                    {mode === "reconnect" ? (
+                      <>
+                        Send a video
+                        <br />
+                        <span className="text-ink-light">to someone you miss.</span>
+                      </>
+                    ) : (
+                      <>
+                        Open the accounts
+                        <br />
+                        <span className="text-ink-light">that matter most.</span>
+                      </>
+                    )}
                   </motion.h1>
                   <motion.p
                     initial={{ opacity: 0, y: 12 }}
@@ -98,9 +121,9 @@ export default function HomeClient() {
                     transition={{ delay: 0.2, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                     className="text-ink-muted text-body-sm leading-relaxed max-w-[380px]"
                   >
-                    For founders and small B2B teams pursuing high-value accounts.
-                    Your AI twin researches them, writes the approach, and takes the
-                    first meeting live — disclosed as AI, on your playbook, at any hour.
+                    {mode === "reconnect"
+                      ? "Paste their public profile, add a memory only you would share, and we'll help you turn it into a short, warm video. You review every word before it sends."
+                      : "For founders and small B2B teams pursuing high-value accounts. Your AI twin researches them, writes the approach, and takes the first meeting live — disclosed as AI, on your playbook, at any hour."}
                   </motion.p>
                 </div>
                 <motion.div
@@ -109,16 +132,16 @@ export default function HomeClient() {
                   transition={{ delay: 0.5 }}
                 >
                   <Link
-                    href="/studio"
+                    href={mode === "reconnect" ? "/studio?mode=reconnect" : "/studio"}
                     className="btn-press w-full rounded-2xl px-6 py-4 text-body-sm font-medium bg-ink text-cream shadow-xl shadow-ink/15 hover:shadow-2xl hover:shadow-ink/20 hover:-translate-y-0.5 transition-[box-shadow,transform] duration-300 flex items-center justify-center gap-2"
                   >
-                    Build your twin&apos;s first touch
+                    {mode === "reconnect" ? "Create a reconnection card" : "Build your twin's first touch"}
                     <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M3 8h10M9 4l4 4-4 4" />
                     </svg>
                   </Link>
                   <p className="text-center text-label-base text-ink-faint mt-3">
-                    Review every word before it leaves your name
+                    {mode === "reconnect" ? "AI-assisted, but you approve every word" : "Review every word before it leaves your name"}
                   </p>
                 </motion.div>
 
@@ -135,7 +158,7 @@ export default function HomeClient() {
                     How it works
                   </summary>
                 <div className="mt-3 space-y-2">
-                  {ACCOUNT_FLOW.map((step, i) => {
+                  {flow.map((step, i) => {
                     const active = activeStep === i;
                     const complete = activeStep > i;
                     return (
@@ -211,8 +234,7 @@ export default function HomeClient() {
               </div>
             </div>
             <p data-reveal="fade-up" className="text-center text-body-xs text-ink-muted mt-5 max-w-[390px] mx-auto leading-relaxed">
-              Nuncio is for the account you would research properly yourself—the
-              one where a thoughtful first message can change the relationship.
+              Nuncio is for the one person you&apos;d write to yourself — the message that only works if it actually sounds like you.
             </p>
           </section>
 

@@ -8,7 +8,12 @@ export type IntentId =
   | "hiring"
   | "conference_followup"
   | "reengage"
-  | "founder_to_founder";
+  | "founder_to_founder"
+  | "long_overdue"
+  | "just_because"
+  | "celebrate_milestone"
+  | "reach_out"
+  | "memory_lane";
 
 export interface IntentOption {
   id: IntentId;
@@ -20,7 +25,7 @@ export interface IntentOption {
   hint: string;
 }
 
-export const INTENT_OPTIONS: IntentOption[] = [
+const OUTREACH_OPTIONS: IntentOption[] = [
   {
     id: "warm_intro",
     label: "Warm intro",
@@ -59,13 +64,57 @@ export const INTENT_OPTIONS: IntentOption[] = [
   },
 ];
 
+const RECONNECT_OPTIONS: IntentOption[] = [
+  {
+    id: "long_overdue",
+    label: "Long overdue",
+    stem: "It's been too long — I was thinking about you because ",
+    hint: "Honest about the gap; leads with a specific memory or thought.",
+  },
+  {
+    id: "just_because",
+    label: "Just because",
+    stem: "No special reason — I just wanted to say hi and ",
+    hint: "Low-stakes and warm. No milestone needed.",
+  },
+  {
+    id: "celebrate_milestone",
+    label: "Celebrate a milestone",
+    stem: "I heard about your recent milestone and wanted to reach out to ",
+    hint: "Use only for news the sender already knew or that the friend shared publicly.",
+  },
+  {
+    id: "reach_out",
+    label: "Reach out after a while",
+    stem: "It's been a while, and I realized I never got to tell you ",
+    hint: "Soft re-engagement with something the sender wants to share.",
+  },
+  {
+    id: "memory_lane",
+    label: "A shared memory",
+    stem: "I was just remembering when we ",
+    hint: "Start from a real moment between you two, not from scraped data.",
+  },
+  {
+    id: "warm_intro",
+    label: "Catch up",
+    stem: "I'd love to hear what you're up to these days — ",
+    hint: "Curiosity-led, no ask beyond a conversation.",
+  },
+];
+
+export const INTENT_OPTIONS: IntentOption[] = [...OUTREACH_OPTIONS, ...RECONNECT_OPTIONS];
+
 interface IntentChipsProps {
   value: IntentId | null;
   onChange: (intent: IntentId | null, stem: string) => void;
+  /** Outreach keeps the original B2B chips. Reconnect surfaces friend-appropriate intents. */
+  mode?: "outreach" | "reconnect";
 }
 
-export function IntentChips({ value, onChange }: IntentChipsProps) {
-  const active = INTENT_OPTIONS.find((o) => o.id === value);
+export function IntentChips({ value, onChange, mode = "outreach" }: IntentChipsProps) {
+  const options = mode === "reconnect" ? RECONNECT_OPTIONS : OUTREACH_OPTIONS;
+  const active = options.find((o) => o.id === value);
 
   function handlePick(option: IntentOption) {
     if (value === option.id) {
@@ -79,13 +128,13 @@ export function IntentChips({ value, onChange }: IntentChipsProps) {
     <div className="mb-3">
       <div className="flex items-center justify-between mb-2">
         <label className="block text-label-sm uppercase tracking-widest text-ink-faint font-medium">
-          What kind of message?
+          {mode === "reconnect" ? "Why are you reaching out?" : "What kind of message?"}
         </label>
         <span className="text-label-sm text-ink-faint/70">Optional · sharpens the script</span>
       </div>
 
       <motion.div className="flex flex-wrap gap-1.5">
-        {INTENT_OPTIONS.map((option, i) => {
+        {options.map((option, i) => {
           const isActive = value === option.id;
           return (
             <motion.button

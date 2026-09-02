@@ -299,6 +299,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
   }, [toastMessage]);
 
   const searchParams = useSearchParams();
+  const mode = searchParams?.get("mode") === "reconnect" ? "reconnect" : "outreach";
 
   const senderBriefRef = useRef(senderBrief);
   senderBriefRef.current = senderBrief;
@@ -1431,9 +1432,19 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                       </span>
                     </div>
                     <h1 className="font-display text-5xl lg:text-6xl tracking-tight leading-[1.02]">
-                      Brief an agent.
-                      <br />
-                      <span className="text-ink-muted">Get personalised creative.</span>
+                      {mode === "reconnect" ? (
+                        <>
+                          Send a real
+                          <br />
+                          <span className="text-ink-muted">message to a real friend.</span>
+                        </>
+                      ) : (
+                        <>
+                          Brief an agent.
+                          <br />
+                          <span className="text-ink-muted">Get personalised creative.</span>
+                        </>
+                      )}
                     </h1>
 
                     {/* Voice brief — full card on desktop (sm:block), collapsible on mobile */}
@@ -1556,13 +1567,13 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
 
                       <div>
                         <label className="text-label-sm uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
-                          Profile URL
+                          {mode === "reconnect" ? "Their public profile" : "Profile URL"}
                         </label>
                         <input
                           value={url}
                           onChange={(e) => { setUrl(e.target.value); setUrlError(null); }}
                           onBlur={() => setUrlError(validateUrl(url))}
-                          placeholder="https://linkedin.com/in/…"
+                          placeholder={mode === "reconnect" ? "https://linkedin.com/in/… or https://x.com/…" : "https://linkedin.com/in/…"}
                           className={`w-full rounded-xl border bg-white px-4 py-3 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-[color,background-color,border-color,opacity,box-shadow,transform] ${urlError ? "border-warm/50" : voicePopulatedFields.has("url") ? "border-success/50" : "border-cream-dark"}`}
                           onKeyDown={(e) => e.key === "Enter" && handleEnrich()}
                         />
@@ -1582,10 +1593,16 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                           </span>
                         )}
                           <div className="flex flex-wrap gap-2 mt-2">
-                          {[
-                            { label: "Sundar Pichai", url: "https://linkedin.com/in/sundarpichai", name: "Alex", brief: "I build developer tools and want to share how our platform can help Google Cloud teams ship faster." },
-                            { label: "Vercel CEO", url: "https://x.com/rauchg", name: "Sam", brief: "We're building an AI-powered SDR tool and want to explore partnership opportunities with Vercel." },
-                          ].map((example) => (
+                          {(mode === "reconnect"
+                            ? [
+                                { label: "Old friend", url: "https://linkedin.com/in/sarah-example", name: "Alex", brief: "I was thinking about you after our old roommate mentioned the Lisbon trip." },
+                                { label: "Former teammate", url: "https://x.com/diego-example", name: "Sam", brief: "I heard you got promoted and wanted to say congrats." },
+                              ]
+                            : [
+                                { label: "Sundar Pichai", url: "https://linkedin.com/in/sundarpichai", name: "Alex", brief: "I build developer tools and want to share how our platform can help Google Cloud teams ship faster." },
+                                { label: "Vercel CEO", url: "https://x.com/rauchg", name: "Sam", brief: "We're building an AI-powered SDR tool and want to explore partnership opportunities with Vercel." },
+                              ]
+                          ).map((example) => (
                             <button
                               key={example.label}
                               onClick={() => {
@@ -1625,12 +1642,12 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
 
                         <div>
                           <label className="text-label-sm uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
-                            Brief <span className="normal-case text-ink-faint">— optional, but the agent uses it</span>
+                            {mode === "reconnect" ? "Why you're reaching out" : "Brief"} <span className="normal-case text-ink-faint">— optional, but the agent uses it</span>
                           </label>
                           <textarea
                             value={senderBrief}
                             onChange={(e) => setSenderBrief(e.target.value)}
-                            placeholder="What are you reaching out for? The more honest, the better."
+                            placeholder={mode === "reconnect" ? "e.g. I saw our old roommate last week and it made me think of you." : "What are you reaching out for? The more honest, the better."}
                             rows={2}
                             className={`w-full rounded-xl border bg-white px-4 py-3 text-body-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-[color,background-color,border-color,opacity,box-shadow,transform] ${voicePopulatedFields.has("senderBrief") ? "border-success/50" : "border-cream-dark"}`}
                           />
@@ -1802,7 +1819,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                   disabled={!url.trim()}
                   className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-body-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
                 >
-                  Research & write script
+                  {mode === "reconnect" ? "Write a warm script" : "Research & write script"}
                   <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M3 8h10M9 4l4 4-4 4" />
                   </svg>
@@ -1862,10 +1879,12 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                   </span>
                 </div>
                 <h1 className="font-display text-3xl tracking-tight">
-                  Reading their profile
+                  {mode === "reconnect" ? "Finding things worth mentioning" : "Reading their profile"}
                 </h1>
                 <p className="text-body-sm text-ink-muted mt-2">
-                  Three agents working together to research and personalise your video.
+                  {mode === "reconnect"
+                    ? "We'll look at their public profile for context, but the script is built around what you tell us."
+                    : "Three agents working together to research and personalise your video."}
                 </p>
               </div>
 
@@ -1969,10 +1988,10 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                 </div>
               </div>
               <h1 className="font-display text-3xl tracking-tight">
-                Review the script
+                {mode === "reconnect" ? "Review your message" : "Review the script"}
               </h1>
               <p className="text-body-sm text-ink-muted mt-2 mb-8">
-                Edit anything below, then build the final video.
+                {mode === "reconnect" ? "Edit anything below, then create the card." : "Edit anything below, then build the final video."}
               </p>
 
               {/* Research quality warning — prevents wasted render credits */}
@@ -2444,7 +2463,9 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                       onClick={handleConfirmBuild}
                       className="flex-[2] btn-press rounded-xl bg-ink text-cream py-3 text-body-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2 shadow-lg"
                     >
-                      {deliveryMode === "livelink" ? "Create live link" : "Build final video"}
+                      {mode === "reconnect"
+                        ? "Create reconnection card"
+                        : deliveryMode === "livelink" ? "Create live link" : "Build final video"}
                       <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M3 8h10M9 4l4 4-4 4" />
                       </svg>

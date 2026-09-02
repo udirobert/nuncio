@@ -8,7 +8,8 @@ import { IntentChips, type IntentId } from "@/components/intent-chips";
 import { trackExampleClicked } from "@/lib/analytics";
 
 interface UrlFormProps {
-  onSubmit: (urls: string[], senderBrief?: string, intent?: IntentId) => void;
+  /** personalMemory is a sender-supplied detail (memory, voice note, etc.) required so the message never rests purely on scraped data. */
+  onSubmit: (urls: string[], senderBrief?: string, intent?: IntentId, personalMemory?: string) => void;
 }
 
 interface UrlEntry {
@@ -33,37 +34,40 @@ interface Example {
   name: string;
   description: string;
   urls: string[];
+  /** Freeform sender context — the "why now" or extra detail. */
   brief: string;
+  /** A genuinely personal detail the sender provides; required before send. */
+  personalMemory: string;
   intent: IntentId;
 }
 
 const EXAMPLES: Example[] = [
   {
-    label: "HeyGen PM",
-    name: "Onee Yekeh",
-    description: "Ask for feedback on developer-facing video agents.",
-    urls: ["https://ca.linkedin.com/in/yekeh"],
-    brief:
-      "I'm building nuncio, an agentic video personalization pipeline that uses HeyGen to turn public profile context into a short, tailored outreach video. I'd love feedback from a HeyGen product perspective on making developer-facing video agents feel genuinely useful and not like generic automation.",
-    intent: "warm_intro",
+    label: "Old college friend",
+    name: "Sarah",
+    description: "Reach out because a shared memory popped up.",
+    urls: ["https://linkedin.com/in/sarah-example"],
+    brief: "I was thinking about you after our old roommate mentioned the Lisbon trip.",
+    personalMemory: "Remember when we got lost in Lisbon and ended up at that tiny fado bar? I still tell that story.",
+    intent: "long_overdue",
   },
   {
-    label: "PostHog founder",
-    name: "Tim Glaser",
-    description: "Pitch an analytics-aware outreach workflow.",
-    urls: ["https://x.com/timgl"],
-    brief:
-      "I'm building nuncio, a personalized video outreach agent for founders and growth teams. I'd love feedback from a PostHog perspective on using product context and behavioral signals to make outreach feel more useful, measurable, and less spammy.",
-    intent: "founder_to_founder",
+    label: "Former teammate",
+    name: "Diego",
+    description: "Congratulations on a promotion you already heard about.",
+    urls: ["https://x.com/diego-example"],
+    brief: "I heard you got promoted and wanted to say congrats.",
+    personalMemory: "I still remember how calmly you handled that launch fire drill at 2am. Nobody else could have kept the team steady.",
+    intent: "celebrate_milestone",
   },
   {
-    label: "Fal founder",
-    name: "Gorkem Yurtseven",
-    description: "Explore generative media as creative infrastructure.",
-    urls: ["https://x.com/gorkem"],
-    brief:
-      "I'm building nuncio, an agentic video pipeline that can use generative media assets to make personalized business videos feel more cinematic. I'd love feedback from a Fal perspective on fast, scalable creative generation inside developer workflows.",
-    intent: "founder_to_founder",
+    label: "Childhood friend",
+    name: "Maya",
+    description: "Just because — no reason needed.",
+    urls: ["https://instagram.com/maya-example"],
+    brief: "No special reason — I just realized it’s been way too long since we caught up.",
+    personalMemory: "We should catch up properly. I was laughing the other day about the summer we tried to build that treehouse.",
+    intent: "just_because",
   },
 ];
 
@@ -130,6 +134,7 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
     { id: "1", value: "", platform: null },
   ]);
   const [senderBrief, setSenderBrief] = useState("");
+  const [personalMemory, setPersonalMemory] = useState("");
   const [intent, setIntent] = useState<IntentId | null>(null);
   const [justPasted, setJustPasted] = useState<string | null>(null);
 
@@ -176,6 +181,7 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
       { id: String(example.urls.length + 1), value: "", platform: null },
     ]);
     setSenderBrief(example.brief);
+    setPersonalMemory(example.personalMemory);
     setIntent(example.intent);
     trackExampleClicked({ exampleName: example.name, source: "home" });
   }
@@ -183,7 +189,8 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
   const validUrls = entries
     .filter((e) => e.value.trim() && e.platform)
     .map((e) => e.value.trim());
-  const isValid = validUrls.length > 0;
+  // A reconnect card needs (1) a reachable profile URL and (2) a personal detail from the sender.
+  const isValid = validUrls.length > 0 && personalMemory.trim().length >= 10;
 
   const handleChange = useCallback((id: string, value: string) => {
     setEntries((prev) => {
@@ -222,14 +229,14 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (isValid) {
-      onSubmit(validUrls, senderBrief.trim() || undefined, intent ?? undefined);
+      onSubmit(validUrls, senderBrief.trim() || undefined, intent ?? undefined, personalMemory.trim() || undefined);
     }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && isValid) {
       e.preventDefault();
-      onSubmit(validUrls, senderBrief.trim() || undefined, intent ?? undefined);
+      onSubmit(validUrls, senderBrief.trim() || undefined, intent ?? undefined, personalMemory.trim() || undefined);
     }
   }
 
@@ -250,9 +257,9 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
             transition={{ delay: 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="font-display text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[0.95] mb-3"
           >
-            Send a video
+            Reconnect with a
             <br />
-            <span className="italic">they&apos;ll actually watch</span>
+            <span className="italic">video they&apos;ll feel</span>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
@@ -260,8 +267,8 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
             transition={{ delay: 0.2, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="text-ink-muted text-[14px] leading-relaxed max-w-[380px]"
           >
-            Paste their profile. We&apos;ll research them, write a personalised
-            script, and render a video in your voice — in ~5 minutes.
+            Paste their public profile, add a memory only you would share, and
+            we&apos;ll help you turn it into a short, warm video — reviewed by you before it sends.
           </motion.p>
         </div>
 
@@ -396,10 +403,40 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.35 }}
           >
-            <IntentChips value={intent} onChange={handleIntentChange} />
+            <IntentChips value={intent} onChange={handleIntentChange} mode="reconnect" />
           </motion.div>
 
-          {/* Sender brief — always visible, lightweight */}
+          {/* Personal memory — required so the message never rests purely on scraped data */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.38 }}
+            className="mb-5"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs uppercase tracking-widest text-ink-faint font-medium">
+                Add something only you would say
+              </label>
+              <VoiceInput
+                onTranscript={(text) =>
+                  setPersonalMemory((prev) => (prev ? `${prev} ${text}` : text))
+                }
+                placeholder="Record a memory"
+              />
+            </div>
+            <textarea
+              value={personalMemory}
+              onChange={(e) => setPersonalMemory(e.target.value)}
+              placeholder="e.g. Remember when we got lost in Lisbon and ended up at that tiny fado bar? I still tell that story."
+              rows={3}
+              className="w-full rounded-xl border border-cream-dark bg-cream-dark/30 px-4 py-3 text-sm text-ink placeholder:text-ink-faint/50 focus:outline-none focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/10 resize-none transition-[color,background-color,border-color,opacity,box-shadow,transform]"
+            />
+            <p className="text-label-base text-ink-faint mt-1.5">
+              Required. This keeps the video from sounding like it was scraped from the internet.
+            </p>
+          </motion.div>
+
+          {/* Sender brief — optional extra context */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -408,7 +445,7 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
           >
             <div className="flex items-center justify-between mb-2">
               <label className="block text-xs uppercase tracking-widest text-ink-faint font-medium">
-                What&apos;s your message about?
+                Why now? (optional)
               </label>
               <VoiceInput
                 onTranscript={(text) =>
@@ -420,12 +457,12 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
             <textarea
               value={senderBrief}
               onChange={(e) => setSenderBrief(e.target.value)}
-              placeholder="e.g. I'm building a payments API and want to connect about their experience at Stripe..."
+              placeholder="e.g. I saw our old roommate last week and it made me think of you..."
               rows={2}
               className="w-full rounded-xl border border-cream-dark bg-cream-dark/30 px-4 py-3 text-sm text-ink placeholder:text-ink-faint/50 focus:outline-none focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/10 resize-none transition-[color,background-color,border-color,opacity,box-shadow,transform]"
             />
             <p className="text-label-base text-ink-faint mt-1.5">
-              Helps the script feel specific. Leave blank for a general intro.
+              Extra context for the script. The intent chip above can help here.
             </p>
           </motion.div>
 
@@ -457,7 +494,7 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
                     exit={{ opacity: 0, y: -8 }}
                     className="flex items-center justify-center gap-2"
                   >
-                    Generate video
+                    Create reconnection card
                     <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M3 8h10M9 4l4 4-4 4" />
                     </svg>
@@ -469,7 +506,7 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                   >
-                    Paste a profile URL to begin
+                    Add a profile URL and a personal memory
                   </motion.span>
                 )}
               </AnimatePresence>
@@ -481,7 +518,7 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
                 animate={{ opacity: 1 }}
                 className="text-center text-label-base text-ink-faint mt-3"
               >
-                ⌘ + Enter · No account needed · ~5 minutes
+                ⌘ + Enter · AI-assisted, but you review every word · ~5 minutes
               </motion.p>
             )}
 

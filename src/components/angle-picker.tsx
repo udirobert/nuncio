@@ -85,12 +85,12 @@ export function AnglePicker({ profile, onConfirm, onSkip }: AnglePickerProps) {
           className="w-full max-w-[540px] text-center"
         >
           <h1 className="font-display text-4xl tracking-tight leading-[0.9] mb-4">
-            Finding the
+            What to
             <br />
-            <span className="italic">right angle</span>
+            <span className="italic">mention</span>
           </h1>
           <p className="text-ink-muted text-sm mb-8">
-            Analysing {profile.name}&apos;s profile for the strongest personalisation signals...
+            Looking at {profile.name}&apos;s public profile for things worth referencing — only use what feels right to you.
           </p>
           <div className="flex justify-center">
             <LottieIcon name="spinner" className="w-8 h-8" />
@@ -124,13 +124,13 @@ export function AnglePicker({ profile, onConfirm, onSkip }: AnglePickerProps) {
             Coach mode
           </motion.p>
           <h1 className="font-display text-4xl tracking-tight leading-[0.9] mb-3">
-            Which angles
+            What should I
             <br />
-            <span className="italic">matter most?</span>
+            <span className="italic">mention?</span>
           </h1>
           <p className="text-ink-muted text-sm">
-            We found {angles.length} personalisation signals in {profile.name}&apos;s profile.
-            Pick 1–2 to focus the script, or use all. We will wait here until you choose.
+            We found {angles.length} things that could be worth referencing in {profile.name}&apos;s public profile.
+            Pick 1–2 to focus the script, or use all. You&apos;re in control — we won&apos;t send anything you don&apos;t approve.
           </p>
         </div>
 
@@ -228,7 +228,7 @@ export function AnglePicker({ profile, onConfirm, onSkip }: AnglePickerProps) {
           </button>
         </motion.div>
         <p className="text-center text-label-base text-ink-faint mt-3">
-          Script generation starts only after you confirm an angle.
+          Script generation starts only after you confirm what to mention.
         </p>
       </motion.div>
     </main>

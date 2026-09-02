@@ -129,7 +129,12 @@ export type IntentId =
   | "hiring"
   | "conference_followup"
   | "reengage"
-  | "founder_to_founder";
+  | "founder_to_founder"
+  | "long_overdue"
+  | "just_because"
+  | "celebrate_milestone"
+  | "reach_out"
+  | "memory_lane";
 
 export interface ScriptResult {
   script: string;
@@ -150,6 +155,16 @@ const INTENT_RUBRICS: Record<IntentId, string> = {
     "Intent: re-engaging a cold contact. Acknowledge the gap honestly. Lead with what's changed on your side — new product, new role, new context — that makes reaching out now genuinely different. Don't pretend the silence didn't happen.",
   founder_to_founder:
     "Intent: founder-to-founder. Speak peer-to-peer, not buyer-to-vendor. Reference a hard problem they've publicly written or talked about that overlaps with yours. Offer something concrete (a tool, an intro, a learning) before asking for anything in return.",
+  long_overdue:
+    "Intent: reconnect with a friend after a long gap. Be honest about the silence ('it's been too long'). Lead with a specific memory, thought, or thing that made you think of them. Avoid referencing scraped milestones unless the sender explicitly mentions them. End with a warm, low-pressure ask to catch up — no business pitch.",
+  just_because:
+    "Intent: send a low-stakes, warm message to a friend for no specific reason. Keep it light and genuine. No milestone, no news, no ask beyond 'would love to hear how you are'.",
+  celebrate_milestone:
+    "Intent: congratulate a friend on a milestone. Only use details the sender explicitly provided or the friend publicly shared. Keep the focus on them, not on the sender. End with a warm offer to celebrate or catch up.",
+  reach_out:
+    "Intent: re-engage a friend after some time. Acknowledge the gap softly and share one thing the sender has been meaning to tell them. Avoid surveillance language ('I saw you...'). Keep the ask to a conversation, not a meeting.",
+  memory_lane:
+    "Intent: reach out through a shared memory. Start from a real, specific moment the sender provides. Do not invent shared history. Let the memory be the reason for the message; the ask is simply to reconnect.",
 };
 
 const VIBE_SYSTEM_CONTEXT = `
