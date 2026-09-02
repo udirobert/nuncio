@@ -189,9 +189,66 @@ export function trackViralCtaClicked(props: {
   posthog.capture("viral_cta_clicked", props);
 }
 
-export function trackViralLanding(props: { ref: string }) {
+export function trackViralLanding(props: { ref: string; mode?: "outreach" | "reconnect" }) {
   if (!isReady()) return;
   posthog.capture("viral_landing", props);
+}
+
+// ─── Reconnect experiment (consumer wedge) ───────────────────────────────────
+
+export function trackReconnectCardCreated(props: {
+  recipientName?: string;
+  hasPersonalMemory: boolean;
+  personalMemoryLength: number;
+  hasClonedVoice: boolean;
+  hasPhotoAvatar: boolean;
+  deliveryMode: "video" | "livelink";
+}) {
+  if (!isReady()) return;
+  posthog.capture("reconnect_card_created", props);
+}
+
+export function trackReconnectCardSent(props: {
+  shareId: string;
+  deliveryMode: "video" | "livelink";
+}) {
+  if (!isReady()) return;
+  posthog.capture("reconnect_card_sent", props);
+}
+
+export function trackReconnectCardOpened(props: {
+  shareId: string;
+  mode: "outreach" | "reconnect";
+  deliveryMode: "video" | "livelink";
+}) {
+  if (!isReady()) return;
+  posthog.capture("reconnect_card_opened", props);
+}
+
+export function trackReconnectCardWatched(props: {
+  shareId: string;
+  mode: "outreach" | "reconnect";
+  deliveryMode: "video" | "livelink";
+  watchPercentage?: number;
+}) {
+  if (!isReady()) return;
+  posthog.capture("reconnect_card_watched", props);
+}
+
+export function trackReconnectCatchupClicked(props: {
+  shareId: string;
+  surface: "share_page" | "live_page";
+}) {
+  if (!isReady()) return;
+  posthog.capture("reconnect_catchup_clicked", props);
+}
+
+export function trackReconnectReplyClicked(props: {
+  shareId: string;
+  surface: "share_page";
+}) {
+  if (!isReady()) return;
+  posthog.capture("reconnect_reply_clicked", props);
 }
 
 // ─── Wait screen engagement ─────────────────────────────────────────────────

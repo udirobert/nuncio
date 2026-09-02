@@ -44,7 +44,8 @@ export default function HomeClient() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get("ref");
-    if (ref) trackViralLanding({ ref });
+    const modeParam = params.get("mode") === "reconnect" ? "reconnect" : "outreach";
+    if (ref) trackViralLanding({ ref, mode: modeParam });
     // Sync external URL state into React state for the landing-page experiment.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (params.get("mode") === "reconnect") setMode("reconnect");

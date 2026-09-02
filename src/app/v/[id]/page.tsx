@@ -7,7 +7,15 @@ import type { ShareRecord } from "@/lib/artifacts";
 import { languageLabel } from "@/lib/languages";
 import { DuckingAudio } from "@/components/ducking-audio";
 import { LottieIcon } from "@/components/lottie-icon";
-import { trackBookingClicked, trackVideoWatchThrough, trackViralCtaClicked } from "@/lib/analytics";
+import {
+  trackBookingClicked,
+  trackVideoWatchThrough,
+  trackViralCtaClicked,
+  trackReconnectCardOpened,
+  trackReconnectCardWatched,
+  trackReconnectCatchupClicked,
+  trackReconnectReplyClicked,
+} from "@/lib/analytics";
 
 /**
  * Branded video landing page — /v/[id]
@@ -33,6 +41,19 @@ export default function VideoLandingPage({
   const [thanksCopied, setThanksCopied] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hasVideoRef = useRef(false);
+
+  const openedTrackedRef = useRef(false);
+  useEffect(() => {
+    if (openedTrackedRef.current || !videoData) return;
+    if (videoData.mode === "reconnect") {
+      openedTrackedRef.current = true;
+      trackReconnectCardOpened({
+        shareId: videoData.id,
+        mode: videoData.mode,
+        deliveryMode: videoData.deliveryMode || "video",
+      });
+    }
+  }, [videoData]);
 
   useEffect(() => {
     async function load() {
@@ -246,7 +267,17 @@ export default function VideoLandingPage({
                     controls
                     autoPlay
                     playsInline
-                    onEnded={() => trackVideoWatchThrough({ shareId: videoData.id })}
+                    onEnded={() => {
+                      trackVideoWatchThrough({ shareId: videoData.id });
+                      if (videoData.mode === "reconnect") {
+                        trackReconnectCardWatched({
+                          shareId: videoData.id,
+                          mode: "reconnect",
+                          deliveryMode: "video",
+                          watchPercentage: 100,
+                        });
+                      }
+                    }}
                     className="w-full h-full object-contain"
                   >
                     <track kind="captions" />
@@ -291,10 +322,13 @@ export default function VideoLandingPage({
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <button
                   onClick={() => {
+                    if (videoData.mode === "reconnect") {
+                      trackReconnectReplyClicked({ shareId: videoData.id, surface: "share_page" });
+                    }
                     const replySubject = `Re: your video${recipientName ? ` for ${recipientName}` : ""}`;
                     const replyBody = senderName
-                      ? `Hi ${senderName},\n\nThanks for the personalised video — really appreciated the personal touch.\n\nI'd love to learn more. When are you free for a quick call?`
-                      : `Thanks for the personalised video — really appreciated the personal touch.\n\nI'd love to learn more. When are you free for a quick call?`;
+                      ? `Hi ${senderName},\n\nThanks for the card — it made my day.\n\nLet me know when you're free to catch up.`
+                      : `Thanks for the card — it made my day.\n\nLet me know when you're free to catch up.`;
                     const mailto = `mailto:?subject=${encodeURIComponent(replySubject)}&body=${encodeURIComponent(replyBody)}`;
                     window.location.href = mailto;
                   }}
@@ -310,6 +344,9 @@ export default function VideoLandingPage({
                   <button
                     onClick={() => {
                       trackBookingClicked({ shareId: videoData.id, surface: "share_page" });
+                      if (videoData.mode === "reconnect") {
+                        trackReconnectCatchupClicked({ shareId: videoData.id, surface: "share_page" });
+                      }
                       window.open(bookingUrl, "_blank", "noopener,noreferrer");
                     }}
                     className="btn-press rounded-xl bg-ink text-cream px-5 py-2.5 text-xs font-medium hover:bg-ink-light transition-colors"
@@ -425,7 +462,7 @@ export default function VideoLandingPage({
                     : `It&apos;s ${senderName ? `${senderName}'s` : "an"} AI twin — disclosed up front, built on their playbook.`}
                 </p>
                 <Link
-                  href={`/?ref=share-${videoData.id}`}
+                  href={videoData.mode === "reconnect" ? `/?ref=share-${videoData.id}&mode=reconnect` : `/?ref=share-${videoData.id}`}
                   onClick={() =>
                     trackViralCtaClicked({
                       shareId: videoData.id,

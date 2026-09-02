@@ -20,6 +20,7 @@ import type { VoiceProfileResult } from "@/components/voice-overlay";
 import { DeepResearchToggle } from "@/components/deep-research-toggle";
 import { QualityLadder } from "@/components/quality-ladder";
 import type { UserPlan } from "@/components/quality-ladder";
+import { trackReconnectCardCreated, trackReconnectCardSent } from "@/lib/analytics";
 
 export type StudioStage = "input" | "enriching" | "collaborating" | "generating" | "review" | "building" | "ready" | "error";
 export type ArchetypeSelection = "auto" | "mirror" | "origin" | "future_cast" | "inside_joke" | "day_in_the_life";
@@ -304,6 +305,16 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
 
   const senderBriefRef = useRef(senderBrief);
   senderBriefRef.current = senderBrief;
+
+  const sentTrackedRef = useRef(false);
+  useEffect(() => {
+    if (mode !== "reconnect" || sentTrackedRef.current || !shareUrl) return;
+    const shareId = shareUrl.split("/").pop();
+    if (shareId) {
+      sentTrackedRef.current = true;
+      trackReconnectCardSent({ shareId, deliveryMode });
+    }
+  }, [mode, shareUrl, deliveryMode]);
 
   useEffect(() => {
     if (stage !== "building" || !buildStartedAt) {
@@ -1098,6 +1109,16 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
     if (!capturedEmail) {
       openCapture(deliveryMode === "livelink" ? "share" : "render");
       return;
+    }
+    if (mode === "reconnect") {
+      trackReconnectCardCreated({
+        recipientName: reviewProfile?.name,
+        hasPersonalMemory: personalMemory.trim().length > 0,
+        personalMemoryLength: personalMemory.trim().length,
+        hasClonedVoice: typeof window !== "undefined" && Boolean(localStorage.getItem("nuncio_cloned_voice_id")),
+        hasPhotoAvatar: typeof window !== "undefined" && Boolean(localStorage.getItem("nuncio_photo_avatar_id")),
+        deliveryMode,
+      });
     }
     saveSenderMemory();
     setStage("building");

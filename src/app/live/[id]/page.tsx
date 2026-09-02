@@ -12,6 +12,8 @@ import {
   trackLiveSessionFailed,
   trackLiveSessionRequested,
   trackViralCtaClicked,
+  trackReconnectCardOpened,
+  trackReconnectCatchupClicked,
 } from "@/lib/analytics";
 import { LIVE_SESSION_MAX_DURATION_MS } from "@/lib/live-link";
 import { classifyQuestionTopics } from "@/lib/live-topics";
@@ -28,6 +30,7 @@ export default function LiveAvatarLandingPage({
   const [starting, setStarting] = useState(false);
   const [status, setStatus] = useState<string>("Click below to start the live conversation");
   const [error, setError] = useState<string | null>(null);
+  const openedTrackedRef = useRef(false);
   const [errorReason, setErrorReason] = useState<"connection" | "mic" | "provider" | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [live, setLive] = useState(false);
@@ -65,6 +68,14 @@ export default function LiveAvatarLandingPage({
           ? data.bookingUrl
           : null;
         setShare(data);
+        if (!openedTrackedRef.current && data.mode === "reconnect") {
+          openedTrackedRef.current = true;
+          trackReconnectCardOpened({
+            shareId: data.id,
+            mode: "reconnect",
+            deliveryMode: "livelink",
+          });
+        }
       } catch {
         setNotFound(true);
       } finally {
@@ -536,7 +547,12 @@ export default function LiveAvatarLandingPage({
               className="mt-3 flex justify-center"
             >
               <button
-                onClick={handleBookingClick}
+                onClick={() => {
+                  if (share.mode === "reconnect") {
+                    trackReconnectCatchupClicked({ shareId: share.id, surface: "live_page" });
+                  }
+                  handleBookingClick();
+                }}
                 aria-label={share.mode === "reconnect" ? `Let's catch up with ${sender}` : `Book time with ${sender}`}
                 className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-5 py-2.5 text-sm font-medium hover:bg-white transition-colors flex items-center gap-2"
               >
@@ -571,7 +587,7 @@ export default function LiveAvatarLandingPage({
         <p className="text-label-base text-ink-faint">
           Powered by{" "}
           <Link
-            href={`/?ref=live-${share.id}`}
+            href={share.mode === "reconnect" ? `/?ref=live-${share.id}&mode=reconnect` : `/?ref=live-${share.id}`}
             onClick={() => trackViralCtaClicked({ shareId: share.id, ref: `live-${share.id}`, surface: "live_page" })}
             className="text-ink-muted hover:text-ink transition-colors font-medium"
           >
