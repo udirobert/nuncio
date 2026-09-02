@@ -8,8 +8,10 @@ import { CreditCard } from "./components/credit-card";
 import { RecentVideos } from "./components/recent-videos";
 import { QuickActions } from "./components/quick-actions";
 import { UsageSummary } from "./components/usage-summary";
+import { ScoreboardCard } from "./components/scoreboard-card";
 import { OnboardingModal } from "@/components/onboarding-modal";
 import Link from "next/link";
+import { LottieIcon } from "@/components/lottie-icon";
 
 interface SessionData {
   authenticated: boolean;
@@ -40,7 +42,13 @@ export default function DashboardClient() {
       });
   }, [router]);
 
-  if (loading || !session) return null;
+  if (loading || !session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LottieIcon name="spinner" className="w-10 h-10" />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -87,6 +95,14 @@ export default function DashboardClient() {
             <CreditCard />
             <UsageSummary />
             <QuickActions />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.15 }}
+          >
+            <ScoreboardCard />
           </motion.div>
 
           <motion.div

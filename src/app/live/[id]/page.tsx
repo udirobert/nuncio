@@ -378,13 +378,7 @@ export default function LiveAvatarLandingPage({
   if (loading) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center">
-        <motion.div
-          animate={{ opacity: [0.4, 1, 0.4] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-          className="text-sm text-ink-faint"
-        >
-          Loading...
-        </motion.div>
+        <LottieIcon name="spinner" className="w-10 h-10" />
       </div>
     );
   }

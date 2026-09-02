@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { LottieIcon } from "@/components/lottie-icon";
 import type { Profile } from "@/lib/claude";
 
 interface AngleCandidate {
@@ -91,15 +92,8 @@ export function AnglePicker({ profile, onConfirm, onSkip }: AnglePickerProps) {
           <p className="text-ink-muted text-sm mb-8">
             Analysing {profile.name}&apos;s profile for the strongest personalisation signals...
           </p>
-          <div className="flex justify-center gap-1">
-            {[0, 1, 2].map((dot) => (
-              <motion.span
-                key={dot}
-                className="w-2 h-2 rounded-full bg-accent"
-                animate={{ opacity: [0.3, 1, 0.3] }}
-                transition={{ duration: 1.2, repeat: Infinity, delay: dot * 0.2 }}
-              />
-            ))}
+          <div className="flex justify-center">
+            <LottieIcon name="spinner" className="w-8 h-8" />
           </div>
         </motion.div>
       </main>

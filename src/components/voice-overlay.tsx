@@ -18,6 +18,8 @@ interface VoiceOverlayProps {
   onComplete: (profile: VoiceProfileResult) => void;
   /** If provided, called instead of onComplete when profile is captured. Parent can show email capture, then call onComplete. */
   onRequestSave?: (profile: VoiceProfileResult) => void;
+  /** "campaign" extracts a one-off brief; "playbook" extracts the sender's reusable identity. */
+  mode?: "campaign" | "playbook";
 }
 
 type Status = "idle" | "connecting" | "listening" | "speaking" | "extracting" | "editing" | "error";
@@ -28,7 +30,7 @@ interface ChecklistField {
   required: boolean;
 }
 
-const CHECKLIST_FIELDS: ChecklistField[] = [
+const CAMPAIGN_CHECKLIST_FIELDS: ChecklistField[] = [
   { key: "name", label: "Recipient", required: true },
   { key: "company", label: "Company", required: false },
   { key: "senderName", label: "Your name", required: true },
@@ -37,7 +39,16 @@ const CHECKLIST_FIELDS: ChecklistField[] = [
   { key: "url", label: "Profile link", required: false },
 ];
 
-export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: VoiceOverlayProps) {
+const PLAYBOOK_CHECKLIST_FIELDS: ChecklistField[] = [
+  { key: "senderName", label: "Your name", required: true },
+  { key: "senderBusiness", label: "Business", required: false },
+  { key: "senderOffer", label: "Offer", required: false },
+  { key: "offer", label: "Can offer", required: false },
+  { key: "wants", label: "Wants", required: false },
+  { key: "constraints", label: "Constraints", required: false },
+];
+
+export function VoiceOverlay({ open, onClose, onComplete, onRequestSave, mode = "campaign" }: VoiceOverlayProps) {
   const [status, setStatus] = useState<Status>("idle");
   const [transcripts, setTranscripts] = useState<{ role: "user" | "agent"; text: string }[]>([]);
   const [error, setError] = useState("");
@@ -158,7 +169,7 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
       const res = await fetch("/api/studio/voice/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: transcripts, linkUrl: linkUrl.trim() || undefined }),
+        body: JSON.stringify({ transcript: transcripts, linkUrl: linkUrl.trim() || undefined, mode }),
       });
 
       if (!res.ok) throw new Error("Extraction failed");
@@ -221,6 +232,7 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
                 onConfirm={handleConfirm}
                 onRedo={() => { setEditProfile({}); setStatus("idle"); }}
                 onClose={handleClose}
+                mode={mode}
               />
             ) : (
               /* ─── CONVERSATION STATE ─── */
@@ -246,11 +258,13 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
                         "bg-ink-faint"
                       }`} />
                       <span className="text-label-sm uppercase tracking-widest font-medium text-accent">
-                        Voice brief
+                        {mode === "playbook" ? "Voice playbook" : "Voice brief"}
                       </span>
                     </div>
                     <p className="text-sm text-ink-muted leading-relaxed">
-                      Tell me who to reach, why, and your name. I&apos;ll fill the studio.
+                      {mode === "playbook"
+                        ? "Tell me about you, your business, what you want from a conversation, and any hard limits. I'll build your reusable sender playbook."
+                        : "Tell me who to reach, why, and your name. I'll fill the studio."}
                     </p>
                   </div>
 
@@ -300,7 +314,7 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
                   {/* Progress checklist */}
                   <div className="space-y-1.5">
                     <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">Gathering</p>
-                    {CHECKLIST_FIELDS.map((field) => {
+                    {(mode === "playbook" ? PLAYBOOK_CHECKLIST_FIELDS : CAMPAIGN_CHECKLIST_FIELDS).map((field) => {
                       const detected = detectedFields.has(field.key);
                       return (
                         <div key={field.key} className="flex items-center gap-2">
@@ -410,11 +424,22 @@ interface EditCardProps {
   onConfirm: () => void;
   onRedo: () => void;
   onClose: () => void;
+  mode?: "campaign" | "playbook";
 }
 
-function EditCard({ profile, onChange, linkUrl, onLinkChange, onConfirm, onRedo, onClose }: EditCardProps) {
+function EditCard({ profile, onChange, linkUrl, onLinkChange, onConfirm, onRedo, onClose, mode = "campaign" }: EditCardProps) {
   function updateField(key: keyof VoiceProfileResult, value: string) {
     onChange({ ...profile, [key]: value });
+  }
+
+  function updateListField(key: "senderProofPoints" | "constraints", value: string) {
+    onChange({
+      ...profile,
+      [key]: value
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    });
   }
 
   const toneOptions = ["conversational", "formal", "technical"];
@@ -427,13 +452,15 @@ function EditCard({ profile, onChange, linkUrl, onLinkChange, onConfirm, onRedo,
     { id: "day_in_the_life", label: "Day-in-life" },
   ];
 
+  const isPlaybook = mode === "playbook";
+
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-success" />
           <h3 className="font-display text-xl text-ink">
-            Review your brief
+            {isPlaybook ? "Review your playbook" : "Review your brief"}
           </h3>
         </div>
         <button
@@ -447,56 +474,98 @@ function EditCard({ profile, onChange, linkUrl, onLinkChange, onConfirm, onRedo,
       </div>
 
       <p className="text-sm text-ink-muted">
-        Edit any fields below before filling the studio. Fix transcription errors here.
+        {isPlaybook
+          ? "Edit any fields below before saving your reusable sender playbook."
+          : "Edit any fields below before filling the studio. Fix transcription errors here."}
       </p>
 
-      <div className="grid sm:grid-cols-2 gap-3">
-        <EditField label="Recipient name" value={profile.name || ""} onChange={(v) => updateField("name", v)} />
-        <EditField label="Company" value={profile.company || ""} onChange={(v) => updateField("company", v)} />
-        <EditField label="Role" value={profile.role || ""} onChange={(v) => updateField("role", v)} />
-        <EditField label="Your name" value={profile.senderName || ""} onChange={(v) => updateField("senderName", v)} />
-      </div>
+      {!isPlaybook && (
+        <>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <EditField label="Recipient name" value={profile.name || ""} onChange={(v) => updateField("name", v)} />
+            <EditField label="Company" value={profile.company || ""} onChange={(v) => updateField("company", v)} />
+            <EditField label="Role" value={profile.role || ""} onChange={(v) => updateField("role", v)} />
+            <EditField label="Your name" value={profile.senderName || ""} onChange={(v) => updateField("senderName", v)} />
+          </div>
 
-      <EditField
-        label="Reason for outreach"
-        value={profile.senderBrief || ""}
-        onChange={(v) => updateField("senderBrief", v)}
-        multiline
-      />
+          <EditField
+            label="Reason for outreach"
+            value={profile.senderBrief || ""}
+            onChange={(v) => updateField("senderBrief", v)}
+            multiline
+          />
 
-      <EditField
-        label="Profile link"
-        value={profile.url || linkUrl}
-        onChange={(v) => { updateField("url", v); onLinkChange(v); }}
-        placeholder="https://linkedin.com/in/..."
-      />
+          <EditField
+            label="Profile link"
+            value={profile.url || linkUrl}
+            onChange={(v) => { updateField("url", v); onLinkChange(v); }}
+            placeholder="https://linkedin.com/in/..."
+          />
 
-      <div className="grid sm:grid-cols-2 gap-3">
-        <div>
-          <label className="text-label-sm uppercase tracking-widest text-ink-faint font-medium block mb-1">Tone</label>
-          <select
-            value={profile.tone || "conversational"}
-            onChange={(e) => updateField("tone", e.target.value)}
-            className="w-full rounded-xl border border-cream-dark px-3 py-2 text-sm text-ink bg-white focus:outline-none focus:ring-2 focus:ring-accent/30"
-          >
-            {toneOptions.map((t) => (
-              <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-label-sm uppercase tracking-widest text-ink-faint font-medium block mb-1">Hook style</label>
-          <select
-            value={profile.archetype || "auto"}
-            onChange={(e) => updateField("archetype", e.target.value)}
-            className="w-full rounded-xl border border-cream-dark px-3 py-2 text-sm text-ink bg-white focus:outline-none focus:ring-2 focus:ring-accent/30"
-          >
-            {archetypeOptions.map((a) => (
-              <option key={a.id} value={a.id}>{a.label}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-label-sm uppercase tracking-widest text-ink-faint font-medium block mb-1">Tone</label>
+              <select
+                value={profile.tone || "conversational"}
+                onChange={(e) => updateField("tone", e.target.value)}
+                className="w-full rounded-xl border border-cream-dark px-3 py-2 text-sm text-ink bg-white focus:outline-none focus:ring-2 focus:ring-accent/30"
+              >
+                {toneOptions.map((t) => (
+                  <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-label-sm uppercase tracking-widest text-ink-faint font-medium block mb-1">Hook style</label>
+              <select
+                value={profile.archetype || "auto"}
+                onChange={(e) => updateField("archetype", e.target.value)}
+                className="w-full rounded-xl border border-cream-dark px-3 py-2 text-sm text-ink bg-white focus:outline-none focus:ring-2 focus:ring-accent/30"
+              >
+                {archetypeOptions.map((a) => (
+                  <option key={a.id} value={a.id}>{a.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </>
+      )}
+
+      {isPlaybook && (
+        <>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <EditField label="Your name" value={profile.senderName || ""} onChange={(v) => updateField("senderName", v)} />
+            <EditField label="Booking link" value={profile.bookingUrl || ""} onChange={(v) => updateField("bookingUrl", v)} placeholder="https://calendly.com/you" />
+          </div>
+
+          <EditField label="Business" value={profile.senderBusiness || ""} onChange={(v) => updateField("senderBusiness", v)} multiline />
+          <EditField label="Brand voice" value={profile.senderBrand || ""} onChange={(v) => updateField("senderBrand", v)} multiline />
+          <EditField label="Audience" value={profile.senderAudience || ""} onChange={(v) => updateField("senderAudience", v)} multiline />
+          <EditField label="Offer" value={profile.senderOffer || ""} onChange={(v) => updateField("senderOffer", v)} multiline />
+
+          <EditListField
+            label="Proof points"
+            value={(profile.senderProofPoints || []).join("\n")}
+            onChange={(v) => updateListField("senderProofPoints", v)}
+            placeholder="YC S24&#10;Used by 50+ teams"
+          />
+
+          <div className="border-t border-cream-dark pt-4 space-y-3">
+            <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">Live playbook</span>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <EditField label="Can offer" value={profile.offer || ""} onChange={(v) => updateField("offer", v)} />
+              <EditField label="Wants" value={profile.wants || ""} onChange={(v) => updateField("wants", v)} />
+            </div>
+            <EditField label="Wiggle room" value={profile.wiggleRoom || ""} onChange={(v) => updateField("wiggleRoom", v)} multiline />
+            <EditListField
+              label="Constraints"
+              value={(profile.constraints || []).join("\n")}
+              onChange={(v) => updateListField("constraints", v)}
+              placeholder="Never mention competitors by name&#10;Don't offer discounts above 20%"
+            />
+          </div>
+        </>
+      )}
 
       <div className="flex gap-3 pt-2">
         <button
@@ -509,7 +578,7 @@ function EditCard({ profile, onChange, linkUrl, onLinkChange, onConfirm, onRedo,
           onClick={onConfirm}
           className="flex-[2] btn-press rounded-xl bg-ink text-cream py-3 text-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2 shadow-lg"
         >
-          Fill studio
+          {isPlaybook ? "Save playbook" : "Fill studio"}
           <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 8h10M9 4l4 4-4 4" />
           </svg>
@@ -555,6 +624,33 @@ function EditField({
           className={cls}
         />
       )}
+    </div>
+  );
+}
+
+function EditListField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  const cls = "w-full rounded-xl border border-cream-dark px-3 py-2 text-sm text-ink placeholder:text-ink-faint/50 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/30 bg-white resize-none";
+  return (
+    <div>
+      <label className="text-label-sm uppercase tracking-widest text-ink-faint font-medium block mb-1">{label}</label>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={3}
+        className={cls}
+      />
+      <p className="text-label-xs text-ink-faint mt-1">One item per line.</p>
     </div>
   );
 }

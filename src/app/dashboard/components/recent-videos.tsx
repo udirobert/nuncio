@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { LottieIcon } from "@/components/lottie-icon";
 
 interface VideoData {
   id: string;
@@ -84,9 +85,8 @@ function StatusIcon({ status }: { status: string }) {
       );
     case "running":
       return (
-        <span className="relative flex h-4 w-4 shrink-0">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-25" />
-          <span className="relative inline-flex rounded-full h-4 w-4 bg-accent/20" />
+        <span className="flex items-center justify-center h-4 w-4 shrink-0">
+          <LottieIcon name="spinner" className="w-3.5 h-3.5" />
         </span>
       );
     case "partial":
@@ -232,7 +232,10 @@ export function RecentVideos() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {entry.status === "running" && (
-                      <span className="text-label-sm text-accent">In progress</span>
+                      <span className="text-label-sm text-accent flex items-center gap-1">
+                        <LottieIcon name="spinner" className="w-3 h-3" />
+                        In progress
+                      </span>
                     )}
                     {entry.status === "completed" && entry.type === "video" && (
                       <>

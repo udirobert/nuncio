@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { LottieIcon } from "@/components/lottie-icon";
 import type { VideoCustomization, HeyGenAvatar, HeyGenVoice } from "@/lib/heygen";
 
 const BACKGROUND_PRESETS = [
@@ -487,7 +488,14 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
                 <circle cx="5.5" cy="6.5" r="1.5" />
                 <path d="M14 11l-3-3-2 2-3-3-4 4" />
               </svg>
-              {photoAvatarStatus === "processing" ? "Processing..." : photoUploading ? "Uploading..." : "Use your photo"}
+              {photoAvatarStatus === "processing" || photoUploading ? (
+                <>
+                  <LottieIcon name="spinner" className="w-3 h-3" />
+                  {photoAvatarStatus === "processing" ? "Processing..." : "Uploading..."}
+                </>
+              ) : (
+                "Use your photo"
+              )}
             </button>
             {photoAvatarStatus === "ready" && (
               <span className="text-label-sm text-success">Ready</span>
@@ -601,7 +609,14 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
               <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M4 3l9 5-9 5V3z" />
               </svg>
-              {scriptAuditionLoading ? "Generating preview..." : "Preview with your script"}
+              {scriptAuditionLoading ? (
+                <>
+                  <LottieIcon name="spinner" className="w-3 h-3" />
+                  Generating preview...
+                </>
+              ) : (
+                "Preview with your script"
+              )}
             </button>
           )}
           {/* Use your voice */}
@@ -622,7 +637,14 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
                 <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
                 <path d="M3 8a5 5 0 0010 0M8 13v2" />
               </svg>
-              {voiceCloneStatus === "processing" ? "Cloning..." : voiceCloneUploading ? "Uploading..." : "Use your voice"}
+              {voiceCloneStatus === "processing" || voiceCloneUploading ? (
+                <>
+                  <LottieIcon name="spinner" className="w-3 h-3" />
+                  {voiceCloneStatus === "processing" ? "Cloning..." : "Uploading..."}
+                </>
+              ) : (
+                "Use your voice"
+              )}
             </button>
             {voiceCloneStatus === "ready" && (
               <span className="text-label-sm text-success">Ready</span>
@@ -684,7 +706,10 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
             Background audio
           </label>
           {vibeLoading && (
-            <span className="text-label-xs text-accent animate-pulse">Generating preview...</span>
+            <span className="text-label-xs text-accent flex items-center gap-1">
+              <LottieIcon name="spinner" className="w-3 h-3" />
+              Generating preview...
+            </span>
           )}
         </div>
         <div className="grid grid-cols-2 gap-2">

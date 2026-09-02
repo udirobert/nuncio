@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { LottieIcon } from "@/components/lottie-icon";
 
 interface VoiceInputProps {
   onTranscript: (text: string) => void;
@@ -148,20 +149,7 @@ export function VoiceInput({ onTranscript, placeholder }: VoiceInputProps) {
             exit={{ opacity: 0 }}
             className="flex items-center gap-2 text-xs text-accent"
           >
-            <motion.div
-              className="flex gap-1"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              {[0, 1, 2].map((dot) => (
-                <motion.span
-                  key={dot}
-                  className="w-1.5 h-1.5 rounded-full bg-accent"
-                  animate={{ opacity: [0.3, 1, 0.3] }}
-                  transition={{ duration: 1, repeat: Infinity, delay: dot * 0.15 }}
-                />
-              ))}
-            </motion.div>
+            <LottieIcon name="spinner" className="w-3 h-3" />
             Transcribing with Speechmatics...
           </motion.div>
         )}

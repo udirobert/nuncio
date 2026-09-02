@@ -357,7 +357,11 @@ export default function BatchPage() {
                         disabled={retrying === batch.id}
                         className="text-label-sm uppercase tracking-widest font-medium text-accent hover:text-accent-light transition-[color] disabled:opacity-40"
                       >
-                        {retrying === batch.id ? "Retrying..." : "Retry"}
+                        {retrying === batch.id ? (
+                          <LottieIcon name="spinner" className="w-3 h-3" />
+                        ) : (
+                          "Retry"
+                        )}
                       </button>
                     )}
                     {batch.status !== "running" && batch.status !== "queued" && (
@@ -367,7 +371,11 @@ export default function BatchPage() {
                         disabled={deleting === batch.id}
                         className="text-label-sm uppercase tracking-widest font-medium text-warm hover:text-warm-light transition-[color] disabled:opacity-40"
                       >
-                        {deleting === batch.id ? "..." : "Delete"}
+                        {deleting === batch.id ? (
+                          <LottieIcon name="spinner" className="w-3 h-3" />
+                        ) : (
+                          "Delete"
+                        )}
                       </button>
                     )}
                     <span className={`text-label-sm uppercase tracking-widest font-medium px-2 py-0.5 rounded-full ${statusColor(batch.status)}`}>

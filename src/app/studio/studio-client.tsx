@@ -244,6 +244,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
   const [detectingLanguage, setDetectingLanguage] = useState(false);
   const [translateEnabled, setTranslateEnabled] = useState(false);
   const [voiceOverlayOpen, setVoiceOverlayOpen] = useState(false);
+  const [voiceOverlayMode, setVoiceOverlayMode] = useState<"campaign" | "playbook">("campaign");
   const [voiceBrief, setVoiceBrief] = useState<VoiceProfileResult | null>(null);
   const [pipelineStep, setPipelineStep] = useState<"idle" | "enrich" | "synthesise" | "compose">("idle");
   const [voicePopulatedFields, setVoicePopulatedFields] = useState<Set<string>>(new Set());
@@ -414,6 +415,13 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
       .catch(() => {});
   }, [liveLinkEnabled, searchParams]);
 
+  // Persist voice-captured profile to the server after it has been applied to form state
+  useEffect(() => {
+    if (!voiceBrief || !session?.authenticated) return;
+    saveSenderMemory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceBrief, session?.authenticated]);
+
   // Auto-detect language from URL
   const urlRef = useRef(url);
   urlRef.current = url;
@@ -508,34 +516,41 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
     saveSenderMemory({ deliveryMode: mode });
   }
 
-  function handleVoiceComplete(profile: VoiceProfileResult) {
+  function applyVoiceProfile(profile: VoiceProfileResult) {
     const populated = new Set<string>();
     if (profile.url) { setUrl(profile.url); populated.add("url"); }
+    if (profile.name) { populated.add("name"); }
+    if (profile.company) { populated.add("company"); }
+    if (profile.role) { populated.add("role"); }
     if (profile.senderName) { setSenderName(profile.senderName); populated.add("senderName"); }
     if (profile.senderBrief) { setSenderBrief(profile.senderBrief); populated.add("senderBrief"); }
+    if (profile.senderBusiness) { setSenderBusiness(profile.senderBusiness); populated.add("senderBusiness"); }
+    if (profile.senderBrand) { setSenderBrand(profile.senderBrand); populated.add("senderBrand"); }
+    if (profile.senderPersonality) { setSenderPersonality(profile.senderPersonality); populated.add("senderPersonality"); }
+    if (profile.senderAudience) { setSenderAudience(profile.senderAudience); populated.add("senderAudience"); }
+    if (profile.senderOffer) { setSenderOffer(profile.senderOffer); populated.add("senderOffer"); }
+    if (profile.senderProofPoints) { setSenderProofPoints(profile.senderProofPoints.join("\n")); populated.add("senderProofPoints"); }
     if (profile.archetype) setArchetype(profile.archetype as ArchetypeSelection);
     if (profile.tone) setTonePreference(profile.tone);
     if (profile.offer) { setPlaybookOffer(profile.offer); populated.add("offer"); }
     if (profile.wants) { setPlaybookWants(profile.wants); populated.add("wants"); }
     if (profile.wiggleRoom) { setPlaybookWiggleRoom(profile.wiggleRoom); populated.add("wiggleRoom"); }
     if (profile.constraints) { setPlaybookConstraints(profile.constraints.join("\n")); populated.add("constraints"); }
+    if (profile.bookingUrl) { setBookingUrl(profile.bookingUrl); populated.add("bookingUrl"); }
     setVoiceBrief(profile);
     setVoicePopulatedFields(populated);
     setVoiceOverlayOpen(false);
     setTimeout(() => setVoicePopulatedFields(new Set()), 3000);
+    return populated;
+  }
+
+  function handleVoiceComplete(profile: VoiceProfileResult) {
+    applyVoiceProfile(profile);
   }
 
   function handleVoiceRequestSave(profile: VoiceProfileResult) {
-    // Store the brief temporarily, then show email capture
-    const populated = new Set<string>();
-    if (profile.url) populated.add("url");
-    if (profile.senderName) populated.add("senderName");
-    if (profile.senderBrief) populated.add("senderBrief");
-    setVoiceBrief(profile);
-    setVoicePopulatedFields(populated);
-    setVoiceOverlayOpen(false);
-    setTimeout(() => setVoicePopulatedFields(new Set()), 3000);
-    // Open email capture with "saveBrief" context
+    // Apply the profile to the form and then ask for email so we can persist it server-side
+    applyVoiceProfile(profile);
     setCaptureIntent("saveBrief" as CaptureIntent);
     setCaptureError("");
     setCaptureEmail("");
@@ -1179,18 +1194,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
         await handleRenderVideo(data.email);
       } else if (captureIntent === "saveBrief") {
         // Fill studio from the voice brief that was captured
-        const profile = voiceBrief;
-        if (profile) {
-          if (profile.url) setUrl(profile.url);
-          if (profile.senderName) setSenderName(profile.senderName);
-          if (profile.senderBrief) setSenderBrief(profile.senderBrief);
-          if (profile.archetype) setArchetype(profile.archetype as ArchetypeSelection);
-          if (profile.tone) setTonePreference(profile.tone);
-          if (profile.offer) setPlaybookOffer(profile.offer);
-          if (profile.wants) setPlaybookWants(profile.wants);
-          if (profile.wiggleRoom) setPlaybookWiggleRoom(profile.wiggleRoom);
-          if (profile.constraints) setPlaybookConstraints(profile.constraints.join("\n"));
-        }
+        if (voiceBrief) applyVoiceProfile(voiceBrief);
       }
     } catch (err) {
       setCaptureError(err instanceof Error ? err.message : "Something went wrong");
@@ -1472,15 +1476,32 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                             </p>
                           </div>
                         </div>
-                        <button
-                          onClick={() => setVoiceOverlayOpen(true)}
-                          className="btn-press w-full rounded-xl border border-cream-dark bg-white text-ink py-3 text-body-sm font-medium hover:bg-cream-dark/30 transition-colors flex items-center justify-center gap-2"
-                        >
-                          Start voice brief
-                          <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M3 8h10M9 4l4 4-4 4" />
-                          </svg>
-                        </button>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <button
+                            onClick={() => {
+                              setVoiceOverlayMode("campaign");
+                              setVoiceOverlayOpen(true);
+                            }}
+                            className="btn-press flex-1 rounded-xl border border-cream-dark bg-white text-ink py-3 text-body-sm font-medium hover:bg-cream-dark/30 transition-colors flex items-center justify-center gap-2"
+                          >
+                            Voice brief
+                            <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M3 8h10M9 4l4 4-4 4" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setVoiceOverlayMode("playbook");
+                              setVoiceOverlayOpen(true);
+                            }}
+                            className="btn-press flex-1 rounded-xl border border-cream-dark bg-cream-soft text-ink py-3 text-body-sm font-medium hover:bg-cream-dark/30 transition-colors flex items-center justify-center gap-2"
+                          >
+                            Capture playbook
+                            <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M12 4l-6 6-2-2-2 2 4 4 8-8-2-2z" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
 
                       {voiceBrief && (
@@ -1495,7 +1516,10 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                               <p className="text-body-xs text-ink-muted">Review the extracted campaign context before researching.</p>
                             </div>
                             <button
-                              onClick={() => setVoiceOverlayOpen(true)}
+                              onClick={() => {
+                                setVoiceOverlayMode("campaign");
+                                setVoiceOverlayOpen(true);
+                              }}
                               className="text-label-base text-success hover:text-success/80 transition-colors"
                             >
                               Re-record
@@ -1750,7 +1774,8 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                 </div>
 
                 {detectingLanguage && (
-                  <span className="text-label-sm text-ink-faint animate-pulse block text-center">
+                  <span className="text-label-sm text-ink-faint flex items-center justify-center gap-2 block text-center">
+                    <LottieIcon name="spinner" className="w-3 h-3" />
                     Detecting language…
                   </span>
                 )}
@@ -1831,7 +1856,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
             >
               <div className="text-center mb-10">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15 mb-4">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                  <LottieIcon name="spinner" className="w-3 h-3" />
                   <span className="text-label-sm uppercase tracking-widest font-medium text-accent">
                     Researching
                   </span>
@@ -2931,6 +2956,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
 
       <VoiceOverlay
         open={voiceOverlayOpen}
+        mode={voiceOverlayMode}
         onClose={() => setVoiceOverlayOpen(false)}
         onComplete={handleVoiceComplete}
         onRequestSave={session?.authenticated ? undefined : handleVoiceRequestSave}

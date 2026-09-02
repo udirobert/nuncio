@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { LottieIcon } from "@/components/lottie-icon";
 import { getCachedAvatars, getCachedVoices } from "@/lib/heygen-server";
 import { isLiveLinkEnabled } from "@/lib/live-link";
 import StudioClient from "./studio-client";
@@ -10,7 +11,7 @@ export default async function StudioPage() {
   ]);
 
   return (
-    <Suspense>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><LottieIcon name="spinner" className="w-10 h-10" /></div>}>
       <StudioClient
         initialAvatars={avatars}
         initialVoices={voices}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { LottieIcon } from "@/components/lottie-icon";
 
 type Step = "email" | "check" | "done";
 
@@ -99,9 +100,13 @@ export function LoginForm() {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-press w-full rounded-xl bg-ink px-4 py-3 text-sm font-medium text-cream hover:bg-ink-light transition-colors disabled:opacity-40"
+                className="btn-press w-full rounded-xl bg-ink px-4 py-3 text-sm font-medium text-cream hover:bg-ink-light transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
               >
-                {loading ? "Sending…" : "Send magic link"}
+                {loading ? (
+                  <LottieIcon name="spinner-light" className="w-4 h-4" />
+                ) : (
+                  "Send magic link"
+                )}
               </button>
             </form>
           </>

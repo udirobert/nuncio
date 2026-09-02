@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import { Header } from "@/components/header";
+import { LottieIcon } from "@/components/lottie-icon";
 
 const MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID || "";
 const ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRO_ANNUAL_PRICE_ID || "";
@@ -319,9 +320,16 @@ function PricingContent() {
               <button
                 onClick={() => handleCheckout()}
                 disabled={loading !== null}
-                className="btn-press w-full rounded-xl py-4 text-sm font-bold transition-[color,background-color,border-color,opacity,box-shadow,transform] mt-auto disabled:opacity-40 bg-ink text-cream hover:bg-ink-light shadow-xl shadow-ink/10"
+                className="btn-press w-full rounded-xl py-4 text-sm font-bold transition-[color,background-color,border-color,opacity,box-shadow,transform] mt-auto disabled:opacity-40 bg-ink text-cream hover:bg-ink-light shadow-xl shadow-ink/10 flex items-center justify-center gap-2"
               >
-                {isLoading ? "Preparing secure checkout..." : `${tier.cta}${annual ? " Annual" : " Monthly"}`}
+                {isLoading ? (
+                  <>
+                    <LottieIcon name="spinner-light" className="w-4 h-4" />
+                    Preparing secure checkout...
+                  </>
+                ) : (
+                  `${tier.cta}${annual ? " Annual" : " Monthly"}`
+                )}
               </button>
             </motion.div>
           );
@@ -413,8 +421,13 @@ function PricingContent() {
               </div>
               <p className="mt-1 text-xs text-ink-muted">{pack.note}</p>
               <p className="mt-2 text-xs font-medium text-accent">{pack.videos}</p>
-              <p className="mt-3 text-label-sm uppercase tracking-widest text-ink-faint">
-                {pack.priceId ? loading === pack.id ? "Opening checkout..." : "Buy pack" : "Price ID missing"}
+              <p className="mt-3 text-label-sm uppercase tracking-widest text-ink-faint flex items-center justify-center gap-1">
+                {pack.priceId ? loading === pack.id ? (
+                  <>
+                    <LottieIcon name="spinner" className="w-3 h-3" />
+                    Opening checkout...
+                  </>
+                ) : "Buy pack" : "Price ID missing"}
               </p>
             </button>
           ))}
@@ -545,7 +558,7 @@ export default function PricingPage() {
   return (
     <>
       <Header stage="input" />
-      <Suspense>
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><LottieIcon name="spinner" className="w-10 h-10" /></div>}>
         <PricingContent />
       </Suspense>
     </>

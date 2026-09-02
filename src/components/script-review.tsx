@@ -362,7 +362,11 @@ export function ScriptReview({
                       disabled={accountLoading}
                       className="btn-press rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-cream transition-[color,background-color,border-color,opacity,box-shadow,transform] hover:bg-ink-light disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {accountLoading ? "Saving..." : "Save & render"}
+                      {accountLoading ? (
+                        <LottieIcon name="spinner-light" className="w-4 h-4" />
+                      ) : (
+                        "Save & render"
+                      )}
                     </button>
                   </div>
                   {accountError && (
@@ -426,7 +430,10 @@ export function ScriptReview({
                     )
                   )
                 ) : (
-                  <span className="text-ink-faint">Loading script...</span>
+                  <span className="text-ink-faint flex items-center gap-2">
+                    <LottieIcon name="spinner" className="w-4 h-4" />
+                    Loading script...
+                  </span>
                 )}
               </motion.div>
             )}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ShareNuncio } from "@/components/share-nuncio";
+import { LottieIcon } from "@/components/lottie-icon";
 import type { AgentTraceItem } from "@/lib/artifacts";
 
 interface VideoPlayerProps {
@@ -66,16 +67,7 @@ function TranslateButton({ videoUrl, videoId }: { videoUrl: string; videoId?: st
     <div className="relative">
       {translating ? (
         <span className="text-xs text-accent flex items-center gap-2">
-          <motion.span className="flex gap-1">
-            {[0, 1, 2].map((dot) => (
-              <motion.span
-                key={dot}
-                className="w-1.5 h-1.5 rounded-full bg-accent"
-                animate={{ opacity: [0.3, 1, 0.3] }}
-                transition={{ duration: 1, repeat: Infinity, delay: dot * 0.15 }}
-              />
-            ))}
-          </motion.span>
+          <LottieIcon name="spinner" className="w-3 h-3" />
           Translating to {LANGUAGES.find((l) => l.code === translating)?.label}...
         </span>
       ) : translated ? (
@@ -503,16 +495,7 @@ export function VideoPlayer({
           )}
           {captionsLoading && (
             <span className="text-xs text-accent flex items-center gap-2">
-              <motion.span className="flex gap-1">
-                {[0, 1, 2].map((dot) => (
-                  <motion.span
-                    key={dot}
-                    className="w-1.5 h-1.5 rounded-full bg-accent"
-                    animate={{ opacity: [0.3, 1, 0.3] }}
-                    transition={{ duration: 1, repeat: Infinity, delay: dot * 0.15 }}
-                  />
-                ))}
-              </motion.span>
+              <LottieIcon name="spinner" className="w-3 h-3" />
               Generating captions...
             </span>
           )}
