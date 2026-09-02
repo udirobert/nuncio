@@ -177,6 +177,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
     }
     return "";
   });
+  const [personalMemory, setPersonalMemory] = useState("");
   const [senderBusiness, setSenderBusiness] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem("nuncio_sender_business") || "";
     return "";
@@ -585,6 +586,11 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
       return;
     }
 
+    if (mode === "reconnect" && personalMemory.trim().length < 10) {
+      setToastMessage("Add a short personal memory so the card feels like it's from you, not the internet.");
+      return;
+    }
+
     const demoAgents = typeof window !== "undefined" && (
       localStorage.getItem("nuncio_demo_agents") === "band" ||
       new URLSearchParams(window.location.search).get("agents") === "band"
@@ -639,8 +645,10 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
           sessionId,
           resumeSessionId: resumeFromSession,
           deliveryMode,
+          mode,
           senderName: senderName.trim() || undefined,
           senderBrief: senderBrief.trim() || undefined,
+          personalMemory: personalMemory.trim() || undefined,
           offer: playbookOffer.trim() || undefined,
           wants: playbookWants.trim() || undefined,
           wiggleRoom: playbookWiggleRoom.trim() || undefined,
@@ -940,8 +948,10 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
         body: JSON.stringify({
           url: url.trim(),
           deliveryMode,
+          mode,
           senderName: senderName.trim() || undefined,
           senderBrief: senderBrief.trim() || undefined,
+          personalMemory: personalMemory.trim() || undefined,
           senderBusiness: senderBusiness.trim() || undefined,
           senderBrand: senderBrand.trim() || undefined,
           senderPersonality: senderPersonality.trim() || undefined,
@@ -1658,6 +1668,24 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                             </span>
                           )}
                         </div>
+
+                        {mode === "reconnect" && (
+                          <div>
+                            <label className="text-label-sm uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
+                              A real memory you share <span className="normal-case text-ink-faint">— required, this is the heart of the card</span>
+                            </label>
+                            <textarea
+                              value={personalMemory}
+                              onChange={(e) => setPersonalMemory(e.target.value)}
+                              placeholder="e.g. We got hopelessly lost in Lisbon that summer and you somehow convinced a fisherman to give us a ride."
+                              rows={3}
+                              className={`w-full rounded-xl border bg-white px-4 py-3 text-body-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-[color,background-color,border-color,opacity,box-shadow,transform] ${personalMemory.trim().length >= 10 ? "border-success/50" : "border-cream-dark"}`}
+                            />
+                            <p className="mt-1.5 text-label-sm text-ink-faint">
+                              The script is built around this, not their LinkedIn profile.
+                            </p>
+                          </div>
+                        )}
 
                       {/* Advanced settings — collapsed by default */}
                       <div className="pt-2">

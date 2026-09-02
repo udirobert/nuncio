@@ -190,6 +190,10 @@ export async function generateScript(
     language?: string;
     senderProfile?: SenderProfile;
     outreachIntent?: OutreachIntentProfile;
+    /** Sender-provided personal detail (memory, voice note, etc.). Used as the anchor for reconnect cards. */
+    personalMemory?: string;
+    /** Pipeline mode. Reconnect cards get stricter guardrails around scraped data. */
+    mode?: "outreach" | "reconnect";
   }
 ): Promise<ScriptResult> {
   if (options?.forceFallback) {
@@ -214,7 +218,12 @@ export async function generateScript(
     ? `\nSENDER CONTEXT: You have structured context about the sender's business, brand, audience, offer, personality, and outreach intent. Use it explicitly to connect the recipient's context to the actual ask. The script should make clear why this recipient is a fit for this outreach right now.`
     : "";
 
-  const systemPrompt = `You are an expert video script writer. Write a personalised 45-90 second video script (under 200 words) that is a direct message TO ${profile.name}. Address them by name. The sender is speaking directly to this person in a personalised video outreach. Reference at least 2 specific details from their profile. Write in first person as the sender, second person ("you") for the recipient. Be conversational and genuine — not salesy or generic. Never write about them in third person. Never use placeholder brackets like [Your Name] or [specific topic] — use ACTUAL details from the profile or omit. ${senderNameInstruction}${intentRubric ? `\n\n${intentRubric}` : ""}${senderContextInstruction}
+  const isReconnect = options?.mode === "reconnect";
+  const personalMemoryInstruction = isReconnect
+    ? `\nRECONNECT GUARDRAILS: This is a reconnect card between friends or former close contacts, not a sales outreach. The sender has provided a specific, personal detail below. Use it as the anchor and primary hook of the script. Do NOT invent shared history. Do NOT lean on scraped profile details as the reason for reaching out — only mention public details if the sender explicitly references them or if they naturally support the personal memory. Keep the tone warm, low-pressure, and non-transactional. End with a soft invitation to catch up, not a meeting or pitch.`
+    : "";
+
+  const systemPrompt = `You are an expert video script writer. Write a personalised 45-90 second video script (under 200 words) that is a direct message TO ${profile.name}. Address them by name. The sender is speaking directly to this person in a personalised video outreach. Reference at least 2 specific details from their profile. Write in first person as the sender, second person ("you") for the recipient. Be conversational and genuine — not salesy or generic. Never write about them in third person. Never use placeholder brackets like [Your Name] or [specific topic] — use ACTUAL details from the profile or omit. ${senderNameInstruction}${intentRubric ? `\n\n${intentRubric}` : ""}${senderContextInstruction}${personalMemoryInstruction}
 ${toneInstruction}
 ${languageInstruction}
 ${VIBE_SYSTEM_CONTEXT}
@@ -247,7 +256,10 @@ Respond ONLY with raw JSON. No markdown code blocks.`;
     contextBlocks.push(`COMPANY CONTEXT:\n${options.companyContext}`);
   }
   const briefLine = senderBrief ? `\n\nSender brief: ${senderBrief}` : "\n\nWrite a general introduction/outreach script.";
-  const userMessage = contextBlocks.join("\n\n---\n\n") + briefLine;
+  const personalMemoryLine = options?.personalMemory
+    ? `\n\nPERSONAL MEMORY (from the sender — this is the real reason for the message):\n${options.personalMemory}`
+    : "";
+  const userMessage = contextBlocks.join("\n\n---\n\n") + briefLine + personalMemoryLine;
 
   try {
     const text = await chatCompletion(systemPrompt, userMessage);
@@ -456,6 +468,10 @@ export async function generateScriptVariants(
     recentActivity?: string;
     companyContext?: string;
     language?: string;
+    /** Sender-provided personal detail. Used as the anchor for reconnect cards. */
+    personalMemory?: string;
+    /** Pipeline mode. Reconnect cards get stricter guardrails around scraped data. */
+    mode?: "outreach" | "reconnect";
   }
 ): Promise<ScriptVariants> {
   const intentRubric = options?.intent ? INTENT_RUBRICS[options.intent] : null;

@@ -269,6 +269,9 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        const personalMemory = cleanOptionalString(body.personalMemory);
+        const mode: "outreach" | "reconnect" = body.mode === "reconnect" ? "reconnect" : "outreach";
+
         const scriptOptions = {
           intent: intent as IntentId | undefined,
           senderName: typeof senderName === "string" ? senderName.trim() || undefined : undefined,
@@ -276,6 +279,8 @@ export async function POST(request: NextRequest) {
           companyContext,
           senderProfile,
           outreachIntent,
+          personalMemory,
+          mode,
           toneInstruction: outreachIntent?.tonePreference
             ? `Honor this sender preference where it still feels natural: ${outreachIntent.tonePreference}.`
             : undefined,

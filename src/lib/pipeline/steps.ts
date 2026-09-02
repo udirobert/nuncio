@@ -24,6 +24,8 @@ export interface PipelineInput {
   url: string;
   senderName?: string;
   senderBrief?: string;
+  /** Sender-provided personal detail (memory, voice note, etc.). For reconnect mode this is the anchor, not scraped data. */
+  personalMemory?: string;
   senderProfile?: SenderProfile;
   outreachIntent?: OutreachIntentProfile;
   /** How the outreach should be delivered. `livelink` prepares a live avatar session; `video` renders an MP4. */
@@ -36,6 +38,8 @@ export interface PipelineInput {
   customization?: Record<string, unknown>;
   archetype?: string;
   userTier?: "trial" | "free" | "pro" | "studio";
+  /** Whether this is a reconnect card. Changes script rubric and guardrails. */
+  mode?: "outreach" | "reconnect";
 }
 
 export interface ResearchResult {
@@ -373,7 +377,7 @@ export async function generateOutreachScript(
 ): Promise<ScriptOutput> {
   emitter?.thought("copywriter", "Drafting personalized outreach script...");
 
-  const { senderName, outreachIntent, scriptVariants } = input;
+  const { senderName, outreachIntent, scriptVariants, personalMemory, mode } = input;
 
   const scriptOptions = {
     intent: undefined as IntentId | undefined,
@@ -382,6 +386,8 @@ export async function generateOutreachScript(
     companyContext: enrichment.companyContext,
     senderProfile: input.senderProfile,
     outreachIntent,
+    personalMemory: typeof personalMemory === "string" ? personalMemory.trim() || undefined : undefined,
+    mode,
     toneInstruction: outreachIntent?.tonePreference
       ? `Honor this sender preference where it still feels natural: ${outreachIntent.tonePreference}.`
       : undefined,

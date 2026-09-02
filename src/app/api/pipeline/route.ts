@@ -160,6 +160,7 @@ export async function POST(request: NextRequest) {
         const accountContext = await autoPopulateSenderContext(request);
         const senderName = cleanOptionalString(body.senderName) || accountContext.senderName;
         const senderBrief = cleanOptionalString(body.senderBrief) || accountContext.senderBrief;
+        const personalMemory = cleanOptionalString(body.personalMemory);
         const clientSenderProfile = buildSenderProfile(body as Record<string, unknown>);
         const senderProfile = clientSenderProfile || accountContext.senderProfile;
         const outreachIntent = buildOutreachIntent(body as Record<string, unknown>);
@@ -189,6 +190,7 @@ export async function POST(request: NextRequest) {
           url,
           senderName,
           senderBrief,
+          personalMemory,
           senderProfile,
           outreachIntent,
           deliveryMode,
@@ -200,6 +202,7 @@ export async function POST(request: NextRequest) {
           customization: body.customization,
           archetype,
           userTier: subject.anonymous ? "trial" : await resolveUserPlan(subject, request),
+          mode: (body.mode === "reconnect" ? "reconnect" : "outreach") as "outreach" | "reconnect",
         };
 
         // ── Steps 1+2: Research & Synthesize ───────────────────────────
