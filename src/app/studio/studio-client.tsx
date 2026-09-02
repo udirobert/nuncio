@@ -2459,6 +2459,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                           recommendedVibeId={buildResult?.recommendedVibeId}
                           suggestedLanguage={detectedLanguage || undefined}
                           script={reviewScript || undefined}
+                          defaultToClone={mode === "reconnect"}
                         />
                       </motion.div>
                     )}

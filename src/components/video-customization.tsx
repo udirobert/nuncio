@@ -60,21 +60,43 @@ interface VideoCustomizationProps {
   recommendedVibeId?: string;
   suggestedLanguage?: string;
   script?: string;
+  /** Whether to default to the sender's cloned voice + photo avatar when available. */
+  defaultToClone?: boolean;
 }
 
-export function VideoCustomization({ onCustomize, initialAvatars, initialVoices, recommendedVibeId, suggestedLanguage, script }: VideoCustomizationProps) {
-  const [avatars, setAvatars] = useState<HeyGenAvatar[]>(
-    () => initialAvatars || readCache<HeyGenAvatar[]>(CACHE_KEY_AVATARS) || []
-  );
-  const [voices, setVoices] = useState<HeyGenVoice[]>(
-    () => initialVoices || readCache<HeyGenVoice[]>(CACHE_KEY_VOICES) || []
-  );
+export function VideoCustomization({ onCustomize, initialAvatars, initialVoices, recommendedVibeId, suggestedLanguage, script, defaultToClone }: VideoCustomizationProps) {
+  const [avatars, setAvatars] = useState<HeyGenAvatar[]>(() => {
+    const base = initialAvatars || readCache<HeyGenAvatar[]>(CACHE_KEY_AVATARS) || [];
+    if (defaultToClone && typeof window !== "undefined") {
+      const photoAvatarId = localStorage.getItem("nuncio_photo_avatar_id");
+      if (photoAvatarId && !base.some((a) => a.avatar_id === photoAvatarId)) {
+        return [{ avatar_id: photoAvatarId, avatar_name: "My photo", gender: "unknown", preview_image_url: "" } as HeyGenAvatar, ...base];
+      }
+    }
+    return base;
+  });
+  const [voices, setVoices] = useState<HeyGenVoice[]>(() => {
+    const base = initialVoices || readCache<HeyGenVoice[]>(CACHE_KEY_VOICES) || [];
+    if (defaultToClone && typeof window !== "undefined") {
+      const clonedVoiceId = localStorage.getItem("nuncio_cloned_voice_id");
+      if (clonedVoiceId && !base.some((v) => v.voice_id === clonedVoiceId)) {
+        return [{ voice_id: clonedVoiceId, name: "My voice", language: "", gender: "unknown" } as HeyGenVoice, ...base];
+      }
+    }
+    return base;
+  });
   const [loading, setLoading] = useState(
     () => !(initialAvatars?.length || readCache<HeyGenAvatar[]>(CACHE_KEY_AVATARS)?.length)
   );
 
-  const [avatarIndex, setAvatarIndex] = useState(0);
-  const [voiceIndex, setVoiceIndex] = useState(0);
+  const [avatarIndex, setAvatarIndex] = useState(() => {
+    if (defaultToClone && typeof window !== "undefined" && localStorage.getItem("nuncio_photo_avatar_id")) return 0;
+    return 0;
+  });
+  const [voiceIndex, setVoiceIndex] = useState(() => {
+    if (defaultToClone && typeof window !== "undefined" && localStorage.getItem("nuncio_cloned_voice_id")) return 0;
+    return 0;
+  });
   const [backgroundColor, setBackgroundColor] = useState("#F5EDE3");
   const [customBg, setCustomBg] = useState("");
   const [aspectIndex, setAspectIndex] = useState(0);
