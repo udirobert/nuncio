@@ -6,6 +6,7 @@ import type { Profile } from "@/lib/claude";
 import type { AgentTraceItem } from "@/lib/artifacts";
 import type { VideoCustomization, HeyGenAvatar, HeyGenVoice } from "@/lib/heygen";
 import { VideoCustomization as VideoCustomizationComponent } from "@/components/video-customization";
+import { LottieIcon } from "@/components/lottie-icon";
 
 interface BillingBalance {
   anonymous: boolean;
@@ -449,7 +450,7 @@ export function ScriptReview({
                 className="text-label-base text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1.5 transition-colors"
               >
                 {ttsLoading ? (
-                  <span className="w-3 h-3 border border-accent/30 border-t-accent rounded-full animate-spin" />
+                  <LottieIcon name="spinner" className="w-3 h-3" />
                 ) : ttsPlaying ? (
                   <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="currentColor">
                     <rect x="3" y="3" width="4" height="10" rx="1" />

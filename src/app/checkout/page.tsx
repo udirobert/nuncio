@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { loadStripe } from "@stripe/stripe-js";
+import { LottieIcon } from "@/components/lottie-icon";
 
 /**
  * Embedded Stripe Checkout page — /checkout?session_id=cs_live_...
@@ -126,7 +127,7 @@ function CheckoutContent() {
           {/* Loading state */}
           {status === "loading" && !missingSession && (
             <div className="rounded-2xl border border-cream-dark bg-white/70 p-8 text-center">
-              <div className="w-10 h-10 mx-auto rounded-full border-2 border-ink/20 border-t-ink animate-spin mb-3" />
+              <LottieIcon name="spinner" className="w-10 h-10 mx-auto brightness-0 mb-3" />
               <p className="text-sm text-ink-muted">Loading secure checkout...</p>
             </div>
           )}
@@ -169,7 +170,7 @@ export default function CheckoutPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-cream flex items-center justify-center">
-          <div className="w-10 h-10 rounded-full border-2 border-ink/20 border-t-ink animate-spin" />
+          <LottieIcon name="spinner" className="w-10 h-10 brightness-0" />
         </div>
       }
     >

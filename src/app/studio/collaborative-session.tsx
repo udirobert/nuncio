@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { LottieIcon } from "@/components/lottie-icon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -164,7 +165,7 @@ function EventCard({ event }: { event: BandEvent }) {
 
         {event.eventType === "thought" ? (
           <div className="flex items-center gap-2 text-xs text-ink-faint italic">
-            <span className="inline-block w-3 h-3 rounded-full border-2 border-current/30 border-t-current animate-spin" />
+            <LottieIcon name="spinner" className="w-3 h-3 opacity-60" />
             {event.content}
           </div>
         ) : event.eventType === "error" ? (
@@ -332,7 +333,7 @@ export function CollaborativeSession({
               {events.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-sm text-ink-faint">
                   <div className="flex items-center gap-2">
-                    <span className="inline-block w-4 h-4 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
+                    <LottieIcon name="spinner" className="w-4 h-4" />
                     Agents starting...
                   </div>
                 </div>

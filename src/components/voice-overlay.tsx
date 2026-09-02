@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Conversation } from "@elevenlabs/client";
 
+import { LottieIcon } from "@/components/lottie-icon";
 import type { VoiceExtractedProfile } from "@/lib/voice-agent/types";
 
 export type VoiceProfileResult = Omit<
@@ -277,9 +278,7 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
                         }`}
                       >
                         {status === "extracting" ? (
-                          <svg viewBox="0 0 16 16" className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" strokeWidth="1.5">
-                            <circle cx="8" cy="8" r="6" strokeDasharray="24" strokeDashoffset="8" />
-                          </svg>
+                          <LottieIcon name="spinner-light" className="w-5 h-5" />
                         ) : (
                           <svg viewBox="0 0 16 16" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5">
                             <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />

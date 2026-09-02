@@ -15,6 +15,7 @@ import {
 } from "@/lib/analytics";
 import { LIVE_SESSION_MAX_DURATION_MS } from "@/lib/live-link";
 import { classifyQuestionTopics } from "@/lib/live-topics";
+import { LottieIcon } from "@/components/lottie-icon";
 
 export default function LiveAvatarLandingPage({
   params,
@@ -507,7 +508,7 @@ export default function LiveAvatarLandingPage({
               >
                 {starting ? (
                   <>
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <LottieIcon name="spinner-light" className="w-4 h-4" />
                     Starting...
                   </>
                 ) : (

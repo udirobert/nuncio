@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { LottieIcon } from "@/components/lottie-icon";
 import { trackWaitScreenComposerOpened, trackWaitScreenDraftSaved, trackWaitScreenQuizOpened, trackWaitScreenAiDraftGenerated } from "@/lib/analytics";
 import type { ActivityPost } from "@/lib/tinyfish";
 
@@ -319,7 +320,7 @@ export function QuickProgress({
                   )}
                   {suggestionLoading && (
                     <div className="flex items-center gap-2 text-label-base text-ink-faint animate-pulse">
-                      <span className="inline-block w-3 h-3 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
+                      <LottieIcon name="spinner" className="w-3 h-3" />
                       Drafting a suggestion...
                     </div>
                   )}

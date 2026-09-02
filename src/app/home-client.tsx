@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { Header } from "@/components/header";
 import { AmbientCanvas } from "@/components/landing/ambient-canvas";
 import { CardWall } from "@/components/landing/card-wall";
+import { LottieIcon } from "@/components/lottie-icon";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { ShowcaseStrip } from "@/components/landing/showcase-strip";
 import { VideoProof } from "@/components/landing/video-proof";
@@ -150,11 +151,9 @@ export default function HomeClient() {
                       >
                         <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-label-sm font-mono transition-colors duration-700">
                           {complete ? (
-                            <svg className="w-3.5 h-3.5 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
+                            <LottieIcon name="success-check" className="w-4 h-4" loop={false} autoplay={true} />
                           ) : active ? (
-                            <div className="w-3 h-3 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+                            <LottieIcon name="spinner" className="w-4 h-4" />
                           ) : (
                             <span className="text-ink-faint">{i + 1}</span>
                           )}

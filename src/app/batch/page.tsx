@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import Link from "next/link";
 import { Header } from "@/components/header";
+import { LottieIcon } from "@/components/lottie-icon";
 
 interface BatchJob {
   id: string;
@@ -299,7 +300,7 @@ export default function BatchPage() {
               className="rounded-xl bg-accent px-6 py-3 text-sm font-medium text-white hover:bg-accent-soft transition-colors disabled:opacity-40 flex items-center gap-2"
             >
               {submitting && (
-                <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <LottieIcon name="spinner-light" className="w-3 h-3" />
               )}
               {submitting ? "Creating..." : "Create batch"}
             </button>

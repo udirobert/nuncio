@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { ShareRecord } from "@/lib/artifacts";
 import { languageLabel } from "@/lib/languages";
 import { DuckingAudio } from "@/components/ducking-audio";
+import { LottieIcon } from "@/components/lottie-icon";
 import { trackBookingClicked, trackVideoWatchThrough, trackViralCtaClicked } from "@/lib/analytics";
 
 /**
@@ -199,7 +200,7 @@ export default function VideoLandingPage({
               {!videoData.videoUrl ? (
                 /* Video processing state */
                 <div className="w-full h-full flex flex-col items-center justify-center bg-ink/90 text-cream">
-                  <div className="w-12 h-12 rounded-full border-2 border-cream/30 border-t-cream animate-spin mb-4" />
+                  <LottieIcon name="spinner-cream" className="w-12 h-12 mb-4" />
                   <p className="text-sm text-cream/70 mb-2">Video is being rendered</p>
                   <p className="text-xs text-cream/50">This typically takes 3–5 minutes</p>
                 </div>
@@ -260,7 +261,7 @@ export default function VideoLandingPage({
               ) : (
                 <div className="w-full h-full bg-ink flex items-center justify-center">
                   <div className="text-center">
-                    <div className="w-12 h-12 mx-auto rounded-full border-2 border-cream/30 border-t-cream animate-spin mb-3" />
+                    <LottieIcon name="spinner-cream" className="w-12 h-12 mx-auto mb-3" />
                     <p className="text-sm text-cream/60">Preparing cinematic experience...</p>
                   </div>
                 </div>

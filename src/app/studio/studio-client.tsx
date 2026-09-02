@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Header } from "@/components/header";
+import { LottieIcon } from "@/components/lottie-icon";
 import type { VideoCustomization, HeyGenAvatar, HeyGenVoice } from "@/lib/heygen";
 import { VideoCustomization as VideoCustomizationComponent } from "@/components/video-customization";
 import { OnboardingModal } from "@/components/onboarding-modal";
@@ -1552,9 +1553,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                         )}
                         {voicePopulatedFields.has("url") && (
                           <span className="inline-flex items-center gap-1 mt-1 text-label-sm text-success">
-                            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
+                            <LottieIcon name="success-check" className="w-3 h-3" loop={false} />
                             Set by voice
                           </span>
                         )}
@@ -1594,9 +1593,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                           />
                           {voicePopulatedFields.has("senderName") && (
                             <span className="inline-flex items-center gap-1 mt-1 text-label-sm text-success">
-                              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
+                              <LottieIcon name="success-check" className="w-3 h-3" loop={false} />
                               Set by voice
                             </span>
                           )}
@@ -1615,9 +1612,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                           />
                           {voicePopulatedFields.has("senderBrief") && (
                             <span className="inline-flex items-center gap-1 mt-1 text-label-sm text-success">
-                              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
+                              <LottieIcon name="success-check" className="w-3 h-3" loop={false} />
                               Set by voice
                             </span>
                           )}
@@ -1872,11 +1867,9 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                     >
                       <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-body-xs font-mono font-medium transition-[color,background-color,border-color,opacity,box-shadow,transform] duration-500">
                         {complete ? (
-                          <svg className="w-4 h-4 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
+                          <LottieIcon name="success-check" className="w-4 h-4" loop={false} />
                         ) : active ? (
-                          <div className="w-4 h-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+                          <LottieIcon name="spinner" className="w-4 h-4" />
                         ) : (
                           <span className="text-ink-faint">—</span>
                         )}
@@ -2256,7 +2249,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                       className="text-label-base text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1"
                     >
                       {reviewRegenerating ? (
-                        <span className="w-3 h-3 border border-accent/30 border-t-accent rounded-full animate-spin" />
+                        <LottieIcon name="spinner" className="w-3 h-3" />
                       ) : (
                         <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M2 8a6 6 0 0 1 10.5-4M14 8a6 6 0 0 1-10.5 4" />
@@ -2317,7 +2310,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                       className="text-label-base text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1.5 transition-colors"
                     >
                       {ttsLoading ? (
-                        <span className="w-3 h-3 border border-accent/30 border-t-accent rounded-full animate-spin" />
+                        <LottieIcon name="spinner" className="w-3 h-3" />
                       ) : ttsPlaying ? (
                         <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="currentColor">
                           <rect x="3" y="3" width="4" height="10" rx="1" />
@@ -2653,7 +2646,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                         title="Generate a voice memo teaser to send as a DM hook"
                       >
                       {audioMemoLoading ? (
-                        <span className="w-3 h-3 border border-accent/30 border-t-accent rounded-full animate-spin" />
+                        <LottieIcon name="spinner" className="w-3 h-3" />
                       ) : (
                         <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
                           <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
