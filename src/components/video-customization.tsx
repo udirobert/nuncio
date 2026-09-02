@@ -347,6 +347,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
   const selectedVoice = voices[voiceIndex];
   const playingVoice = uniqueVoices.find((v) => v.voice_id === playingVoiceId);
   const aspect = ASPECT_RATIOS[aspectIndex];
+  const missingClone = defaultToClone && (!photoAvatarId || !clonedVoiceId);
 
   if (loading) {
     return (
@@ -376,6 +377,21 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
               : photoAvatarStatus === "processing"
                 ? "Your photo avatar is training — this takes about 5 minutes..."
                 : "Your voice clone is training — this takes about 2 minutes..."}
+          </p>
+        </div>
+      )}
+
+      {/* Reconnect clone-empty state */}
+      {missingClone && (
+        <div className="rounded-xl bg-warm/10 border border-warm/20 px-4 py-3 flex items-start gap-3">
+          <svg viewBox="0 0 16 16" className="w-4 h-4 text-warm shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <circle cx="8" cy="8" r="6" />
+            <path d="M8 4v3.5" />
+            <circle cx="8" cy="11" r="0.5" fill="currentColor" />
+          </svg>
+          <p className="text-label-base text-ink-muted">
+            For the most personal reconnection, add your photo avatar and voice clone below. 
+            Otherwise we&apos;ll use a friendly stock twin — still reviewed by you.
           </p>
         </div>
       )}

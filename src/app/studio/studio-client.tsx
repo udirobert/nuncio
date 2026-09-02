@@ -154,7 +154,6 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
         const stored = sessionStorage.getItem("nuncio_studio_bridge");
         if (stored) {
           const data = JSON.parse(stored);
-          sessionStorage.removeItem("nuncio_studio_bridge");
           return data.url || "";
         }
       } catch { /* ignore */ }
@@ -171,14 +170,24 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
         const stored = sessionStorage.getItem("nuncio_studio_bridge");
         if (stored) {
           const data = JSON.parse(stored);
-          sessionStorage.removeItem("nuncio_studio_bridge");
           return data.brief || "";
         }
       } catch { /* ignore */ }
     }
     return "";
   });
-  const [personalMemory, setPersonalMemory] = useState("");
+  const [personalMemory, setPersonalMemory] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = sessionStorage.getItem("nuncio_studio_bridge");
+        if (stored) {
+          const data = JSON.parse(stored);
+          return data.personalMemory || "";
+        }
+      } catch { /* ignore */ }
+    }
+    return "";
+  });
   const [senderBusiness, setSenderBusiness] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem("nuncio_sender_business") || "";
     return "";
@@ -302,6 +311,11 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
 
   const searchParams = useSearchParams();
   const mode = searchParams?.get("mode") === "reconnect" ? "reconnect" : "outreach";
+
+  useEffect(() => {
+    // Remove the bridge once all initial state has been seeded.
+    try { sessionStorage.removeItem("nuncio_studio_bridge"); } catch { /* ignore */ }
+  }, []);
 
   const senderBriefRef = useRef(senderBrief);
   senderBriefRef.current = senderBrief;
@@ -1603,6 +1617,11 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                         <label className="text-label-sm uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
                           {mode === "reconnect" ? "Their public profile" : "Profile URL"}
                         </label>
+                        {mode === "reconnect" && (
+                          <p className="text-label-base text-ink-faint mb-2">
+                            We only look at their public profile for context — the card is built from your memory, and you review every word.
+                          </p>
+                        )}
                         <input
                           value={url}
                           onChange={(e) => { setUrl(e.target.value); setUrlError(null); }}
@@ -1628,10 +1647,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                         )}
                           <div className="flex flex-wrap gap-2 mt-2">
                           {(mode === "reconnect"
-                            ? [
-                                { label: "Old friend", url: "https://linkedin.com/in/sarah-example", name: "Alex", brief: "I was thinking about you after our old roommate mentioned the Lisbon trip." },
-                                { label: "Former teammate", url: "https://x.com/diego-example", name: "Sam", brief: "I heard you got promoted and wanted to say congrats." },
-                              ]
+                            ? []
                             : [
                                 { label: "Sundar Pichai", url: "https://linkedin.com/in/sundarpichai", name: "Alex", brief: "I build developer tools and want to share how our platform can help Google Cloud teams ship faster." },
                                 { label: "Vercel CEO", url: "https://x.com/rauchg", name: "Sam", brief: "We're building an AI-powered SDR tool and want to explore partnership opportunities with Vercel." },

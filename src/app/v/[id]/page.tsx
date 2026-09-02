@@ -453,12 +453,12 @@ export default function VideoLandingPage({
               <div className="inline-flex flex-col items-center gap-4 rounded-2xl border border-cream-dark bg-white/80 px-8 py-6 shadow-sm">
                 <p className="text-sm text-ink-light max-w-[320px]">
                   {videoData.mode === "reconnect"
-                    ? `${senderName ? `${senderName} turned a real memory into this with a little AI help — you can make one too.` : "This was made from a real memory, with a little AI help."}`
+                    ? `${senderName ? `${senderName} turned one real memory into this with a little AI help — you can make one back in 90 seconds.` : "This was made from one real memory, with a little AI help — you can make one back in 90 seconds."}`
                     : "This researched you, wrote what you just watched, and can answer questions live."}
                 </p>
                 <p className="text-xs text-ink-faint max-w-[320px]">
                   {videoData.mode === "reconnect"
-                    ? "Every word was reviewed before it was sent."
+                    ? "First reconnection card is free · No account needed · You review every word."
                     : `It&apos;s ${senderName ? `${senderName}'s` : "an"} AI twin — disclosed up front, built on their playbook.`}
                 </p>
                 <Link

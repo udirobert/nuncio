@@ -374,28 +374,30 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
             </AnimatePresence>
           </div>
 
-          {/* Inline example loaders — small text links, not big cards */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.32, duration: 0.4 }}
-            className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-label-base text-ink-faint"
-          >
-            <span>or try</span>
-            {EXAMPLES.map((example, i) => (
-              <span key={example.name} className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => applyExample(example)}
-                  className="text-accent hover:text-accent/80 hover:underline underline-offset-2 transition-colors"
-                  title={example.description}
-                >
-                  {example.name}
-                </button>
-                {i < EXAMPLES.length - 1 && <span className="text-ink-faint/40">·</span>}
-              </span>
-            ))}
-          </motion.div>
+          {/* Inline example loaders — only in demo mode so fake profile URLs don’t leak into the public flow */}
+          {isDemoActive && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.32, duration: 0.4 }}
+              className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-label-base text-ink-faint"
+            >
+              <span>or try</span>
+              {EXAMPLES.map((example, i) => (
+                <span key={example.name} className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => applyExample(example)}
+                    className="text-accent hover:text-accent/80 hover:underline underline-offset-2 transition-colors"
+                    title={example.description}
+                  >
+                    {example.name}
+                  </button>
+                  {i < EXAMPLES.length - 1 && <span className="text-ink-faint/40">·</span>}
+                </span>
+              ))}
+            </motion.div>
+          )}
 
           {/* Intent chips — pick a genre, get a sharper script */}
           <motion.div
@@ -518,7 +520,7 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
                 animate={{ opacity: 1 }}
                 className="text-center text-label-base text-ink-faint mt-3"
               >
-                ⌘ + Enter · AI-assisted, but you review every word · ~5 minutes
+                ⌘ + Enter · First card is free with 15 starter credits · You review every word · ~5 minutes
               </motion.p>
             )}
 
