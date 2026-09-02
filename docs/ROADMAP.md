@@ -22,6 +22,11 @@ nuncio's thesis is that the scarce resource in sales is no longer attention but 
 
 ## Current Focus
 
+### Recently completed
+- **Playbook capture via voice overlay** — `VoiceOverlay` supports `campaign` and `playbook` modes; extraction prompts capture full `SenderPlaybook` + sender identity; studio persists to `/api/account/brief`.
+- **Live scoreboard dashboard** — `ScoreboardCard` surfaces `GET /api/live/sessions` aggregates (start rate, bookings, median turns/duration, question-topic distribution).
+- **UI consistency / Lottie loading pass** — replaced CSS/text loaders with `LottieIcon` across dashboard, studio, pricing, login, batch, share pages, and video captions/translate states.
+
 ### Conversational SDR / LiveLink
 
 Per `docs/STRATEGY.md`, the live link is becoming the **primary artifact** with recorded video as its fallback (STRATEGY Phase 1). Provider posture: **HeyGen remains the default recorded-video layer; Anam is the experimental live-conversation layer**, opt-in via `NUNCIO_LIVELINK_ENABLED=true` and limited to one sender during validation. HeyGen LiveAvatar Lite is retained as fallback vendor; do not build both live providers during the first experiment.
@@ -122,9 +127,9 @@ Sequencing and gates come from `docs/STRATEGY.md` phases. Engineering items:
 5. **Reply-to-live escalation** — email replies can open a live avatar session instead of static follow-up (the artifact stays a conversation)
 
 ### STRATEGY Phase 2 — ten founders, hand-served
-6. **Playbook capture** — productize the 30-minute founder interview via voice overlay into `SenderPlaybook` (question-topic distribution from live sessions seeds the interview outline)
+6. ~~**Playbook capture**~~ ✅ — `VoiceOverlay` now supports `campaign` and `playbook` modes; extraction prompts capture sender identity + `SenderPlaybook` fields (`offer`, `wants`, `wiggleRoom`, `constraints`, `bookingUrl`, `senderBusiness`, `senderBrand`, `senderPersonality`, `senderAudience`, `senderOffer`, `senderProofPoints`); studio applies and persists them via `/api/account/brief`.
 7. **LiveLink pilot** — one Anam sender/avatar, 5–10 prospects, explicit AI disclosure, short capped sessions, HeyGen-only comparison where practical
-8. **Outcome tracking** — sent, watched, replied, meeting booked, live-session lifecycle events, second-artifact-created (events live: `live_session_*`, `booking_clicked`, `video_watch_through`; aggregates/dashboard view still to build)
+8. ~~**Outcome tracking**~~ ✅ — lifecycle events already emitted (`live_session_*`, `booking_clicked`, `video_watch_through`); new `ScoreboardCard` on `/dashboard` surfaces start rate, bookings, median turns/duration, and question-topic distribution from `GET /api/live/sessions`.
 9. **Pre-send review** — research, hook, script, and visual plan reviewable before credits are spent
 
 ### STRATEGY Phase 3 — positioning rewrite (parallel)
@@ -143,6 +148,13 @@ Sequencing and gates come from `docs/STRATEGY.md` phases. Engineering items:
 2. **One video player** — unify `/v/[id]` and `VideoPlayer` components
 3. **Multi-language delivery** — auto-detect target language, offer in studio UI (kept: amplifies presence, not volume)
 4. **Credit spend transparency** — show credits spent this session on the ready screen; replace token-start reservation with duration-aware live usage reconciliation before commercialization
+
+### Suggested immediate next steps
+1. **Reply-to-live escalation** — email replies can open a live avatar session instead of static follow-up (keeps the artifact as a conversation).
+2. **LiveLink pilot guardrails** — idle timeout, server-side duration-aware cleanup, provider-neutral error fallback, and workspace/sender allowlist before running the Anam pilot.
+3. **Pre-send review** — let users review research, hook, script, and visual plan before credits are spent.
+4. **Share-page trust signals** — sender photo, company logo, or verified-sender badge on `/v/[id]` and `/live/[id]`.
+5. **Visual proof brief** — collect 1–3 sender assets (screenshot, logo, proof point, case study, deck slide) and wire them into a proof-first composition.
 
 ---
 

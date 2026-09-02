@@ -65,7 +65,7 @@ Concentric expansion (gated on Phase 2 results): founders → high-ticket servic
 
 ### Phase 2 — Ten founders, hand-served (weeks 2–6)
 - Recruit 10 seed founders doing founder-led outbound.
-- Hand-build their `SenderPlaybook` via 30-minute interviews — use the existing voice overlay as the capture instrument; productize the motion later.
+- ~~Hand-build their `SenderPlaybook` via 30-minute interviews — use the existing voice overlay as the capture instrument; productize the motion later.~~ ✅ **Shipped:** voice overlay now supports a `playbook` mode that extracts and persists the full `SenderPlaybook` + sender identity.
 - Sit in on live sessions; log every guardrail failure; tune. This schlep becomes the moat.
 - Run Sean Ellis ("how disappointed if nuncio disappeared?") + willingness-to-pay. **Gate everything after this on ≥ 40%.**
 
@@ -97,6 +97,8 @@ Concentric expansion (gated on Phase 2 results): founders → high-ticket servic
 - Video control arm: `video_watch_through` rate for P-b comparison.
 - Recipient→sender conversion coefficient (`viral_cta_clicked` → `viral_landing` → signup).
 - Sean Ellis %.
+
+> **Shipped:** a `ScoreboardCard` on `/dashboard` now surfaces live-session aggregates from `GET /api/live/sessions` — total sessions, start rate, completed, bookings, median user turns, median duration, and a question-topic distribution bar chart.
 
 ## The first move
 Pick the thesis sentence, get **one** founder's twin live this week, and watch a real prospect talk to it. Everything else — including which secret is actually true — gets answered by that conversation.
