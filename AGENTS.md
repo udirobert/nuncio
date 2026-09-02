@@ -153,6 +153,9 @@ Hermes is an optional autonomous client over nuncio's agent API layer. All gener
 - The shared `Header` is fixed with `bg-cream/80 backdrop-blur-md border-b border-cream-dark/60 pointer-events-auto`.
 - Interactive rows that contain nested buttons (e.g. Batch campaign cards) should use a `div` with `role="button"` rather than a native `<button>` to avoid invalid HTML nesting.
 - Share-page action buttons are split into primary (`Reply`, `Book time`) and secondary (`Say thanks`, `Send one back`) rows with `flex-wrap` so they adapt to mobile.
+- Load project-specific UI skills before working on marketing or studio pages:
+  - `.devin/skills/nuncio-landing-section/SKILL.md`
+  - `.devin/skills/nuncio-studio-form/SKILL.md`
 
 <!-- stripe-projects-cli managed:agents-md:start -->
 ## Stripe Projects CLI

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Instrument_Serif } from "next/font/google";
 import { PostHogProvider } from "./providers";
+import { MotionProvider } from "@/components/motion-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -55,7 +56,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-cream text-ink">
         <PostHogProvider>
-          {children}
+          <MotionProvider>
+            {children}
+          </MotionProvider>
         </PostHogProvider>
         <footer className="mt-auto px-6 py-6 text-center">
           <a

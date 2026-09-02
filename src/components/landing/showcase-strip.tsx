@@ -35,7 +35,7 @@ export function ShowcaseStrip({ items }: ShowcaseStripProps) {
   }, []);
 
   return (
-    <section className="md:hidden border-t border-cream-dark/60 py-6">
+    <section data-reveal="fade-up" className="md:hidden border-t border-cream-dark/60 py-6">
       <div className="px-6 mb-4 flex items-baseline justify-between">
         <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
           Recent nuncios
@@ -54,11 +54,8 @@ export function ShowcaseStrip({ items }: ShowcaseStripProps) {
       </div>
 
       <div className="relative">
-        <motion.div
+        <div
           ref={scrollerRef}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
           className="flex gap-3 px-6 overflow-x-auto snap-x snap-mandatory pb-2"
           style={{
             scrollbarWidth: "none",
@@ -75,7 +72,7 @@ export function ShowcaseStrip({ items }: ShowcaseStripProps) {
           ))}
           {/* Trailing spacer keeps the last card centred when snapped */}
           <div className="shrink-0 w-2" aria-hidden />
-        </motion.div>
+        </div>
 
         {/* Right-edge fade — hints at more content; fades out once scrolled */}
         <motion.div

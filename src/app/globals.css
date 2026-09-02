@@ -75,6 +75,38 @@ html.lenis, html.lenis body {
   overflow: hidden;
 }
 
+/* Respect prefers-reduced-motion at the CSS level */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* GSAP ScrollTrigger reveal primitives */
+[data-reveal],
+[data-reveal-item],
+[data-motion-text] {
+  opacity: 0;
+}
+
+.motion-word-mask,
+.motion-line-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+}
+
+.motion-word,
+.motion-line {
+  display: inline-block;
+  will-change: transform, opacity, filter;
+}
+
 /* Pipeline reveal animation */
 @keyframes reveal-up {
   from {

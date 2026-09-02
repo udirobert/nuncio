@@ -20,13 +20,8 @@ export function VideoProof() {
   const [isPlaying, setIsPlaying] = useState(false);
 
   return (
-    <section className="px-6 pt-1 pb-6 max-w-[720px] mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-50px" }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      >
+    <section data-reveal="fade-up" className="px-6 pt-1 pb-6 max-w-[720px] mx-auto">
+      <div>
         {/* Label */}
         <div className="flex items-center justify-between mb-4">
           <p className="text-body-xs uppercase tracking-widest text-ink-faint font-medium">
@@ -89,7 +84,7 @@ export function VideoProof() {
         <p className="text-center text-label-base text-ink-faint mt-3">
           Enriched from LinkedIn · Script by Claude · Rendered by HeyGen Video Agent · Captions by HeyGen
         </p>
-      </motion.div>
+      </div>
     </section>
   );
 }

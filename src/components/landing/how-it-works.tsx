@@ -1,7 +1,5 @@
 "use client";
 
-import { motion } from "motion/react";
-
 const TILES = [
   {
     step: "01",
@@ -29,11 +27,8 @@ export function HowItWorks() {
   return (
     <section className="px-6 py-10 md:py-14 border-t border-cream-dark/60">
       <div className="max-w-6xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        <div
+          data-reveal="fade-up"
           className="mb-8 md:mb-10 max-w-2xl"
         >
           <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium mb-3">
@@ -43,26 +38,20 @@ export function HowItWorks() {
             A considered first message for the
             conversations that can change your business.
           </h2>
-          <p className="text-ink-muted text-[15px] leading-relaxed">
+          <p className="text-ink-muted text-body-sm leading-relaxed">
             Research accelerates the work. You retain the judgement. Review the
             context, the hook, and the final script before anything is sent in
             your name.
           </p>
-        </motion.div>
+        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          {TILES.map((tile, i) => (
-            <motion.div
+        <div data-reveal-group className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          {TILES.map((tile) => (
+            <div
               key={tile.step}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-40px" }}
-              transition={{
-                duration: 0.5,
-                delay: i * 0.08,
-                ease: [0.22, 1, 0.36, 1],
-              }}
-  className="rounded-2xl border border-cream-dark bg-white/70 p-6 card-hover hover:bg-white"
+              data-reveal-item
+              data-reveal="fade-up"
+              className="rounded-2xl border border-cream-dark bg-white/70 p-6 card-hover hover:bg-white"
             >
               <div className="mb-4">
                 <span className="text-label-sm uppercase tracking-widest text-accent font-medium">
@@ -72,10 +61,10 @@ export function HowItWorks() {
               <h3 className="font-display text-2xl tracking-tight mb-2">
                 {tile.title}
               </h3>
-              <p className="text-[13px] text-ink-muted leading-relaxed">
+              <p className="text-body-xs text-ink-muted leading-relaxed">
                 {tile.body}
               </p>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>

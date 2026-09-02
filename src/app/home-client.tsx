@@ -180,42 +180,36 @@ export default function HomeClient() {
             </div>
           </section>
 
-          <section className="px-6 py-8 max-w-[540px] mx-auto">
+          <section className="px-6 py-8 max-w-[540px] mx-auto" data-reveal-group>
             <div className="flex flex-wrap items-center justify-center gap-6">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.1, duration: 0.4 }}
+              <div
+                data-reveal-item
+                data-reveal="scale"
                 className="text-center"
               >
                 <span className="block font-display text-2xl text-ink">1</span>
                 <span className="text-label-sm uppercase tracking-wide sm:tracking-widest text-ink-faint">person at a time</span>
-              </motion.div>
+              </div>
               <div className="w-px h-8 bg-cream-dark hidden sm:block" />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.2, duration: 0.4 }}
+              <div
+                data-reveal-item
+                data-reveal="scale"
                 className="text-center"
               >
                 <span className="block font-display text-2xl text-ink">100%</span>
                 <span className="text-label-sm uppercase tracking-wide sm:tracking-widest text-ink-faint">human reviewed</span>
-              </motion.div>
+              </div>
               <div className="w-px h-8 bg-cream-dark hidden sm:block" />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.3, duration: 0.4 }}
+              <div
+                data-reveal-item
+                data-reveal="scale"
                 className="text-center"
               >
                 <span className="block font-display text-2xl text-ink">1</span>
                 <span className="text-label-sm uppercase tracking-wide sm:tracking-widest text-ink-faint">clear reason to reach out</span>
-              </motion.div>
+              </div>
             </div>
-            <p className="text-center text-body-xs text-ink-muted mt-5 max-w-[390px] mx-auto leading-relaxed">
+            <p data-reveal="fade-up" className="text-center text-body-xs text-ink-muted mt-5 max-w-[390px] mx-auto leading-relaxed">
               Nuncio is for the account you would research properly yourself—the
               one where a thoughtful first message can change the relationship.
             </p>
