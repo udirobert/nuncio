@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import Link from "next/link";
+import { Header } from "@/components/header";
 
 interface BatchJob {
   id: string;
@@ -193,29 +194,25 @@ export default function BatchPage() {
   const failedJobs = batches.reduce((sum, b) => sum + b.failedCount, 0);
 
   return (
-    <div className="flex-1 px-6 py-24 max-w-3xl mx-auto w-full">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <Link
-            href="/"
-            className="font-display text-xl font-medium tracking-tight text-ink"
-          >
-            nuncio
-          </Link>
-          <h1 className="font-display text-3xl tracking-tight mt-4">
-            Batch
-          </h1>
-          <p className="text-sm text-ink-muted mt-1">
-            Create and manage batch video campaigns.
-          </p>
-          <Link
-            href="/studio"
-            className="text-[11px] text-accent hover:text-accent/80 transition-colors mt-2 inline-block"
-          >
-            Need a single, cinematic video? Try Studio →
-          </Link>
-        </div>
-        <button
+    <div className="min-h-screen bg-cream flex flex-col">
+      <Header stage="input" />
+      <main className="flex-1 px-6 py-24 max-w-3xl mx-auto w-full">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="font-display text-3xl tracking-tight">
+              Batch
+            </h1>
+            <p className="text-sm text-ink-muted mt-1">
+              Create and manage batch video campaigns.
+            </p>
+            <Link
+              href="/studio"
+              className="text-label-base text-accent hover:text-accent/80 transition-colors mt-2 inline-block"
+            >
+              Need a single, cinematic video? Try Studio →
+            </Link>
+          </div>
+          <button
           onClick={() => { setShowForm(!showForm); setError(""); }}
           className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-soft transition-colors"
         >
@@ -224,7 +221,7 @@ export default function BatchPage() {
       </div>
 
       {batches.length > 0 && (
-        <div className="mb-6 flex items-center gap-4 text-[11px] text-ink-muted">
+        <div className="mb-6 flex items-center gap-4 text-label-base text-ink-muted">
           <span>{batches.length} campaigns</span>
           <span>{totalJobs} profiles</span>
           <span>{completedJobs} completed</span>
@@ -249,10 +246,10 @@ export default function BatchPage() {
           />
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-[10px] uppercase tracking-widest font-medium text-ink-muted">
+              <label className="text-label-sm uppercase tracking-widest font-medium text-ink-muted">
                 Profile URLs
               </label>
-              <label className="text-[10px] text-accent cursor-pointer hover:text-accent-light transition-colors">
+              <label className="text-label-sm text-accent cursor-pointer hover:text-accent-light transition-colors">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -271,7 +268,7 @@ export default function BatchPage() {
               required
               className="w-full rounded-xl border border-cream-dark bg-cream px-4 py-3 text-sm text-ink placeholder:text-ink-faint outline-none focus:border-accent transition-colors resize-none"
             />
-            <p className="text-[10px] text-ink-faint mt-1">
+            <p className="text-label-sm text-ink-faint mt-1">
               One URL per line, or upload a CSV with columns: url, recipient name
             </p>
           </div>
@@ -284,10 +281,10 @@ export default function BatchPage() {
             className="w-full rounded-xl border border-cream-dark bg-cream px-4 py-3 text-sm text-ink placeholder:text-ink-faint outline-none focus:border-accent transition-colors resize-none"
           />
           {error && (
-            <p className="text-[11px] text-warm font-medium">{error}</p>
+            <p className="text-label-base text-warm font-medium">{error}</p>
           )}
           <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 text-[11px] text-ink-muted cursor-pointer">
+            <label className="flex items-center gap-2 text-label-base text-ink-muted cursor-pointer">
               <input
                 type="checkbox"
                 checked={emailNotify}
@@ -313,7 +310,13 @@ export default function BatchPage() {
       {batches.length === 0 && !showForm && (
         <div className="text-center py-20">
           <p className="text-sm text-ink-faint mb-2">No batches yet.</p>
-          <p className="text-[11px] text-ink-faint/60">Upload a CSV or paste profile URLs to start a campaign.</p>
+          <p className="text-label-base text-ink-faint/60 mb-6">Upload a CSV or paste profile URLs to start a campaign.</p>
+          <button
+            onClick={() => { setShowForm(true); setError(""); }}
+            className="btn-press rounded-xl bg-accent px-5 py-2.5 text-label-base font-medium text-white hover:bg-accent-soft transition-colors"
+          >
+            Create your first batch
+          </button>
         </div>
       )}
 
@@ -330,9 +333,18 @@ export default function BatchPage() {
               animate={{ opacity: 1, y: 0 }}
               className="rounded-xl border border-cream-dark bg-white overflow-hidden"
             >
-              <button
+              <div
+                role="button"
+                tabIndex={0}
+                aria-expanded={expanded === batch.id}
                 onClick={() => setExpanded(expanded === batch.id ? null : batch.id)}
-                className="w-full p-4 text-left"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setExpanded(expanded === batch.id ? null : batch.id);
+                  }
+                }}
+                className="w-full p-4 text-left cursor-pointer"
               >
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-medium text-sm text-ink">{batch.name}</h3>
@@ -340,8 +352,9 @@ export default function BatchPage() {
                     {batch.status === "failed" && (
                       <button
                         onClick={(e) => { e.stopPropagation(); handleRetry(batch.id); }}
+                        onKeyDown={(e) => e.stopPropagation()}
                         disabled={retrying === batch.id}
-                        className="text-[10px] uppercase tracking-widest font-medium text-accent hover:text-accent-light transition-colors disabled:opacity-40"
+                        className="text-label-sm uppercase tracking-widest font-medium text-accent hover:text-accent-light transition-[color] disabled:opacity-40"
                       >
                         {retrying === batch.id ? "Retrying..." : "Retry"}
                       </button>
@@ -349,13 +362,14 @@ export default function BatchPage() {
                     {batch.status !== "running" && batch.status !== "queued" && (
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDelete(batch.id); }}
+                        onKeyDown={(e) => e.stopPropagation()}
                         disabled={deleting === batch.id}
-                        className="text-[10px] uppercase tracking-widest font-medium text-warm hover:text-warm-light transition-colors disabled:opacity-40"
+                        className="text-label-sm uppercase tracking-widest font-medium text-warm hover:text-warm-light transition-[color] disabled:opacity-40"
                       >
                         {deleting === batch.id ? "..." : "Delete"}
                       </button>
                     )}
-                    <span className={`text-[10px] uppercase tracking-widest font-medium px-2 py-0.5 rounded-full ${statusColor(batch.status)}`}>
+                    <span className={`text-label-sm uppercase tracking-widest font-medium px-2 py-0.5 rounded-full ${statusColor(batch.status)}`}>
                       {batch.status}
                     </span>
                     <motion.span
@@ -366,15 +380,15 @@ export default function BatchPage() {
                     </motion.span>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 text-[11px] text-ink-muted">
+                <div className="flex items-center gap-4 text-label-base text-ink-muted">
                   <span>{batch.jobs.length} profiles</span>
                   <span>{batch.completedCount} completed</span>
-                  {batch.failedCount > 0 && <span className="text-warn">{batch.failedCount} failed</span>}
+                  {batch.failedCount > 0 && <span className="text-warm">{batch.failedCount} failed</span>}
                   <span className="text-ink-faint">{new Date(batch.createdAt).toLocaleDateString()}</span>
                 </div>
                 {(batch.status === "running" || batch.status === "queued") && (
                   <div className="mt-3">
-                    <div className="flex items-center justify-between text-[10px] text-ink-faint mb-1">
+                    <div className="flex items-center justify-between text-label-sm text-ink-faint mb-1">
                       <span>{progress}%</span>
                       <span>{batch.completedCount + batch.failedCount}/{batch.jobs.length}</span>
                     </div>
@@ -388,7 +402,7 @@ export default function BatchPage() {
                     </div>
                   </div>
                 )}
-              </button>
+              </div>
 
               <AnimatePresence>
                 {expanded === batch.id && (
@@ -405,7 +419,7 @@ export default function BatchPage() {
                             <div className="flex-1 min-w-0">
                               <p className="text-xs text-ink truncate">{job.url}</p>
                               {job.recipientName && (
-                                <p className="text-[10px] text-ink-faint mt-0.5">{job.recipientName}</p>
+                                <p className="text-label-sm text-ink-faint mt-0.5">{job.recipientName}</p>
                               )}
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
@@ -413,7 +427,7 @@ export default function BatchPage() {
                                 <Link
                                   href={`/v/${job.videoId}`}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="text-[10px] uppercase tracking-widest font-medium text-accent hover:text-accent-light transition-colors"
+                                  className="text-label-sm uppercase tracking-widest font-medium text-accent hover:text-accent-light transition-colors"
                                 >
                                   View
                                 </Link>
@@ -421,18 +435,18 @@ export default function BatchPage() {
                               {job.error && (
                                 <span
                                   title={job.error}
-                                  className="text-[10px] uppercase tracking-widest font-medium text-warm cursor-default"
+                                  className="text-label-sm uppercase tracking-widest font-medium text-warm cursor-default"
                                 >
                                   Error
                                 </span>
                               )}
-                              <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusColor(job.status)}`}>
+                              <span className={`text-label-sm font-medium px-2 py-0.5 rounded-full ${statusColor(job.status)}`}>
                                 {job.status}
                               </span>
                             </div>
                           </div>
                           {job.error && (
-                            <p className="text-[10px] text-warm mt-1 leading-relaxed">{job.error}</p>
+                            <p className="text-label-sm text-warm mt-1 leading-relaxed">{job.error}</p>
                           )}
                           {job.status === "processing" && (
                             <div className="mt-2">
@@ -451,6 +465,7 @@ export default function BatchPage() {
           );
         })}
       </div>
-    </div>
-  );
+    </main>
+  </div>
+);
 }

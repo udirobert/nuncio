@@ -64,12 +64,9 @@ export function HowItWorks() {
               }}
   className="rounded-2xl border border-cream-dark bg-white/70 p-6 card-hover hover:bg-white"
             >
-              <div className="flex items-baseline justify-between mb-4">
+              <div className="mb-4">
                 <span className="text-label-sm uppercase tracking-widest text-accent font-medium">
                   {tile.step}
-                </span>
-                <span className="font-display text-xl text-ink-faint/60">
-                  ⌁
                 </span>
               </div>
               <h3 className="font-display text-2xl tracking-tight mb-2">

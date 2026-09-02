@@ -124,7 +124,7 @@ function EventCard({ event }: { event: BandEvent }) {
     return (
       <div className="flex items-center gap-2 py-1.5">
         <div className="flex-1 h-px bg-success/30" />
-        <span className="text-[10px] uppercase tracking-widest text-success font-medium">{event.content}</span>
+        <span className="text-label-sm uppercase tracking-widest text-success font-medium">{event.content}</span>
         <div className="flex-1 h-px bg-success/30" />
       </div>
     );
@@ -154,10 +154,10 @@ function EventCard({ event }: { event: BandEvent }) {
       <div className={`flex-1 min-w-0 ${isUser ? "text-right" : ""}`}>
         <div className="flex items-center gap-2 mb-0.5">
           {isUser && <span className="flex-1" />}
-          <span className={`text-[10px] uppercase tracking-widest font-medium ${meta.color}`}>
+          <span className={`text-label-sm uppercase tracking-widest font-medium ${meta.color}`}>
             {meta.label}
           </span>
-          <span className="text-[10px] text-ink-faint">
+          <span className="text-label-sm text-ink-faint">
             {new Date(event.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           </span>
         </div>
@@ -270,13 +270,13 @@ export function CollaborativeSession({
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
               </span>
-              <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
+              <span className="text-label-sm uppercase tracking-widest font-medium text-accent">
                 Collaborative Session
               </span>
             </div>
             <div className="flex items-center gap-3">
               {hasProgress && (
-                <span className="text-[11px] text-ink-muted tabular-nums">
+                <span className="text-label-base text-ink-muted tabular-nums">
                   Step {currentStepNumber} of {PIPELINE_STEPS.length}
                   {remainingSeconds > 0 && (
                     <> · <span className="text-ink-faint">~{remainingSeconds < 60 ? `${remainingSeconds}s` : `${Math.ceil(remainingSeconds / 60)}m`} left</span></>
@@ -294,7 +294,7 @@ export function CollaborativeSession({
               const isActive = activeAgent === step.id && !isComplete;
               return (
                 <div key={step.id} className="flex items-center gap-1 flex-1">
-                  <div className={`flex-1 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[10px] uppercase tracking-widest font-medium transition-colors ${
+                  <div className={`flex-1 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-label-sm uppercase tracking-widest font-medium transition-colors ${
                     isComplete
                       ? "bg-success/10 text-success"
                       : isActive
@@ -349,7 +349,7 @@ export function CollaborativeSession({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Send a message to the agents..."
-              className="flex-1 rounded-xl border border-cream-dark bg-white px-4 py-2.5 text-sm text-ink placeholder:text-ink-faint/60 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all"
+              className="flex-1 rounded-xl border border-cream-dark bg-white px-4 py-2.5 text-sm text-ink placeholder:text-ink-faint/60 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-[color,background-color,border-color,opacity,box-shadow,transform]"
             />
             <button
               type="submit"
@@ -366,7 +366,7 @@ export function CollaborativeSession({
             <div className="text-center">
               <button
                 onClick={onSkipAhead}
-                className="text-[11px] text-ink-faint hover:text-accent transition-colors"
+                className="text-label-base text-ink-faint hover:text-accent transition-colors"
               >
                 Skip ahead to review
               </button>
@@ -374,7 +374,7 @@ export function CollaborativeSession({
           )}
 
           {/* Session ID hint */}
-          <p className="text-[10px] text-ink-faint text-center">
+          <p className="text-label-sm text-ink-faint text-center">
             Session {sessionId.slice(0, 8)} — agents are working on your video
           </p>
         </div>

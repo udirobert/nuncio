@@ -143,6 +143,17 @@ Hermes is an optional autonomous client over nuncio's agent API layer. All gener
 - `agents/nuncio_agents/`: Band agents (researcher, copywriter) — human-driven studio mode, NOT deprecated
 - `~/.hermes/skills/nuncio/`: Hermes skills for autonomous SDR mode (8 SKILL.md files)
 
+## UI/UX implementation conventions
+
+- Use the project's explicit type scale utilities:
+  - `text-label-xs` (was `text-[9px]`), `text-label-sm` (was `text-[10px]`), `text-label-base` (was `text-[11px]`)
+  - `text-body-xs` (was `text-xs`), `text-body-sm` (was `text-sm`)
+- Prefer explicit `transition-[color,background-color,border-color,opacity,box-shadow,transform]` lists instead of `transition-all`.
+- Do not put `transition` on `*:focus-visible`; focus rings must appear instantly for keyboard users.
+- The shared `Header` is fixed with `bg-cream/80 backdrop-blur-md border-b border-cream-dark/60 pointer-events-auto`.
+- Interactive rows that contain nested buttons (e.g. Batch campaign cards) should use a `div` with `role="button"` rather than a native `<button>` to avoid invalid HTML nesting.
+- Share-page action buttons are split into primary (`Reply`, `Book time`) and secondary (`Say thanks`, `Send one back`) rows with `flex-wrap` so they adapt to mobile.
+
 <!-- stripe-projects-cli managed:agents-md:start -->
 ## Stripe Projects CLI
 

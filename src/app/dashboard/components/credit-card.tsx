@@ -29,7 +29,7 @@ export function CreditCard() {
 
   return (
     <div className="rounded-2xl border border-cream-dark bg-white p-5 space-y-4">
-      <span className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+      <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
         Credits
       </span>
 
@@ -39,20 +39,20 @@ export function CreditCard() {
         </span>
       </div>
 
-      <div className="flex items-center justify-between text-[11px]">
+      <div className="flex items-center justify-between text-label-base">
         <span className="text-ink-faint">Plan</span>
         <span className="text-ink font-medium capitalize">{data?.plan || "free"}</span>
       </div>
 
       {data && data.transactions.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-cream-dark">
-          <span className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+          <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
             Recent
           </span>
           {data.transactions.slice(0, 5).map((tx) => (
             <div
               key={tx.id}
-              className="flex items-center justify-between text-[11px]"
+              className="flex items-center justify-between text-label-base"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <span
@@ -81,7 +81,7 @@ export function CreditCard() {
 
       <Link
         href="/pricing"
-        className="block text-center text-[11px] uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors pt-2 border-t border-cream-dark hover:bg-accent-soft/30 -mx-5 -mb-5 px-5 pb-5 rounded-b-2xl"
+        className="block text-center text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors pt-2 border-t border-cream-dark hover:bg-accent-soft/30 -mx-5 -mb-5 px-5 pb-5 rounded-b-2xl"
       >
         Buy credits
       </Link>

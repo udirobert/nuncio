@@ -255,7 +255,7 @@ export function ProgressStepper({ steps, warnings, urls, script, recipientName }
               }}
               className={`
                 flex items-center gap-4 rounded-2xl px-5 py-4
-                transition-all duration-300
+                transition-[color,background-color,border-color,opacity,box-shadow,transform] duration-300
                 ${step.status === "active" ? "bg-white shadow-lg shadow-ink/8 scale-[1.02]" : ""}
                 ${step.status === "complete" ? "opacity-60" : ""}
               `}

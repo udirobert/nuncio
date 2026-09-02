@@ -244,7 +244,7 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
                         isActive ? "bg-accent animate-pulse" :
                         "bg-ink-faint"
                       }`} />
-                      <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
+                      <span className="text-label-sm uppercase tracking-widest font-medium text-accent">
                         Voice brief
                       </span>
                     </div>
@@ -270,7 +270,7 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
                       <button
                         onClick={status === "idle" || status === "error" ? startVoice : undefined}
                         disabled={status === "connecting" || status === "extracting"}
-                        className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg disabled:opacity-40 ${
+                        className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-[color,background-color,border-color,opacity,box-shadow,transform] shadow-lg disabled:opacity-40 ${
                           isActive
                             ? "bg-accent text-white"
                             : "bg-accent text-white hover:bg-accent/90"
@@ -300,7 +300,7 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
 
                   {/* Progress checklist */}
                   <div className="space-y-1.5">
-                    <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">Gathering</p>
+                    <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">Gathering</p>
                     {CHECKLIST_FIELDS.map((field) => {
                       const detected = detectedFields.has(field.key);
                       return (
@@ -348,7 +348,7 @@ export function VoiceOverlay({ open, onClose, onComplete, onRequestSave }: Voice
 
                   {/* Link paste input */}
                   <div className="mt-3">
-                    <label className="text-[10px] uppercase tracking-widest text-ink-faint font-medium block mb-1">
+                    <label className="text-label-sm uppercase tracking-widest text-ink-faint font-medium block mb-1">
                       Paste profile link (optional)
                     </label>
                     <input
@@ -474,7 +474,7 @@ function EditCard({ profile, onChange, linkUrl, onLinkChange, onConfirm, onRedo,
 
       <div className="grid sm:grid-cols-2 gap-3">
         <div>
-          <label className="text-[10px] uppercase tracking-widest text-ink-faint font-medium block mb-1">Tone</label>
+          <label className="text-label-sm uppercase tracking-widest text-ink-faint font-medium block mb-1">Tone</label>
           <select
             value={profile.tone || "conversational"}
             onChange={(e) => updateField("tone", e.target.value)}
@@ -486,7 +486,7 @@ function EditCard({ profile, onChange, linkUrl, onLinkChange, onConfirm, onRedo,
           </select>
         </div>
         <div>
-          <label className="text-[10px] uppercase tracking-widest text-ink-faint font-medium block mb-1">Hook style</label>
+          <label className="text-label-sm uppercase tracking-widest text-ink-faint font-medium block mb-1">Hook style</label>
           <select
             value={profile.archetype || "auto"}
             onChange={(e) => updateField("archetype", e.target.value)}
@@ -538,7 +538,7 @@ function EditField({
   const cls = "w-full rounded-xl border border-cream-dark px-3 py-2 text-sm text-ink placeholder:text-ink-faint/50 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/30 bg-white";
   return (
     <div>
-      <label className="text-[10px] uppercase tracking-widest text-ink-faint font-medium block mb-1">{label}</label>
+      <label className="text-label-sm uppercase tracking-widest text-ink-faint font-medium block mb-1">{label}</label>
       {multiline ? (
         <textarea
           value={value}

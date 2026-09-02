@@ -68,7 +68,7 @@ export function OnboardingModal() {
             initial={{ opacity: 0, y: 24, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
 exit={{ opacity: 0, y: 16, scale: 0.95 }}
-            transition={{ duration: 0.35, type: "spring", stiffness: 280, damping: 24 }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             className="relative w-full max-w-sm rounded-2xl border border-cream-dark bg-white p-6 shadow-xl"
           >            <motion.button
                   onClick={handleDismiss}

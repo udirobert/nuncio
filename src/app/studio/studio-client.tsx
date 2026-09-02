@@ -1473,7 +1473,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                         </div>
                         <button
                           onClick={() => setVoiceOverlayOpen(true)}
-                          className="btn-press w-full rounded-xl bg-ink text-cream py-3 text-body-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
+                          className="btn-press w-full rounded-xl border border-cream-dark bg-white text-ink py-3 text-body-sm font-medium hover:bg-cream-dark/30 transition-colors flex items-center justify-center gap-2"
                         >
                           Start voice brief
                           <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1538,7 +1538,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                           onChange={(e) => { setUrl(e.target.value); setUrlError(null); }}
                           onBlur={() => setUrlError(validateUrl(url))}
                           placeholder="https://linkedin.com/in/…"
-                          className={`w-full rounded-xl border bg-white px-4 py-3 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${urlError ? "border-warm/50" : voicePopulatedFields.has("url") ? "border-success/50" : "border-cream-dark"}`}
+                          className={`w-full rounded-xl border bg-white px-4 py-3 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-[color,background-color,border-color,opacity,box-shadow,transform] ${urlError ? "border-warm/50" : voicePopulatedFields.has("url") ? "border-success/50" : "border-cream-dark"}`}
                           onKeyDown={(e) => e.key === "Enter" && handleEnrich()}
                         />
                         {urlError && (
@@ -1590,7 +1590,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                               if (typeof window !== "undefined") localStorage.setItem("nuncio_sender_name", e.target.value);
                             }}
                             placeholder="e.g. Udi"
-                            className={`w-full rounded-xl border bg-white px-4 py-3 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voicePopulatedFields.has("senderName") ? "border-success/50" : "border-cream-dark"}`}
+                            className={`w-full rounded-xl border bg-white px-4 py-3 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-[color,background-color,border-color,opacity,box-shadow,transform] ${voicePopulatedFields.has("senderName") ? "border-success/50" : "border-cream-dark"}`}
                           />
                           {voicePopulatedFields.has("senderName") && (
                             <span className="inline-flex items-center gap-1 mt-1 text-label-sm text-success">
@@ -1611,7 +1611,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                             onChange={(e) => setSenderBrief(e.target.value)}
                             placeholder="What are you reaching out for? The more honest, the better."
                             rows={2}
-                            className={`w-full rounded-xl border bg-white px-4 py-3 text-body-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all ${voicePopulatedFields.has("senderBrief") ? "border-success/50" : "border-cream-dark"}`}
+                            className={`w-full rounded-xl border bg-white px-4 py-3 text-body-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-[color,background-color,border-color,opacity,box-shadow,transform] ${voicePopulatedFields.has("senderBrief") ? "border-success/50" : "border-cream-dark"}`}
                           />
                           {voicePopulatedFields.has("senderBrief") && (
                             <span className="inline-flex items-center gap-1 mt-1 text-label-sm text-success">
@@ -1703,7 +1703,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                                   <button
                                     type="button"
                                     onClick={() => handleDeliveryModeChange("livelink")}
-                                    className={`flex-1 rounded-lg py-2 text-body-xs font-medium transition-all ${
+                                    className={`flex-1 rounded-lg py-2 text-body-xs font-medium transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
                                       deliveryMode === "livelink"
                                         ? "bg-accent text-white shadow-sm"
                                         : "text-ink-muted hover:text-ink"
@@ -1714,7 +1714,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                                   <button
                                     type="button"
                                     onClick={() => handleDeliveryModeChange("video")}
-                                    className={`flex-1 rounded-lg py-2 text-body-xs font-medium transition-all ${
+                                    className={`flex-1 rounded-lg py-2 text-body-xs font-medium transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
                                       deliveryMode === "video"
                                         ? "bg-accent text-white shadow-sm"
                                         : "text-ink-muted hover:text-ink"
@@ -1862,7 +1862,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                   return (
                     <div
                       key={step.id}
-                      className={`flex items-center gap-4 rounded-xl border p-4 transition-all duration-500 ${
+                      className={`flex items-center gap-4 rounded-xl border p-4 transition-[color,background-color,border-color,opacity,box-shadow,transform] duration-500 ${
                         active
                           ? "border-accent/30 bg-accent-soft shadow-sm"
                           : complete
@@ -1870,7 +1870,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                             : "border-cream-dark bg-white opacity-50"
                       }`}
                     >
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-body-xs font-mono font-medium transition-all duration-500">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-body-xs font-mono font-medium transition-[color,background-color,border-color,opacity,box-shadow,transform] duration-500">
                         {complete ? (
                           <svg className="w-4 h-4 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                             <polyline points="20 6 9 17 4 12" />
@@ -2883,7 +2883,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                     value={captureEmail}
                     onChange={(e) => setCaptureEmail(e.target.value)}
                     placeholder="you@company.com"
-                    className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                    className="w-full rounded-xl border border-cream-dark bg-white px-4 py-3 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-[color,background-color,border-color,opacity,box-shadow,transform]"
                     autoFocus
                   />
                 </div>
@@ -2982,7 +2982,7 @@ function VideoResultSection({ videoUrl }: { videoUrl: string }) {
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopy}
-            className={`btn-press inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-body-xs font-medium transition-all ${
+            className={`btn-press inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-body-xs font-medium transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
               copied
                 ? "border-success/20 bg-success-soft text-success"
                 : "border-cream-dark text-ink hover:bg-cream-dark/50"

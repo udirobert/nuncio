@@ -27,14 +27,14 @@ export default function PlaybookPage() {
           <h1 className="font-display text-4xl md:text-5xl tracking-tight leading-[0.9] mb-4">
             The nuncio
             <br />
-            <span className="italic">playbook</span>
+            <span className="text-ink-light">playbook</span>
           </h1>
           <p className="text-ink-muted text-[15px] leading-relaxed max-w-[480px] mb-2">
             Worked examples of great personalised outreach. Each one shows the
             recipient, the brief, the generated script, and a teardown of what
             made it land — and what was deliberately left out.
           </p>
-          <p className="text-[11px] text-ink-faint">
+          <p className="text-label-base text-ink-faint">
             Composite examples for illustration. Names and details may be fictionalised.
           </p>
         </section>
@@ -56,7 +56,7 @@ export default function PlaybookPage() {
             </p>
             <Link
               href="/"
-              className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-6 py-3.5 text-sm font-medium shadow-xl shadow-ink/15 hover:shadow-2xl hover:-translate-y-0.5 transition-all"
+              className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-6 py-3.5 text-sm font-medium shadow-xl shadow-ink/15 hover:shadow-2xl hover:-translate-y-0.5 transition-[color,background-color,border-color,opacity,box-shadow,transform]"
             >
               Build your twin
               <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -69,7 +69,7 @@ export default function PlaybookPage() {
 
       {/* Footer */}
       <footer className="px-6 py-6 text-center border-t border-cream-dark/60">
-        <p className="text-[11px] text-ink-faint">
+        <p className="text-label-base text-ink-faint">
           nuncio — your intelligent emissary
         </p>
       </footer>

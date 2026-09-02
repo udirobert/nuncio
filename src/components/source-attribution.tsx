@@ -32,7 +32,7 @@ function AttributionBar({ label, count, total, color }: {
   const pct = total > 0 ? (count / total) * 100 : 0;
   return (
     <div className="flex items-center gap-3">
-      <span className="text-[10px] text-ink-muted w-20 shrink-0">{label}</span>
+      <span className="text-label-sm text-ink-muted w-20 shrink-0">{label}</span>
       <div className="flex-1 h-2 rounded-full bg-cream-dark/30 overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
@@ -41,7 +41,7 @@ function AttributionBar({ label, count, total, color }: {
           className={`h-full rounded-full ${color}`}
         />
       </div>
-      <span className="text-[10px] font-mono text-ink-muted w-8 text-right">{count}</span>
+      <span className="text-label-sm font-mono text-ink-muted w-8 text-right">{count}</span>
     </div>
   );
 }
@@ -62,10 +62,10 @@ export function SourceAttributionPanel({ attribution, isPremium = false }: Sourc
       className="rounded-xl border border-cream-dark bg-white p-4 space-y-3"
     >
       <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+        <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
           Research confidence
         </span>
-        <span className="text-[10px] font-mono text-ink-faint/60">
+        <span className="text-label-sm font-mono text-ink-faint/60">
           {attribution.sourcesScanned} source{attribution.sourcesScanned !== 1 ? "s" : ""} scanned
         </span>
       </div>
@@ -87,7 +87,7 @@ export function SourceAttributionPanel({ attribution, isPremium = false }: Sourc
       </div>
 
       {/* Summary text */}
-      <div className="flex items-center gap-2 text-[11px]">
+      <div className="flex items-center gap-2 text-label-base">
         {attribution.factCount > attribution.inferenceCount ? (
           <span className="inline-flex items-center gap-1 text-success">
             <svg viewBox="0 0 12 12" className="w-3 h-3" fill="currentColor">
@@ -108,7 +108,7 @@ export function SourceAttributionPanel({ attribution, isPremium = false }: Sourc
       {/* Provider breakdown */}
       {providers.length > 0 && (
         <div className="pt-1 border-t border-cream-dark space-y-1.5">
-          <span className="text-[10px] uppercase tracking-widest text-ink-faint font-medium block">
+          <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium block">
             Sources
           </span>
           <div className="flex flex-wrap gap-1.5">
@@ -118,7 +118,7 @@ export function SourceAttributionPanel({ attribution, isPremium = false }: Sourc
               return (
                 <span
                   key={provider}
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${colors}`}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-label-sm font-medium border ${colors}`}
                 >
                   {label}
                   <span className="font-mono opacity-70">{count}</span>
@@ -126,7 +126,7 @@ export function SourceAttributionPanel({ attribution, isPremium = false }: Sourc
               );
             })}
             {!isPremium && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border border-dashed border-ink-faint/30 text-ink-faint/60">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-label-sm font-medium border border-dashed border-ink-faint/30 text-ink-faint/60">
                 + more with Deep Research
               </span>
             )}

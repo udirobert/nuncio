@@ -104,7 +104,7 @@ export function ProfilePicker({
                 transition={{ delay: i * 0.08, duration: 0.4 }}
                 onClick={() => toggleProfile(profile.url)}
                 className={`
-                  w-full text-left rounded-2xl border px-5 py-4 transition-all duration-200
+                  w-full text-left rounded-2xl border px-5 py-4 transition-[color,background-color,border-color,opacity,box-shadow,transform] duration-200
                   ${selected.has(profile.url)
                     ? "border-accent bg-accent-soft/30 shadow-sm"
                     : "border-cream-dark bg-white hover:border-ink-faint/30"
@@ -128,7 +128,7 @@ export function ProfilePicker({
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="text-sm font-medium text-ink">{profile.platform}</p>
                       {profile.confidence && (
-                        <span className="text-[10px] text-ink-faint">
+                        <span className="text-label-sm text-ink-faint">
                           {Math.round(profile.confidence * 100)}% match
                         </span>
                       )}
@@ -157,7 +157,7 @@ export function ProfilePicker({
           <button
             onClick={handleConfirm}
             disabled={selected.size === 0}
-            className={`btn-press flex-[2] rounded-2xl px-5 py-4 text-sm font-medium transition-all ${selected.size > 0
+            className={`btn-press flex-[2] rounded-2xl px-5 py-4 text-sm font-medium transition-[color,background-color,border-color,opacity,box-shadow,transform] ${selected.size > 0
               ? "bg-ink text-cream shadow-xl shadow-ink/15 hover:shadow-2xl hover:-translate-y-0.5"
               : "bg-cream-dark text-ink-faint cursor-not-allowed"
               }`}
@@ -170,7 +170,7 @@ export function ProfilePicker({
             </span>
           </button>
         </motion.div>
-        <p className="text-center text-[11px] text-ink-faint mt-3">
+        <p className="text-center text-label-base text-ink-faint mt-3">
           Research continues only after you confirm these profiles.
         </p>
       </motion.div>

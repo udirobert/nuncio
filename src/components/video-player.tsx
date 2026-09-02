@@ -410,7 +410,7 @@ export function VideoPlayer({
               <button
                 onClick={() => setSoundscapeEnabled(!soundscapeEnabled)}
                 className={`
-                  p-2 rounded-full backdrop-blur-md transition-all
+                  p-2 rounded-full backdrop-blur-md transition-[color,background-color,border-color,opacity,box-shadow,transform]
                   ${soundscapeEnabled 
                     ? "bg-accent/20 text-accent border border-accent/30 shadow-lg shadow-accent/10" 
                     : "bg-ink/40 text-cream/50 border border-cream/10"
@@ -442,7 +442,7 @@ export function VideoPlayer({
             onClick={handleCopy}
             className={`
               btn-press flex-1 rounded-2xl px-5 py-4 text-sm font-medium
-              transition-all duration-300 flex items-center justify-center gap-2
+              transition-[color,background-color,border-color,opacity,box-shadow,transform] duration-300 flex items-center justify-center gap-2
               ${copied
                 ? "bg-success-soft text-success border border-success/20"
                 : "bg-ink text-cream shadow-xl shadow-ink/15 hover:shadow-2xl hover:-translate-y-0.5"
@@ -526,12 +526,12 @@ export function VideoPlayer({
             transition={{ delay: 0.65 }}
             className="mb-6 rounded-2xl border border-cream-dark bg-white/80 p-4"
           >
-            <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-3">
+            <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium mb-3">
               Demo receipts
             </p>
             <div className="flex flex-wrap gap-2 mb-3">
               {shareId && (
-                <span className="rounded-full bg-success-soft px-2.5 py-1 text-[10px] text-success border border-success/10">
+                <span className="rounded-full bg-success-soft px-2.5 py-1 text-label-sm text-success border border-success/10">
                   Share page /v/{shareId}
                 </span>
               )}
@@ -555,7 +555,7 @@ export function VideoPlayer({
             animate={{ opacity: 1, y: 0 }}
             className="mb-6 rounded-xl border border-cream-dark bg-white p-4 max-h-32 overflow-y-auto"
           >
-            <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-2">
+            <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium mb-2">
               Captions ({captions.length} segments)
             </p>
             <div className="space-y-1">
@@ -594,7 +594,7 @@ export function VideoPlayer({
 
           <Link
             href="/pricing"
-            className="mt-4 text-[11px] font-medium text-ink-faint hover:text-accent transition-colors uppercase tracking-widest"
+            className="mt-4 text-label-base font-medium text-ink-faint hover:text-accent transition-colors uppercase tracking-widest"
           >
             Want more? View Pro Plans →
           </Link>

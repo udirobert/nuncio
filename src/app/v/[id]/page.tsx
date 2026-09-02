@@ -173,7 +173,7 @@ export default function VideoLandingPage({
                 {senderContext}
               </p>
             )}
-            <p className="mt-3 text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+            <p className="mt-3 text-label-sm uppercase tracking-widest text-ink-faint font-medium">
               {senderName
                 ? `Made by ${senderName}'s AI twin · disclosed, never disguised`
                 : "Made by an AI twin · disclosed, never disguised"}
@@ -276,7 +276,7 @@ export default function VideoLandingPage({
               transition={{ delay: 0.35, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
               className="mt-4 text-center"
             >
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-warm-soft border border-warm/20 text-[11px] text-warm font-medium">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-warm-soft border border-warm/20 text-label-base text-warm font-medium">
                 <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="currentColor">
                   <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 2a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm1 9H7V7h2v5z" />
                 </svg>
@@ -291,57 +291,61 @@ export default function VideoLandingPage({
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.35, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="mt-6 flex items-center gap-3 justify-center"
+              className="mt-6 flex flex-col items-center gap-3"
             >
-              <button
-                onClick={() => {
-                  const replySubject = `Re: your video${recipientName ? ` for ${recipientName}` : ""}`;
-                  const replyBody = senderName
-                    ? `Hi ${senderName},\n\nThanks for the personalised video — really appreciated the personal touch.\n\nI'd love to learn more. When are you free for a quick call?`
-                    : `Thanks for the personalised video — really appreciated the personal touch.\n\nI'd love to learn more. When are you free for a quick call?`;
-                  const mailto = `mailto:?subject=${encodeURIComponent(replySubject)}&body=${encodeURIComponent(replyBody)}`;
-                  window.location.href = mailto;
-                }}
-                className="btn-press rounded-xl bg-ink text-cream px-5 py-2.5 text-xs font-medium hover:bg-ink-light transition-colors flex items-center gap-1.5"
-              >
-                <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M2 4h12v8H2z" />
-                  <path d="M2 4l6 5 6-5" />
-                </svg>
-                Reply
-              </button>
-              <button
-                onClick={() => {
-                  navigator.clipboard?.writeText(
-                    `Thanks for the video${senderName ? `, ${senderName}` : ""}! Really appreciate the personal touch.`
-                  );
-                  setThanksCopied(true);
-                  setTimeout(() => setThanksCopied(false), 2000);
-                }}
-                className="btn-press rounded-xl border border-cream-dark bg-white/80 px-5 py-2.5 text-xs font-medium text-ink hover:bg-white transition-colors"
-              >
-                {thanksCopied ? "Copied!" : "Say thanks"}
-              </button>
-              <Link
-                href={`/?reply=${encodeURIComponent(senderName || "")}`}
-                className="btn-press rounded-xl border border-cream-dark bg-white/80 px-5 py-2.5 text-xs font-medium text-ink hover:bg-white transition-colors flex items-center gap-1.5"
-              >
-                <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M14 2L7 9M14 2l-5 12-2-5-5-2 12-5z" />
-                </svg>
-                Send one back
-              </Link>
-              {bookingUrl && (
+              <div className="flex flex-wrap items-center justify-center gap-3">
                 <button
                   onClick={() => {
-                    trackBookingClicked({ shareId: videoData.id, surface: "share_page" });
-                    window.open(bookingUrl, "_blank", "noopener,noreferrer");
+                    const replySubject = `Re: your video${recipientName ? ` for ${recipientName}` : ""}`;
+                    const replyBody = senderName
+                      ? `Hi ${senderName},\n\nThanks for the personalised video — really appreciated the personal touch.\n\nI'd love to learn more. When are you free for a quick call?`
+                      : `Thanks for the personalised video — really appreciated the personal touch.\n\nI'd love to learn more. When are you free for a quick call?`;
+                    const mailto = `mailto:?subject=${encodeURIComponent(replySubject)}&body=${encodeURIComponent(replyBody)}`;
+                    window.location.href = mailto;
+                  }}
+                  className="btn-press rounded-xl bg-ink text-cream px-5 py-2.5 text-xs font-medium hover:bg-ink-light transition-colors flex items-center gap-1.5"
+                >
+                  <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M2 4h12v8H2z" />
+                    <path d="M2 4l6 5 6-5" />
+                  </svg>
+                  Reply
+                </button>
+                {bookingUrl && (
+                  <button
+                    onClick={() => {
+                      trackBookingClicked({ shareId: videoData.id, surface: "share_page" });
+                      window.open(bookingUrl, "_blank", "noopener,noreferrer");
+                    }}
+                    className="btn-press rounded-xl bg-ink text-cream px-5 py-2.5 text-xs font-medium hover:bg-ink-light transition-colors"
+                  >
+                    Book time with {senderName || "the sender"}
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(
+                      `Thanks for the video${senderName ? `, ${senderName}` : ""}! Really appreciate the personal touch.`
+                    );
+                    setThanksCopied(true);
+                    setTimeout(() => setThanksCopied(false), 2000);
                   }}
                   className="btn-press rounded-xl border border-cream-dark bg-white/80 px-5 py-2.5 text-xs font-medium text-ink hover:bg-white transition-colors"
                 >
-                  Book time with {senderName || "the sender"}
+                  {thanksCopied ? "Copied!" : "Say thanks"}
                 </button>
-              )}
+                <Link
+                  href={`/?reply=${encodeURIComponent(senderName || "")}`}
+                  className="btn-press rounded-xl border border-cream-dark bg-white/80 px-5 py-2.5 text-xs font-medium text-ink hover:bg-white transition-colors flex items-center gap-1.5"
+                >
+                  <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M14 2L7 9M14 2l-5 12-2-5-5-2 12-5z" />
+                  </svg>
+                  Send one back
+                </Link>
+              </div>
             </motion.div>
           )}
 
@@ -353,7 +357,7 @@ export default function VideoLandingPage({
               transition={{ delay: 0.45, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
               className="mt-8 rounded-2xl border border-cream-dark bg-white/70 p-4"
             >
-              <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-3">
+              <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium mb-3">
                 How this was made
               </p>
               <div className="space-y-2">
@@ -365,14 +369,14 @@ export default function VideoLandingPage({
               </div>
               {videoData.generation?.models && (
                 <div className="mt-3 pt-3 border-t border-cream-dark">
-                  <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-2">
+                  <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium mb-2">
                     Generated with Genblaze
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {Object.entries(videoData.generation.models).map(([role, model]) => (
                       <span
                         key={role}
-                        className="inline-flex items-center gap-1 rounded-full bg-ink/5 px-2 py-0.5 text-[10px] text-ink-muted"
+                        className="inline-flex items-center gap-1 rounded-full bg-ink/5 px-2 py-0.5 text-label-sm text-ink-muted"
                       >
                         {role}: {model}
                       </span>
@@ -380,7 +384,7 @@ export default function VideoLandingPage({
                   </div>
                   {videoData.generation.manifests &&
                     Object.keys(videoData.generation.manifests).length > 0 && (
-                      <p className="mt-1.5 text-[10px] text-ink-faint">
+                      <p className="mt-1.5 text-label-sm text-ink-faint">
                         Provenance manifests:{" "}
                         {Object.entries(videoData.generation.manifests)
                           .map(([role]) => role)
@@ -394,7 +398,7 @@ export default function VideoLandingPage({
                   href={videoData.proof.gatewayUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-ink-muted hover:text-ink transition-colors"
+                  className="mt-3 inline-flex items-center gap-1.5 text-label-base text-ink-muted hover:text-ink transition-colors"
                 >
                   <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M8 1l5 2v4c0 3.5-2.2 5.7-5 7-2.8-1.3-5-3.5-5-7V3l5-2z" />
@@ -432,11 +436,11 @@ export default function VideoLandingPage({
                       surface: "share_page",
                     })
                   }
-                  className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-6 py-3 text-sm font-medium shadow-lg shadow-ink/15 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+                  className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-6 py-3 text-sm font-medium shadow-lg shadow-ink/15 hover:shadow-xl hover:-translate-y-0.5 transition-[color,background-color,border-color,opacity,box-shadow,transform]"
                 >
                   Make yours →
                 </Link>
-                <p className="text-[11px] text-ink-faint">
+                <p className="text-label-base text-ink-faint">
                   Free · No account needed · 90 seconds
                 </p>
               </div>
@@ -447,7 +451,7 @@ export default function VideoLandingPage({
 
       {/* Footer */}
       <footer className="px-6 py-6 text-center">
-        <p className="text-[11px] text-ink-faint">
+        <p className="text-label-base text-ink-faint">
           Powered by{" "}
           <Link href="/" className="text-ink-muted hover:text-ink transition-colors font-medium">
             nuncio

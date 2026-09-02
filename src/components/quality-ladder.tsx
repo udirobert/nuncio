@@ -136,7 +136,7 @@ function CompactLadder({
                   ? "Upgrade for " + tier.label
                   : tier.description
               }
-              className={`flex-1 rounded-lg border py-2 px-2 text-center transition-all ${
+              className={`flex-1 rounded-lg border py-2 px-2 text-center transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
                 isSelected
                   ? "border-accent bg-accent-soft text-accent shadow-sm"
                   : isLocked
@@ -202,7 +202,7 @@ function TierButton({
         if (!isLocked) onSelect(tier.id);
       }}
       disabled={isLocked}
-      className={`w-full text-left rounded-xl border-2 p-3.5 transition-all ${
+      className={`w-full text-left rounded-xl border-2 p-3.5 transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
         isSelected
           ? "border-accent bg-accent-soft/30 shadow-sm"
           : isLocked

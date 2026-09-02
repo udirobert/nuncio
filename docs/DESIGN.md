@@ -152,9 +152,19 @@ The happy path is: enter URLs → review script → render video → copy link. 
 
 **Colour:** Near-monochrome base (white/off-white background, dark text) with a single accent colour for interactive elements. No gradients. No decorative illustration.
 
-**Typography:** System font stack for body copy. Slight weight variation to create hierarchy — 400 for body, 500 for labels and headings. No custom display fonts for MVP.
+**Typography:** System font stack for body copy (`font-sans`). Display headlines use `Instrument Serif` (`font-display`) for an editorial, credible tone. Use the project's explicit type scale utilities instead of arbitrary pixel sizes:
 
-**Motion:** Minimal. The progress stepper uses a subtle pulse on the active step. Video autoplay is the only unsolicited motion. No page transitions, no hover animations beyond cursor changes.
+| Old utility | Replacement | Notes |
+|-------------|-------------|-------|
+| `text-[9px]` | `text-label-xs` | 11px mobile → 9px on sm+ |
+| `text-[10px]` | `text-label-sm` | 12px mobile → 10px on sm+ |
+| `text-[11px]` | `text-label-base` | 14px mobile → 11px on sm+ |
+| `text-xs` | `text-body-xs` | 14px mobile → 12px on sm+ |
+| `text-sm` | `text-body-sm` | 16px mobile → 14px on sm+ |
+
+Use `text-label-*` for uppercase microcopy/eyebrows and `text-body-*` for readable sentences. Avoid hardcoded `text-[9-11px]` and `text-xs`/`text-sm`; they bypass the mobile bump and break the type system.
+
+**Motion:** Minimal but intentional. Prefer explicit `transition-[property,property,...]` lists over `transition-all`. Never put a `transition` on `*:focus-visible`; keyboard focus rings must appear instantly. Hover animations are fine when they are micro-interactions (scale, shadow, colour) and do not block interaction.
 
 **Layout:** Single-column, centred, max-width ~600px. Mobile-first. The flow is linear — no sidebar, no tabs, no navigation for MVP.
 
@@ -208,17 +218,14 @@ Start with one polished format before expanding:
 
 ## Batch mode
 
-The batch page (`/batch`) introduces a new flow for multi-profile campaigns:
+The batch page (`/batch`) introduces a new flow for multi-profile campaigns. It uses the shared `Header` and a page-level empty state with a clear CTA.
 
 ```
 ┌──────────────────────────────────────────────┐
-│  Batch Campaigns                             │
+│  Batch                                       │
+│  Create and manage batch video campaigns.    │
 │                                              │
-│  ┌──────────────────────────────────────────┐ │
-│  │ Campaigns: 2  Profiles: 14  Done: 8      │ │
-│  └──────────────────────────────────────────┘ │
-│                                              │
-│  [New Campaign →]                             │
+│  [Create your first batch]  [New batch]     │
 │                                              │
 │  ┌──────────────────────────────────────────┐ │
 │  │ Campaign A          3/5   ████░░  60%   │ │
@@ -236,7 +243,8 @@ The batch page (`/batch`) introduces a new flow for multi-profile campaigns:
 
 - Summary header shows aggregate counts (campaigns, profiles, done, failed)
 - Each campaign card has a progress bar (animated, percentage + fraction count)
-- Job rows show: name, status icon, video link (if done), retry (if failed), delete button
+- Job rows show: name, status icon, video link (if done), retry (if failed), delete button. Action buttons are always visible.
+- The campaign row expander is a `div` with `role="button"` so it can contain real action buttons without invalid native `<button>` nesting.
 - Auto-polls every 3s while any job is processing
 - Delete shows a confirmation before removing
 - Form for creating a new campaign takes a comma-separated list of URLs and a sender brief
@@ -244,7 +252,7 @@ The batch page (`/batch`) introduces a new flow for multi-profile campaigns:
 
 ## Auth header & account menu
 
-When signed in, the header shows:
+The shared `Header` component is fixed at the top with a `bg-cream/80 backdrop-blur-md` background, subtle border, and `pointer-events-auto` so it remains readable and clickable over page content. When signed in, the header shows:
 
 ```
 [Logo]  Studio  Batch  Pricing         [email@example.com ▼]
@@ -282,6 +290,7 @@ When signed in, the header shows:
 
 - Clean 3-column card layout
 - Each card shows plan name, price, credit count, purchase CTA
+- The Pro card has a single "Recommended" pill badge; the eyebrow text is not duplicated
 - Stripe Checkout opens in same tab after clicking
 - After successful payment, user is redirected back to `/studio`
 - Pricing page is server-rendered, uses `NEXT_PUBLIC_STRIPE_*` env vars for price IDs
@@ -331,7 +340,7 @@ The dashboard (`/dashboard`) is the post-login landing page that unifies all nun
 - **Credit card** — balance, plan name, recent transactions (last 5), "Buy credits" CTA
 - **Usage summary** — total videos, completed count, active campaigns, total campaigns
 - **Quick actions** — Studio, Batch, Pricing with icons and descriptions
-- **Recent activity** — unified feed of both share records and batch campaigns, grouped by date, with status icons and action links
+- **Recent activity** — unified feed of both share records and batch campaigns, grouped by date, with status icons and action links. Action buttons are always visible (not hover-only) so touch/mobile users can reach them.
 
 **States:**
 - **Loading:** skeleton placeholders for all sections

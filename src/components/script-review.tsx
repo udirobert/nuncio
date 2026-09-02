@@ -296,16 +296,16 @@ export function ScriptReview({
           className="mb-6 rounded-xl border border-cream-dark bg-cream-dark/25 px-4 py-3"
         >
           <div className="flex items-center justify-between gap-3 mb-2">
-            <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+            <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
               Credit usage
             </p>
-            <span className="text-[10px] text-ink-faint">
+            <span className="text-label-sm text-ink-faint">
               {billingBalance
                 ? `${billingBalance.anonymous ? "Trial" : billingBalance.plan || "Account"} balance: ${billingBalance.balance} credits`
                 : `Tracked to ${profile.name || "this profile"}`}
             </span>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-[11px]">
+          <div className="grid grid-cols-2 gap-2 text-label-base">
             <span className="rounded-lg bg-white px-3 py-2 text-ink-muted">
               Est. used {runCreditSummary.researchCredits} research credit{runCreditSummary.researchCredits === 1 ? "" : "s"}
             </span>
@@ -319,7 +319,7 @@ export function ScriptReview({
               Next: {runCreditSummary.renderCredits} render credits
             </span>
           </div>
-          <p className="mt-2 text-[10px] text-ink-faint">
+          <p className="mt-2 text-label-sm text-ink-faint">
             {billingBalance
               ? `After render: ${Math.max(0, billingBalance.balance - runCreditSummary.renderCredits)} credits.`
               : "Balance loads from the account ledger when a session is available."}{" "}
@@ -359,7 +359,7 @@ export function ScriptReview({
                     <button
                       onClick={handleCreateAccountAndRender}
                       disabled={accountLoading}
-                      className="btn-press rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-cream transition-all hover:bg-ink-light disabled:cursor-not-allowed disabled:opacity-60"
+                      className="btn-press rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-cream transition-[color,background-color,border-color,opacity,box-shadow,transform] hover:bg-ink-light disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {accountLoading ? "Saving..." : "Save & render"}
                     </button>
@@ -446,7 +446,7 @@ export function ScriptReview({
               <button
                 onClick={handleTtsPreview}
                 disabled={ttsLoading || !editedScript.trim()}
-                className="text-[11px] text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1.5 transition-colors"
+                className="text-label-base text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1.5 transition-colors"
               >
                 {ttsLoading ? (
                   <span className="w-3 h-3 border border-accent/30 border-t-accent rounded-full animate-spin" />
@@ -471,7 +471,7 @@ export function ScriptReview({
                     return (
                       <span
                         key={i}
-                        className="inline-flex items-center rounded-full bg-cream-dark px-2 py-0.5 text-[10px] text-ink-faint"
+                        className="inline-flex items-center rounded-full bg-cream-dark px-2 py-0.5 text-label-sm text-ink-faint"
                       >
                         {hostname}
                       </span>
@@ -491,7 +491,7 @@ export function ScriptReview({
             transition={{ delay: 0.45 }}
             className="rounded-2xl border border-cream-dark bg-cream-dark/25 p-4 mb-6"
           >
-            <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-3">
+            <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium mb-3">
               Agent trace
             </p>
 
@@ -578,7 +578,7 @@ export function ScriptReview({
           <button
             onClick={handleRender}
             disabled={wordCount > 200}
-            className={`btn-press flex-[2] rounded-2xl px-5 py-4 text-sm font-medium transition-all ${
+            className={`btn-press flex-[2] rounded-2xl px-5 py-4 text-sm font-medium transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
               wordCount > 200
                 ? "bg-cream-dark text-ink-faint cursor-not-allowed"
                 : "bg-ink text-cream hover:bg-ink-light shadow-xl shadow-ink/15 hover:shadow-2xl hover:shadow-ink/20 hover:-translate-y-0.5"
@@ -597,7 +597,7 @@ export function ScriptReview({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
-          className="text-center text-[11px] text-ink-faint mt-4"
+          className="text-center text-label-base text-ink-faint mt-4"
         >
           {wordCount > 200
             ? `Script is ${wordCount} words — shorten to 200 or fewer to render`

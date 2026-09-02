@@ -347,7 +347,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent" />
           </span>
-          <p className="text-[11px] text-ink-muted">
+          <p className="text-label-base text-ink-muted">
             {photoAvatarStatus === "processing" && voiceCloneStatus === "processing"
               ? "Your photo avatar (~5 min) and voice clone (~2 min) are training..."
               : photoAvatarStatus === "processing"
@@ -367,7 +367,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
         </div>
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="text-[10px] text-ink-faint hover:text-accent transition-colors"
+          className="text-label-sm text-ink-faint hover:text-accent transition-colors"
         >
           {showAdvanced ? "Hide advanced" : "Show advanced"}
         </button>
@@ -376,7 +376,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
       {/* Avatar selector */}
       {avatars.length > 0 && (
         <div className="space-y-2">
-          <label className="text-[10px] uppercase tracking-widest font-medium text-ink-faint">
+          <label className="text-label-sm uppercase tracking-widest font-medium text-ink-faint">
             Avatar
           </label>
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
@@ -387,7 +387,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
                 <div key={avatar.avatar_id} className="relative shrink-0">
                   <button
                     onClick={() => setAvatarIndex(i)}
-                    className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all ${
+                    className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
                       i === avatarIndex
                         ? "border-accent ring-2 ring-accent/20"
                         : "border-cream-dark hover:border-ink-faint/30"
@@ -436,7 +436,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
                           setPreviewingAvatarId(avatar.avatar_id);
                         }
                       }}
-                      className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-sm border transition-all ${
+                      className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-sm border transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
                         isPlaying
                           ? "bg-accent text-white border-accent"
                           : "bg-white text-ink-faint border-cream-dark hover:text-accent hover:border-accent"
@@ -461,7 +461,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
             })}
           </div>
           {selectedAvatar && (
-            <p className="text-[11px] text-ink-muted truncate">
+            <p className="text-label-base text-ink-muted truncate">
               {selectedAvatar.avatar_name} · {selectedAvatar.gender}
               {previewingAvatarId && selectedAvatar.avatar_id === previewingAvatarId && (
                 <span className="text-accent/70 ml-1">· Previewing</span>
@@ -480,7 +480,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
             <button
               onClick={() => photoInputRef.current?.click()}
               disabled={photoUploading || photoAvatarStatus === "processing"}
-              className="text-[11px] text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1 transition-colors"
+              className="text-label-base text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1 transition-colors"
             >
               <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <rect x="2" y="3" width="12" height="10" rx="2" />
@@ -490,10 +490,10 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
               {photoAvatarStatus === "processing" ? "Processing..." : photoUploading ? "Uploading..." : "Use your photo"}
             </button>
             {photoAvatarStatus === "ready" && (
-              <span className="text-[10px] text-success">Ready</span>
+              <span className="text-label-sm text-success">Ready</span>
             )}
             {photoAvatarStatus === "failed" && (
-              <span className="text-[10px] text-error">Failed</span>
+              <span className="text-label-sm text-error">Failed</span>
             )}
           </div>
         </div>
@@ -502,7 +502,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
       {/* Voice selector */}
       {uniqueVoices.length > 0 && (
         <div className="space-y-2">
-          <label className="text-[10px] uppercase tracking-widest font-medium text-ink-faint">
+          <label className="text-label-sm uppercase tracking-widest font-medium text-ink-faint">
             Voice
           </label>
           <div className="flex flex-wrap gap-1.5">
@@ -530,7 +530,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
                         setPlayingVoiceId(voice.voice_id);
                       }
                     }}
-                    className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[9px] transition-all ${
+                    className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-label-xs transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
                       playingVoiceId === voice.voice_id
                         ? "bg-accent text-white"
                         : "text-ink-faint hover:text-accent hover:bg-cream-dark/40"
@@ -552,7 +552,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
                 )}
                 <button
                   onClick={() => setVoiceIndex(i)}
-                  className={`rounded-lg border px-3 py-1.5 text-xs transition-all ${
+                  className={`rounded-lg border px-3 py-1.5 text-xs transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
                     i === voiceIndex
                       ? "border-accent bg-accent-soft/40 text-accent font-medium"
                       : "border-cream-dark text-ink-muted hover:border-ink-faint/30"
@@ -564,7 +564,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
             ))}
           </div>
           {playingVoice && (
-            <p className="text-[10px] text-accent/70 animate-pulse">
+            <p className="text-label-sm text-accent/70 animate-pulse">
               Playing {playingVoice.name}…
             </p>
           )}
@@ -596,7 +596,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
                 setScriptAuditionLoading(false);
               }}
               disabled={scriptAuditionLoading}
-              className="text-[11px] text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1.5 transition-colors"
+              className="text-label-base text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1.5 transition-colors"
             >
               <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M4 3l9 5-9 5V3z" />
@@ -616,7 +616,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
             <button
               onClick={() => voiceInputRef.current?.click()}
               disabled={voiceCloneUploading || voiceCloneStatus === "processing"}
-              className="text-[11px] text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1 transition-colors"
+              className="text-label-base text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1 transition-colors"
             >
               <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
@@ -625,10 +625,10 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
               {voiceCloneStatus === "processing" ? "Cloning..." : voiceCloneUploading ? "Uploading..." : "Use your voice"}
             </button>
             {voiceCloneStatus === "ready" && (
-              <span className="text-[10px] text-success">Ready</span>
+              <span className="text-label-sm text-success">Ready</span>
             )}
             {voiceCloneStatus === "failed" && (
-              <span className="text-[10px] text-error">Failed</span>
+              <span className="text-label-sm text-error">Failed</span>
             )}
           </div>
         </div>
@@ -636,7 +636,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
 
       {/* Aspect ratio */}
       <div className="space-y-2">
-        <label className="text-[10px] uppercase tracking-widest font-medium text-ink-faint">
+        <label className="text-label-sm uppercase tracking-widest font-medium text-ink-faint">
           Aspect ratio
         </label>
         <div className="flex gap-2">
@@ -644,7 +644,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
             <button
               key={ratio.label}
               onClick={() => setAspectIndex(i)}
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition-all ${
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
                 i === aspectIndex
                   ? "border-accent bg-accent-soft/40 text-accent font-medium"
                   : "border-cream-dark text-ink-muted hover:border-ink-faint/30"
@@ -660,8 +660,8 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
       {/* Captions */}
       <div className="flex items-center justify-between py-2">
         <div>
-          <span className="text-[11px] font-medium text-ink">Subtitles</span>
-          <span className="text-[10px] text-ink-faint ml-1.5">Auto-generated captions</span>
+          <span className="text-label-base font-medium text-ink">Subtitles</span>
+          <span className="text-label-sm text-ink-faint ml-1.5">Auto-generated captions</span>
         </div>
         <button
           onClick={() => setCaptionsEnabled(!captionsEnabled)}
@@ -680,11 +680,11 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
       {/* Background audio */}
       <div className="space-y-3 pt-2 border-t border-cream-dark/40">
         <div className="flex items-center justify-between">
-          <label className="text-[10px] uppercase tracking-widest font-medium text-ink-faint">
+          <label className="text-label-sm uppercase tracking-widest font-medium text-ink-faint">
             Background audio
           </label>
           {vibeLoading && (
-            <span className="text-[9px] text-accent animate-pulse">Generating preview...</span>
+            <span className="text-label-xs text-accent animate-pulse">Generating preview...</span>
           )}
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -695,7 +695,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
               <div
                 key={v.id}
                 className={`
-                  relative rounded-xl border p-3 transition-all cursor-pointer
+                  relative rounded-xl border p-3 transition-[color,background-color,border-color,opacity,box-shadow,transform] cursor-pointer
                   ${isSelected 
                     ? "border-accent bg-accent-soft/30 shadow-sm" 
                     : "border-cream-dark bg-cream-dark/5 hover:border-ink-faint/30"
@@ -711,7 +711,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
                     {v.label}
                   </span>
                 </div>
-                <p className="text-[10px] text-ink-muted leading-tight">
+                <p className="text-label-sm text-ink-muted leading-tight">
                   {v.description}
                 </p>
                 
@@ -721,7 +721,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
                     handlePreviewVibe(v.id);
                   }}
                   className={`
-                    absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center border transition-all
+                    absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center border transition-[color,background-color,border-color,opacity,box-shadow,transform]
                     ${isPlaying 
                       ? "bg-accent text-white border-accent" 
                       : "bg-white text-ink-faint border-cream-dark hover:text-accent hover:border-accent"
@@ -757,7 +757,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
           >
             {/* Background color */}
             <div className="space-y-2">
-              <label className="text-[10px] uppercase tracking-widest font-medium text-ink-faint">
+              <label className="text-label-sm uppercase tracking-widest font-medium text-ink-faint">
                 Background
               </label>
               <div className="flex gap-2 flex-wrap">
@@ -769,7 +769,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
                       setCustomBg("");
                       setShowBgPicker(false);
                     }}
-                    className={`w-8 h-8 rounded-lg border-2 transition-all ${
+                    className={`w-8 h-8 rounded-lg border-2 transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
                       backgroundColor === preset.value && !customBg
                         ? "border-accent ring-2 ring-accent/20 scale-110"
                         : "border-cream-dark hover:border-ink-faint/30"
@@ -780,7 +780,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
                 ))}
                 <button
                   onClick={() => setShowBgPicker(!showBgPicker)}
-                  className={`w-8 h-8 rounded-lg border-2 border-dashed flex items-center justify-center text-xs text-ink-faint transition-all ${
+                  className={`w-8 h-8 rounded-lg border-2 border-dashed flex items-center justify-center text-xs text-ink-faint transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
                     showBgPicker || customBg
                       ? "border-accent"
                       : "border-cream-dark hover:border-ink-faint/30"
@@ -804,7 +804,7 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
             </div>
 
             {/* Stats */}
-            <div className="flex items-center justify-between text-[10px] text-ink-faint pt-1 border-t border-cream-dark/40">
+            <div className="flex items-center justify-between text-label-sm text-ink-faint pt-1 border-t border-cream-dark/40">
               <span>
                 {avatars.length} avatars · {uniqueVoices.length} voices
               </span>

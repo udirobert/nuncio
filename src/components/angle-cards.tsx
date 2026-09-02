@@ -80,7 +80,7 @@ export function AngleCards({
               whileHover={{ scale: 1.01, y: -2 }}
               whileTap={{ scale: 0.99 }}
               onClick={() => onSelect(angle)}
-              className={`w-full text-left rounded-xl border-2 p-4 transition-all duration-200 ${
+              className={`w-full text-left rounded-xl border-2 p-4 transition-[color,background-color,border-color,opacity,box-shadow,transform] duration-200 ${
                 isSelected
                   ? "border-accent bg-accent-soft/40 shadow-md"
                   : "border-cream-dark bg-white hover:border-accent/30 hover:shadow-lg"

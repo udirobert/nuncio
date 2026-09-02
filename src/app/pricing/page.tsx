@@ -155,7 +155,7 @@ function PricingContent() {
         animate={{ opacity: 1, y: 0 }}
         className="mb-16 max-w-2xl"
       >
-        <span className="text-[10px] uppercase tracking-widest font-medium text-accent mb-4 block">
+        <span className="text-label-sm uppercase tracking-widest font-medium text-accent mb-4 block">
           Pricing
         </span>
         <h1 className="font-display text-5xl md:text-7xl tracking-tighter leading-[0.85] mb-6">
@@ -174,13 +174,13 @@ function PricingContent() {
           className="max-w-md mx-auto mb-10 rounded-2xl border border-cream-dark bg-white p-4 flex items-center justify-between gap-4"
         >
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">Your account</p>
+            <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">Your account</p>
             <p className="text-2xl font-display text-ink mt-1">
               {account.balance ?? 0} <span className="text-sm text-ink-muted font-normal">credits</span>
             </p>
           </div>
           <div className="text-right">
-            <span className={`inline-block text-[10px] uppercase tracking-widest font-bold px-2.5 py-1 rounded-md ${
+            <span className={`inline-block text-label-sm uppercase tracking-widest font-bold px-2.5 py-1 rounded-md ${
               account.plan === "pro" || account.plan === "studio"
                 ? "bg-accent-soft text-accent"
                 : "bg-cream-dark text-ink-faint"
@@ -209,7 +209,7 @@ function PricingContent() {
         href="/studio"
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="group flex items-center justify-between gap-4 max-w-2xl mx-auto mb-10 rounded-2xl border border-cream-dark bg-white/60 hover:bg-white hover:border-accent/30 transition-all px-5 py-4 cursor-pointer"
+        className="group flex items-center justify-between gap-4 max-w-2xl mx-auto mb-10 rounded-2xl border border-cream-dark bg-white/60 hover:bg-white hover:border-accent/30 transition-[color,background-color,border-color,opacity,box-shadow,transform] px-5 py-4 cursor-pointer"
       >
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-accent-soft flex items-center justify-center shrink-0">
@@ -248,28 +248,30 @@ function PricingContent() {
               className="lg:col-span-3 relative rounded-2xl border-2 border-accent bg-white p-7 flex flex-col shadow-2xl shadow-accent/5"
             >
               <div className="absolute -top-3 left-7">
-                <span className="text-[10px] uppercase tracking-widest font-bold text-white bg-accent px-3 py-1.5 rounded-full shadow-lg shadow-accent/20">
+                <span className="text-label-sm uppercase tracking-widest font-bold text-white bg-accent px-3 py-1.5 rounded-full shadow-lg shadow-accent/20">
                   Recommended
                 </span>
               </div>
 
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <span className="text-[10px] uppercase tracking-widest font-medium text-ink-faint">
-                    {tier.eyebrow}
-                  </span>
+                  {tier.id !== "pro" && (
+                    <span className="text-label-sm uppercase tracking-widest font-medium text-ink-faint">
+                      {tier.eyebrow}
+                    </span>
+                  )}
                   <h2 className="font-display text-4xl tracking-tight mt-2">{tier.name}</h2>
                 </div>
                 <div className="flex items-center gap-2 bg-cream-dark/50 p-1 rounded-full">
                   <button
                     onClick={() => setAnnual(false)}
-                    className={`px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all ${!annual ? "bg-white text-ink shadow-sm" : "text-ink-faint"}`}
+                    className={`px-4 py-1.5 rounded-full text-label-sm uppercase tracking-widest font-bold transition-[color,background-color,border-color,opacity,box-shadow,transform] ${!annual ? "bg-white text-ink shadow-sm" : "text-ink-faint"}`}
                   >
                     Monthly
                   </button>
                   <button
                     onClick={() => setAnnual(true)}
-                    className={`px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all ${annual ? "bg-accent text-white shadow-sm" : "text-ink-faint"}`}
+                    className={`px-4 py-1.5 rounded-full text-label-sm uppercase tracking-widest font-bold transition-[color,background-color,border-color,opacity,box-shadow,transform] ${annual ? "bg-accent text-white shadow-sm" : "text-ink-faint"}`}
                   >
                     Yearly
                   </button>
@@ -279,7 +281,7 @@ function PricingContent() {
               <div className="mt-6 flex items-baseline gap-2">
                 <span className="font-display text-6xl tracking-tight text-accent">{displayedPrice}</span>
                 <span className="text-sm text-ink-faint">/{displayedPeriod}</span>
-                <span className="text-[10px] font-bold text-success bg-success-soft px-2 py-1 rounded-md ml-1">
+                <span className="text-label-sm font-bold text-success bg-success-soft px-2 py-1 rounded-md ml-1">
                   {annual ? "Save 17%" : "Monthly"}
                 </span>
               </div>
@@ -317,7 +319,7 @@ function PricingContent() {
               <button
                 onClick={() => handleCheckout()}
                 disabled={loading !== null}
-                className="btn-press w-full rounded-xl py-4 text-sm font-bold transition-all mt-auto disabled:opacity-40 bg-ink text-cream hover:bg-ink-light shadow-xl shadow-ink/10"
+                className="btn-press w-full rounded-xl py-4 text-sm font-bold transition-[color,background-color,border-color,opacity,box-shadow,transform] mt-auto disabled:opacity-40 bg-ink text-cream hover:bg-ink-light shadow-xl shadow-ink/10"
               >
                 {isLoading ? "Preparing secure checkout..." : `${tier.cta}${annual ? " Annual" : " Monthly"}`}
               </button>
@@ -337,7 +339,7 @@ function PricingContent() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <span className="text-[10px] uppercase tracking-widest font-medium text-ink-faint">
+                  <span className="text-label-sm uppercase tracking-widest font-medium text-ink-faint">
                     {tier.eyebrow}
                   </span>
                   <h2 className="font-display text-2xl tracking-tight mt-1">{tier.name}</h2>
@@ -364,7 +366,7 @@ function PricingContent() {
                   }
                   window.location.assign("/studio");
                 }}
-                className="btn-press w-full rounded-xl py-3 text-sm font-bold transition-all mt-5 border border-cream-dark text-ink hover:bg-cream-dark/30"
+                className="btn-press w-full rounded-xl py-3 text-sm font-bold transition-[color,background-color,border-color,opacity,box-shadow,transform] mt-5 border border-cream-dark text-ink hover:bg-cream-dark/30"
               >
                 {tier.cta}
               </button>
@@ -373,7 +375,7 @@ function PricingContent() {
         </div>
       </div>
 
-      <p className="mt-6 text-center text-[11px] text-ink-faint">
+      <p className="mt-6 text-center text-label-base text-ink-faint">
         Credits are the meter. Meetings booked are the metric — we never charge for “more sends”.
       </p>
 
@@ -386,7 +388,7 @@ function PricingContent() {
       >
         <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
-            <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
+            <span className="text-label-sm uppercase tracking-widest font-medium text-accent">
               Credit packs
             </span>
             <h2 className="mt-2 font-display text-3xl tracking-tight">
@@ -403,7 +405,7 @@ function PricingContent() {
               key={pack.id}
               onClick={() => handleCheckout(pack.priceId, pack.id, "payment")}
               disabled={!pack.priceId || loading === pack.id}
-              className="btn-press rounded-xl border border-cream-dark p-4 text-left transition-all hover:border-accent/40 hover:bg-accent-soft/20 disabled:cursor-not-allowed disabled:opacity-50"
+              className="btn-press rounded-xl border border-cream-dark p-4 text-left transition-[color,background-color,border-color,opacity,box-shadow,transform] hover:border-accent/40 hover:bg-accent-soft/20 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm font-semibold text-ink">{pack.label}</span>
@@ -411,7 +413,7 @@ function PricingContent() {
               </div>
               <p className="mt-1 text-xs text-ink-muted">{pack.note}</p>
               <p className="mt-2 text-xs font-medium text-accent">{pack.videos}</p>
-              <p className="mt-3 text-[10px] uppercase tracking-widest text-ink-faint">
+              <p className="mt-3 text-label-sm uppercase tracking-widest text-ink-faint">
                 {pack.priceId ? loading === pack.id ? "Opening checkout..." : "Buy pack" : "Price ID missing"}
               </p>
             </button>
@@ -428,7 +430,7 @@ function PricingContent() {
       >
         <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between mb-5">
           <div>
-            <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
+            <span className="text-label-sm uppercase tracking-widest font-medium text-accent">
               Think in videos
             </span>
             <h2 className="mt-2 font-display text-3xl tracking-tight">
@@ -444,20 +446,20 @@ function PricingContent() {
             <div key={t.mode} className="rounded-xl border border-cream-dark bg-cream/40 p-4 text-center">
               <p className="font-display text-4xl text-accent">{t.credits}</p>
               <p className="text-sm font-semibold text-ink mt-1">{t.mode} video</p>
-              <p className="text-[11px] text-ink-muted mt-2 leading-relaxed">{t.note}</p>
+              <p className="text-label-base text-ink-muted mt-2 leading-relaxed">{t.note}</p>
             </div>
           ))}
         </div>
-        <p className="text-[10px] uppercase tracking-widest text-ink-faint text-center mb-3">Per-step breakdown</p>
+        <p className="text-label-sm uppercase tracking-widest text-ink-faint text-center mb-3">Per-step breakdown</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {CREDIT_COSTS.map((item) => (
             <div key={item.action} className="rounded-xl border border-cream-dark p-3 text-center">
               <p className="font-display text-2xl text-ink">{item.cost}</p>
-              <p className="text-[11px] text-ink-muted mt-1">{item.action}</p>
+              <p className="text-label-base text-ink-muted mt-1">{item.action}</p>
             </div>
           ))}
         </div>
-        <p className="text-[10px] text-ink-faint mt-3 text-center">
+        <p className="text-label-sm text-ink-faint mt-3 text-center">
           Costs are per stage. The totals above reflect a complete run at each depth.
         </p>
       </motion.section>
@@ -467,7 +469,7 @@ function PricingContent() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.4 }}
-        className="flex flex-wrap items-center justify-center gap-10 mt-20 text-[10px] uppercase tracking-widest font-semibold text-ink-faint"
+        className="flex flex-wrap items-center justify-center gap-10 mt-20 text-label-sm uppercase tracking-widest font-semibold text-ink-faint"
       >
         <span className="flex items-center gap-2">
           <svg viewBox="0 0 14 14" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">

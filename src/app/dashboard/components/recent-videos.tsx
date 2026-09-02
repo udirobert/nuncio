@@ -172,7 +172,7 @@ export function RecentVideos() {
   if (loading) {
     return (
       <div className="rounded-2xl border border-cream-dark bg-white p-5">
-        <span className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+        <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
           Recent activity
         </span>
         <div className="mt-4 space-y-3">
@@ -187,13 +187,13 @@ export function RecentVideos() {
   if (entries.length === 0) {
     return (
       <div className="rounded-2xl border border-cream-dark bg-white p-5 text-center">
-        <span className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+        <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
           Recent activity
         </span>
         <p className="text-sm text-ink-muted mt-4 mb-3">No videos yet</p>
         <Link
           href="/studio"
-          className="inline-block text-[11px] uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
+          className="inline-block text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
         >
           Create your first video
         </Link>
@@ -205,14 +205,14 @@ export function RecentVideos() {
 
   return (
     <div className="rounded-2xl border border-cream-dark bg-white p-5 space-y-4">
-      <span className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+      <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
         Recent activity
       </span>
 
       <div className="space-y-5">
         {Array.from(grouped.entries()).map(([dateLabel, dateEntries]) => (
           <div key={dateLabel}>
-            <div className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-2">
+            <div className="text-label-sm uppercase tracking-widest text-ink-faint font-medium mb-2">
               {dateLabel}
             </div>
             <div className="space-y-1">
@@ -223,16 +223,16 @@ export function RecentVideos() {
                 >
                   <StatusIcon status={entry.status} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-[12px] text-ink font-medium truncate">
+                    <div className="text-body-xs text-ink font-medium truncate">
                       {entry.label}
                     </div>
-                    <div className="text-[10px] text-ink-faint">
+                    <div className="text-label-sm text-ink-faint">
                       {entry.detail}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {entry.status === "running" && (
-                      <span className="text-[10px] text-accent">In progress</span>
+                      <span className="text-label-sm text-accent">In progress</span>
                     )}
                     {entry.status === "completed" && entry.type === "video" && (
                       <>
@@ -246,14 +246,14 @@ export function RecentVideos() {
                               setTimeout(() => setCopiedId(null), 2000);
                             }
                           }}
-                          className="text-[10px] uppercase tracking-widest font-medium text-ink-faint hover:text-ink transition-colors opacity-0 group-hover:opacity-100"
+                          className="text-label-sm uppercase tracking-widest font-medium text-ink-faint hover:text-ink transition-colors"
                         >
                           {copiedId === entry.id ? "Copied!" : "Copy link"}
                         </button>
                         <Link
                           href={entry.url || "#"}
                           target="_blank"
-                          className="text-[10px] uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors opacity-0 group-hover:opacity-100"
+                          className="text-label-sm uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
                           onClick={(e) => e.stopPropagation()}
                         >
                           View
@@ -263,7 +263,7 @@ export function RecentVideos() {
                     {entry.type === "batch" && (
                       <Link
                         href="/batch"
-                        className="text-[10px] uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors opacity-0 group-hover:opacity-100"
+                        className="text-label-sm uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
                       >
                         Open
                       </Link>

@@ -151,7 +151,7 @@ export function AnglePicker({ profile, onConfirm, onSkip }: AnglePickerProps) {
                 transition={{ delay: i * 0.08, duration: 0.4 }}
                 onClick={() => toggleAngle(i)}
                 className={`
-                  w-full text-left rounded-2xl border px-5 py-4 transition-all duration-200
+                  w-full text-left rounded-2xl border px-5 py-4 transition-[color,background-color,border-color,opacity,box-shadow,transform] duration-200
                   ${selected.has(i)
                     ? "border-accent bg-accent-soft/30 shadow-sm"
                     : "border-cream-dark bg-white hover:border-ink-faint/30"
@@ -190,7 +190,7 @@ export function AnglePicker({ profile, onConfirm, onSkip }: AnglePickerProps) {
             transition={{ delay: 0.4 }}
             className="mb-8 rounded-xl bg-cream-dark/40 px-4 py-3"
           >
-            <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-2">
+            <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium mb-2">
               Deliberately skipped
             </p>
             <div className="space-y-1">
@@ -219,7 +219,7 @@ export function AnglePicker({ profile, onConfirm, onSkip }: AnglePickerProps) {
           <button
             onClick={handleConfirm}
             disabled={selected.size === 0}
-            className={`btn-press flex-[2] rounded-2xl px-5 py-4 text-sm font-medium transition-all ${
+            className={`btn-press flex-[2] rounded-2xl px-5 py-4 text-sm font-medium transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
               selected.size > 0
                 ? "bg-ink text-cream shadow-xl shadow-ink/15 hover:shadow-2xl hover:-translate-y-0.5"
                 : "bg-cream-dark text-ink-faint cursor-not-allowed"
@@ -233,7 +233,7 @@ export function AnglePicker({ profile, onConfirm, onSkip }: AnglePickerProps) {
             </span>
           </button>
         </motion.div>
-        <p className="text-center text-[11px] text-ink-faint mt-3">
+        <p className="text-center text-label-base text-ink-faint mt-3">
           Script generation starts only after you confirm an angle.
         </p>
       </motion.div>

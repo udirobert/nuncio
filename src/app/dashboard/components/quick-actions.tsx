@@ -45,7 +45,7 @@ const ACTIONS = [
 export function QuickActions() {
   return (
     <div className="rounded-2xl border border-cream-dark bg-white p-5 space-y-3">
-      <span className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+      <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
         Quick actions
       </span>
 
@@ -60,10 +60,10 @@ export function QuickActions() {
               {action.icon}
             </span>
             <div>
-              <div className="text-[11px] uppercase tracking-widest font-medium text-ink group-hover:text-accent transition-colors">
+              <div className="text-label-base uppercase tracking-widest font-medium text-ink group-hover:text-accent transition-colors">
                 {action.label}
               </div>
-              <div className="text-[10px] text-ink-faint">{action.subtitle}</div>
+              <div className="text-label-sm text-ink-faint">{action.subtitle}</div>
             </div>
           </Link>
         ))}

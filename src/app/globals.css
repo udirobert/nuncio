@@ -178,11 +178,10 @@ button, a, [role="button"] {
   transition: color var(--duration-fast) var(--ease-out);
 }
 
-/* Focus ring animation */
+/* Focus ring — no transition, keyboard users need an instant indicator */
 *:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--color-cream), 0 0 0 4px var(--color-accent);
-  transition: box-shadow var(--duration-fast) var(--ease-out);
 }
 
 /* Card-wall infinite drift (used by landing/card-wall.tsx) */

@@ -60,7 +60,7 @@ export default function RootLayout({
         <footer className="mt-auto px-6 py-6 text-center">
           <a
             href="/studio"
-            className="text-[11px] text-ink-faint hover:text-accent transition-colors"
+            className="text-label-base text-ink-faint hover:text-accent transition-colors"
           >
             nuncio
           </a>

@@ -61,7 +61,7 @@ export function UsageSummary() {
 
   return (
     <div className="rounded-2xl border border-cream-dark bg-white p-5 space-y-4">
-      <span className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+      <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
         This month
       </span>
 
@@ -70,7 +70,7 @@ export function UsageSummary() {
           <div className="font-display text-2xl text-ink">
             {totalVideos}
           </div>
-          <div className="text-[10px] uppercase tracking-widest text-ink-faint mt-0.5">
+          <div className="text-label-sm uppercase tracking-widest text-ink-faint mt-0.5">
             Videos
           </div>
         </div>
@@ -78,7 +78,7 @@ export function UsageSummary() {
           <div className="font-display text-2xl text-ink">
             {completedVideos}
           </div>
-          <div className="text-[10px] uppercase tracking-widest text-ink-faint mt-0.5">
+          <div className="text-label-sm uppercase tracking-widest text-ink-faint mt-0.5">
             Completed
           </div>
         </div>
@@ -86,7 +86,7 @@ export function UsageSummary() {
           <div className="font-display text-2xl text-ink">
             {activeBatches}
           </div>
-          <div className="text-[10px] uppercase tracking-widest text-ink-faint mt-0.5">
+          <div className="text-label-sm uppercase tracking-widest text-ink-faint mt-0.5">
             Active campaigns
           </div>
         </div>
@@ -94,7 +94,7 @@ export function UsageSummary() {
           <div className="font-display text-2xl text-ink">
             {batches.length}
           </div>
-          <div className="text-[10px] uppercase tracking-widest text-ink-faint mt-0.5">
+          <div className="text-label-sm uppercase tracking-widest text-ink-faint mt-0.5">
             Campaigns
           </div>
         </div>

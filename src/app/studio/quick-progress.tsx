@@ -169,7 +169,7 @@ export function QuickProgress({
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
             </span>
-            <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
+            <span className="text-label-sm uppercase tracking-widest font-medium text-accent">
               Generating
             </span>
           </div>
@@ -179,13 +179,13 @@ export function QuickProgress({
           <p className="text-sm text-ink-muted">
             Usually takes 2–3 minutes. You have waited {formatElapsed(elapsedSeconds)}.
           </p>
-          <p className="text-[11px] text-ink-faint mt-1">
+          <p className="text-label-base text-ink-faint mt-1">
             You can leave this tab open and come back — we will notify you when it is ready.
           </p>
         </div>
 
         <div className="rounded-2xl border border-cream-dark bg-white p-4 shadow-sm space-y-3 overflow-hidden">
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-widest text-ink-faint">
+          <div className="flex items-center justify-between text-label-base uppercase tracking-widest text-ink-faint">
             <span>Live build</span>
             <span>{progress}%</span>
           </div>
@@ -274,7 +274,7 @@ export function QuickProgress({
                 <span className="text-sm">{"\u270D\uFE0F"}</span>
                 <span className="text-xs font-medium text-ink">Prep your outreach while you wait</span>
               </div>
-              <span className="text-[10px] text-accent font-medium">
+              <span className="text-label-sm text-accent font-medium">
                 {showComposer ? "Collapse" : "Expand"}
               </span>
             </button>
@@ -287,7 +287,7 @@ export function QuickProgress({
                   exit={{ opacity: 0, height: 0 }}
                   className="overflow-hidden space-y-3"
                 >
-                  <p className="text-[11px] text-ink-muted">
+                  <p className="text-label-base text-ink-muted">
                     Write the message that will accompany your video. We will save it for when the video is ready.
                   </p>
 
@@ -297,7 +297,7 @@ export function QuickProgress({
                       <button
                         key={ch.id}
                         onClick={() => { const hadSuggestion = !!suggestedDraft; setSelectedChannel(ch.id); suggestionFetchedRef.current = null; setSuggestedDraft(""); if (hadSuggestion && !draftMessage) fetchSuggestion(ch.id); }}
-                        className={`rounded-lg border px-2.5 py-1.5 text-[11px] transition-all ${
+                        className={`rounded-lg border px-2.5 py-1.5 text-label-base transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
                           selectedChannel === ch.id
                             ? "border-accent bg-accent-soft/40 text-accent font-medium"
                             : "border-cream-dark text-ink-muted hover:border-ink-faint/30"
@@ -312,31 +312,31 @@ export function QuickProgress({
                   {waitContext?.recipientName && !suggestionLoading && !suggestedDraft && !draftMessage && (
                     <button
                       onClick={() => fetchSuggestion(selectedChannel)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent-soft/30 px-3 py-1.5 text-[11px] font-medium text-accent hover:bg-accent-soft/50 transition-colors"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent-soft/30 px-3 py-1.5 text-label-base font-medium text-accent hover:bg-accent-soft/50 transition-colors"
                     >
                       {"\u2728"} Draft with AI
                     </button>
                   )}
                   {suggestionLoading && (
-                    <div className="flex items-center gap-2 text-[11px] text-ink-faint animate-pulse">
+                    <div className="flex items-center gap-2 text-label-base text-ink-faint animate-pulse">
                       <span className="inline-block w-3 h-3 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
                       Drafting a suggestion...
                     </div>
                   )}
                   {suggestedDraft && !draftMessage && (
                     <div className="rounded-xl border border-accent/15 bg-accent-soft/20 p-3 space-y-2">
-                      <p className="text-[10px] uppercase tracking-widest text-accent/70 font-medium">AI suggestion</p>
+                      <p className="text-label-sm uppercase tracking-widest text-accent/70 font-medium">AI suggestion</p>
                       <p className="text-xs text-ink-light leading-relaxed whitespace-pre-wrap">{suggestedDraft}</p>
                       <div className="flex gap-2">
                         <button
                           onClick={() => { setDraftMessage(suggestedDraft); trackWaitScreenAiDraftGenerated({ channel: selectedChannel, accepted: true }); }}
-                          className="text-[11px] text-accent font-medium hover:text-accent/80 transition-colors"
+                          className="text-label-base text-accent font-medium hover:text-accent/80 transition-colors"
                         >
                           Use this
                         </button>
                         <button
                           onClick={() => { suggestionFetchedRef.current = null; fetchSuggestion(selectedChannel); }}
-                          className="text-[11px] text-ink-faint hover:text-ink-muted transition-colors"
+                          className="text-label-base text-ink-faint hover:text-ink-muted transition-colors"
                         >
                           Regenerate
                         </button>
@@ -349,13 +349,13 @@ export function QuickProgress({
                     value={draftMessage}
                     onChange={(e) => setDraftMessage(e.target.value)}
                     placeholder={MESSAGE_CHANNELS.find((c) => c.id === selectedChannel)?.placeholder || "Write your message..."}
-                    className="w-full h-24 rounded-xl border border-cream-dark bg-cream/30 p-3 text-sm text-ink placeholder:text-ink-faint/60 resize-none focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all"
+                    className="w-full h-24 rounded-xl border border-cream-dark bg-cream/30 p-3 text-sm text-ink placeholder:text-ink-faint/60 resize-none focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-[color,background-color,border-color,opacity,box-shadow,transform]"
                   />
 
                   {draftMessage.length > 10 && onDraftReady && (
                     <button
                       onClick={() => { onDraftReady({ channel: selectedChannel, message: draftMessage }); trackWaitScreenDraftSaved({ channel: selectedChannel, usedAiSuggestion: draftMessage === suggestedDraft }); }}
-                      className="text-[11px] text-accent font-medium hover:text-accent/80 transition-colors"
+                      className="text-label-base text-accent font-medium hover:text-accent/80 transition-colors"
                     >
                       {"\u2713"} Save draft
                     </button>
@@ -364,7 +364,7 @@ export function QuickProgress({
                   {/* Recipient intel — clean cards built from structured posts */}
                   {waitContext?.recentActivityPosts && waitContext.recentActivityPosts.length > 0 && (
                     <div className="space-y-2 pt-1 border-t border-cream-dark/60">
-                      <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium pt-2">
+                      <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium pt-2">
                         What we found about {waitContext.recipientName || "them"}
                       </p>
                       <div className="space-y-1.5">
@@ -377,7 +377,7 @@ export function QuickProgress({
                               {post.text}
                             </p>
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-[10px] text-ink-faint flex items-center gap-1.5">
+                              <span className="text-label-sm text-ink-faint flex items-center gap-1.5">
                                 <span>{post.platform === "linkedin" ? "\uD83D\uDCBC" : "\uD83D\uDC26"}</span>
                                 {post.relativeDate && <span>{post.relativeDate}</span>}
                                 {post.url && (
@@ -393,7 +393,7 @@ export function QuickProgress({
                               </span>
                               <button
                                 onClick={() => referencePost(post)}
-                                className="text-[10px] text-accent font-medium hover:text-accent/80 transition-colors shrink-0"
+                                className="text-label-sm text-accent font-medium hover:text-accent/80 transition-colors shrink-0"
                               >
                                 Reference in draft {"\u2192"}
                               </button>
@@ -425,7 +425,7 @@ export function QuickProgress({
         <div className="text-center">
           <button
             onClick={onToggleDetails}
-            className="text-[11px] text-ink-faint hover:text-accent transition-colors flex items-center gap-1 mx-auto"
+            className="text-label-base text-ink-faint hover:text-accent transition-colors flex items-center gap-1 mx-auto"
           >
             <svg
               viewBox="0 0 16 16"

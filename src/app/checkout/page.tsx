@@ -155,7 +155,7 @@ function CheckoutContent() {
           )}
 
           {/* Trust footer */}
-          <p className="text-center text-[11px] text-ink-faint mt-6">
+          <p className="text-center text-label-base text-ink-faint mt-6">
             Secured by Stripe · Your payment information is encrypted
           </p>
         </div>

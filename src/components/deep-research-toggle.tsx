@@ -63,15 +63,15 @@ export function DeepResearchToggle({
             <path d="M8 2v12M2 8h12" />
             <circle cx="8" cy="8" r="6" />
           </svg>
-          <span className="text-[11px] text-ink">Deep Research</span>
+          <span className="text-label-base text-ink">Deep Research</span>
           {!isUpgradeRequired && (
-            <span className="text-[9px] font-mono text-ink-faint/60">{info.provider}</span>
+            <span className="text-label-xs font-mono text-ink-faint/60">{info.provider}</span>
           )}
         </div>
         <div className="flex items-center gap-2">
           {isUpgradeRequired ? (
             <button
-              className="text-[10px] px-2 py-1 rounded-md bg-accent-soft text-accent border border-accent/20 hover:bg-accent/10 transition-colors font-medium"
+              className="text-label-sm px-2 py-1 rounded-md bg-accent-soft text-accent border border-accent/20 hover:bg-accent/10 transition-colors font-medium"
               onClick={() => onToggle(false)}
               title={info.tooltip}
             >
@@ -100,7 +100,7 @@ export function DeepResearchToggle({
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`rounded-xl border-2 p-4 transition-all duration-200 ${
+      className={`rounded-xl border-2 p-4 transition-[color,background-color,border-color,opacity,box-shadow,transform] duration-200 ${
         enabled
           ? "border-accent/30 bg-accent-soft/20"
           : isUpgradeRequired
@@ -118,19 +118,19 @@ export function DeepResearchToggle({
             <span className={`text-sm font-medium ${enabled ? "text-accent" : "text-ink"}`}>
               Deep Research
             </span>
-            <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-medium ${
+            <span className={`px-1.5 py-0.5 rounded text-label-xs font-mono font-medium ${
               enabled ? "bg-accent-soft text-accent" : "bg-cream-dark/50 text-ink-faint"
             }`}>
               {info.provider}
             </span>
           </div>
-          <p className={`text-[11px] leading-relaxed ${
+          <p className={`text-label-base leading-relaxed ${
             enabled ? "text-ink-muted" : "text-ink-faint"
           }`}>
             {info.tooltip}
           </p>
           {enabled && userTier === "studio" && (
-            <p className="text-[10px] text-ink-faint italic">
+            <p className="text-label-sm text-ink-faint italic">
               Includes semantic discovery across interviews, podcasts, and essays.
             </p>
           )}
@@ -138,7 +138,7 @@ export function DeepResearchToggle({
 
         {isUpgradeRequired ? (
           <button
-            className="shrink-0 px-3 py-1.5 rounded-lg bg-accent text-white text-[10px] font-medium hover:bg-accent/90 transition-colors"
+            className="shrink-0 px-3 py-1.5 rounded-lg bg-accent text-white text-label-sm font-medium hover:bg-accent/90 transition-colors"
             onClick={() => onToggle(false)}
           >
             {info.upgradeLabel} →

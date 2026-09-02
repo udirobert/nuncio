@@ -49,14 +49,14 @@ export function AccountMenu() {
       {session.authenticated ? (
         <button
           onClick={() => setOpen(!open)}
-          className="text-[11px] uppercase tracking-widest font-medium text-ink-muted hover:text-ink transition-colors"
+          className="text-label-base uppercase tracking-widest font-medium text-ink-muted hover:text-ink transition-colors"
         >
           {session.email?.split("@")[0]}
         </button>
       ) : (
         <Link
           href="/login"
-          className="inline-flex items-center rounded-full border border-accent/20 bg-accent-soft px-3 py-1.5 text-[11px] uppercase tracking-widest font-medium text-accent hover:bg-accent/10 transition-colors"
+          className="inline-flex items-center rounded-full border border-accent/20 bg-accent-soft px-3 py-1.5 text-label-base uppercase tracking-widest font-medium text-accent hover:bg-accent/10 transition-colors"
         >
           Sign in
         </Link>
@@ -73,11 +73,11 @@ export function AccountMenu() {
           >
             <div className="space-y-2">
               <p className="text-xs text-ink-muted truncate">{session.email}</p>
-              <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center justify-between text-label-base">
                 <span className="text-ink-faint">Plan</span>
                 <span className="text-ink font-medium capitalize">{session.plan || "free"}</span>
               </div>
-              <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center justify-between text-label-base">
                 <span className="text-ink-faint">Credits</span>
                 <span className="text-ink font-medium">{session.balance ?? "—"}</span>
               </div>
@@ -85,14 +85,14 @@ export function AccountMenu() {
               <Link
                 href="/dashboard"
                 onClick={() => setOpen(false)}
-                className="block text-[11px] text-accent hover:text-accent-soft transition-colors"
+                className="block text-label-base text-accent hover:text-accent-soft transition-colors"
               >
                 Dashboard
               </Link>
               <Link
                 href="/pricing"
                 onClick={() => setOpen(false)}
-                className="block text-[11px] text-accent hover:text-accent-soft transition-colors"
+                className="block text-label-base text-accent hover:text-accent-soft transition-colors"
               >
                 Buy credits
               </Link>
@@ -101,13 +101,13 @@ export function AccountMenu() {
                   localStorage.removeItem("nuncio_onboarding_done");
                   window.location.reload();
                 }}
-                className="block text-[11px] text-ink-faint hover:text-ink transition-colors"
+                className="block text-label-base text-ink-faint hover:text-ink transition-colors"
               >
                 Show tips
               </button>
               <button
                 onClick={handleLogout}
-                className="text-[11px] text-warm hover:text-warm-soft transition-colors"
+                className="text-label-base text-warm hover:text-warm-soft transition-colors"
               >
                 Sign out
               </button>

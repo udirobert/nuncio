@@ -439,7 +439,7 @@ export default function LiveAvatarLandingPage({
             <h1 className="font-display text-4xl md:text-5xl tracking-tight leading-[0.9] mb-3">
               Meet {sender} — anytime
             </h1>
-            <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium">
+            <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
               AI twin of {sender} · trained on their playbook · disclosed, never disguised
             </p>
           </motion.div>
@@ -560,7 +560,7 @@ export default function LiveAvatarLandingPage({
             transition={{ delay: 0.45, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="mt-8 rounded-2xl border border-cream-dark bg-white/70 p-4"
           >
-            <p className="text-[10px] uppercase tracking-widest text-ink-faint font-medium mb-2">
+            <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium mb-2">
               How this works
             </p>
             <p className="text-xs text-ink-muted leading-relaxed">
@@ -571,7 +571,7 @@ export default function LiveAvatarLandingPage({
       </main>
 
       <footer className="px-6 py-6 text-center">
-        <p className="text-[11px] text-ink-faint">
+        <p className="text-label-base text-ink-faint">
           Powered by{" "}
           <Link
             href={`/?ref=live-${share.id}`}

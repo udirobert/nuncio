@@ -66,7 +66,7 @@ export function RecipientCard({ item, size = "lg" }: RecipientCardProps) {
       className={`
         group block w-full rounded-2xl border border-cream-dark bg-white/80
         backdrop-blur-sm shadow-sm hover:shadow-xl hover:-translate-y-0.5
-        transition-all duration-300 overflow-hidden
+        transition-[color,background-color,border-color,opacity,box-shadow,transform] duration-300 overflow-hidden
         ${isLg ? "p-4" : "p-3"}
       `}
     >

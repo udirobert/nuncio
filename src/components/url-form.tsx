@@ -287,7 +287,7 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
                   <div
                     className={`
                       relative flex items-center gap-3 rounded-2xl border px-4 py-3.5
-                      transition-all duration-300
+                      transition-[color,background-color,border-color,opacity,box-shadow,transform] duration-300
                       ${justPasted === entry.id ? "scale-[1.02] border-accent bg-accent-soft/30" : ""}
                       ${entry.platform ? "border-cream-dark bg-white shadow-sm" : "border-cream-dark bg-cream-dark/40"}
                     `}
@@ -339,7 +339,7 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
                           initial={{ opacity: 0, scale: 0.8 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.8 }}
-                          className="text-[10px] uppercase tracking-wider text-ink-faint font-medium"
+                          className="text-label-sm uppercase tracking-wider text-ink-faint font-medium"
                         >
                           {PLATFORM_CONFIG[entry.platform].label}
                         </motion.span>
@@ -372,7 +372,7 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.32, duration: 0.4 }}
-            className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-ink-faint"
+            className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-label-base text-ink-faint"
           >
             <span>or try</span>
             {EXAMPLES.map((example, i) => (
@@ -422,9 +422,9 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
               onChange={(e) => setSenderBrief(e.target.value)}
               placeholder="e.g. I'm building a payments API and want to connect about their experience at Stripe..."
               rows={2}
-              className="w-full rounded-xl border border-cream-dark bg-cream-dark/30 px-4 py-3 text-sm text-ink placeholder:text-ink-faint/50 focus:outline-none focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/10 resize-none transition-all"
+              className="w-full rounded-xl border border-cream-dark bg-cream-dark/30 px-4 py-3 text-sm text-ink placeholder:text-ink-faint/50 focus:outline-none focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/10 resize-none transition-[color,background-color,border-color,opacity,box-shadow,transform]"
             />
-            <p className="text-[11px] text-ink-faint mt-1.5">
+            <p className="text-label-base text-ink-faint mt-1.5">
               Helps the script feel specific. Leave blank for a general intro.
             </p>
           </motion.div>
@@ -440,7 +440,7 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
               disabled={!isValid}
               className={`
                 btn-press w-full rounded-2xl px-6 py-4 text-sm font-medium
-                transition-all duration-300 relative overflow-hidden
+                transition-[color,background-color,border-color,opacity,box-shadow,transform] duration-300 relative overflow-hidden
                 ${
                   isValid
                     ? "bg-ink text-cream shadow-xl shadow-ink/15 hover:shadow-2xl hover:shadow-ink/20 hover:-translate-y-0.5"
@@ -479,7 +479,7 @@ function UrlFormInner({ onSubmit }: UrlFormProps) {
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="text-center text-[11px] text-ink-faint mt-3"
+                className="text-center text-label-base text-ink-faint mt-3"
               >
                 ⌘ + Enter · No account needed · ~5 minutes
               </motion.p>
