@@ -1134,6 +1134,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           deliveryMode: "livelink",
+          mode,
           recipientName: reviewProfile.name,
           senderName: senderName.trim() || undefined,
           profile: reviewProfile,
@@ -1232,6 +1233,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
             body: JSON.stringify({
               videoUrl: videoRenderResult?.videoUrl,
               videoId: videoRenderResult?.videoId,
+              mode,
               recipientName: reviewProfile?.name,
               senderName: senderName.trim() || undefined,
               profile: reviewProfile || undefined,
@@ -1335,6 +1337,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
         body: JSON.stringify({
           videoUrl,
           videoId,
+          mode,
           recipientName: reviewProfile?.name,
           senderName: senderName.trim() || undefined,
           profile: reviewProfile || undefined,

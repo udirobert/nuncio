@@ -314,7 +314,7 @@ export default function VideoLandingPage({
                     }}
                     className="btn-press rounded-xl bg-ink text-cream px-5 py-2.5 text-xs font-medium hover:bg-ink-light transition-colors"
                   >
-                    Book time with {senderName || "the sender"}
+                    {videoData.mode === "reconnect" ? `Let's catch up with ${senderName || "the sender"}` : `Book time with ${senderName || "the sender"}`}
                   </button>
                 )}
               </div>
@@ -415,12 +415,14 @@ export default function VideoLandingPage({
             >
               <div className="inline-flex flex-col items-center gap-4 rounded-2xl border border-cream-dark bg-white/80 px-8 py-6 shadow-sm">
                 <p className="text-sm text-ink-light max-w-[320px]">
-                  This researched you, wrote what you just watched, and can answer
-                  questions live.
+                  {videoData.mode === "reconnect"
+                    ? `${senderName ? `${senderName} turned a real memory into this with a little AI help — you can make one too.` : "This was made from a real memory, with a little AI help."}`
+                    : "This researched you, wrote what you just watched, and can answer questions live."}
                 </p>
                 <p className="text-xs text-ink-faint max-w-[320px]">
-                  It&apos;s {senderName ? `${senderName}'s` : "an"} AI twin — disclosed
-                  up front, built on their playbook.
+                  {videoData.mode === "reconnect"
+                    ? "Every word was reviewed before it was sent."
+                    : `It&apos;s ${senderName ? `${senderName}'s` : "an"} AI twin — disclosed up front, built on their playbook.`}
                 </p>
                 <Link
                   href={`/?ref=share-${videoData.id}`}
@@ -433,7 +435,7 @@ export default function VideoLandingPage({
                   }
                   className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-6 py-3 text-sm font-medium shadow-lg shadow-ink/15 hover:shadow-xl hover:-translate-y-0.5 transition-[color,background-color,border-color,opacity,box-shadow,transform]"
                 >
-                  Make yours →
+                  {videoData.mode === "reconnect" ? "Send one back →" : "Make yours →"}
                 </Link>
                 <p className="text-label-base text-ink-faint">
                   Free · No account needed · 90 seconds

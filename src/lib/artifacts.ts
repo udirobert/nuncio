@@ -51,6 +51,8 @@ export interface ShareRecord {
   deliveryMode?: "video" | "livelink";
   /** Snapshot of the sender's scheduling link — the booking CTA on /live and /v pages. */
   bookingUrl?: string;
+  /** Campaign mode for this share: outreach (default) or reconnect (consumer wedge). Drives share-page CTA copy. */
+  mode?: "outreach" | "reconnect";
   /** Custom thumbnail generated via GMI Cloud through Genblaze. */
   thumbnailUrl?: string;
   /** Generation provenance (Genblaze manifests, content hashes, models used). */

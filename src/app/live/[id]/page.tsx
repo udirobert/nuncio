@@ -537,14 +537,14 @@ export default function LiveAvatarLandingPage({
             >
               <button
                 onClick={handleBookingClick}
-                aria-label={`Book time with ${sender}`}
+                aria-label={share.mode === "reconnect" ? `Let's catch up with ${sender}` : `Book time with ${sender}`}
                 className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-5 py-2.5 text-sm font-medium hover:bg-white transition-colors flex items-center gap-2"
               >
                 <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <rect x="2" y="3" width="12" height="11" rx="2" />
                   <path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" />
                 </svg>
-                Book time with {sender}
+                {share.mode === "reconnect" ? `Let's catch up with ${sender}` : `Book time with ${sender}`}
               </button>
             </motion.div>
           )}
@@ -559,7 +559,9 @@ export default function LiveAvatarLandingPage({
               How this works
             </p>
             <p className="text-xs text-ink-muted leading-relaxed">
-              This is an AI avatar of {sender}. It can answer questions, explain the reason for reaching out, and book a meeting — all within the sender&apos;s playbook. You&apos;ll need to allow microphone access to talk. Your mic is only active while the session is running.
+              {share.mode === "reconnect"
+                ? `This is an AI twin of ${sender}. It can answer questions about the message — but the card was built around a real memory they shared, and they reviewed every word before it was sent. You&apos;ll need to allow microphone access to talk. Your mic is only active while the session is running.`
+                : `This is an AI avatar of ${sender}. It can answer questions, explain the reason for reaching out, and book a meeting — all within the sender&apos;s playbook. You&apos;ll need to allow microphone access to talk. Your mic is only active while the session is running.`}
             </p>
           </motion.div>
         </div>

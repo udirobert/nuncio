@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     industry,
     videoStyle,
     deliveryMode,
+    mode: campaignMode,
   }: {
     videoUrl?: string;
     videoId?: string;
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
     industry?: string;
     videoStyle?: string;
     deliveryMode?: "video" | "livelink";
+    mode?: "outreach" | "reconnect";
   } = body;
 
   const session = readAccountSession(request);
@@ -83,6 +85,7 @@ export async function POST(request: NextRequest) {
     workspaceId: session?.workspaceId,
     deliveryMode: mode,
     bookingUrl,
+    mode: campaignMode === "reconnect" ? "reconnect" : "outreach",
   });
 
   const sharePath = mode === "livelink" ? `/live/${record.id}` : `/v/${record.id}`;

@@ -117,6 +117,27 @@ Use London founder/operator access as a practical test bed before broadening the
 
 ## Next Steps
 
+### Reconnect mode experiment (consumer wedge)
+
+Single-brand-with-mode consumer wedge: the same nuncio engine powers both founder-led outreach and personal reconnection cards. The consumer mode is a lower-stakes, high-emotion top-of-funnel surface that stress-tests the honest-twin mechanics (S2) and the recipient→sender viral loop (S6) without diluting the B2B positioning. Default homepage stays founder-first; `?mode=reconnect` and a future `/reconnect` path carry the consumer variant.
+
+**Engineering status:**
+- [x] `?mode=reconnect` landing and studio copy pass
+- [x] Reconnect intents (`long_overdue`, `just_because`, `celebrate_milestone`, `reach_out`, `memory_lane`) and `claude.ts` reconnect rubrics
+- [x] `angle-picker` copy softened for personal context
+- [x] `personalMemory` guard enforced end-to-end (required in studio, passed through `PipelineInput`, weighted in `generateScript` prompt)
+- [ ] Share / live page CTAs adapted for friends ("Let's catch up" / "Send one back" / "Reply")
+- [ ] Default video customization to sender's cloned voice + photo avatar in reconnect mode
+- [ ] `/reconnect` dedicated route and onboarding path
+- [ ] Reconnect funnel analytics: `card_created`, `card_sent`, `recipient_watch_through`, `recipient_reply`, `recipient_signup`, `consumer_to_business_card`
+
+**Go / no-go metrics (30-day experiment):**
+- **Go:** `recipient signups / cards sent` > 8% within 14 days AND `consumer users who later create a B2B card / consumer signups` > 5% within 30 days.
+- **Hold:** either metric is in the 5–8% / 2–5% range — iterate copy and onboarding, but do not expand.
+- **Kill:** `recipient signups / cards sent` < 5% or `consumer → B2B card` < 2% — close the consumer path and keep nuncio founder-first.
+
+---
+
 Sequencing and gates come from `docs/STRATEGY.md` phases. Engineering items:
 
 ### STRATEGY Phase 1 — commit and instrument
