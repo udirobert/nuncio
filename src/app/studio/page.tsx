@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { LottieIcon } from "@/components/lottie-icon";
 import { getCachedAvatars, getCachedVoices } from "@/lib/heygen-server";
-import { isLiveLinkEnabled } from "@/lib/live-link";
+import { isLiveLinkEnabled, getAnamAvatarTrainingCreditCost, getAnamVoiceTrainingCreditCost } from "@/lib/live-link";
 import StudioClient from "./studio-client";
 
 export default async function StudioPage() {
@@ -16,6 +16,8 @@ export default async function StudioPage() {
         initialAvatars={avatars}
         initialVoices={voices}
         liveLinkEnabled={isLiveLinkEnabled()}
+        avatarTrainingCost={getAnamAvatarTrainingCreditCost()}
+        voiceTrainingCost={getAnamVoiceTrainingCreditCost()}
       />
     </Suspense>
   );

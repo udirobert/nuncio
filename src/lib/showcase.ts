@@ -1,11 +1,12 @@
 /**
  * Curated showcase recipients shown on the home page.
  *
- * These represent the kind of nuncios that have been (or could be) sent —
- * a recipient + the angle the agent surfaced. The wall demonstrates *what
- * good looks like* before a visitor has typed anything. When real share
- * records become diverse and public-facing, this file can be replaced by
- * a `list()` query against the share storage provider.
+ * These are simulated example outreach concepts — not real recipients, not
+ * testimonials, and not quotes from the people listed. Each entry shows a
+ * well-known public profile plus the angle Nuncio would surface for an outreach.
+ * The wall demonstrates *what good looks like* before a visitor has typed anything.
+ * When real, consenting share records become diverse and public-facing, this file
+ * can be replaced by a `list()` query against the share storage provider.
  */
 
 export type ShowcasePlatform =
@@ -21,7 +22,7 @@ export interface ShowcaseRecipient {
   name: string;
   role: string;
   platform: ShowcasePlatform;
-  /** A single-sentence "angle" the agent chose — italicised on the card. */
+  /** A single-sentence "angle" the agent chose for the outreach example. */
   angle: string;
   /** Hex tint for the avatar tile. */
   hue: string;

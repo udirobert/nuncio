@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { LottieIcon } from "@/components/lottie-icon";
 import type { VideoCustomization, HeyGenAvatar, HeyGenVoice } from "@/lib/heygen";
-import { LIVE_TWIN_TRAINING_CREDITS_ESTIMATE, LIVE_SESSION_CREDITS_PER_MINUTE, LIVE_SESSION_MAX_CREDITS } from "@/lib/live-link";
+import { LIVE_SESSION_CREDITS_PER_MINUTE, LIVE_SESSION_MAX_CREDITS } from "@/lib/live-link";
 
 const BACKGROUND_PRESETS = [
   { label: "White", value: "#FFFFFF" },
@@ -66,6 +66,8 @@ interface VideoCustomizationProps {
   onEnableLiveTwinChange?: (enabled: boolean) => void;
   /** Optional credit balance to surface cost and gate the live twin opt-in. */
   creditBalance?: number;
+  /** One-time training cost shown to the user. Defaults to 2 credits. */
+  trainingCreditCost?: number;
 }
 
 export function VideoCustomization({
@@ -82,6 +84,7 @@ export function VideoCustomization({
   enableLiveTwin: enableLiveTwinProp,
   onEnableLiveTwinChange,
   creditBalance,
+  trainingCreditCost = 2,
 }: VideoCustomizationProps) {
   const [avatars, setAvatars] = useState<HeyGenAvatar[]>(() => {
     const base = initialAvatars || readCache<HeyGenAvatar[]>(CACHE_KEY_AVATARS) || [];
@@ -153,6 +156,7 @@ export function VideoCustomization({
     if (typeof window === "undefined") return "idle";
     return localStorage.getItem("nuncio_anam_avatar_id") ? "ready" : "idle";
   });
+  const [anamAvatarError, setAnamAvatarError] = useState<string | null>(null);
   const [anamVoiceId, setAnamVoiceId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem("nuncio_anam_voice_id");
@@ -161,6 +165,7 @@ export function VideoCustomization({
     if (typeof window === "undefined") return "idle";
     return localStorage.getItem("nuncio_anam_voice_id") ? "ready" : "idle";
   });
+  const [anamVoiceError, setAnamVoiceError] = useState<string | null>(null);
   const isLiveTwinControlled = onEnableLiveTwinChange !== undefined;
   const [internalLiveTwin, setInternalLiveTwin] = useState(() => {
     if (!liveLinkEnabled) return false;
@@ -268,6 +273,8 @@ export function VideoCustomization({
   // Train live twin assets (Anam) only when the user has opted in.
   const createAnamAvatarFromDataUrl = useCallback(async (dataUrl: string) => {
     if (anamAvatarStatus !== "idle" && anamAvatarStatus !== "ready") return;
+    const previousId = anamAvatarId;
+    setAnamAvatarError(null);
     setAnamAvatarStatus("uploading");
     try {
       const res = await fetch("/api/anam/avatar", {
@@ -275,31 +282,47 @@ export function VideoCustomization({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageUrl: dataUrl, name: "My Photo Avatar" }),
       });
-      if (!res.ok) throw new Error("Anam avatar creation failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Live avatar training failed" }));
+        throw new Error(data.error || "Live avatar training failed");
+      }
       const result = await res.json();
-      setAnamAvatarId(result.avatarId);
       setAnamAvatarStatus("processing");
       const poll = setInterval(async () => {
         const statusRes = await fetch(`/api/anam/avatar?id=${result.avatarId}`);
-        if (!statusRes.ok) return;
+        if (!statusRes.ok) {
+          const data = await statusRes.json().catch(() => ({ error: "Live avatar status check failed" }));
+          clearInterval(poll);
+          setAnamAvatarStatus("failed");
+          setAnamAvatarError(data.error || "Live avatar training failed");
+          setAnamAvatarId(previousId);
+          return;
+        }
         const status = await statusRes.json();
         if (status.status === "completed") {
           clearInterval(poll);
+          setAnamAvatarId(result.avatarId);
           setAnamAvatarStatus("ready");
           localStorage.setItem("nuncio_anam_avatar_id", result.avatarId);
         } else if (status.status === "failed") {
           clearInterval(poll);
           setAnamAvatarStatus("failed");
+          setAnamAvatarError(status.error || "Live avatar training failed");
+          setAnamAvatarId(previousId);
         }
       }, 5000);
     } catch (err) {
       console.error("[live twin] avatar failed:", err);
       setAnamAvatarStatus("failed");
+      setAnamAvatarError(err instanceof Error ? err.message : "Live avatar training failed");
+      setAnamAvatarId(previousId);
     }
-  }, [anamAvatarStatus]);
+  }, [anamAvatarStatus, anamAvatarId]);
 
   const createAnamVoiceFromDataUrl = useCallback(async (dataUrl: string) => {
     if (anamVoiceStatus !== "idle" && anamVoiceStatus !== "ready") return;
+    const previousId = anamVoiceId;
+    setAnamVoiceError(null);
     setAnamVoiceStatus("uploading");
     try {
       const res = await fetch("/api/anam/voice", {
@@ -307,28 +330,42 @@ export function VideoCustomization({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ audioUrl: dataUrl, name: "My Voice" }),
       });
-      if (!res.ok) throw new Error("Anam voice creation failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Live voice training failed" }));
+        throw new Error(data.error || "Live voice training failed");
+      }
       const result = await res.json();
-      setAnamVoiceId(result.voiceId);
       setAnamVoiceStatus("processing");
       const poll = setInterval(async () => {
         const statusRes = await fetch(`/api/anam/voice?id=${result.voiceId}`);
-        if (!statusRes.ok) return;
+        if (!statusRes.ok) {
+          const data = await statusRes.json().catch(() => ({ error: "Live voice status check failed" }));
+          clearInterval(poll);
+          setAnamVoiceStatus("failed");
+          setAnamVoiceError(data.error || "Live voice training failed");
+          setAnamVoiceId(previousId);
+          return;
+        }
         const status = await statusRes.json();
         if (status.status === "completed") {
           clearInterval(poll);
+          setAnamVoiceId(result.voiceId);
           setAnamVoiceStatus("ready");
           localStorage.setItem("nuncio_anam_voice_id", result.voiceId);
         } else if (status.status === "failed") {
           clearInterval(poll);
           setAnamVoiceStatus("failed");
+          setAnamVoiceError(status.error || "Live voice training failed");
+          setAnamVoiceId(previousId);
         }
       }, 5000);
     } catch (err) {
       console.error("[live twin] voice failed:", err);
       setAnamVoiceStatus("failed");
+      setAnamVoiceError(err instanceof Error ? err.message : "Live voice training failed");
+      setAnamVoiceId(previousId);
     }
-  }, [anamVoiceStatus]);
+  }, [anamVoiceStatus, anamVoiceId]);
 
   // If the user toggles live twin on after uploading a file, train from the pending data URL.
   useEffect(() => {
@@ -487,7 +524,7 @@ export function VideoCustomization({
     liveTwinEnabled && deliveryMode === "livelink" && (!anamAvatarId || !anamVoiceId);
   const showLiveTwinSection = liveLinkEnabled && deliveryMode === "livelink";
   const insufficientCredits =
-    typeof creditBalance === "number" && creditBalance < LIVE_TWIN_TRAINING_CREDITS_ESTIMATE;
+    typeof creditBalance === "number" && creditBalance < trainingCreditCost;
 
   if (loading) {
     return (
@@ -857,7 +894,7 @@ export function VideoCustomization({
               </label>
               <p className="text-label-base text-ink-muted mt-0.5">
                 Train a talkable AI twin from your photo and voice for real-time conversations.
-                Estimated cost: <strong>{LIVE_TWIN_TRAINING_CREDITS_ESTIMATE} credits</strong> to train;
+                Estimated cost: <strong>{trainingCreditCost} credits</strong> to train;
                 conversations use <strong>{LIVE_SESSION_CREDITS_PER_MINUTE} credit/min</strong> (max {LIVE_SESSION_MAX_CREDITS} per session).
               </p>
             </div>
@@ -877,7 +914,7 @@ export function VideoCustomization({
           {typeof creditBalance === "number" && (
             <p className={`text-label-base ${insufficientCredits ? "text-warm" : "text-ink-faint"}`}>
               {insufficientCredits
-                ? `You need at least ${LIVE_TWIN_TRAINING_CREDITS_ESTIMATE} credits to train a live twin.`
+                ? `You need at least ${trainingCreditCost} credits to train a live twin.`
                 : `${creditBalance} credits available.`}
               {insufficientCredits && (
                 <a href="/pricing" className="ml-1.5 text-accent hover:text-accent/80 underline">
@@ -896,11 +933,26 @@ export function VideoCustomization({
               </span>
             </div>
           )}
+          {(anamAvatarError || anamVoiceError) && liveTwinEnabled && (
+            <div className="space-y-1 text-label-base text-warm">
+              {anamAvatarError && <p>{anamAvatarError}</p>}
+              {anamVoiceError && <p>{anamVoiceError}</p>}
+            </div>
+          )}
           {deliveryMode === "livelink" && !liveTwinEnabled && !insufficientCredits && (
             <p className="text-label-base text-warm">
               Live link mode is on, but you haven&apos;t enabled a live twin. Switch to Video or enable this to use your own face and voice.
             </p>
           )}
+        </div>
+      )}
+
+      {/* Cross-sell live twin when the user is in video mode */}
+      {liveLinkEnabled && deliveryMode === "video" && mode === "outreach" && (
+        <div className="space-y-2 pt-2 border-t border-cream-dark/40">
+          <p className="text-label-base text-ink-muted">
+            This produces a recorded video. Switch the delivery mode to <strong>Live link</strong> if you also want recipients to talk to your AI twin.
+          </p>
         </div>
       )}
 

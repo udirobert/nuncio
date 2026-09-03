@@ -15,7 +15,9 @@ export type CreditAction =
   | "research.premium"
   | "angle.generation"
   | "source.attribution"
-  | "live.session";
+  | "live.session"
+  | "live.avatar"
+  | "live.voice";
 
 export type CreditTransactionType = "grant" | "debit" | "refund" | "adjustment";
 
@@ -51,6 +53,8 @@ const COSTS: Record<CreditAction, number> = {
   "angle.generation": 1,
   "source.attribution": 0,
   "live.session": 5,
+  "live.avatar": 1,
+  "live.voice": 1,
 };
 
 const reservations = new Map<string, CreditReservation>();

@@ -59,6 +59,7 @@ export function RecipientCard({ item, size = "lg" }: RecipientCardProps) {
   return (
     <Link
       href={href}
+      aria-label={`Example outreach concept for ${item.name}`}
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
       onFocus={handleEnter}
@@ -143,7 +144,7 @@ export function RecipientCard({ item, size = "lg" }: RecipientCardProps) {
               {item.name}
             </p>
             <span className="text-label-xs uppercase tracking-widest text-ink-faint/70 shrink-0">
-              {PLATFORM_LABEL[item.platform]}
+              {PLATFORM_LABEL[item.platform]} · Example
             </span>
           </div>
           <p
@@ -157,14 +158,19 @@ export function RecipientCard({ item, size = "lg" }: RecipientCardProps) {
         </div>
       </div>
 
-      <p
-        className={`
-          font-display italic text-ink-light leading-snug
-          ${isLg ? "text-[13px] mt-3" : "text-[12px] mt-2.5"}
-        `}
-      >
-        “{item.angle}”
-      </p>
+      <div className={`${isLg ? "mt-3" : "mt-2.5"}`}>
+        <span className="text-label-xs uppercase tracking-widest text-ink-faint/80 block mb-0.5">
+          Why this works
+        </span>
+        <p
+          className={`
+            text-ink-muted leading-snug
+            ${isLg ? "text-[13px]" : "text-[12px]"}
+          `}
+        >
+          {item.angle}
+        </p>
+      </div>
     </Link>
   );
 }

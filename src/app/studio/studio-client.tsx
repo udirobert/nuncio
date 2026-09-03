@@ -95,6 +95,8 @@ interface StudioClientProps {
   initialAvatars?: HeyGenAvatar[];
   initialVoices?: HeyGenVoice[];
   liveLinkEnabled: boolean;
+  avatarTrainingCost?: number;
+  voiceTrainingCost?: number;
 }
 
 function friendlyError(raw: string): { title: string; detail: string; tip?: string } {
@@ -141,7 +143,7 @@ function friendlyError(raw: string): { title: string; detail: string; tip?: stri
   };
 }
 
-function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: StudioClientProps) {
+function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTrainingCost = 1, voiceTrainingCost = 1 }: StudioClientProps) {
   const [showProgressDetails, setShowProgressDetails] = useState(false);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [showAdvancedInput, setShowAdvancedInput] = useState(false);
@@ -2544,6 +2546,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                           enableLiveTwin={enableLiveTwin}
                           onEnableLiveTwinChange={setEnableLiveTwin}
                           creditBalance={session?.balance}
+                          trainingCreditCost={avatarTrainingCost + voiceTrainingCost}
                         />
                       </motion.div>
                     )}

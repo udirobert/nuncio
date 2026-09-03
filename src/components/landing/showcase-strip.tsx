@@ -38,7 +38,7 @@ export function ShowcaseStrip({ items }: ShowcaseStripProps) {
     <section data-reveal="fade-up" className="md:hidden border-t border-cream-dark/60 py-6">
       <div className="px-6 mb-4 flex items-baseline justify-between">
         <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
-          Recent nuncios
+          Example nuncios
         </p>
         <motion.span
           animate={hasScrolled ? { opacity: 0 } : { opacity: [0.5, 1, 0.5] }}
