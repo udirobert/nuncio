@@ -26,6 +26,12 @@ nuncio's thesis is that the scarce resource in sales is no longer attention but 
 - **Playbook capture via voice overlay** — `VoiceOverlay` supports `campaign` and `playbook` modes; extraction prompts capture full `SenderPlaybook` + sender identity; studio persists to `/api/account/brief`.
 - **Live scoreboard dashboard** — `ScoreboardCard` surfaces `GET /api/live/sessions` aggregates (start rate, bookings, median turns/duration, question-topic distribution).
 - **UI consistency / Lottie loading pass** — replaced CSS/text loaders with `LottieIcon` across dashboard, studio, pricing, login, batch, share pages, and video captions/translate states.
+- **LiveLink cost controls and error transparency**
+  - Configurable live twin training credit costs (`NUNCIO_ANAM_AVATAR_TRAINING_CREDIT_COST`, `NUNCIO_ANAM_VOICE_TRAINING_CREDIT_COST`).
+  - Server-side credit reservations for Anam avatar/voice training and live sessions (including anonymous shares via `getCreditSubject`).
+  - Plain-language error surfacing in the UI for missing provider config, insufficient credits, unsupported Anam plans, and generic failures.
+  - Non-pushy live twin cross-sell in recorded-video B2B mode with one-click delivery-mode switch.
+- **Video customization refactor** — split monolithic `VideoCustomization` into `LiveTwinPanel`, `AvatarSelector`, and `VoiceSelector` while preserving shared audio state; fixed selection index drift when voices are deduplicated/sorted.
 
 ### Conversational SDR / LiveLink
 

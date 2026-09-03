@@ -152,6 +152,9 @@ HEYGEN_VOICE_ID=
 ANAM_API_KEY=
 ANAM_AVATAR_ID=
 ANAM_VOICE_ID=
+# Optional: live twin training credit costs. Defaults are 1 credit each.
+NUNCIO_ANAM_AVATAR_TRAINING_CREDIT_COST=1
+NUNCIO_ANAM_VOICE_TRAINING_CREDIT_COST=1
 NUNCIO_LIVELINK_ENABLED=false
 NUNCIO_LIVELINK_WORKSPACE_IDS=
 NUNCIO_LIVELINK_SENDER_EMAILS=
@@ -162,6 +165,9 @@ SPEECHMATICS_API_KEY=
 
 # App
 NEXT_PUBLIC_APP_URL=https://your-domain.com
+# Set to true to enforce credit balances and return 402 when exhausted.
+# Unset/false tracks credits in shadow mode (reservations are still recorded).
+NUNCIO_CREDITS_ENFORCED=true
 
 # Storage — Turso for durable share records
 TURSO_DATABASE_URL=
@@ -298,22 +304,21 @@ sudo systemctl restart caddy
 
 Caddy automatically provisions and renews SSL certificates and enforces HTTPS.
 
-### 8. Set up auto-deploy (optional)
+### 8. Deploy from your local machine (optional)
+
+The repo includes `scripts/deploy.sh` for SSH-based deploys to a VPS running PM2:
 
 ```bash
-cat > /opt/nuncio/deploy.sh << 'EOF'
-#!/bin/bash
-cd /opt/nuncio
-git pull origin main
-pnpm install --frozen-lockfile
-pnpm build
-pm2 restart nuncio
-EOF
-
-chmod +x /opt/nuncio/deploy.sh
+NUNCIO_DEPLOY_HOST=1.2.3.4 \
+NUNCIO_DEPLOY_USER=deploy \
+NUNCIO_DEPLOY_DIR=/opt/nuncio \
+NUNCIO_DEPLOY_SERVICE=nuncio \
+  ./scripts/deploy.sh
 ```
 
-Add a GitHub webhook that calls this script, or use a simple cron-based pull.
+Override defaults with the environment variables above. The script fetches the latest `main`, installs dependencies, builds, and restarts the PM2 process.
+
+For automated deploys on push, add a GitHub webhook on the server that calls `scripts/deploy.sh`, or set up a cron-based pull and build.
 
 ---
 

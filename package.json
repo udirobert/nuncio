@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "smoke": "node scripts/smoke.mjs",
     "golden": "node scripts/golden-path.mjs",
+    "deploy": "bash scripts/deploy.sh",
     "prepare": "husky",
     "band-agents": "cd agents && uv run python main.py"
   },
