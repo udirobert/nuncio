@@ -6,6 +6,7 @@
  */
 
 export const LIVE_SESSION_MAX_DURATION_MS = 5 * 60 * 1000;
+export const LIVE_SESSION_IDLE_TIMEOUT_MS = 3 * 60 * 1000;
 export const LIVE_SESSION_MAX_CREDITS = 5;
 export const LIVE_SESSION_CREDITS_PER_MINUTE = 1;
 

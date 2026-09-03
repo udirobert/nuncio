@@ -122,7 +122,7 @@ describe("LiveLink session lifecycle", () => {
     expect(transactions[0]).toMatchObject({ type: "refund", amount: 5 });
   });
 
-  it("keeps normal browser-reported duration conservative for billing", async () => {
+  it("charges based on actual duration, capped at reserved max", async () => {
     const initial = record();
     sessionRecords.set(initial.id, initial);
 
@@ -134,8 +134,9 @@ describe("LiveLink session lifecycle", () => {
 
     expect(updated.status).toBe("ended");
     expect(updated.durationMs).toBe(1);
-    expect(updated.chargedCredits).toBe(5);
-    expect(transactions[0]).toMatchObject({ type: "adjustment", amount: 0 });
+    // Rounds up to 1 minute of usage; refunded the rest of the 5-credit reservation.
+    expect(updated.chargedCredits).toBe(1);
+    expect(transactions[0]).toMatchObject({ type: "refund", amount: 4 });
   });
 
   it("settles a session only once when sync is retried", async () => {
@@ -159,6 +160,31 @@ describe("LiveLink session lifecycle", () => {
     expect(expired).toHaveLength(1);
     expect(expired[0].status).toBe("expired");
     expect(expired[0].chargedCredits).toBe(5);
+  });
+
+  it("expires idle active sessions and refunds unused credits", async () => {
+    const initial = record({
+      status: "active",
+      metrics: {
+        userTurns: 1,
+        agentTurns: 1,
+        questionTopics: [],
+        bookingClicked: false,
+        bookingUrlPresent: true,
+        lastEvent: "conversation",
+        firstUserTurnAt: "2026-01-01T00:00:05.000Z",
+        updatedAt: "2026-01-01T00:00:10.000Z",
+      },
+    });
+    sessionRecords.set(initial.id, initial);
+
+    const expired = await expireStaleLiveSessions(new Date("2026-01-01T00:04:00.000Z"));
+
+    expect(expired).toHaveLength(1);
+    expect(expired[0].status).toBe("expired");
+    expect(expired[0].terminalReason).toBe("idle_timeout");
+    // 4 minutes of idle usage rounded up to 4 credits.
+    expect(expired[0].chargedCredits).toBe(4);
   });
 });
 

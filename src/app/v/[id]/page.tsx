@@ -7,6 +7,7 @@ import type { ShareRecord } from "@/lib/artifacts";
 import { languageLabel } from "@/lib/languages";
 import { DuckingAudio } from "@/components/ducking-audio";
 import { LottieIcon } from "@/components/lottie-icon";
+import { SenderTrustBadge } from "@/components/sender-trust-badge";
 import {
   trackBookingClicked,
   trackVideoWatchThrough,
@@ -189,11 +190,17 @@ export default function VideoLandingPage({
                 {senderContext}
               </p>
             )}
-            <p className="mt-3 text-label-sm uppercase tracking-widest text-ink-faint font-medium">
-              {senderName
-                ? `Made by ${senderName}'s AI twin · disclosed, never disguised`
-                : "Made by an AI twin · disclosed, never disguised"}
-            </p>
+            <div className="mt-4 flex flex-col items-center gap-2">
+              <SenderTrustBadge
+                senderName={senderName}
+                recipientName={recipientName}
+                mode={videoData.mode}
+                deliveryMode={videoData.deliveryMode}
+              />
+              <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
+                Disclosed, never disguised
+              </p>
+            </div>
           </motion.div>
 
           {/* Video — scales up from card with clip-path reveal */}

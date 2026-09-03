@@ -6,6 +6,7 @@ import {
 import {
   calculateLiveSessionCharge,
   LIVE_SESSION_MAX_DURATION_MS,
+  LIVE_SESSION_IDLE_TIMEOUT_MS,
 } from "@/lib/live-link";
 import type { LiveSessionMetrics, LiveSessionRecord } from "@/lib/storage";
 
@@ -15,7 +16,8 @@ export type LiveSessionEndReason =
   | "max_duration"
   | "unload"
   | "start_failed"
-  | "expired";
+  | "expired"
+  | "idle_timeout";
 
 const reconciliationLocks = new Map<string, Promise<LiveSessionRecord>>();
 
@@ -158,10 +160,8 @@ async function reconcileLiveSessionUnlocked(input: {
   const durationMs = Math.min(Math.max(0, input.durationMs), LIVE_SESSION_MAX_DURATION_MS);
   const chargedCredits = input.reason === "start_failed"
     ? 0
-    : input.reason === "expired"
-      ? Math.min(current.reservedCredits, calculateLiveSessionCharge(LIVE_SESSION_MAX_DURATION_MS))
-      : current.reservedCredits;
-  const terminalStatus = input.reason === "expired"
+    : Math.min(current.reservedCredits, calculateLiveSessionCharge(durationMs));
+  const terminalStatus = input.reason === "expired" || input.reason === "idle_timeout"
     ? "expired"
     : input.reason === "start_failed"
       ? "failed"
@@ -213,17 +213,42 @@ export async function expireStaleLiveSessions(now = new Date()): Promise<LiveSes
   const provider = getLiveSessionStorageProvider();
   const open = await provider.listOpen();
   const expired: LiveSessionRecord[] = [];
+  const nowMs = now.getTime();
 
   for (const record of open) {
     const reference = new Date(record.startedAt || record.createdAt).getTime();
     if (!Number.isFinite(reference)) continue;
-    if (now.getTime() - reference < LIVE_SESSION_MAX_DURATION_MS) continue;
-    expired.push(await reconcileLiveSession({
-      record,
-      durationMs: LIVE_SESSION_MAX_DURATION_MS,
-      reason: "expired",
-      now,
-    }));
+
+    const durationMs = Math.min(
+      Math.max(0, record.durationMs ?? nowMs - reference),
+      LIVE_SESSION_MAX_DURATION_MS,
+    );
+
+    if (nowMs - reference >= LIVE_SESSION_MAX_DURATION_MS) {
+      expired.push(await reconcileLiveSession({
+        record,
+        durationMs,
+        reason: "expired",
+        now,
+      }));
+      continue;
+    }
+
+    const lastActivity = record.metrics?.updatedAt
+      ? new Date(record.metrics.updatedAt).getTime()
+      : reference;
+    if (
+      record.status === "active" &&
+      Number.isFinite(lastActivity) &&
+      nowMs - lastActivity >= LIVE_SESSION_IDLE_TIMEOUT_MS
+    ) {
+      expired.push(await reconcileLiveSession({
+        record,
+        durationMs,
+        reason: "idle_timeout",
+        now,
+      }));
+    }
   }
 
   return expired;

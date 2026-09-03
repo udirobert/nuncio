@@ -274,7 +274,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
   const [captureHoneypot, setCaptureHoneypot] = useState("");
   const [captureError, setCaptureError] = useState("");
   const [captureLoading, setCaptureLoading] = useState(false);
-  const [showHookReasoning, setShowHookReasoning] = useState(false);
+  const [showHookReasoning, setShowHookReasoning] = useState(true);
   const [insufficientCredits, setInsufficientCredits] = useState<{ required: number; available: number } | null>(null);
   const [videoRendering, setVideoRendering] = useState<"idle" | "rendering" | "done" | "failed">("idle");
   const [buildStep, setBuildStep] = useState<QuickProgressStep>("enrich");

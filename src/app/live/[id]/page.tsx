@@ -18,6 +18,7 @@ import {
 import { LIVE_SESSION_MAX_DURATION_MS } from "@/lib/live-link";
 import { classifyQuestionTopics } from "@/lib/live-topics";
 import { LottieIcon } from "@/components/lottie-icon";
+import { SenderTrustBadge } from "@/components/sender-trust-badge";
 
 export default function LiveAvatarLandingPage({
   params,
@@ -242,6 +243,15 @@ export default function LiveAvatarLandingPage({
     }
   }, [clearMaxDurationTimer, clearHeartbeatTimer, recordSessionEnd, handleMessageHistory]);
 
+  // If the live provider is missing/misconfigured or we fail to connect after
+  // a couple of retries, fall back to the recorded video share page automatically.
+  useEffect(() => {
+    if (!share?.id || errorReason === "mic") return;
+    if (errorReason === "provider" || (errorReason === "connection" && retryCount >= 2)) {
+      window.location.href = `/v/${share.id}`;
+    }
+  }, [share, errorReason, retryCount]);
+
   useEffect(() => {
     function handleBeforeUnload() {
       endSession("unload");
@@ -440,9 +450,17 @@ export default function LiveAvatarLandingPage({
             <h1 className="font-display text-4xl md:text-5xl tracking-tight leading-[0.9] mb-3">
               Meet {sender} — anytime
             </h1>
-            <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
-              AI twin of {sender} · trained on their playbook · disclosed, never disguised
-            </p>
+            <div className="flex flex-col items-center gap-2">
+              <SenderTrustBadge
+                senderName={share.senderName}
+                recipientName={share.recipientName}
+                mode={share.mode}
+                deliveryMode={share.deliveryMode}
+              />
+              <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
+                Trained on their playbook · disclosed, never disguised
+              </p>
+            </div>
           </motion.div>
 
           <motion.div

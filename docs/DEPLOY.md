@@ -306,19 +306,21 @@ Caddy automatically provisions and renews SSL certificates and enforces HTTPS.
 
 ### 8. Deploy from your local machine (optional)
 
-The repo includes `scripts/deploy.sh` for SSH-based deploys to a VPS running PM2:
+The repo includes `scripts/deploy-vps.sh` for Docker-based deploys to the production VPS:
 
 ```bash
-NUNCIO_DEPLOY_HOST=1.2.3.4 \
-NUNCIO_DEPLOY_USER=deploy \
-NUNCIO_DEPLOY_DIR=/opt/nuncio \
-NUNCIO_DEPLOY_SERVICE=nuncio \
-  ./scripts/deploy.sh
+ssh nuncio-vultr 'bash -s' < scripts/deploy-vps.sh
 ```
 
-Override defaults with the environment variables above. The script fetches the latest `main`, installs dependencies, builds, and restarts the PM2 process.
+Or run it directly on the server:
 
-For automated deploys on push, add a GitHub webhook on the server that calls `scripts/deploy.sh`, or set up a cron-based pull and build.
+```bash
+/opt/nuncio/scripts/deploy-vps.sh
+```
+
+It fetches the latest `main`, builds `nuncio:latest`, tags the previous image as `nuncio:previous` for rollback, replaces the running container with the same Coolify Traefik labels, and runs a smoke check (`homepage 200`, `/api/enrich` 400). If smoke checks fail, it stops the new container and restarts the previous image.
+
+For automated deploys on push, add a GitHub webhook on the server that runs `scripts/deploy-vps.sh`, or set up a cron-based pull and build.
 
 ---
 
