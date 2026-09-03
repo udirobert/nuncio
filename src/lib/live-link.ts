@@ -9,6 +9,9 @@ export const LIVE_SESSION_MAX_DURATION_MS = 5 * 60 * 1000;
 export const LIVE_SESSION_MAX_CREDITS = 5;
 export const LIVE_SESSION_CREDITS_PER_MINUTE = 1;
 
+/** Display-only estimate for the one-time Anam avatar + voice clone. */
+export const LIVE_TWIN_TRAINING_CREDITS_ESTIMATE = 2;
+
 function csvEnv(name: string): string[] {
   return (process.env[name] || "")
     .split(",")

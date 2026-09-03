@@ -2543,6 +2543,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                           liveLinkEnabled={liveLinkEnabled}
                           enableLiveTwin={enableLiveTwin}
                           onEnableLiveTwinChange={setEnableLiveTwin}
+                          creditBalance={session?.balance}
                         />
                       </motion.div>
                     )}
