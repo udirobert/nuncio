@@ -68,6 +68,8 @@ interface VideoCustomizationProps {
   creditBalance?: number;
   /** One-time training cost shown to the user. Defaults to 2 credits. */
   trainingCreditCost?: number;
+  /** Optional callback to switch delivery mode from the cross-sell prompt. */
+  onDeliveryModeChange?: (mode: "video" | "livelink") => void;
 }
 
 export function VideoCustomization({
@@ -85,6 +87,7 @@ export function VideoCustomization({
   onEnableLiveTwinChange,
   creditBalance,
   trainingCreditCost = 2,
+  onDeliveryModeChange,
 }: VideoCustomizationProps) {
   const [avatars, setAvatars] = useState<HeyGenAvatar[]>(() => {
     const base = initialAvatars || readCache<HeyGenAvatar[]>(CACHE_KEY_AVATARS) || [];
@@ -951,7 +954,15 @@ export function VideoCustomization({
       {liveLinkEnabled && deliveryMode === "video" && mode === "outreach" && (
         <div className="space-y-2 pt-2 border-t border-cream-dark/40">
           <p className="text-label-base text-ink-muted">
-            This produces a recorded video. Switch the delivery mode to <strong>Live link</strong> if you also want recipients to talk to your AI twin.
+            This produces a recorded video.{" "}
+            <button
+              type="button"
+              onClick={() => onDeliveryModeChange?.("livelink")}
+              className="text-accent hover:text-accent/80 underline font-medium"
+            >
+              Switch to Live link
+            </button>{" "}
+            if you also want recipients to talk to your AI twin.
           </p>
         </div>
       )}

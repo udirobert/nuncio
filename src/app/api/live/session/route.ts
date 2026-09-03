@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { getShareRecord } from "@/lib/share-store";
 import { getAccountStorageProvider } from "@/lib/storage";
-import { creditsEnforced, getCreditBalance, reserveCredits, refundCreditReservation } from "@/lib/billing/credits";
+import { creditsEnforced, getCreditBalance, reserveCredits, refundCreditReservation, getCreditSubject } from "@/lib/billing/credits";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 import type { Profile } from "@/lib/claude";
 import type { WorkspaceAccount } from "@/lib/storage/types";
@@ -122,26 +122,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (share.workspaceId) {
-      if (creditsEnforced()) {
-        const balance = await getCreditBalance({ workspaceId: share.workspaceId, anonymous: false });
-        if (balance < LIVE_SESSION_MAX_CREDITS) {
-          return NextResponse.json(
-            { error: "Live sessions are unavailable while this account has insufficient credits" },
-            { status: 402 }
-          );
-        }
-      }
+    const creditSubject = share.workspaceId
+      ? { workspaceId: share.workspaceId, anonymous: false as const }
+      : getCreditSubject(request);
 
-      const reservation = await reserveCredits({
-        subject: { workspaceId: share.workspaceId, anonymous: false },
-        action: "live.session",
-        amount: LIVE_SESSION_MAX_CREDITS,
-        reason: "Anam live avatar session maximum reservation",
-        provider: "anam",
-      });
-      reservationId = reservation.id;
+    if (creditsEnforced()) {
+      const balance = await getCreditBalance(creditSubject);
+      if (balance < LIVE_SESSION_MAX_CREDITS) {
+        return NextResponse.json(
+          { error: "Live sessions are unavailable while this account has insufficient credits" },
+          { status: 402 }
+        );
+      }
     }
+
+    const reservation = await reserveCredits({
+      subject: creditSubject,
+      action: "live.session",
+      amount: LIVE_SESSION_MAX_CREDITS,
+      reason: "Anam live avatar session maximum reservation",
+      provider: "anam",
+    });
+    reservationId = reservation.id;
 
     const syncToken = randomBytes(32).toString("base64url");
     sessionRecord = await createLiveSessionRecord({

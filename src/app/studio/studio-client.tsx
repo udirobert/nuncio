@@ -2547,6 +2547,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                           onEnableLiveTwinChange={setEnableLiveTwin}
                           creditBalance={session?.balance}
                           trainingCreditCost={avatarTrainingCost + voiceTrainingCost}
+                          onDeliveryModeChange={handleDeliveryModeChange}
                         />
                       </motion.div>
                     )}
