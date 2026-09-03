@@ -29,6 +29,8 @@ export async function GET(request: NextRequest) {
     playbookWiggleRoom: workspace.playbookWiggleRoom || null,
     playbookConstraints: workspace.playbookConstraints || null,
     bookingUrl: workspace.bookingUrl || null,
+    anamAvatarId: workspace.anamAvatarId || null,
+    anamVoiceId: workspace.anamVoiceId || null,
     // STRATEGY Phase 1: live link is the default primary artifact.
     deliveryMode: workspace.deliveryMode === "livelink" && !isLiveLinkEnabled()
       ? "video"
@@ -44,7 +46,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { senderBrief, senderName, senderBusiness, senderBrand, senderPersonality, senderAudience, senderOffer, senderProofPoints, playbookWants, playbookOffer, playbookWiggleRoom, playbookConstraints, bookingUrl, deliveryMode } = body;
+  const { senderBrief, senderName, senderBusiness, senderBrand, senderPersonality, senderAudience, senderOffer, senderProofPoints, playbookWants, playbookOffer, playbookWiggleRoom, playbookConstraints, bookingUrl, deliveryMode, anamAvatarId, anamVoiceId } = body;
 
   const provider = getAccountStorageProvider();
   const workspace = await provider.getWorkspace(session.workspaceId);
@@ -74,6 +76,8 @@ export async function PATCH(request: NextRequest) {
   if (deliveryMode === "video" || (deliveryMode === "livelink" && isLiveLinkEnabled())) {
     updates.deliveryMode = deliveryMode;
   }
+  if (typeof anamAvatarId === "string") updates.anamAvatarId = anamAvatarId;
+  if (typeof anamVoiceId === "string") updates.anamVoiceId = anamVoiceId;
 
   await provider.updateWorkspace(session.workspaceId, updates);
 

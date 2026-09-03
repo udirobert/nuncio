@@ -8,16 +8,13 @@ import type { Profile } from "@/lib/claude";
 import type { WorkspaceAccount } from "@/lib/storage/types";
 import { isLiveLinkAllowed, LIVE_SESSION_MAX_CREDITS } from "@/lib/live-link";
 import { createLiveSessionRecord, hashLiveSessionToken, reconcileLiveSession } from "@/lib/live-session";
+import { createAnamSessionToken } from "@/lib/anam";
 
 interface AnamPersonaConfig {
   avatarId: string;
   voiceId: string;
   systemPrompt: string;
-}
-
-interface AnamSessionResponse {
-  sessionToken?: string;
-  token?: string;
+  avatarModel?: string;
 }
 
 function buildSystemPrompt(share: {
@@ -106,6 +103,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Live link is not available for this share" }, { status: 404 });
     }
 
+    let workspace: WorkspaceAccount | null = null;
+    if (share.workspaceId) {
+      workspace = await getAccountStorageProvider().getWorkspace(share.workspaceId);
+    }
+
     const clientId = getClientId(request);
     const rateLimit = await checkRateLimit(clientId, "live.session", RATE_LIMITS.live);
     if (!rateLimit.allowed) {
@@ -118,19 +120,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const anamApiKey = process.env.ANAM_API_KEY;
-    const avatarId = process.env.ANAM_AVATAR_ID;
-    const voiceId = process.env.ANAM_VOICE_ID;
-    if (!anamApiKey || !avatarId || !voiceId) {
+    const avatarId = workspace?.anamAvatarId || process.env.ANAM_AVATAR_ID;
+    const voiceId = workspace?.anamVoiceId || process.env.ANAM_VOICE_ID;
+    if (!avatarId || !voiceId) {
       return NextResponse.json(
-        { error: "Live avatar is not configured on this server" },
+        { error: "Live avatar is not configured for this sender" },
         { status: 503 }
       );
-    }
-
-    let workspace: WorkspaceAccount | null = null;
-    if (share.workspaceId) {
-      workspace = await getAccountStorageProvider().getWorkspace(share.workspaceId);
     }
 
     if (share.workspaceId) {
@@ -186,32 +182,10 @@ export async function POST(request: NextRequest) {
         },
         workspace
       ),
+      avatarModel: "cara-4",
     };
 
-    const anamRes = await fetch("https://api.anam.ai/v1/auth/session-token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${anamApiKey}`,
-      },
-      body: JSON.stringify({ personaConfig }),
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (!anamRes.ok) {
-      const text = await anamRes.text();
-      console.error("[anam] session token error:", anamRes.status, text);
-      await reconcileLiveSession({ record: sessionRecord, durationMs: 0, reason: "start_failed" });
-      return NextResponse.json({ error: "Failed to create live avatar session" }, { status: 502 });
-    }
-
-    const anamData = (await anamRes.json()) as AnamSessionResponse;
-    const sessionToken = anamData.sessionToken || anamData.token;
-    if (!sessionToken) {
-      await reconcileLiveSession({ record: sessionRecord, durationMs: 0, reason: "start_failed" });
-      return NextResponse.json({ error: "Anam did not return a session token" }, { status: 502 });
-    }
-
+    const { sessionToken } = await createAnamSessionToken(personaConfig);
     return NextResponse.json({ sessionToken, sessionId: sessionRecord.id, syncToken });
   } catch (error) {
     console.error("[api/live/session] error:", error);

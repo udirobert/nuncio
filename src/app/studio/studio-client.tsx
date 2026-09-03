@@ -429,6 +429,12 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
           setBookingUrl(data.bookingUrl);
           localStorage.setItem("nuncio_booking_url", data.bookingUrl);
         }
+        if (data.anamAvatarId && !localStorage.getItem("nuncio_anam_avatar_id")) {
+          localStorage.setItem("nuncio_anam_avatar_id", data.anamAvatarId);
+        }
+        if (data.anamVoiceId && !localStorage.getItem("nuncio_anam_voice_id")) {
+          localStorage.setItem("nuncio_anam_voice_id", data.anamVoiceId);
+        }
         if (
           !localStorage.getItem("nuncio_delivery_mode") &&
           (data.deliveryMode === "video" || (data.deliveryMode === "livelink" && liveLinkEnabled))
@@ -502,6 +508,8 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
       !bookingUrlValue &&
       mode === "video"
     ) return;
+    const anamAvatarId = typeof window !== "undefined" ? localStorage.getItem("nuncio_anam_avatar_id") : null;
+    const anamVoiceId = typeof window !== "undefined" ? localStorage.getItem("nuncio_anam_voice_id") : null;
     fetch("/api/account/brief", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -520,6 +528,8 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
         playbookConstraints: playbookConstraintsValue || undefined,
         bookingUrl: bookingUrlValue || undefined,
         deliveryMode: mode,
+        ...(anamAvatarId ? { anamAvatarId } : {}),
+        ...(anamVoiceId ? { anamVoiceId } : {}),
       }),
     }).catch(() => {});
     if (name) localStorage.setItem("nuncio_sender_name", name);
@@ -1204,6 +1214,8 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
     setCaptureLoading(true);
     setCaptureError("");
     try {
+      const anamAvatarId = typeof window !== "undefined" ? localStorage.getItem("nuncio_anam_avatar_id") : null;
+      const anamVoiceId = typeof window !== "undefined" ? localStorage.getItem("nuncio_anam_voice_id") : null;
       const res = await fetch("/api/studio/email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1214,6 +1226,8 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
           language: reviewProfile?.language || "en",
           soundscapeUrl: buildResult?.soundscapeUrl,
           cinematicEntranceUrl: buildResult?.cinematicEntranceUrl,
+          ...(anamAvatarId ? { anamAvatarId } : {}),
+          ...(anamVoiceId ? { anamVoiceId } : {}),
         }),
       });
       const data = await res.json();

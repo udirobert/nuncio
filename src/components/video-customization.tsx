@@ -127,6 +127,22 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
     if (typeof window === "undefined") return "idle";
     return localStorage.getItem("nuncio_cloned_voice_id") ? "ready" : "idle";
   });
+  const [anamAvatarId, setAnamAvatarId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("nuncio_anam_avatar_id");
+  });
+  const [anamAvatarStatus, setAnamAvatarStatus] = useState<"idle" | "uploading" | "processing" | "ready" | "failed">(() => {
+    if (typeof window === "undefined") return "idle";
+    return localStorage.getItem("nuncio_anam_avatar_id") ? "ready" : "idle";
+  });
+  const [anamVoiceId, setAnamVoiceId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("nuncio_anam_voice_id");
+  });
+  const [anamVoiceStatus, setAnamVoiceStatus] = useState<"idle" | "uploading" | "processing" | "ready" | "failed">(() => {
+    if (typeof window === "undefined") return "idle";
+    return localStorage.getItem("nuncio_anam_voice_id") ? "ready" : "idle";
+  });
   const [scriptAuditionLoading, setScriptAuditionLoading] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -173,8 +189,10 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
       width: aspect.width,
       height: aspect.height,
       captions: captionsEnabled,
+      anamAvatarId: anamAvatarId || undefined,
+      anamVoiceId: anamVoiceId || undefined,
     });
-  }, [avatarIndex, voiceIndex, vibeId, backgroundColor, aspectIndex, avatars, voices, captionsEnabled, onCustomize]);
+  }, [avatarIndex, voiceIndex, vibeId, backgroundColor, aspectIndex, avatars, voices, captionsEnabled, anamAvatarId, anamVoiceId, onCustomize]);
 
   async function handlePreviewVibe(id: string) {
     if (previewingVibeId === id) {
@@ -215,22 +233,40 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
     setPhotoAvatarStatus("uploading");
 
     try {
-      // Upload to our asset endpoint first to get a URL
-      const formData = new FormData();
-      formData.append("file", file);
-      const uploadRes = await fetch("/api/heygen/avatar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrl: URL.createObjectURL(file), // We'll use a data URL approach
-          name: "My Photo Avatar",
-        }),
-      });
-
-      // For now, convert to base64 data URL and send directly
       const reader = new FileReader();
       reader.onload = async () => {
         const dataUrl = reader.result as string;
+
+        // Kick off Anam avatar creation in parallel (live twin asset)
+        setAnamAvatarStatus("uploading");
+        fetch("/api/anam/avatar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl: dataUrl, name: "My Photo Avatar" }),
+        })
+          .then(async (res) => {
+            if (!res.ok) throw new Error("Anam avatar creation failed");
+            const result = await res.json();
+            setAnamAvatarId(result.avatarId);
+            setAnamAvatarStatus("processing");
+            const poll = setInterval(async () => {
+              const statusRes = await fetch(`/api/anam/avatar?id=${result.avatarId}`);
+              if (!statusRes.ok) return;
+              const status = await statusRes.json();
+              if (status.status === "completed") {
+                clearInterval(poll);
+                setAnamAvatarStatus("ready");
+                localStorage.setItem("nuncio_anam_avatar_id", result.avatarId);
+              } else if (status.status === "failed") {
+                clearInterval(poll);
+                setAnamAvatarStatus("failed");
+              }
+            }, 5000);
+          })
+          .catch(() => {
+            setAnamAvatarStatus("failed");
+          });
+
         const res = await fetch("/api/heygen/avatar", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -287,6 +323,37 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
       const reader = new FileReader();
       reader.onload = async () => {
         const dataUrl = reader.result as string;
+
+        // Kick off Anam voice clone in parallel (live twin asset)
+        setAnamVoiceStatus("uploading");
+        fetch("/api/anam/voice", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ audioUrl: dataUrl, name: "My Voice" }),
+        })
+          .then(async (res) => {
+            if (!res.ok) throw new Error("Anam voice creation failed");
+            const result = await res.json();
+            setAnamVoiceId(result.voiceId);
+            setAnamVoiceStatus("processing");
+            const poll = setInterval(async () => {
+              const statusRes = await fetch(`/api/anam/voice?id=${result.voiceId}`);
+              if (!statusRes.ok) return;
+              const status = await statusRes.json();
+              if (status.status === "completed") {
+                clearInterval(poll);
+                setAnamVoiceStatus("ready");
+                localStorage.setItem("nuncio_anam_voice_id", result.voiceId);
+              } else if (status.status === "failed") {
+                clearInterval(poll);
+                setAnamVoiceStatus("failed");
+              }
+            }, 5000);
+          })
+          .catch(() => {
+            setAnamVoiceStatus("failed");
+          });
+
         const res = await fetch("/api/heygen/voice-clone", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -365,18 +432,19 @@ export function VideoCustomization({ onCustomize, initialAvatars, initialVoices,
       className="rounded-2xl border border-cream-dark bg-white p-5 space-y-4"
     >
       {/* Persistent processing status banner */}
-      {(photoAvatarStatus === "processing" || voiceCloneStatus === "processing") && (
+      {(photoAvatarStatus === "processing" || voiceCloneStatus === "processing" || anamAvatarStatus === "processing" || anamVoiceStatus === "processing") && (
         <div className="rounded-xl bg-accent-soft/30 border border-accent/15 px-4 py-3 flex items-center gap-3">
           <span className="relative flex h-2.5 w-2.5 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent" />
           </span>
           <p className="text-label-base text-ink-muted">
-            {photoAvatarStatus === "processing" && voiceCloneStatus === "processing"
-              ? "Your photo avatar (~5 min) and voice clone (~2 min) are training..."
-              : photoAvatarStatus === "processing"
-                ? "Your photo avatar is training — this takes about 5 minutes..."
-                : "Your voice clone is training — this takes about 2 minutes..."}
+            {[
+              photoAvatarStatus === "processing" && "photo avatar",
+              voiceCloneStatus === "processing" && "voice clone",
+              anamAvatarStatus === "processing" && "live avatar",
+              anamVoiceStatus === "processing" && "live voice",
+            ].filter(Boolean).join(" + ")} training...
           </p>
         </div>
       )}

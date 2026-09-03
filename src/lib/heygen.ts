@@ -218,6 +218,9 @@ export interface VideoCustomization {
   width?: number;
   height?: number;
   captions?: boolean;
+  /** Optional Anam live-twin assets for the same sender. */
+  anamAvatarId?: string;
+  anamVoiceId?: string;
 }
 
 /**

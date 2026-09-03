@@ -4,6 +4,7 @@ import type { Profile } from "@/lib/claude";
 import { accountCookieOptions, ACCOUNT_COOKIE, createAccountSessionCookie } from "@/lib/auth/session";
 import { ensureTrialCredits, upsertBillingAccount } from "@/lib/billing/accounts";
 import { getCreditBalance, getCreditSubject, mergeAnonymousCredits } from "@/lib/billing/credits";
+import { getAccountStorageProvider } from "@/lib/storage";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -16,12 +17,16 @@ export async function POST(request: NextRequest) {
       buildResult,
       profile,
       language,
+      anamAvatarId,
+      anamVoiceId,
     }: {
       email?: string;
       honeypot?: string;
       buildResult?: { soundscapeUrl?: string; cinematicEntranceUrl?: string };
       profile?: Profile;
       language?: string;
+      anamAvatarId?: string;
+      anamVoiceId?: string;
     } = body;
 
     if (honeypot) {
@@ -33,11 +38,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
     }
 
-    const { user, workspace } = await upsertBillingAccount({
+    const account = await upsertBillingAccount({
       email: normalizedEmail,
       planType: "free",
     });
+    const { user } = account;
+    let { workspace } = account;
     await ensureTrialCredits({ user, workspace });
+
+    if (anamAvatarId || anamVoiceId) {
+      workspace = (await getAccountStorageProvider().updateWorkspace(workspace.id, {
+        ...(anamAvatarId ? { anamAvatarId } : {}),
+        ...(anamVoiceId ? { anamVoiceId } : {}),
+      })) || workspace;
+    }
 
     // Merge any remaining anonymous trial credits into the new workspace
     const anonSubject = getCreditSubject(request);

@@ -64,6 +64,10 @@ export interface WorkspaceAccount {
   bookingUrl?: string;
   /** Preferred delivery mode: recorded video or live avatar link. */
   deliveryMode?: "video" | "livelink";
+  /** Anam custom avatar ID for live AI twin sessions. */
+  anamAvatarId?: string;
+  /** Anam custom voice ID for live AI twin sessions. */
+  anamVoiceId?: string;
   createdAt: string;
   updatedAt: string;
 }
