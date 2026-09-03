@@ -96,13 +96,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "LiveLink is not enabled for this pilot" }, { status: 404 });
     }
 
-    // Every live session must be attributable to a workspace so the maximum
-    // reservation cannot be bypassed through legacy or manually-created
-    // sender-only share records.
-    if (!share.workspaceId) {
-      return NextResponse.json({ error: "Live link is not available for this share" }, { status: 404 });
-    }
-
     let workspace: WorkspaceAccount | null = null;
     if (share.workspaceId) {
       workspace = await getAccountStorageProvider().getWorkspace(share.workspaceId);
@@ -120,8 +113,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const avatarId = workspace?.anamAvatarId || process.env.ANAM_AVATAR_ID;
-    const voiceId = workspace?.anamVoiceId || process.env.ANAM_VOICE_ID;
+    const avatarId = workspace?.anamAvatarId || share.anamAvatarId || process.env.ANAM_AVATAR_ID;
+    const voiceId = workspace?.anamVoiceId || share.anamVoiceId || process.env.ANAM_VOICE_ID;
     if (!avatarId || !voiceId) {
       return NextResponse.json(
         { error: "Live avatar is not configured for this sender" },

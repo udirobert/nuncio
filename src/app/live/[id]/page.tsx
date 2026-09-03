@@ -371,15 +371,10 @@ export default function LiveAvatarLandingPage({
       setRetryCount(newRetryCount);
       // Classify the error for better messaging
       const lowerMessage = message.toLowerCase();
-      if (lowerMessage.includes("network") || lowerMessage.includes("fetch") || lowerMessage.includes("connection")) {
-        setErrorReason("connection");
-      } else if (lowerMessage.includes("token") || lowerMessage.includes("auth") || lowerMessage.includes("unavailable")) {
-        setErrorReason("provider");
-      } else {
-        setErrorReason("connection");
-      }
+      const isProviderError = lowerMessage.includes("not configured") || lowerMessage.includes("configured") || lowerMessage.includes("token") || lowerMessage.includes("auth") || lowerMessage.includes("unavailable");
+      setErrorReason(isProviderError ? "provider" : "connection");
       setError(message);
-      setStatus("Click below to try again");
+      setStatus(isProviderError ? "Live twin not configured" : "Click below to try again");
       startedRef.current = false;
     } finally {
       setStarting(false);
@@ -482,7 +477,7 @@ export default function LiveAvatarLandingPage({
                   {error && errorReason !== "mic" && (
                     <p className="text-xs text-red-300 mt-2 max-w-xs mx-auto">{error}</p>
                   )}
-                  {error && errorReason !== "mic" && retryCount >= 2 && (
+                  {error && errorReason !== "mic" && (retryCount >= 2 || errorReason === "provider") && (
                     <Link
                       href={`/v/${share.id}`}
                       className="inline-flex items-center gap-1.5 mt-4 text-xs text-accent hover:text-accent/80 transition-colors"
@@ -507,14 +502,18 @@ export default function LiveAvatarLandingPage({
             {!live ? (
               <button
                 onClick={startSession}
-                disabled={starting}
-                aria-label={starting ? "Starting live conversation" : "Start live conversation"}
+                disabled={starting || errorReason === "provider"}
+                aria-label={starting ? "Starting live conversation" : errorReason === "provider" ? "Live twin not configured" : "Start live conversation"}
                 className="btn-press rounded-xl bg-accent text-white px-6 py-3 text-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {starting ? (
                   <>
                     <LottieIcon name="spinner-light" className="w-4 h-4" />
                     Starting...
+                  </>
+                ) : errorReason === "provider" ? (
+                  <>
+                    Live twin unavailable
                   </>
                 ) : (
                   <>

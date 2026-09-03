@@ -53,6 +53,9 @@ export interface ShareRecord {
   bookingUrl?: string;
   /** Campaign mode for this share: outreach (default) or reconnect (consumer wedge). Drives share-page CTA copy. */
   mode?: "outreach" | "reconnect";
+  /** Per-sender Anam assets for live link sessions. */
+  anamAvatarId?: string;
+  anamVoiceId?: string;
   /** Custom thumbnail generated via GMI Cloud through Genblaze. */
   thumbnailUrl?: string;
   /** Generation provenance (Genblaze manifests, content hashes, models used). */

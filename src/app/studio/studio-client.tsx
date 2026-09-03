@@ -217,13 +217,18 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
   const [reasonForReachingOutNow, setReasonForReachingOutNow] = useState("");
   const [relationshipWarmth, setRelationshipWarmth] = useState<"cold" | "warm" | "existing">("cold");
   const [tonePreference, setTonePreference] = useState("");
-  const [deliveryMode, setDeliveryMode] = useState<"video" | "livelink">(() => {
+  const initialIsReconnect = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "reconnect";
+  const initialDeliveryMode: "video" | "livelink" = (() => {
+    if (initialIsReconnect) return "video";
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("nuncio_delivery_mode");
-      if (stored === "video" || (stored === "livelink" && liveLinkEnabled)) return stored;
+      if (stored === "video" || (stored === "livelink" && liveLinkEnabled)) return stored as "video" | "livelink";
     }
     return liveLinkEnabled ? "livelink" : "video";
-  });
+  })();
+
+  const [deliveryMode, setDeliveryMode] = useState<"video" | "livelink">(initialDeliveryMode);
+  const [enableLiveTwin, setEnableLiveTwin] = useState(() => initialDeliveryMode === "livelink" && !initialIsReconnect);
 
   const [playbookOffer, setPlaybookOffer] = useState("");
   const [playbookWants, setPlaybookWants] = useState("");
@@ -275,7 +280,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
   const [buildElapsedSeconds, setBuildElapsedSeconds] = useState(0);
   const [videoRenderResult, setVideoRenderResult] = useState<{ videoUrl: string; videoId: string } | null>(null);
   const [videoCustomization, setVideoCustomization] = useState<VideoCustomization | undefined>();
-  const [showCustomization, setShowCustomization] = useState(false);
+  const [showCustomization, setShowCustomization] = useState(() => initialDeliveryMode === "livelink" && !initialIsReconnect);
   const [bandSessionId, setBandSessionId] = useState<string | null>(null);
   const [bandEvents, setBandEvents] = useState<BandEvent[]>([]);
   const bandEventSourceRef = useRef<EventSource | null>(null);
@@ -487,7 +492,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
     return () => clearTimeout(timer);
   }, [url]);
 
-  function saveSenderMemory(overrides?: { deliveryMode?: "video" | "livelink" }) {
+  async function saveSenderMemory(overrides?: { deliveryMode?: "video" | "livelink" }) {
     const brief = senderBrief.trim();
     const name = senderName.trim();
     const business = senderBusiness.trim();
@@ -502,15 +507,15 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
     const playbookConstraintsValue = playbookConstraints.trim();
     const bookingUrlValue = bookingUrl.trim();
     const mode = overrides?.deliveryMode ?? deliveryMode;
+    const anamAvatarId = typeof window !== "undefined" ? localStorage.getItem("nuncio_anam_avatar_id") : null;
+    const anamVoiceId = typeof window !== "undefined" ? localStorage.getItem("nuncio_anam_voice_id") : null;
     if (
       !brief && !name && !business && !brand && !personality && !audience && !offer && !proofPoints &&
       !playbookOfferValue && !playbookWantsValue && !playbookWiggleRoomValue && !playbookConstraintsValue &&
-      !bookingUrlValue &&
+      !bookingUrlValue && !anamAvatarId && !anamVoiceId &&
       mode === "video"
     ) return;
-    const anamAvatarId = typeof window !== "undefined" ? localStorage.getItem("nuncio_anam_avatar_id") : null;
-    const anamVoiceId = typeof window !== "undefined" ? localStorage.getItem("nuncio_anam_voice_id") : null;
-    fetch("/api/account/brief", {
+    await fetch("/api/account/brief", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -547,10 +552,12 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
     localStorage.setItem("nuncio_delivery_mode", mode);
   }
 
-  function handleDeliveryModeChange(mode: "video" | "livelink") {
-    if (mode === "livelink" && !liveLinkEnabled) return;
-    setDeliveryMode(mode);
-    saveSenderMemory({ deliveryMode: mode });
+  function handleDeliveryModeChange(newMode: "video" | "livelink") {
+    if (newMode === "livelink" && !liveLinkEnabled) return;
+    setDeliveryMode(newMode);
+    setShowCustomization(newMode === "livelink");
+    setEnableLiveTwin(newMode === "livelink" && mode === "outreach");
+    saveSenderMemory({ deliveryMode: newMode });
   }
 
   function applyVoiceProfile(profile: VoiceProfileResult) {
@@ -1144,7 +1151,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
         deliveryMode,
       });
     }
-    saveSenderMemory();
+    await saveSenderMemory();
     setStage("building");
     setBuildStep("build");
     setBuildStartedAt(Date.now());
@@ -1152,6 +1159,14 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
     setShowHookReasoning(false);
 
     if (deliveryMode === "livelink") {
+      const anamAvatarId = videoCustomization?.anamAvatarId;
+      const anamVoiceId = videoCustomization?.anamVoiceId;
+      const liveReady = anamAvatarId && anamVoiceId;
+      if (!liveReady) {
+        setToastMessage("Enable 'Train live twin' and upload a photo + voice sample before creating a live link.");
+        setStage("review");
+        return;
+      }
       const liveLinkUrl = await handleCreateLiveLink();
       if (!liveLinkUrl) {
         setStage("error");
@@ -1173,6 +1188,16 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
 
   async function handleCreateLiveLink(): Promise<string | null> {
     if (!reviewProfile) return null;
+    const anamAvatarId = videoCustomization
+      ? videoCustomization.anamAvatarId
+      : (typeof window !== "undefined" ? localStorage.getItem("nuncio_anam_avatar_id") : null) || undefined;
+    const anamVoiceId = videoCustomization
+      ? videoCustomization.anamVoiceId
+      : (typeof window !== "undefined" ? localStorage.getItem("nuncio_anam_voice_id") : null) || undefined;
+    if (deliveryMode === "livelink" && videoCustomization && (!anamAvatarId || !anamVoiceId)) {
+      setToastMessage("Enable 'Train live twin' and upload a photo + voice sample before creating a live link.");
+      return null;
+    }
     try {
       const res = await fetch("/api/share", {
         method: "POST",
@@ -1184,6 +1209,8 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
           senderName: senderName.trim() || undefined,
           profile: reviewProfile,
           privacy: "private",
+          anamAvatarId,
+          anamVoiceId,
         }),
       });
 
@@ -1844,8 +1871,8 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                               ) : null}
                               <p className="mt-1.5 text-label-sm text-ink-muted">
                                 {deliveryMode === "video" || !liveLinkEnabled
-                                  ? "Render a recorded MP4 share page instead."
-                                  : "Your AI twin takes the first meeting live — the recorded video rides along as fallback."}
+                                  ? "Render a recorded MP4 share page. No live twin required."
+                                  : "Your AI twin takes the first meeting live. Requires a trained live twin (photo + voice) and uses Anam credits per minute."}
                               </p>
                             </div>
 
@@ -2511,6 +2538,11 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                           suggestedLanguage={detectedLanguage || undefined}
                           script={reviewScript || undefined}
                           defaultToClone={mode === "reconnect"}
+                          mode={mode}
+                          deliveryMode={deliveryMode}
+                          liveLinkEnabled={liveLinkEnabled}
+                          enableLiveTwin={enableLiveTwin}
+                          onEnableLiveTwinChange={setEnableLiveTwin}
                         />
                       </motion.div>
                     )}
@@ -2544,7 +2576,17 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled }: Studio
                     </button>
                     <button
                       onClick={handleConfirmBuild}
-                      className="flex-[2] btn-press rounded-xl bg-ink text-cream py-3 text-body-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2 shadow-lg"
+                      disabled={
+                        deliveryMode === "livelink" &&
+                        (!videoCustomization?.anamAvatarId || !videoCustomization?.anamVoiceId)
+                      }
+                      title={
+                        deliveryMode === "livelink" &&
+                        (!videoCustomization?.anamAvatarId || !videoCustomization?.anamVoiceId)
+                          ? "Enable 'Train live twin' and upload a photo + voice sample first"
+                          : undefined
+                      }
+                      className="flex-[2] btn-press rounded-xl bg-ink text-cream py-3 text-body-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {mode === "reconnect"
                         ? "Create reconnection card"

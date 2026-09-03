@@ -21,6 +21,8 @@ export async function POST(request: NextRequest) {
     videoStyle,
     deliveryMode,
     mode: campaignMode,
+    anamAvatarId: bodyAnamAvatarId,
+    anamVoiceId: bodyAnamVoiceId,
   }: {
     videoUrl?: string;
     videoId?: string;
@@ -34,6 +36,8 @@ export async function POST(request: NextRequest) {
     videoStyle?: string;
     deliveryMode?: "video" | "livelink";
     mode?: "outreach" | "reconnect";
+    anamAvatarId?: string;
+    anamVoiceId?: string;
   } = body;
 
   const session = readAccountSession(request);
@@ -62,12 +66,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "videoUrl is required" }, { status: 400 });
   }
 
-  // Snapshot the sender's booking link onto the artifact so the live/share
-  // pages can offer "Book time with {sender}" (booking event instrumentation).
+  // Snapshot the sender's booking link and Anam assets onto the artifact so the live/share
+  // pages can offer "Book time with {sender}" and the live session can load the right twin.
   let bookingUrl: string | undefined;
+  let anamAvatarId: string | undefined = bodyAnamAvatarId;
+  let anamVoiceId: string | undefined = bodyAnamVoiceId;
   if (session?.workspaceId) {
     const workspace = await getAccountStorageProvider().getWorkspace(session.workspaceId);
     bookingUrl = workspace?.bookingUrl?.trim() || undefined;
+    anamAvatarId = anamAvatarId || workspace?.anamAvatarId;
+    anamVoiceId = anamVoiceId || workspace?.anamVoiceId;
   }
 
   const record = await createShareRecord({
@@ -86,6 +94,8 @@ export async function POST(request: NextRequest) {
     deliveryMode: mode,
     bookingUrl,
     mode: campaignMode === "reconnect" ? "reconnect" : "outreach",
+    anamAvatarId,
+    anamVoiceId,
   });
 
   const sharePath = mode === "livelink" ? `/live/${record.id}` : `/v/${record.id}`;
