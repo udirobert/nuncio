@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { LottieIcon } from "@/components/lottie-icon";
+import { AvatarSelector } from "@/components/avatar-selector";
+import { VoiceSelector } from "@/components/voice-selector";
 import type { VideoCustomization, HeyGenAvatar, HeyGenVoice } from "@/lib/heygen";
 import { LiveTwinPanel } from "@/components/live-twin-panel";
 
@@ -128,8 +130,6 @@ export function VideoCustomization({
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [captionsEnabled, setCaptionsEnabled] = useState(true);
-  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
-  const [previewingAvatarId, setPreviewingAvatarId] = useState<string | null>(null);
   const [vibePresets, setVibePresets] = useState<{ id: string; label: string; icon: string; description: string }[]>([]);
   const [previewingVibeId, setPreviewingVibeId] = useState<string | null>(null);
   const [vibeLoading, setVibeLoading] = useState(false);
@@ -194,12 +194,7 @@ export function VideoCustomization({
   };
   const pendingImageDataUrlRef = useRef<string | null>(null);
   const pendingAudioDataUrlRef = useRef<string | null>(null);
-  const [scriptAuditionLoading, setScriptAuditionLoading] = useState(false);
-  
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const photoInputRef = useRef<HTMLInputElement | null>(null);
-  const voiceInputRef = useRef<HTMLInputElement | null>(null);
 
   // Fetch Vibe presets on mount
   useEffect(() => {
@@ -381,10 +376,7 @@ export function VideoCustomization({
     }
   }, [liveTwinEnabled, anamAvatarId, anamVoiceId, createAnamAvatarFromDataUrl, createAnamVoiceFromDataUrl]);
 
-  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  async function handlePhotoUpload(file: File) {
     setPhotoUploading(true);
     setPhotoAvatarStatus("uploading");
 
@@ -444,10 +436,7 @@ export function VideoCustomization({
     }
   }
 
-  async function handleVoiceCloneUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  async function handleVoiceCloneUpload(file: File) {
     setVoiceCloneUploading(true);
     setVoiceCloneStatus("uploading");
 
@@ -507,20 +496,8 @@ export function VideoCustomization({
     }
   }
 
-  const uniqueVoices = voices
-    .filter((v, i, a) => a.findIndex((x) => x.voice_id === v.voice_id) === i)
-    .sort((a, b) => {
-      // Sort matching language voices to the top
-      if (!suggestedLanguage) return 0;
-      const lang = suggestedLanguage.toLowerCase();
-      const aMatch = a.language?.toLowerCase().includes(lang) ? 1 : 0;
-      const bMatch = b.language?.toLowerCase().includes(lang) ? 1 : 0;
-      return bMatch - aMatch;
-    });
-
   const selectedAvatar = avatars[avatarIndex];
   const selectedVoice = voices[voiceIndex];
-  const playingVoice = uniqueVoices.find((v) => v.voice_id === playingVoiceId);
   const aspect = ASPECT_RATIOS[aspectIndex];
   const missingVideoClone = defaultToClone && (!photoAvatarId || !clonedVoiceId);
   const missingLiveTwin =
@@ -602,287 +579,28 @@ export function VideoCustomization({
         </button>
       </div>
 
-      {/* Avatar selector */}
-      {avatars.length > 0 && (
-        <div className="space-y-2">
-          <label className="text-label-sm uppercase tracking-widest font-medium text-ink-faint">
-            Avatar
-          </label>
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
-            {avatars.slice(0, 24).map((avatar, i) => {
-              const isPlaying = previewingAvatarId === avatar.avatar_id;
-              const hasPreview = !!avatar.preview_video_url;
-              return (
-                <div key={avatar.avatar_id} className="relative shrink-0">
-                  <button
-                    onClick={() => setAvatarIndex(i)}
-                    className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
-                      i === avatarIndex
-                        ? "border-accent ring-2 ring-accent/20"
-                        : "border-cream-dark hover:border-ink-faint/30"
-                    } ${isPlaying ? "ring-2 ring-accent/40" : ""}`}
-                    title={avatar.avatar_name}
-                  >
-                    {isPlaying ? (
-                      <video
-                        ref={(el) => {
-                          if (el) {
-                            videoRef.current = el;
-                            el.muted = true;
-                            el.loop = false;
-                            el.playsInline = true;
-                            el.play().catch(() => {});
-                            el.onended = () =>
-                              setPreviewingAvatarId((prev) =>
-                                prev === avatar.avatar_id ? null : prev
-                              );
-                          }
-                        }}
-                        src={avatar.preview_video_url}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <img
-                        src={avatar.preview_image_url}
-                        alt={avatar.avatar_name}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    )}
-                  </button>
-                  {hasPreview && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isPlaying) {
-                          videoRef.current?.pause();
-                          videoRef.current = null;
-                          setPreviewingAvatarId(null);
-                        } else {
-                          // Stop any previous video
-                          videoRef.current?.pause();
-                          videoRef.current = null;
-                          setPreviewingAvatarId(avatar.avatar_id);
-                        }
-                      }}
-                      className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-sm border transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
-                        isPlaying
-                          ? "bg-accent text-white border-accent"
-                          : "bg-white text-ink-faint border-cream-dark hover:text-accent hover:border-accent"
-                      }`}
-                      title={isPlaying ? "Stop preview" : "Preview avatar"}
-                      aria-label={isPlaying ? "Stop preview" : "Preview avatar"}
-                    >
-                      {isPlaying ? (
-                        <svg viewBox="0 0 10 10" className="w-2.5 h-2.5" fill="currentColor">
-                          <rect x="1.5" y="1" width="2.5" height="8" rx="0.5" />
-                          <rect x="6" y="1" width="2.5" height="8" rx="0.5" />
-                        </svg>
-                      ) : (
-                        <svg viewBox="0 0 10 10" className="w-2.5 h-2.5" fill="currentColor">
-                          <polygon points="2.5,1 8.5,5 2.5,9" />
-                        </svg>
-                      )}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          {selectedAvatar && (
-            <p className="text-label-base text-ink-muted truncate">
-              {selectedAvatar.avatar_name} · {selectedAvatar.gender}
-              {previewingAvatarId && selectedAvatar.avatar_id === previewingAvatarId && (
-                <span className="text-accent/70 ml-1">· Previewing</span>
-              )}
-            </p>
-          )}
-          {/* Use your photo */}
-          <div className="flex items-center gap-2 pt-1">
-            <input
-              ref={photoInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handlePhotoUpload}
-              className="hidden"
-            />
-            <button
-              onClick={() => photoInputRef.current?.click()}
-              disabled={photoUploading || photoAvatarStatus === "processing"}
-              className="text-label-base text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1 transition-colors"
-            >
-              <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <rect x="2" y="3" width="12" height="10" rx="2" />
-                <circle cx="5.5" cy="6.5" r="1.5" />
-                <path d="M14 11l-3-3-2 2-3-3-4 4" />
-              </svg>
-              {photoAvatarStatus === "processing" || photoUploading ? (
-                <>
-                  <LottieIcon name="spinner" className="w-3 h-3" />
-                  {photoAvatarStatus === "processing" ? "Processing..." : "Uploading..."}
-                </>
-              ) : (
-                "Use your photo"
-              )}
-            </button>
-            {photoAvatarStatus === "ready" && (
-              <span className="text-label-sm text-success">Ready</span>
-            )}
-            {photoAvatarStatus === "failed" && (
-              <span className="text-label-sm text-error">Failed</span>
-            )}
-          </div>
-        </div>
-      )}
+      <AvatarSelector
+        avatars={avatars}
+        selectedIndex={avatarIndex}
+        onSelect={setAvatarIndex}
+        selectedAvatar={selectedAvatar}
+        photoUploading={photoUploading}
+        photoAvatarStatus={photoAvatarStatus}
+        onPhotoUpload={handlePhotoUpload}
+      />
 
-      {/* Voice selector */}
-      {uniqueVoices.length > 0 && (
-        <div className="space-y-2">
-          <label className="text-label-sm uppercase tracking-widest font-medium text-ink-faint">
-            Voice
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            {uniqueVoices.slice(0, 12).map((voice, i) => (
-              <div key={voice.voice_id} className="flex items-center gap-0.5">
-                {voice.preview_audio && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const el = audioRef.current;
-                      if (playingVoiceId === voice.voice_id) {
-                        el?.pause();
-                        setPlayingVoiceId(null);
-                      } else {
-                        if (el) {
-                          el.pause();
-                          el.currentTime = 0;
-                        }
-                        const audio = new Audio(voice.preview_audio);
-                        const currentId = voice.voice_id;
-                        audio.onended = () =>
-                          setPlayingVoiceId((prev) => (prev === currentId ? null : prev));
-                        audioRef.current = audio;
-                        audio.play().catch(() => {});
-                        setPlayingVoiceId(voice.voice_id);
-                      }
-                    }}
-                    className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-label-xs transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
-                      playingVoiceId === voice.voice_id
-                        ? "bg-accent text-white"
-                        : "text-ink-faint hover:text-accent hover:bg-cream-dark/40"
-                    }`}
-                    title={playingVoiceId === voice.voice_id ? "Stop preview" : "Preview voice"}
-                    aria-label={playingVoiceId === voice.voice_id ? "Stop preview" : "Preview voice"}
-                  >
-                    {playingVoiceId === voice.voice_id ? (
-                      <svg viewBox="0 0 12 12" className="w-2.5 h-2.5" fill="currentColor">
-                        <rect x="2" y="1" width="3" height="10" rx="0.5" />
-                        <rect x="7" y="1" width="3" height="10" rx="0.5" />
-                      </svg>
-                    ) : (
-                      <svg viewBox="0 0 12 12" className="w-2.5 h-2.5" fill="currentColor">
-                        <polygon points="3,1 11,6 3,11" />
-                      </svg>
-                    )}
-                  </button>
-                )}
-                <button
-                  onClick={() => setVoiceIndex(i)}
-                  className={`rounded-lg border px-3 py-1.5 text-xs transition-[color,background-color,border-color,opacity,box-shadow,transform] ${
-                    i === voiceIndex
-                      ? "border-accent bg-accent-soft/40 text-accent font-medium"
-                      : "border-cream-dark text-ink-muted hover:border-ink-faint/30"
-                  }`}
-                >
-                  {voice.name}
-                </button>
-              </div>
-            ))}
-          </div>
-          {playingVoice && (
-            <p className="text-label-sm text-accent/70 animate-pulse">
-              Playing {playingVoice.name}…
-            </p>
-          )}
-          {/* Script audition — hear selected voice reading actual script */}
-          {script && selectedVoice && (
-            <button
-              onClick={async () => {
-                if (scriptAuditionLoading) return;
-                // Stop any current playback
-                audioRef.current?.pause();
-                setPlayingVoiceId(null);
-                setScriptAuditionLoading(true);
-                try {
-                  const previewText = script.slice(0, 200) + (script.length > 200 ? "..." : "");
-                  const res = await fetch("/api/tts", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ text: previewText, voiceId: selectedVoice.voice_id }),
-                  });
-                  if (res.ok) {
-                    const { audio } = await res.json();
-                    const el = new Audio(audio);
-                    el.onended = () => setPlayingVoiceId(null);
-                    audioRef.current = el;
-                    setPlayingVoiceId(selectedVoice.voice_id);
-                    el.play().catch(() => {});
-                  }
-                } catch { /* noop */ }
-                setScriptAuditionLoading(false);
-              }}
-              disabled={scriptAuditionLoading}
-              className="text-label-base text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1.5 transition-colors"
-            >
-              <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M4 3l9 5-9 5V3z" />
-              </svg>
-              {scriptAuditionLoading ? (
-                <>
-                  <LottieIcon name="spinner" className="w-3 h-3" />
-                  Generating preview...
-                </>
-              ) : (
-                "Preview with your script"
-              )}
-            </button>
-          )}
-          {/* Use your voice */}
-          <div className="flex items-center gap-2 pt-1">
-            <input
-              ref={voiceInputRef}
-              type="file"
-              accept="audio/*"
-              onChange={handleVoiceCloneUpload}
-              className="hidden"
-            />
-            <button
-              onClick={() => voiceInputRef.current?.click()}
-              disabled={voiceCloneUploading || voiceCloneStatus === "processing"}
-              className="text-label-base text-accent hover:text-accent/80 disabled:opacity-50 flex items-center gap-1 transition-colors"
-            >
-              <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
-                <path d="M3 8a5 5 0 0010 0M8 13v2" />
-              </svg>
-              {voiceCloneStatus === "processing" || voiceCloneUploading ? (
-                <>
-                  <LottieIcon name="spinner" className="w-3 h-3" />
-                  {voiceCloneStatus === "processing" ? "Cloning..." : "Uploading..."}
-                </>
-              ) : (
-                "Use your voice"
-              )}
-            </button>
-            {voiceCloneStatus === "ready" && (
-              <span className="text-label-sm text-success">Ready</span>
-            )}
-            {voiceCloneStatus === "failed" && (
-              <span className="text-label-sm text-error">Failed</span>
-            )}
-          </div>
-        </div>
-      )}
+      <VoiceSelector
+        voices={voices}
+        selectedIndex={voiceIndex}
+        onSelect={setVoiceIndex}
+        selectedVoice={selectedVoice}
+        voiceCloneStatus={voiceCloneStatus}
+        voiceCloneUploading={voiceCloneUploading}
+        onVoiceUpload={handleVoiceCloneUpload}
+        script={script}
+        suggestedLanguage={suggestedLanguage}
+        audioRef={audioRef}
+      />
 
       <LiveTwinPanel
         liveLinkEnabled={liveLinkEnabled}
@@ -1074,7 +792,7 @@ export function VideoCustomization({
             {/* Stats */}
             <div className="flex items-center justify-between text-label-sm text-ink-faint pt-1 border-t border-cream-dark/40">
               <span>
-                {avatars.length} avatars · {uniqueVoices.length} voices
+                {avatars.length} avatars · {new Set(voices.map((v) => v.voice_id)).size} voices
               </span>
               <span>
                 {aspect.width}×{aspect.height}
