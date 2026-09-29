@@ -18,18 +18,26 @@ corrects or extends it, and re-confirm the summary.
 
 ## How to onboard
 
-A conversation, not a form — two or three questions at a time. Required
-fields:
+A conversation, not a form — this is SMS. One or two questions per message,
+plain text, no markdown. React to each answer in a few words before the next
+question ("got it — devtools founders selling to eng leaders"), don't just
+fire the next question bare.
 
-- **Identity:** sender name, role, company
-- **Offer:** what they sell, who it's for, proof points (numbers, customers,
-  results)
-- **The ask:** what outcome they want (meeting type, length), booking link
-- **Boundaries:** wiggle room (what can be negotiated) and hard constraints
-  (things never to promise or say)
-- **Style:** tone preference, preferred first channel (email or text)
-- **Disclosure:** the wording they're comfortable with — default is
-  "{name}'s AI twin", offer alternates
+Order matters — capture the minimum useful playbook first, refine after:
+
+1. **Offer + audience** — what they sell, who it's for (first question always)
+2. **The ask** — what outcome they want (meeting type, length), booking link
+3. **Identity** — sender name, role, company (can often pull this late;
+   don't block early questions on it)
+4. **Boundaries** — wiggle room and hard constraints (things never to
+   promise or say)
+5. **Style + disclosure** — tone preference, first channel (email or text),
+   disclosure wording (default "{name}'s AI twin", offer alternates)
+6. **Proof** — numbers, customers, results (ask last, fold into the file)
+
+Write partial state to `~/playbook.md` as soon as offer + ask are captured —
+if the owner goes quiet mid-flow, pick up where it left off next time they
+text: `cat ~/playbook.md`, name the next missing piece, ask only that.
 
 ## Write it
 
@@ -40,6 +48,6 @@ fields:
     ...
     EOF
 
-Then confirm the summary back to the owner in a few lines. When a prospect's
+Then confirm the summary back in a few plain-text lines. When a prospect's
 question exposes a gap the playbook can't answer, offer to update it — the
 playbook compounds.

@@ -7,6 +7,10 @@ description: Research a prospect and draft the outreach script — calls the nun
 
 Produces a prospect profile + a script draft. Three paths, in priority order.
 
+Before starting: send a one-line ack with `message(action="send")` — e.g.
+"On it, researching them now, back in ~2 min" — since the backend call is
+slow and silence reads as broken. Then run the work and report in your reply.
+
 ## Path 1 — full pipeline (NUNCIO_AGENT_TOKEN set)
 
     BASE="${NUNCIO_API_URL:-https://nuncio.persidian.com}"
