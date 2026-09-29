@@ -29,18 +29,35 @@ Positioning rationale lives in [`STRATEGY.md` → "Application: OpenClaw 2.0 fir
 - Cloud/1-click deploy: push public image to ghcr, post uid + slug + `repo@sha256:` digest in Discord; an admin enables 1-click once. Afterwards `image push --promote <slug>` ships updates.
 - MIT: repo-wide `LICENSE` added at root (udirobert/nuncio is public).
 
+## Status — submitted ✓
+
+- **Listing:** https://aiworthusing.com/agent-index/nuncio — verified, 1-click deploy enabled, finished (video + screenshot + install link)
+- **Live line:** +1 (650) 315-6335 (`ln_p2` / Aspen) — `ln_p1` was retired (outbound stuck at `sent`, never `delivered`; Plow-side)
+- **Pinned image:** `ghcr.io/udirobert/nuncio-openclaw@sha256:4db774749a9b83759f536a6c15a53d3594a7173e957e084509dcc37d26f5e579` — includes post-test persona fixes
+- **Demo video:** https://youtu.be/wwwtA8X1kNs (66s; `demo-video/` HyperFrames composition, cream/Instrument-Serif brand pass, lo-fi bed cut to an 80.7bpm grid)
+- **Multiplayer proven end-to-end** (chat `cht_1pTh486INwln9r2Bd-CN1w`): onboarding → playbook → draft → owner approval → `plow_start_thread` group → prospect objections → `plow_ask_owner` escalation → owner answers in DM → `plow_reply_to` relay → booking link
+- **Fixture:** `openclaw-agent/prospect-sim/` — skeptical-VP agent (Maya) for repeatable thread tests; parked at `/root/openclaw-prospect` on the Vultr box (`docker compose -p prospect up -d` revives)
+
+### Persona fixes from the first live run (in v2 image)
+
+- `NO_REPLY` sentinel for no-op turns — kills the "I'll stay silent" loop where every inbound message forced a reply
+- Answer playbook-covered questions directly; escalate only missing facts / commitments / owner decisions
+- Batch open questions into one concise `plow_ask_owner`, plain text
+- Never leak chat UIDs, tool names, or internal state to prospects
+- After a runtime error, verify thread history before claiming something was fabricated or sent
+
 ## Sequence
 
 1. [x] MIT license at repo root
 2. [x] `openclaw-agent/` scaffold (Dockerfile, persona, 6 skills, compose)
 3. [x] `/api/agent/lite` endpoint (verified locally: URL → profile + script + review)
-4. [ ] Push to GitHub; deploy lite endpoint to production (`scripts/deploy-vps.sh`)
-5. [ ] `plow-agents login` + mint a line (user: needs their phone for activation text)
-6. [ ] `docker compose up` on Vultr box (amd64 — skip Mac, base is amd64) → text test end-to-end
-7. [ ] `image build` → `image push` (public ghcr) → register listing (auto via AGENT_ID)
-8. [ ] Discord: post uid + slug + digest → verification + 1-click deploy
-9. [ ] ≥60s demo video — judge-as-prospect format
-10. [ ] Drive installs + usage; post real-outcome stories via `nuncio-report`
+4. [x] Push to GitHub; lite endpoint live in production
+5. [x] `plow-agents login` + line minted (`ln_p2`)
+6. [x] Deployed on Vultr (amd64) → end-to-end text test incl. live multiplayer thread
+7. [x] `image build` → `image push` (public ghcr) → listing registered (auto via AGENT_ID)
+8. [x] Discord submission → **verified + 1-click deploy enabled** (passed: researched a real store, flagged profile mismatch, drafted disclosed twin email, asked before sending)
+9. [x] 66s demo video rendered → on the listing via `image set --video`
+10. [ ] Drive installs + usage before Sep 30 snapshot (valid user = 200k+ tokens, ≤28d active); post real-outcome stories via `nuncio-report`
 
 ## Deliberate choices
 
