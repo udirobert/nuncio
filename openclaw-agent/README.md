@@ -34,9 +34,13 @@ NUNCIO_AGENT_TOKEN=...       # unlocks render upgrade via full pipeline
 
 ## Deploy
 
+Published image: `ghcr.io/sneldao/nuncio-openclaw:latest`
+(digest `sha256:fca60a9cd6e7dd0c184d5604d3b11f0798a4f859423fc8240974c5f696be101c`).
+
 ```sh
+# on a linux/amd64 host with docker
 plow-agents image build ghcr.io/<you>/nuncio-agent:v1
-plow-agents image push ghcr.io/<you>/nuncio-agent:v1   # make the package public
+plow-agents image push ghcr.io/<you>/nuncio-agent:v1   # then make the package public
 plow-agents deploy ghcr.io/<you>/nuncio-agent@sha256:<digest> --line ln_xxx
 ```
 

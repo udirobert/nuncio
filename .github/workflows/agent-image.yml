@@ -1,11 +1,10 @@
 name: agent-image
 
+# Manual-only: GitHub-hosted runners get 429s pulling the base image from
+# public.ecr.aws (shared anonymous quota). Release flow is `docker build` +
+# `docker push` from an amd64 host (see openclaw-agent/README.md). This
+# workflow remains for manual runs once a base mirror exists.
 on:
-  push:
-    branches: [main]
-    paths:
-      - openclaw-agent/**
-      - .github/workflows/agent-image.yml
   workflow_dispatch:
 
 permissions:
