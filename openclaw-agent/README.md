@@ -34,7 +34,7 @@ NUNCIO_AGENT_TOKEN=...       # unlocks render upgrade via full pipeline
 
 ## Deploy
 
-Published image: `ghcr.io/sneldao/nuncio-openclaw:latest`
+Published image: `ghcr.io/udirobert/nuncio-openclaw:latest`
 (digest `sha256:fca60a9cd6e7dd0c184d5604d3b11f0798a4f859423fc8240974c5f696be101c`).
 
 ```sh
