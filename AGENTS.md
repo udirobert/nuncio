@@ -9,6 +9,8 @@ Build a creative monopoly in **conversational SDR** — honest presence, not dis
 
 Current phase: STRATEGY Phase 1 ✅ (defaults flipped, instrumentation live, predictions derived) → Phase 2 — ten founders hand-served; playbook capture via voice overlay. `SenderPlaybook`, `deliveryMode`, and the LiveLink POC are built; the dual-mode architecture (Band studio + Hermes autonomous) is in place.
 
+**Active: OpenClaw 2.0 first-hire hackathon (SDR entry, submit Sep 29 11:59pm PT).** Ship lite multiplayer variant (text + voice note, video as upgrade) to the Agent Index with usage reporting; Band room = OpenClaw room; Plow iMessage for follow-up. Optimize for installs + token usage by Sep 30 snapshot.
+
 ## Core Principles
 - **ENHANCEMENT FIRST**: Always prioritize enhancing existing components over creating new ones
 - **CONSOLIDATION**: Delete unnecessary code rather than deprecating

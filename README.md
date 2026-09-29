@@ -180,6 +180,17 @@ See [`docs/DEPLOY.md`](./docs/DEPLOY.md) for deployment guide (Vultr + Coolify, 
 
 ---
 
+## OpenClaw 2.0 — first-hire hackathon (SDR entry)
+
+AgentCribs "startup's first hire": nuncio as OpenClaw 2.0 multiplayer SDR. Submit by **Sep 29, 11:59pm PT** to the AI Worth Using Agent Index (MIT, usage reporting); leaderboard snapshot Sep 30.
+
+- Multiplayer room: sender + prospect + Researcher/Copywriter/QA/Producer agents (Band maps 1:1 to OpenClaw rooms)
+- Lite variant for installs: text + voice note first, HeyGen video as upgrade (keeps trial friction near zero)
+- Plow bonus: iMessage follow-up + Latch-safe Mac control
+- Win metric: installs + token usage — viral `/v/[id]` + `/live/[id]` share links are the distribution
+
+---
+
 ## License
 
 MIT

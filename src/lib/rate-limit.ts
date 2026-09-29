@@ -29,6 +29,8 @@ export const RATE_LIMITS = {
   transcribe: { maxRequests: 10, windowSeconds: 60 },
   /** Live avatar session — costs Anam credits */
   live: { maxRequests: 3, windowSeconds: 60 },
+  /** Public lite agent endpoint — quick-tier research + script, no render */
+  agentLite: { maxRequests: 20, windowSeconds: 3600 },
 } as const;
 
 export interface RateLimitResult {
