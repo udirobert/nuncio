@@ -102,3 +102,43 @@ Concentric expansion (gated on Phase 2 results): founders → high-ticket servic
 
 ## The first move
 Pick the thesis sentence, get **one** founder's twin live this week, and watch a real prospect talk to it. Everything else — including which secret is actually true — gets answered by that conversation.
+
+---
+
+## Application: OpenClaw 2.0 first-hire hackathon (Sep 2026)
+
+How the thesis maps to the AgentCribs "build your startup's first hire" contest
+(submission Sep 29, leaderboard snapshot Sep 30 — score = valid users × tokens,
+200k+ tokens per valid user, top 5 judged by AgentCribs/TPW).
+
+**Positioning test.** "Research agent" is commoditized — research is plumbing,
+never the story. The lead line: **an SDR that doesn't send outreach — it holds
+the first conversation.** Every competing Index entry is an *assistant*
+(helps the owner: recaps, household, social). Nuncio is the only *hire* — an
+agent that works a job against real third parties on the owner's behalf.
+
+**Why the hackathon multiplayer requirement favors us.** Most entries'
+multiplayer is two teammates watching one session. Ours is a prospect —
+a stranger — in an untrusted thread negotiating with the twin while the owner
+watches and approves. That is the rule's actual intent ("customers and
+vendors interface with it") and nobody else does it.
+
+**The judge-facing demo.** Put the judge in the prospect seat: owner texts a
+URL → onboarding/playbook → research → approved first touch → prospect (the
+audience) replies with an objection → twin handles it from the playbook →
+escalates to owner → booking link → Stripe checkout. Every requirement
+visible in 60s: multiplayer, real job, real third party, real money.
+
+**Token-economics design consequences.** An approval-gated SDR burns fewer
+tokens than a chatty assistant, so the loop is deliberately conversational:
+playbook onboarding interview, in-chat draft iteration, follow-up threads —
+plus a daily SDR briefing heartbeat for habitual opens (valid-user floor).
+
+**What the hackathon falsifies.** S2 (disclosed twin vs disguise) and S4
+(prospect prefers twin to calendar) get their first real-world reads for free.
+If prospects refuse the twin in threads, that is cheap, high-quality evidence
+against the thesis — the contest is the experiment.
+
+**Moat logic unchanged.** The playbook interview is PG's unscalable thing
+productized; guardrails + escalation + disclosure UX are the schlep others
+route around. Rendering providers stay commodities (S5).
