@@ -70,6 +70,10 @@ Remaining for the pilot: live end-to-end verification (needs LiveKit project + `
 - ✅ The server-built live prompt explicitly identifies the avatar as AI and carries playbook constraints; continue live guardrail tuning.
 - ✅ Add a mockable provider boundary and credit-safe tests; rerun the full suite after the hardening pass before pilot traffic.
 
+**Phase 1.5 — Text-agent → live handoff** (implemented locally; unverified)
+
+An owner-authorized bridge from the text SDR to the live link: `POST /api/agent/handoffs` (agent token bound to one explicit workspace via `NUNCIO_AGENT_WORKSPACE_ID`) mints a private invitation — a `livelink` share with only a `handoffId` marker plus a private `HandoffRecord` carrying a SHA-256-hashed bearer token and a bounded context summary (never transcripts or contact data). The invite travels as a `#handoff=` URL fragment, is exchanged for a host-only HttpOnly cookie, and is forwardable-but-not-identity-verified. Recipient endpoints (`GET /api/share/[id]`, live session, availability, call requests) require the cookie; the owner's session may bypass only while the invite is active — expiry/revoke denies everyone, so it actually protects the invite. The recipient lands on a "Choose how to continue" surface (twin / request-now / booking) instead of a bare player, and the owner inbox surfaces the handoff's "Text conversation context" before and during the call.
+
 **Phase 2 — Run the pilot**
 
 - Use one sender/avatar and 5–10 friendly or real prospects.

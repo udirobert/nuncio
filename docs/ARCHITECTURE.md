@@ -34,6 +34,10 @@ Recorded video is the fallback artifact; live conversation is the product; the s
 | `/api/live/call-requests/[id]/cancel` | POST | Cancel via recipient capability proof or owner action; idempotent on repeat; tears the room down through the shared lifecycle path |
 | `/api/live/call-requests/webhook` | POST | Signed LiveKit webhook (`WebhookReceiver`, auth mandatory); reconciles presence, terminalizes on `room_finished`, removes stragglers joining a terminal room |
 | `/api/live/agent/chat/completions` | POST | Internal worker gateway — authenticated (`NUNCIO_LIVE_WORKER_TOKEN` + `x-nuncio-live-session`), server-built prompt, ignores client system messages |
+| `/api/agent/handoffs` | POST/GET | Agent-token workspace (explicit `NUNCIO_AGENT_WORKSPACE_ID`, no fallback) creates a private handoff invitation — a `livelink` share carrying only a `handoffId` marker plus a private `HandoffRecord` (token hash + bounded summary context, never transcripts/contacts). GET lists redacted workspace handoffs |
+| `/api/agent/handoffs/[id]` | GET/DELETE | Scoped status/context/options plus the share's recent call requests (latest-50 cohort); DELETE monotonically revokes the invitation — blocks future entry/session/LLM access, does not force-end connected calls |
+| `/api/agent/call-requests` | GET | Owner-agent polling inbox: safe projection (ids/status/recipient name/handoff context/dashboard URL), no tokens or contact data; pull only — no push channel |
+| `/api/live/handoffs/[shareId]/access` | POST | Bearer-invite → per-share HttpOnly cookie exchange (`nuncio_handoff_<shareId>`, same-origin JSON POST, rate-limited, idempotent); cookie maxAge bounded by the invite's remaining life |
 
 ---
 
@@ -149,6 +153,7 @@ LiveLink is an additive delivery mode, not a replacement for the recorded-video 
 - **Session safety:** the browser enforces a five-minute maximum and cleans up the SDK client/timer on manual end, provider disconnect, unload, and unmount. Each token has a durable session record and hashed sync token; `/api/live/expire` reconciles stale records when invoked by a scheduler.
 - **Identity and safety:** the live page discloses that the prospect is speaking with an AI avatar; the server-built prompt enforces the Sender Playbook for pricing, claims, commitments, and competitor statements; booking uses the configured link rather than implied promises.
 - **Fallback:** if LiveLink cannot start or repeatedly fails to connect, the page redirects to the recorded share at `/v/[id]`; microphone denial remains an explicit in-page recovery path.
+- **Text→live handoff (untested this pass):** an agent-created invitation (`POST /api/agent/handoffs`) produces a private share whose only public trace is a `handoffId` marker. The invite token travels in the `#handoff=` URL fragment, is stripped before the handoff fetch/telemetry, and is exchanged into an HttpOnly cookie carrying the raw bearer token (`src/lib/live-handoff-client.ts`). `authorizeHandoffShare` (`src/lib/live-handoff.ts`) gates share GET, session start, availability, and call-request creation; `callRequestShareStillValid` re-checks activity so revoke/expiry blocks fresh joins while cancel/webhook cleanup still work. An active handoff's compact context is appended to the server-built twin prompt as untrusted data; the owner inbox shows it as "Text conversation context". The invite URL is a forwardable bearer capability — it does not verify recipient identity and is never single-use-claimed.
 - **Usage accounting:** the route reserves the five-credit pilot maximum. Provider-start failures refund the reservation; browser-reported duration is retained as telemetry but is not trusted to reduce billing. Stale expiry is conservative and keeps the maximum charge because Anam does not expose a server-authoritative duration endpoint.
 - **Telemetry:** the browser emits PostHog requested, connected, ended (duration/reason), and failed events; the server stores terminal duration and reason without raw audio. Provider-authoritative duration and meeting outcome remain future work.
 
@@ -164,6 +169,7 @@ All external API calls use exponential backoff with configurable max attempts.
 - `FileShareStorageProvider` / `TursoShareStorageProvider` — share records
 - `FileLiveSessionStorageProvider` / `TursoLiveSessionStorageProvider` — durable twin-session lifecycle records
 - `FileCallRequestStorageProvider` / `TursoCallRequestStorageProvider` — versioned call-request records and room-cleanup state
+- `FileHandoffStorageProvider` / `TursoHandoffStorageProvider` — private handoff invitations (serialized file writes via temp+rename / atomic scoped SQL revoke; `revokedAt` is monotonic). The file provider assumes a single process — it keeps a conservative in-memory revoke on persist failure, which must be retried since a restart would lose it; use Turso for production.
 
 ### Three-Tier Media Storage
 Media assets and provenance are separated by role with zero overlap:

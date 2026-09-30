@@ -7,6 +7,7 @@ import {
 } from "@/lib/storage";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isLiveLinkAllowed } from "@/lib/live-link";
+import { getActiveHandoffForShare } from "@/lib/live-handoff";
 import { buildLiveSystemPrompt } from "@/lib/live-prompt";
 import { chatCompletion } from "@/lib/llm";
 
@@ -69,6 +70,10 @@ export async function POST(request: NextRequest) {
   if (!share || !isLiveLinkAllowed({ workspaceId: share.workspaceId, senderEmail: share.senderEmail })) {
     return NextResponse.json({ error: { message: "Live session not found", type: "invalid_request_error" } }, { status: 404, headers: NO_STORE });
   }
+  const handoff = share.handoffId ? (await getActiveHandoffForShare(share)).record : null;
+  if (share.handoffId && !handoff) {
+    return NextResponse.json({ error: { message: "Live session not found", type: "invalid_request_error" } }, { status: 404, headers: NO_STORE });
+  }
 
   const rateLimit = await checkRateLimit(sessionId, "live.agentChat", { maxRequests: 60, windowSeconds: 60 });
   if (!rateLimit.allowed) {
@@ -121,6 +126,7 @@ export async function POST(request: NextRequest) {
       language: share.language,
     },
     workspace,
+    handoff?.context,
   );
 
   const content = await chatCompletion(

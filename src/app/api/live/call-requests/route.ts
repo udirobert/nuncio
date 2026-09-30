@@ -3,15 +3,18 @@ import { getShareRecord } from "@/lib/share-store";
 import {
   getAccountStorageProvider,
   getCallRequestStorageProvider,
+  getHandoffStorageProvider,
   getLiveSessionStorageProvider,
 } from "@/lib/storage";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 import { readAccountSession } from "@/lib/auth/session";
 import { hashLiveSessionToken } from "@/lib/live-session";
 import { isLiveLinkEnabled } from "@/lib/live-link";
+import { authorizeHandoffShare } from "@/lib/live-handoff";
 import {
   CALL_REQUEST_PENDING_TTL_MS,
   areCallRequestsEnabledForShare,
+  browserMutationAllowed,
   isCallAvailabilityActive,
   isWorkspaceOwner,
   mintRecipientToken,
@@ -48,6 +51,13 @@ export async function POST(request: NextRequest) {
   const share = await getShareRecord(shareId);
   if (!share || share.deliveryMode !== "livelink" || !share.workspaceId) {
     return NextResponse.json({ error: "Live link not found" }, { status: 404, headers: NO_STORE });
+  }
+
+  if (!await authorizeHandoffShare(request, share)) {
+    return NextResponse.json({ error: "Live link not found" }, { status: 404, headers: NO_STORE });
+  }
+  if (share.handoffId && !browserMutationAllowed(request, true)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403, headers: NO_STORE });
   }
 
   if (!areCallRequestsEnabledForShare(share)) {
@@ -168,6 +178,15 @@ export async function GET(request: NextRequest) {
       recipientRole: share?.profile?.current_role || null,
       recipientCompany: share?.profile?.company || null,
       questionTopics: sessionRecord?.metrics?.questionTopics ?? [],
+      handoffContext: share?.handoffId && share.workspaceId === session.workspaceId
+        ? await getHandoffStorageProvider().get(share.handoffId).then((handoff) =>
+          handoff
+          && handoff.id === share.handoffId
+          && handoff.shareId === share.id
+          && handoff.workspaceId === session.workspaceId
+            ? handoff.context
+            : null)
+        : null,
     };
   }));
 

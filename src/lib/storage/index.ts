@@ -1,7 +1,9 @@
-import type { AccountStorageProvider, BandActivityStorageProvider, BatchStorageProvider, CallRequestStorageProvider, LiveSessionStorageProvider, MediaStorageProvider, ProofStorageProvider, ShareStorageProvider, TokenStorageProvider } from "./types";
+import type { AccountStorageProvider, BandActivityStorageProvider, BatchStorageProvider, CallRequestStorageProvider, HandoffStorageProvider, LiveSessionStorageProvider, MediaStorageProvider, ProofStorageProvider, ShareStorageProvider, TokenStorageProvider } from "./types";
 import { FileLiveSessionStorageProvider } from "./file-live-session-provider";
 import { TursoLiveSessionStorageProvider } from "./turso-live-session-provider";
 import { FileCallRequestStorageProvider } from "./file-call-request-provider";
+import { FileHandoffStorageProvider } from "./file-handoff-provider";
+import { TursoHandoffStorageProvider } from "./turso-handoff-provider";
 import { TursoCallRequestStorageProvider } from "./turso-call-request-provider";
 import { FileShareStorageProvider } from "./file-provider";
 import { FileAccountStorageProvider } from "./file-account-provider";
@@ -25,6 +27,7 @@ let bandActivityProvider: BandActivityStorageProvider | null = null;
 let mediaProvider: MediaStorageProvider | null = null;
 let liveSessionProvider: LiveSessionStorageProvider | null = null;
 let callRequestProvider: CallRequestStorageProvider | null = null;
+let handoffProvider: HandoffStorageProvider | null = null;
 
 export type {
   AccountStorageProvider,
@@ -37,6 +40,8 @@ export type {
   CallRequestStorageProvider,
   CreditAccountSummary,
   CreditTransactionRecord,
+  HandoffRecord,
+  HandoffStorageProvider,
   LiveSessionMetrics,
   LiveSessionRecord,
   LiveSessionStatus,
@@ -162,6 +167,20 @@ export function getCallRequestStorageProvider(): CallRequestStorageProvider {
   return callRequestProvider;
 }
 
+export function getHandoffStorageProvider(): HandoffStorageProvider {
+  if (handoffProvider) return handoffProvider;
+
+  if (process.env.TURSO_DATABASE_URL) {
+    handoffProvider = new TursoHandoffStorageProvider();
+    console.log("[storage] Using Turso handoff storage");
+    return handoffProvider;
+  }
+
+  handoffProvider = new FileHandoffStorageProvider();
+  console.log("[storage] Using file handoff storage");
+  return handoffProvider;
+}
+
 export function getMediaStorageProvider(): MediaStorageProvider | null {
   if (mediaProvider) return mediaProvider;
 
@@ -184,4 +203,5 @@ export function resetStorageProvidersForTests(): void {
   mediaProvider = null;
   liveSessionProvider = null;
   callRequestProvider = null;
+  handoffProvider = null;
 }

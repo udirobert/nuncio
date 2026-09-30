@@ -262,12 +262,14 @@ export async function runCallRequestCleanup(
 /** Re-verify the share behind a request is still a live-link share in an allowlisted workspace. */
 export async function callRequestShareStillValid(record: CallRequestRecord): Promise<boolean> {
   const { getShareRecord } = await import("@/lib/share-store");
+  const { handoffShareStillAuthorized } = await import("@/lib/live-handoff");
   const share = await getShareRecord(record.shareId);
   return Boolean(
     share
     && share.deliveryMode === "livelink"
     && share.workspaceId === record.workspaceId
-    && areCallRequestsEnabledForShare(share),
+    && areCallRequestsEnabledForShare(share)
+    && await handoffShareStillAuthorized(share),
   );
 }
 

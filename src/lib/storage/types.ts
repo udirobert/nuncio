@@ -247,6 +247,30 @@ export interface CallRequestStorageProvider {
   listByWorkspace(workspaceId: string, limit?: number): Promise<Omit<CallRequestRecord, "recipientTokenHash">[]>;
 }
 
+export interface HandoffRecord {
+  id: string;
+  shareId: string;
+  workspaceId: string;
+  createdAt: string;
+  expiresAt: string;
+  revokedAt?: string;
+  tokenHash: string;
+  context: {
+    summary: string;
+    interests: string[];
+    unansweredQuestions: string[];
+  };
+  recommendedNextStep: "call" | "twin" | "book";
+}
+
+export interface HandoffStorageProvider {
+  readonly name: string;
+  create(record: HandoffRecord): Promise<void>;
+  get(id: string): Promise<HandoffRecord | null>;
+  revoke(id: string, workspaceId: string, now: Date): Promise<HandoffRecord | null>;
+  listByWorkspace(workspaceId: string, limit?: number): Promise<HandoffRecord[]>;
+}
+
 export interface AccountStorageProvider {
   readonly name: string;
   upsertUserByEmail(email: string, updates?: Partial<AccountUser>): Promise<AccountUser>;

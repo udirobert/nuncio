@@ -60,6 +60,7 @@ export interface ShareRecord {
   thumbnailUrl?: string;
   /** Generation provenance (Genblaze manifests, content hashes, models used). */
   generation?: GenerationProvenance;
+  handoffId?: string;
 }
 
 export function buildAgentTrace(input: {

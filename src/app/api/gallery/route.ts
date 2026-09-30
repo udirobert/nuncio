@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   const records = await listShares({ limit, privacy: "public", industry });
 
   return NextResponse.json({
-    records: records.map((r) => ({
+    records: records.filter((r) => !r.handoffId).map((r) => ({
       id: r.id,
       recipientName: r.recipientName,
       profile: r.profile,

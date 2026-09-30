@@ -3,6 +3,7 @@ import { getShareRecord } from "@/lib/share-store";
 import { getAccountStorageProvider } from "@/lib/storage";
 import { readAccountSession } from "@/lib/auth/session";
 import { isLiveLinkEnabled } from "@/lib/live-link";
+import { authorizeHandoffShare } from "@/lib/live-handoff";
 import {
   CALL_AVAILABILITY_TTL_MS,
   areCallRequestsEnabledForShare,
@@ -26,6 +27,9 @@ export async function GET(request: NextRequest) {
   if (shareId) {
     const share = await getShareRecord(shareId);
     if (!share || share.deliveryMode !== "livelink" || !share.workspaceId) {
+      return NextResponse.json({ acceptingCalls: false, callRequestsEnabled: false }, { headers: NO_STORE });
+    }
+    if (!await authorizeHandoffShare(request, share)) {
       return NextResponse.json({ acceptingCalls: false, callRequestsEnabled: false }, { headers: NO_STORE });
     }
     const enabled = areCallRequestsEnabledForShare(share);

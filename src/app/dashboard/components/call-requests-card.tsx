@@ -18,6 +18,11 @@ interface CallRequestSummary {
   recipientRole: string | null;
   recipientCompany: string | null;
   questionTopics: string[];
+  handoffContext?: {
+    summary: string;
+    interests: string[];
+    unansweredQuestions: string[];
+  } | null;
 }
 
 interface CallRequestSummaryStats {
@@ -296,6 +301,24 @@ export function CallRequestsCard() {
             Leave call view
           </button>
         </div>
+        {join.request.handoffContext && (
+          <div className="rounded-xl border border-ink/10 bg-cream/40 px-3 py-2 space-y-1">
+            <p className="text-body-xs text-ink-faint font-medium">Text conversation context</p>
+            {join.request.handoffContext.summary && (
+              <p className="text-body-xs text-ink-muted">{join.request.handoffContext.summary}</p>
+            )}
+            {join.request.handoffContext.interests.length > 0 && (
+              <p className="text-body-xs text-ink-muted">
+                Interests: {join.request.handoffContext.interests.join(", ")}
+              </p>
+            )}
+            {join.request.handoffContext.unansweredQuestions.length > 0 && (
+              <p className="text-body-xs text-ink-muted">
+                Unanswered: {join.request.handoffContext.unansweredQuestions.join(" · ")}
+              </p>
+            )}
+          </div>
+        )}
         <LiveCallRoom
           serverUrl={join.serverUrl}
           getJoinCredentials={getJoinCredentials}
@@ -372,6 +395,24 @@ export function CallRequestsCard() {
                     <p className="text-body-xs text-ink-faint mt-0.5">
                       Asked about: {request.questionTopics.join(", ")}
                     </p>
+                  )}
+                  {request.handoffContext && (
+                    <div className="mt-1.5 rounded-lg border border-ink/10 bg-cream/40 px-3 py-2 space-y-1">
+                      <p className="text-body-xs text-ink-faint font-medium">Text conversation context</p>
+                      {request.handoffContext.summary && (
+                        <p className="text-body-xs text-ink-muted">{request.handoffContext.summary}</p>
+                      )}
+                      {request.handoffContext.interests.length > 0 && (
+                        <p className="text-body-xs text-ink-muted">
+                          Interests: {request.handoffContext.interests.join(", ")}
+                        </p>
+                      )}
+                      {request.handoffContext.unansweredQuestions.length > 0 && (
+                        <p className="text-body-xs text-ink-muted">
+                          Unanswered: {request.handoffContext.unansweredQuestions.join(" · ")}
+                        </p>
+                      )}
+                    </div>
                   )}
                   <p className="text-body-xs text-ink-faint mt-0.5">
                     {request.status === "pending"

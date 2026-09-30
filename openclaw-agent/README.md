@@ -32,6 +32,59 @@ Optional per-install overrides go in `plow-credentials`:
 NUNCIO_AGENT_TOKEN=...       # unlocks render upgrade via full pipeline
 ```
 
+## Text-to-live handoff
+
+With `NUNCIO_AGENT_TOKEN` configured for a backend whose `NUNCIO_AGENT_WORKSPACE_ID`
+binds that token to the owner's workspace (and `NUNCIO_API_URL` pointing at the
+backend, default `https://nuncio.persidian.com`), nuncio-followup can mint
+owner-authorized live invitations:
+
+- `POST /api/agent/handoffs` — create a private invite URL (`#handoff=` bearer
+  fragment, default 24h TTL, 1–168h bound) with a compact context summary;
+  never send transcripts or contact data.
+- `GET /api/agent/handoffs/<id>` — refresh twin/call/booking options before
+  drafting the invitation message.
+- `GET /api/agent/call-requests` — owner-turn inbox poll (pending requests +
+  dashboard URL); pull only, no push.
+- `DELETE /api/agent/handoffs/<id>` — revoke on explicit owner request; blocks
+  future entry, does not end connected calls.
+
+All calls are authorized-owner-turn only — see `skills/nuncio-followup/SKILL.md`
+→ "Text-to-live handoff" for the exact procedure and honest-copy rules.
+
+> **Not shipped yet:** the published `ghcr.io/udirobert/nuncio-openclaw:v2`
+> image predates this procedure — it needs a rebuild/redeploy after approval.
+> There is no push-notification or phone API; progress is polled on authorized
+> owner turns only. The agent's local `~/playbook.md` is NOT automatically
+> synced — the owner's SenderPlaybook and booking URL must already be
+> configured on the nuncio workspace for the twin to answer well and for
+> booking to appear in `options`. Handoff storage on file (`NUNCIO_DATA_DIR`)
+> is single-process only — a revoke that fails to persist stays denied in
+> memory but is lost on restart and must be retried; use Turso in production.
+
+Example create call:
+
+```sh
+curl -X POST "$NUNCIO_API_URL/api/agent/handoffs" \
+  -H "Authorization: Bearer $NUNCIO_AGENT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "recipientName": "Ria",
+    "summary": "Asked about startup pricing after the demo thread.",
+    "interests": ["pricing"],
+    "unansweredQuestions": ["startup discount?"],
+    "recommendedNextStep": "twin",
+    "expiresInHours": 24
+  }'
+```
+
+Response: `{handoffId, shareId, inviteUrl, expiresAt, options,
+recommendedNextStep}` — `options` reflects live config (`twin`,
+`callRequestsEnabled`, `acceptingCalls`, validated `bookingUrl`) and
+`recommendedNextStep` is the requested step only if that option is actually
+available, else the best available fallback or null. Never include
+transcripts, phone numbers, emails, thread IDs, or credentials.
+
 ## Deploy
 
 Published image: `ghcr.io/udirobert/nuncio-openclaw:v2`

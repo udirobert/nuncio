@@ -6,11 +6,12 @@ import { creditsEnforced, getCreditBalance, reserveCredits, refundCreditReservat
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 import type { LiveSessionRecord, WorkspaceAccount } from "@/lib/storage/types";
 import { isLiveLinkAllowed, LIVE_SESSION_MAX_CREDITS, LIVE_SESSION_MAX_DURATION_MS } from "@/lib/live-link";
+import { authorizeHandoffShare, getActiveHandoffForShare } from "@/lib/live-handoff";
 import { createLiveSessionRecord, hashLiveSessionToken, reconcileLiveSession } from "@/lib/live-session";
 import { createAnamSessionToken } from "@/lib/anam";
 import { buildLiveSystemPrompt } from "@/lib/live-prompt";
 import { createSynthesiaSession, cleanupSynthesiaSession, isLiveKitConfigured } from "@/lib/livekit";
-import { SYNTHESIA_AGENT_NAME } from "@/lib/call-request";
+import { SYNTHESIA_AGENT_NAME, browserMutationAllowed } from "@/lib/call-request";
 
 type LiveProvider = "synthesia" | "anam";
 
@@ -57,6 +58,18 @@ export async function POST(request: NextRequest) {
 
     if (!isLiveLinkAllowed({ workspaceId: share.workspaceId, senderEmail: share.senderEmail })) {
       return NextResponse.json({ error: "LiveLink is not enabled for this pilot" }, { status: 404 });
+    }
+
+    if (!await authorizeHandoffShare(request, share)) {
+      return NextResponse.json({ error: "Live link not found" }, { status: 404 });
+    }
+    if (share.handoffId && !browserMutationAllowed(request, true)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const handoff = share.handoffId ? (await getActiveHandoffForShare(share)).record : null;
+    if (share.handoffId && !handoff) {
+      return NextResponse.json({ error: "Live link not found" }, { status: 404 });
     }
 
     let workspace: WorkspaceAccount | null = null;
@@ -138,7 +151,8 @@ export async function POST(request: NextRequest) {
         profile: share.profile,
         language: share.language,
       },
-      workspace
+      workspace,
+      handoff?.context,
     );
 
     const attempts: LiveProvider[] =

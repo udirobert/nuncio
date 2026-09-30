@@ -135,6 +135,11 @@ Per `docs/STRATEGY.md`, the live link is a personal front door — the recipient
 ### Shared room (`LiveCallRoom`)
 - One component for owner and recipient; distinct LiveKit identities (`owner-<userId>` / `recipient-<requestId>`), audio-only publish grants.
 
+### Text→live handoff entry (`/live/[id]` with `handoffId` marker)
+- The live start controls, `CallRequestPanel`, and booking link compose into a single "Choose how to continue" area so the recipient never has to start the paid avatar session to see their options.
+- Three distinct actions per surface: "Talk to {sender}'s AI twin" (explicit click starts mic + session), "Request {sender} now" (or "not taking calls right now" when availability is off), "Book time with {sender}" (only when a valid configured HTTPS booking URL exists). One primary CTA; `recommendedNextStep` is advisory only and never auto-starts anything.
+- Handoff context stays server-side — the private summary is not returned in public share/status APIs, though the twin may refer to its contents; the owner sees it in the dashboard inbox as "Text conversation context" before accepting and inside the connected call view.
+
 ---
 
 ## Component inventory

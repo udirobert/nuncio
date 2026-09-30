@@ -182,6 +182,22 @@ NUNCIO_LIVE_WORKER_TOKEN=
 # Public app URL used by the worker to reach the gateway.
 APP_URL=
 
+# Text-agent → live-link handoff (owner-authorized invitations)
+# Single shared agent token; ALSO required: the explicit workspace it is bound to.
+# One provisioned token maps to exactly one owner workspace — the handoff/agent
+# routes refuse to serve (503) when this is unset; do not reuse it as a global
+# multitenant credential for the cloud Agent Index.
+NUNCIO_AGENT_TOKEN=
+NUNCIO_AGENT_WORKSPACE_ID=
+# Handoff prerequisites: the bound workspace must already have its SenderPlaybook
+# synced (the agent's local ~/playbook.md is NOT synced automatically) and a
+# valid https bookingUrl configured for booking to appear in invitation options.
+# Handoff storage uses the same provider selection as the rest of the app —
+# the file provider is single-process only; a failed revoke persist keeps the
+# invite denied in memory but must be retried (a restart would lose it). Use
+# Turso in production. API usage and the request/response contract are
+# documented in openclaw-agent/README.md → "Text-to-live handoff".
+
 # Python worker (workers/live-avatar/agent.py) env — set on the worker host only,
 # never on the Next server: SYNTHESIA_API_KEY, LIVEKIT_URL, LIVEKIT_API_KEY,
 # LIVEKIT_API_SECRET, ELEVENLABS_API_KEY, NUNCIO_LIVE_WORKER_TOKEN, APP_URL.

@@ -55,6 +55,12 @@ vi.mock("@/lib/storage", () => ({
   getAccountStorageProvider: vi.fn(() => accountStore),
   getLiveSessionStorageProvider: vi.fn(() => liveSessionStore),
   getCallRequestStorageProvider: vi.fn(() => callRequestStore),
+  getHandoffStorageProvider: vi.fn(() => ({
+    get: vi.fn(async () => null),
+    listByWorkspace: vi.fn(async () => []),
+    revoke: vi.fn(async () => null),
+    create: vi.fn(async () => {}),
+  })),
 }));
 
 vi.mock("@/lib/livekit", () => livekit);

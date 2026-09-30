@@ -21,6 +21,7 @@ import { classifyQuestionTopics } from "@/lib/live-topics";
 import { LottieIcon } from "@/components/lottie-icon";
 import { SenderTrustBadge } from "@/components/sender-trust-badge";
 import { CallRequestPanel } from "@/components/call-request-panel";
+import { prepareHandoffAccess } from "@/lib/live-handoff-client";
 
 export default function LiveAvatarLandingPage({
   params,
@@ -66,15 +67,23 @@ export default function LiveAvatarLandingPage({
   });
 
   useEffect(() => {
+    const controller = new AbortController();
+    let disposed = false;
     async function load() {
       try {
         const { id } = await params;
-        const res = await fetch(`/api/share/${encodeURIComponent(id)}`);
+        await prepareHandoffAccess(id);
+        const res = await fetch(`/api/share/${encodeURIComponent(id)}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (disposed) return;
         if (!res.ok) {
           setNotFound(true);
           return;
         }
         const data = (await res.json()) as ShareRecord;
+        if (disposed) return;
         shareIdRef.current = data.id;
         bookingUrlRef.current = typeof data.bookingUrl === "string" && data.bookingUrl.startsWith("https://")
           ? data.bookingUrl
@@ -89,12 +98,16 @@ export default function LiveAvatarLandingPage({
           });
         }
       } catch {
-        setNotFound(true);
+        if (!disposed) setNotFound(true);
       } finally {
-        setLoading(false);
+        if (!disposed) setLoading(false);
       }
     }
     load();
+    return () => {
+      disposed = true;
+      controller.abort();
+    };
   }, [params]);
 
   const recordSessionEnd = useCallback((reason: "manual" | "provider_closed" | "max_duration" | "unload" | "human_handoff") => {
@@ -285,7 +298,9 @@ export default function LiveAvatarLandingPage({
   useEffect(() => {
     if (!share?.id || errorReason === "mic") return;
     if (errorReason === "provider" || (errorReason === "connection" && retryCount >= 2)) {
-      window.location.href = `/v/${share.id}`;
+      if (share.videoUrl || share.videoId) {
+        window.location.href = `/v/${share.id}`;
+      }
     }
   }, [share, errorReason, retryCount]);
 
@@ -570,6 +585,13 @@ export default function LiveAvatarLandingPage({
   const sender = share.senderName || "your contact";
   const recipient = share.recipientName || "there";
   const bookingUrl = share.bookingUrl && share.bookingUrl.startsWith("https://") ? share.bookingUrl : null;
+  const handoffMeta = (share as ShareRecord & {
+    handoff?: {
+      recommendedNextStep: "call" | "twin" | "book" | null;
+      expiresAt: string;
+      options?: { twin?: boolean; callRequestsEnabled?: boolean; acceptingCalls?: boolean; bookingUrl?: string | null };
+    };
+  }).handoff;
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
@@ -643,7 +665,7 @@ export default function LiveAvatarLandingPage({
                   {error && errorReason !== "mic" && (
                     <p className="text-xs text-red-300 mt-2 max-w-xs mx-auto">{error}</p>
                   )}
-                  {error && errorReason !== "mic" && (retryCount >= 2 || errorReason === "provider") && (
+                  {error && errorReason !== "mic" && (retryCount >= 2 || errorReason === "provider") && (share.videoUrl || share.videoId) && (
                     <Link
                       href={`/v/${share.id}`}
                       className="inline-flex items-center gap-1.5 mt-4 text-xs text-accent hover:text-accent/80 transition-colors"
@@ -663,93 +685,54 @@ export default function LiveAvatarLandingPage({
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.35, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-6 flex items-center gap-3 justify-center"
+            className="mt-6 rounded-2xl border border-cream-dark bg-white/70 p-4 space-y-3"
           >
-            {humanCallActive ? null : !live ? (
-              <button
-                onClick={startSession}
-                disabled={starting || errorReason === "provider"}
-                aria-label={starting ? "Starting live conversation" : errorReason === "provider" ? "Live twin not configured" : "Start live conversation"}
-                className="btn-press rounded-xl bg-accent text-white px-6 py-3 text-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {starting ? (
-                  <>
-                    <LottieIcon name="spinner-light" className="w-4 h-4" />
-                    Starting...
-                  </>
-                ) : errorReason === "provider" ? (
-                  <>
-                    Live twin unavailable
-                  </>
+            <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium text-center">
+              Choose how to continue
+            </p>
+            <div className="flex items-center gap-3 justify-center">
+              {humanCallActive ? null : !live ? (
+                handoffMeta && handoffMeta.options?.twin === false ? (
+                  <p className="text-body-sm text-ink-muted">The live twin isn&apos;t configured for this link</p>
                 ) : (
-                  <>
-                    <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M8 12.5a4.5 4.5 0 004.5-4.5M8 12.5a4.5 4.5 0 01-4.5-4.5M8 12.5V14m0-13v1.5" />
-                    </svg>
-                    Start live conversation
-                  </>
-                )}
-              </button>
-            ) : (
-              <button
-                onClick={() => endSession("manual")}
-                aria-label="End live conversation"
-                className="btn-press rounded-xl bg-warm text-white px-6 py-3 text-sm font-medium hover:bg-warm/90 transition-colors flex items-center gap-2"
-              >
-                <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="10" height="10" rx="2" />
-                </svg>
-                End conversation
-              </button>
-            )}
-          </motion.div>
-
-          {bookingUrl && (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="mt-3 flex justify-center"
-            >
-              <button
-                onClick={() => {
-                  if (share.mode === "reconnect") {
-                    trackReconnectCatchupClicked({ shareId: share.id, surface: "live_page" });
-                  }
-                  handleBookingClick();
-                }}
-                aria-label={share.mode === "reconnect" ? `Let's catch up with ${sender}` : `Book time with ${sender}`}
-                className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-5 py-2.5 text-sm font-medium hover:bg-white transition-colors flex items-center gap-2"
-              >
-                <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <rect x="2" y="3" width="12" height="11" rx="2" />
-                  <path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" />
-                </svg>
-                {share.mode === "reconnect" ? `Let's catch up with ${sender}` : `Book time with ${sender}`}
-              </button>
-            </motion.div>
-          )}
-
-          {(audioBlocked && (live || humanCallActive)) && (
-            <div className="mt-3 flex justify-center">
-              <button
-                onClick={() => {
-                  void lkRoomRef.current?.startAudio().finally(() => {
-                    setAudioBlocked(!(lkRoomRef.current?.canPlaybackAudio ?? true));
-                  });
-                }}
-                className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-4 py-2 text-body-xs font-medium hover:bg-white transition-colors"
-              >
-                Enable audio
-              </button>
+                <button
+                  onClick={startSession}
+                  disabled={starting || errorReason === "provider"}
+                  aria-label={starting ? "Starting live conversation" : errorReason === "provider" ? "Live twin not configured" : `Talk to ${sender}'s AI twin`}
+                  className="btn-press rounded-xl bg-accent text-white px-6 py-3 text-body-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {starting ? (
+                    <>
+                      <LottieIcon name="spinner-light" className="w-4 h-4" />
+                      Starting...
+                    </>
+                  ) : errorReason === "provider" ? (
+                    <>
+                      Live twin unavailable right now
+                    </>
+                  ) : (
+                    <>
+                      <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M8 12.5a4.5 4.5 0 004.5-4.5M8 12.5a4.5 4.5 0 01-4.5-4.5M8 12.5V14m0-13v1.5" />
+                      </svg>
+                      Talk to {sender}&apos;s AI twin
+                    </>
+                  )}
+                </button>
+                )
+              ) : (
+                <button
+                  onClick={() => endSession("manual")}
+                  aria-label="End live conversation"
+                  className="btn-press rounded-xl bg-warm text-white px-6 py-3 text-body-sm font-medium hover:bg-warm/90 transition-colors flex items-center gap-2"
+                >
+                  <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="10" height="10" rx="2" />
+                  </svg>
+                  End conversation
+                </button>
+              )}
             </div>
-          )}
-
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          >
             <CallRequestPanel
               shareId={share.id}
               liveSessionId={liveSessionInfo?.id}
@@ -771,7 +754,46 @@ export default function LiveAvatarLandingPage({
                 if (lkRoomRef.current) endSession("manual");
               }}
             />
+            {bookingUrl ? (
+              <div className="flex justify-center">
+                <button
+                  onClick={() => {
+                    if (share.mode === "reconnect") {
+                      trackReconnectCatchupClicked({ shareId: share.id, surface: "live_page" });
+                    }
+                    handleBookingClick();
+                  }}
+                  aria-label={share.mode === "reconnect" ? `Let's catch up with ${sender}` : `Book time with ${sender}`}
+                  className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-5 py-2.5 text-body-sm font-medium hover:bg-white transition-colors flex items-center gap-2"
+                >
+                  <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="2" y="3" width="12" height="11" rx="2" />
+                    <path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" />
+                  </svg>
+                  {share.mode === "reconnect" ? `Let's catch up with ${sender}` : `Book time with ${sender}`}
+                </button>
+              </div>
+            ) : handoffMeta ? (
+              <p className="text-body-xs text-ink-faint text-center">
+                Scheduling link isn&apos;t configured for this sender yet
+              </p>
+            ) : null}
           </motion.div>
+
+          {(audioBlocked && (live || humanCallActive)) && (
+            <div className="mt-3 flex justify-center">
+              <button
+                onClick={() => {
+                  void lkRoomRef.current?.startAudio().finally(() => {
+                    setAudioBlocked(!(lkRoomRef.current?.canPlaybackAudio ?? true));
+                  });
+                }}
+                className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-4 py-2 text-body-xs font-medium hover:bg-white transition-colors"
+              >
+                Enable audio
+              </button>
+            </div>
+          )}
 
           <motion.div
             initial={{ opacity: 0, y: 16 }}

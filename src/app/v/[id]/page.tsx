@@ -8,6 +8,7 @@ import { languageLabel } from "@/lib/languages";
 import { DuckingAudio } from "@/components/ducking-audio";
 import { LottieIcon } from "@/components/lottie-icon";
 import { SenderTrustBadge } from "@/components/sender-trust-badge";
+import { prepareHandoffAccess } from "@/lib/live-handoff-client";
 import {
   trackBookingClicked,
   trackVideoWatchThrough,
@@ -57,37 +58,73 @@ export default function VideoLandingPage({
   }, [videoData]);
 
   useEffect(() => {
+    const controller = new AbortController();
+    let disposed = false;
+    let interval: ReturnType<typeof setInterval> | undefined;
+
     async function load() {
-      const { id } = await params;
-      const response = await fetch(`/api/share/${encodeURIComponent(id)}`);
-      if (!response.ok) {
-        setNotFound(true);
-        return;
+      try {
+        const { id } = await params;
+        await prepareHandoffAccess(id);
+        const response = await fetch(`/api/share/${encodeURIComponent(id)}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (disposed) return;
+        if (!response.ok) {
+          setNotFound(true);
+          return;
+        }
+        const data = await response.json();
+        if (disposed) return;
+        setVideoData(data);
+        if (data.videoUrl) {
+          hasVideoRef.current = true;
+          return;
+        }
+        if (data.handoff) return;
+        interval = setInterval(async () => {
+          if (hasVideoRef.current) {
+            if (interval) clearInterval(interval);
+            return;
+          }
+          try {
+            const { id: shareId } = await params;
+            const response = await fetch(`/api/share/${encodeURIComponent(shareId)}`, {
+              cache: "no-store",
+              signal: controller.signal,
+            });
+            if (disposed) return;
+            if (!response.ok) {
+              if (interval) clearInterval(interval);
+              setNotFound(true);
+              return;
+            }
+            const updated = await response.json();
+            if (disposed) return;
+            setVideoData(updated);
+            if (updated.videoUrl) {
+              hasVideoRef.current = true;
+              if (interval) clearInterval(interval);
+            }
+          } catch {
+            if (!disposed) {
+              if (interval) clearInterval(interval);
+              setNotFound(true);
+            }
+          }
+        }, 10000);
+      } catch {
+        if (!disposed) setNotFound(true);
       }
-      const data = await response.json();
-      setVideoData(data);
-      if (data.videoUrl) hasVideoRef.current = true;
     }
     load();
 
-    const interval = setInterval(async () => {
-      if (hasVideoRef.current) {
-        clearInterval(interval);
-        return;
-      }
-      const { id } = await params;
-      const response = await fetch(`/api/share/${encodeURIComponent(id)}`);
-      if (response.ok) {
-        const updated = await response.json();
-        setVideoData(updated);
-        if (updated.videoUrl) {
-          hasVideoRef.current = true;
-          clearInterval(interval);
-        }
-      }
-    }, 10000);
-
-    return () => clearInterval(interval);
+    return () => {
+      disposed = true;
+      controller.abort();
+      if (interval) clearInterval(interval);
+    };
   }, [params]);
 
   if (notFound) {
@@ -181,9 +218,11 @@ export default function VideoLandingPage({
                 ? senderName
                   ? `${senderName} recorded this for you`
                   : "Someone recorded this video just for you"
-                : senderName
-                  ? `${senderName} is preparing a video for you`
-                  : "A video is being prepared for you"}
+                : (videoData as { handoff?: unknown }).handoff
+                  ? `${senderName || "The sender"} sent you a live link`
+                  : senderName
+                    ? `${senderName} is preparing a video for you`
+                    : "A video is being prepared for you"}
             </p>
             {senderContext && (
               <p className="text-ink-faint text-xs mt-1.5">
@@ -219,7 +258,35 @@ export default function VideoLandingPage({
             <div className="absolute -inset-1.5 rounded-3xl bg-cream-dark -z-5 transform -rotate-0.5" />
 
             <div className="aspect-video w-full rounded-2xl overflow-hidden bg-ink shadow-2xl shadow-ink/20 ring-1 ring-ink/5">
-              {!videoData.videoUrl ? (
+              {!videoData.videoUrl && (videoData as { handoff?: unknown }).handoff ? (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-ink/90 text-cream px-6">
+                  <p className="text-body-sm text-cream/80 mb-1 text-center">
+                    No recorded video on this link yet
+                  </p>
+                  <p className="text-body-xs text-cream/50 mb-5 text-center">
+                    Choose a next step on the live link.
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <Link
+                      href={`/live/${videoData.id}`}
+                      className="btn-press rounded-xl bg-cream text-ink px-5 py-2.5 text-body-sm font-medium hover:bg-white transition-colors"
+                    >
+                      Go to the live link
+                    </Link>
+                    {bookingUrl && (
+                      <button
+                        onClick={() => {
+                          trackBookingClicked({ shareId: videoData.id, surface: "share_page" });
+                          window.open(bookingUrl, "_blank", "noopener,noreferrer");
+                        }}
+                        className="btn-press rounded-xl border border-cream/30 text-cream px-5 py-2.5 text-body-sm font-medium hover:bg-cream/10 transition-colors"
+                      >
+                        Book time with {senderName || "the sender"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : !videoData.videoUrl ? (
                 /* Video processing state */
                 <div className="w-full h-full flex flex-col items-center justify-center bg-ink/90 text-cream">
                   <LottieIcon name="spinner-cream" className="w-12 h-12 mb-4" />

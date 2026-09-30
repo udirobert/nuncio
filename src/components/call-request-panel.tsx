@@ -324,7 +324,7 @@ export function CallRequestPanel({
           disabled={busy}
           className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-5 py-2.5 text-body-sm font-medium hover:bg-white transition-colors disabled:opacity-50"
         >
-          Request a call now
+          Request {senderName} now
         </button>
       )}
       {state === "idle" && !accepting && (
