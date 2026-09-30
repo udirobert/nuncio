@@ -118,7 +118,10 @@ describe("LiveLink route gates", () => {
     );
   });
 
-  it("rejects legacy sender-only live shares before any provider or credit work", async () => {
+  it("lets sender-only live shares through the gates but still requires a configured provider before credit work", async () => {
+    // Anonymous/sender-only shares are intentionally supported (anonymous
+    // credit reservation via getCreditSubject) — they must pass the allowlist
+    // gates and fail only at provider configuration, before any credit work.
     vi.stubEnv("NUNCIO_LIVELINK_ENABLED", "true");
     vi.stubEnv("NUNCIO_LIVELINK_SENDER_EMAILS", "pilot@example.com");
     vi.mocked(getShareRecord).mockResolvedValueOnce({
@@ -131,7 +134,8 @@ describe("LiveLink route gates", () => {
       jsonRequest("http://localhost/api/live/session", { shareId: "legacy-share" }) as never,
     );
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(503);
+    expect((await response.json()).error).toContain("not configured");
   });
 });
 
