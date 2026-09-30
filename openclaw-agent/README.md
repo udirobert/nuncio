@@ -53,8 +53,8 @@ owner-authorized live invitations:
 All calls are authorized-owner-turn only — see `skills/nuncio-followup/SKILL.md`
 → "Text-to-live handoff" for the exact procedure and honest-copy rules.
 
-> Ships in `ghcr.io/udirobert/nuncio-openclaw:v3` — running lines still on `v2`
-> need a redeploy to pick it up.
+> Ships in `ghcr.io/udirobert/nuncio-openclaw:v3` or later — lines on older
+> images need a redeploy to pick it up.
 > There is no push-notification or phone API; progress is polled on authorized
 > owner turns only. The agent's local `~/playbook.md` is NOT automatically
 > synced — the owner's SenderPlaybook and booking URL must already be
@@ -88,9 +88,12 @@ transcripts, phone numbers, emails, thread IDs, or credentials.
 
 ## Deploy
 
-Published image: `ghcr.io/udirobert/nuncio-openclaw:v3`
-(digest `sha256:13d104eb9a66d20bc17197d45220a62946eee57094865c3f151acc71b6539586`).
+Published image: `ghcr.io/udirobert/nuncio-openclaw:v4`
+(digest `sha256:eeb054b15b2abbb91fdc0a25bb03ad52b6d099b5018e6fd6fd74c3159466270d`).
 Verified on the Agent Index with 1-click deploy enabled.
+
+`v4` narrows `nuncio-render` to recorded video only — live invitations route
+through the `nuncio-followup` handoff instead.
 
 ```sh
 # on a linux/amd64 host with docker
