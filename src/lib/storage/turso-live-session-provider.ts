@@ -86,7 +86,7 @@ export class TursoLiveSessionStorageProvider implements LiveSessionStorageProvid
     const result = await this.client.execute({
       sql: `SELECT record_json FROM live_sessions
             WHERE status NOT IN ('pending', 'active')
-              AND json_extract(record_json,'$.provider') = 'synthesia'
+              AND COALESCE(json_extract(record_json,'$.transport'), CASE WHEN json_extract(record_json,'$.provider') = 'synthesia' THEN 'livekit' END) = 'livekit'
               AND json_extract(record_json,'$.roomName') IS NOT NULL
               AND json_extract(record_json,'$.roomClosedAt') IS NULL`,
     });

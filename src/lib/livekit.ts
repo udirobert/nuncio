@@ -243,3 +243,5 @@ async function waitForAvatarParticipant(
   }
   throw new Error("Synthesia avatar did not join the room in time");
 }
+
+export const cleanupLiveKitRoom = cleanupSynthesiaSession;

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LiveCallRoom } from "@/components/live-call-room";
 import { LottieIcon } from "@/components/lottie-icon";
 import { hasSenderPlaybook } from "@/lib/playbook";
+import { notifyNewCallRequest, updatePendingIds } from "@/lib/call-request-notifications";
 
 interface CallRequestSummary {
   id: string;
@@ -95,10 +96,47 @@ export function CallRequestsCard() {
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pollError, setPollError] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState(false);
   const [playbookConfigured, setPlaybookConfigured] = useState<boolean | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [lastCheckedAt, setLastCheckedAt] = useState<string | null>(null);
+  const [notifyState, setNotifyState] = useState<"unsupported" | "default" | "granted" | "denied">("default");
   const mountedRef = useRef(true);
   const refreshAbortRef = useRef<AbortController | null>(null);
+  const seenRequestIdsRef = useRef<Set<string> | null>(null);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      if (!mountedRef.current) return;
+      if (typeof window === "undefined" || !("Notification" in window) || !window.isSecureContext) {
+        setNotifyState("unsupported");
+        return;
+      }
+      setNotifyState(Notification.permission === "granted" ? "granted" : Notification.permission === "denied" ? "denied" : "default");
+    });
+  }, []);
+
+  const enableAlerts = useCallback(async () => {
+    if (typeof window === "undefined" || !("Notification" in window) || !window.isSecureContext) return;
+    try {
+      const permission = await Notification.requestPermission();
+      if (!mountedRef.current) return;
+      setNotifyState(permission === "granted" ? "granted" : permission === "denied" ? "denied" : "default");
+    } catch {
+      if (mountedRef.current) setNotifyState("denied");
+    }
+  }, []);
+
+  const notifyNewPending = useCallback((incoming: CallRequestSummary[]) => {
+    const snapshot = updatePendingIds(seenRequestIdsRef.current, incoming);
+    seenRequestIdsRef.current = snapshot.seen;
+    if (!snapshot.fresh.length) return;
+    notifyNewCallRequest({
+      count: snapshot.fresh.length,
+      tag: `nuncio-call-request-${snapshot.fresh[0]}`,
+      permissionGranted: notifyState === "granted",
+    });
+  }, [notifyState]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -135,9 +173,9 @@ export function CallRequestsCard() {
         setCallsEnabled(Boolean(availability.callRequestsEnabled));
         setAvailabilityUntil(availability.callAvailabilityUntil ?? null);
         setAvailabilityLoaded(true);
-        setPollError(false);
+        setAvailabilityError(false);
       } else if (mountedRef.current) {
-        setPollError(true);
+        setAvailabilityError(true);
       }
       const res = await fetch("/api/live/call-requests", { signal: controller.signal });
       if (!res.ok) {
@@ -152,7 +190,11 @@ export function CallRequestsCard() {
         cleanupSweepFailed?: boolean;
       };
       if (!mountedRef.current) return;
-      setRequests((data.requests || []).filter((r) => r.status === "pending" || r.status === "accepted"));
+      const inbox = (data.requests || []).filter((r) => r.status === "pending" || r.status === "accepted");
+      setRequests(inbox);
+      notifyNewPending(inbox);
+      setPollError(false);
+      setLastCheckedAt(new Date().toISOString());
       setSummary(data.summary ?? null);
       setSummaryScope(data.summaryScope ?? null);
       setError((current) =>
@@ -166,13 +208,20 @@ export function CallRequestsCard() {
     } finally {
       if (refreshAbortRef.current === controller) refreshAbortRef.current = null;
     }
-  }, []);
+  }, [notifyNewPending]);
 
   useEffect(() => {
     queueMicrotask(() => void refresh());
     const timer = setInterval(refresh, POLL_MS);
+    const onFocus = () => {
+      if (document.visibilityState !== "hidden") void refresh();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
     return () => {
       clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
       refreshAbortRef.current?.abort();
       refreshAbortRef.current = null;
     };
@@ -373,8 +422,28 @@ export function CallRequestsCard() {
         </p>
       )}
       {pollError && (
-        <p className="text-body-xs text-warm">Inbox refresh failed — retrying automatically.</p>
+        <p className="text-body-xs text-warm" role="status" aria-live="polite">Inbox refresh failed — retrying automatically.</p>
       )}
+      {availabilityError && (
+        <p className="text-body-xs text-warm" role="status">Availability status couldn&apos;t be refreshed — retrying automatically.</p>
+      )}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-xs text-ink-faint">
+        {notifyState === "default" && (
+          <button
+            type="button"
+            onClick={() => void enableAlerts()}
+            className="min-h-[44px] rounded-lg border border-cream-dark px-3 text-ink-muted hover:text-ink"
+          >
+            Enable desktop alerts
+          </button>
+        )}
+        {notifyState === "granted" && <span>Desktop alerts on — works while this dashboard is open.</span>}
+        {notifyState === "denied" && <span>Desktop alerts are blocked in your browser settings.</span>}
+        {notifyState === "unsupported" && <span>Desktop alerts aren&apos;t supported in this browser.</span>}
+        {lastCheckedAt && (
+          <span>Last checked {new Date(lastCheckedAt).toLocaleTimeString()}</span>
+        )}
+      </div>
       {playbookConfigured === null && (
         <p className="text-body-xs text-ink-faint">Readiness couldn&apos;t be confirmed — check your playbook setup.</p>
       )}

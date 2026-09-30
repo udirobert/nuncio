@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getShareRecord } from "@/lib/share-store";
 import { getLiveSessionStorageProvider } from "@/lib/storage";
-import { cleanupSynthesiaSession } from "@/lib/livekit";
+import { cleanupLiveKitRoom } from "@/lib/livekit";
 import { hasAcceptedRoom } from "@/lib/call-request";
 import type { LiveSessionRecord } from "@/lib/storage/types";
 import { isLiveLinkEnabled } from "@/lib/live-link";
@@ -32,7 +32,8 @@ const MAX_TOPIC_LABELS = LIVE_QUESTION_TOPICS.length;
  * conversation. Never deletes a room an open call depends on.
  */
 async function cleanupLiveSessionRoom(record: LiveSessionRecord): Promise<void> {
-  if (!record.roomName || record.provider !== "synthesia") return;
+  const transport = record.transport ?? (record.provider === "synthesia" ? "livekit" : undefined);
+  if (!record.roomName || transport !== "livekit") return;
   if (record.roomClosedAt) return;
   const provider = getLiveSessionStorageProvider();
   const persist = async (patch: Partial<LiveSessionRecord>) => {
@@ -45,7 +46,7 @@ async function cleanupLiveSessionRoom(record: LiveSessionRecord): Promise<void> 
     await persist({ cleanupError: true });
     return;
   }
-  const closed = await cleanupSynthesiaSession({ roomName: record.roomName });
+  const closed = await cleanupLiveKitRoom({ roomName: record.roomName });
   await persist(
     closed
       ? { roomClosedAt: new Date().toISOString(), cleanupError: false }

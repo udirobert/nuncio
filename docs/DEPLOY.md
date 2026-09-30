@@ -221,6 +221,21 @@ NUNCIO_AGENT_WORKSPACE_ID=
 # roomClosedAt), so accepted-call duration is bounded by the cleanup cadence,
 # not just the join-token TTL.
 
+# Cal.com scheduling pilot (optional, single-workspace). When all five are set,
+# /api/scheduling/context creates correlation contexts for shares in the bound
+# workspace whose bookingUrl exactly equals NUNCIO_CALCOM_BOOKING_URL, and
+# /api/scheduling/webhooks/calcom verifies x-cal-signature-256 (HMAC-SHA256 of
+# the raw body) to apply BOOKING_CREATED/REQUESTED/RESCHEDULED/CANCELLED/REJECTED
+# events monotonically. This is a single-workspace pilot gate — not a full
+# OAuth/multitenant connection. Configure the Cal.com webhook for the event
+# type to POST to /api/scheduling/webhooks/calcom with the signing secret.
+# Without this config the Cal.com embed and plain links still work untracked.
+NUNCIO_CALCOM_WEBHOOK_SECRET=
+NUNCIO_CALCOM_WORKSPACE_ID=
+NUNCIO_CALCOM_EVENT_TYPE_ID=
+NUNCIO_CALCOM_BOOKING_URL=
+NUNCIO_SCHEDULING_CONTEXT_SECRET=
+
 # Recipient-reviewed live-call briefs are optional and need no extra env:
 # POST /api/live/brief uses the same LLM fallback chain as the rest of the app.
 # Nothing is persisted unless the recipient reviews and explicitly shares the

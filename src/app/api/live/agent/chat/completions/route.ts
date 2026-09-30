@@ -7,7 +7,7 @@ import {
 } from "@/lib/storage";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isLiveLinkAllowed } from "@/lib/live-link";
-import { getActiveHandoffForShare } from "@/lib/live-handoff";
+import { getActiveHandoffForShare, validateHandoffBookingUrl } from "@/lib/live-handoff";
 import { buildLiveSystemPrompt } from "@/lib/live-prompt";
 import { chatCompletion } from "@/lib/llm";
 
@@ -59,7 +59,8 @@ export async function POST(request: NextRequest) {
   }
 
   const record = await getLiveSessionStorageProvider().get(sessionId);
-  if (!record || record.provider !== "synthesia") {
+  const sessionTransport = record?.transport ?? (record?.provider === "synthesia" ? "livekit" : undefined);
+  if (!record || sessionTransport !== "livekit") {
     return NextResponse.json({ error: { message: "Live session not found", type: "invalid_request_error" } }, { status: 404, headers: NO_STORE });
   }
   if (record.status !== "pending" && record.status !== "active") {
@@ -127,6 +128,7 @@ export async function POST(request: NextRequest) {
     },
     workspace,
     handoff?.context,
+    { schedulingAvailable: Boolean(validateHandoffBookingUrl(share.bookingUrl)) },
   );
 
   const content = await chatCompletion(

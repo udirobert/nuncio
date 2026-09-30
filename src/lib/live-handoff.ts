@@ -9,7 +9,8 @@ import {
   isCallAvailabilityActive,
   isWorkspaceOwner,
 } from "@/lib/call-request";
-import { isLiveKitConfigured } from "@/lib/livekit";
+import { isLiveTwinReady } from "@/lib/live-avatar-providers";
+import { resolveSchedulingProvider } from "@/lib/scheduling";
 import { resolvePublicOrigin } from "@/lib/url";
 
 export const HANDOFF_DEFAULT_TTL_MS = 24 * 60 * 60_000;
@@ -17,8 +18,6 @@ export const HANDOFF_MAX_TTL_MS = 168 * 60 * 60_000;
 export const HANDOFF_COOKIE_PREFIX = "nuncio_handoff_";
 
 const SAFE_SHARE_ID = /^[A-Za-z0-9_-]{1,128}$/;
-const SYNTHESIA_AVATAR_ID = /^av_[A-Za-z0-9_-]{1,64}$/;
-const PROVIDER_ASSET_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 export function handoffCookieName(shareId: string): string | null {
   return SAFE_SHARE_ID.test(shareId) ? `${HANDOFF_COOKIE_PREFIX}${shareId}` : null;
@@ -82,14 +81,7 @@ export async function handoffShareStillAuthorized(share: ShareRecord): Promise<b
 }
 
 export function validateHandoffBookingUrl(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  try {
-    const url = new URL(raw);
-    if (url.protocol !== "https:" || url.username || url.password) return null;
-    return url.toString();
-  } catch {
-    return null;
-  }
+  return resolveSchedulingProvider(raw)?.url ?? null;
 }
 
 export type HandoffOptions = {
@@ -114,26 +106,14 @@ export function getHandoffOptions(
   };
   if (!active) return disabled;
 
-  const synthesiaAvatarId = workspace?.synthesiaAvatarId || process.env.SYNTHESIA_AVATAR_ID;
-  const liveVoiceId = workspace?.liveVoiceId || process.env.ELEVENLABS_VOICE_ID;
-  const synthesia =
-    isLiveKitConfigured()
-    && process.env.NUNCIO_SYNTHESIA_WORKER_ENABLED === "true"
-    && Boolean(process.env.NUNCIO_LIVE_WORKER_TOKEN)
-    && Boolean(synthesiaAvatarId && SYNTHESIA_AVATAR_ID.test(synthesiaAvatarId))
-    && Boolean(liveVoiceId && PROVIDER_ASSET_ID.test(liveVoiceId));
-  const anam =
-    Boolean(process.env.ANAM_API_KEY)
-    && Boolean(workspace?.anamAvatarId || share.anamAvatarId || process.env.ANAM_AVATAR_ID)
-    && Boolean(workspace?.anamVoiceId || share.anamVoiceId || process.env.ANAM_VOICE_ID);
-  const twin = process.env.NUNCIO_LIVE_PRIMARY_PROVIDER === "anam" ? anam : synthesia || anam;
+  const twin = isLiveTwinReady({ workspace, share });
 
   const callRequestsEnabled = areCallRequestsEnabledForShare(share);
   return {
     twin,
     callRequestsEnabled,
     acceptingCalls: callRequestsEnabled && isCallAvailabilityActive(workspace),
-    bookingUrl: validateHandoffBookingUrl(workspace?.bookingUrl || share.bookingUrl),
+    bookingUrl: validateHandoffBookingUrl(share.bookingUrl),
   };
 }
 

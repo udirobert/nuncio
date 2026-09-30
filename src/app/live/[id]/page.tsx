@@ -28,6 +28,10 @@ import { classifyQuestionTopics } from "@/lib/live-topics";
 import { LottieIcon } from "@/components/lottie-icon";
 import { SenderTrustBadge } from "@/components/sender-trust-badge";
 import { CallRequestPanel } from "@/components/call-request-panel";
+import { SchedulingEmbed } from "@/components/scheduling-embed";
+import { detectEscalationHint } from "@/lib/escalation";
+import { normalizeAnamHistory, normalizeLiveKitSegments } from "@/lib/live-transcripts";
+import { resolveSchedulingProvider } from "@/lib/scheduling";
 import { prepareHandoffAccess } from "@/lib/live-handoff-client";
 
 export default function LiveAvatarLandingPage({
@@ -51,7 +55,7 @@ export default function LiveAvatarLandingPage({
   const humanHandoffRef = useRef(false);
   const seenSegmentsRef = useRef<Set<string>>(new Set());
   const lkAudioContainerRef = useRef<HTMLDivElement | null>(null);
-  const providerRef = useRef<"anam" | "synthesia" | null>(null);
+  const transportRef = useRef<"livekit" | "anam-sdk" | null>(null);
   const startedRef = useRef(false);
   const shareIdRef = useRef<string | null>(null);
   const liveSessionIdRef = useRef<string | null>(null);
@@ -73,6 +77,13 @@ export default function LiveAvatarLandingPage({
   const maxDurationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bookingUrlRef = useRef<string | null>(null);
+  const avatarParticipantIdentityRef = useRef<string | null>(null);
+  const hintedUtteranceIdsRef = useRef<Set<string>>(new Set());
+  const humanCallActiveRef = useRef(false);
+  const requestCardRef = useRef<HTMLDivElement | null>(null);
+  const scheduleCardRef = useRef<HTMLDivElement | null>(null);
+  const [schedulerOpen, setSchedulerOpen] = useState(false);
+  const [escalationHint, setEscalationHint] = useState<"request-human" | "schedule" | null>(null);
   const metricsRef = useRef({
     userTurns: 0,
     agentTurns: 0,
@@ -110,9 +121,7 @@ export default function LiveAvatarLandingPage({
         const data = (await res.json()) as ShareRecord;
         if (disposed) return;
         shareIdRef.current = data.id;
-        bookingUrlRef.current = typeof data.bookingUrl === "string" && data.bookingUrl.startsWith("https://")
-          ? data.bookingUrl
-          : null;
+        bookingUrlRef.current = resolveSchedulingProvider(data.bookingUrl)?.url ?? null;
         setShare(data);
         if (!openedTrackedRef.current && data.mode === "reconnect") {
           openedTrackedRef.current = true;
@@ -246,14 +255,30 @@ export default function LiveAvatarLandingPage({
 
   const getBriefDialogue = useCallback(() => dialogueRef.current.map((m) => ({ ...m })), []);
 
+  useEffect(() => {
+    humanCallActiveRef.current = humanCallActive;
+  }, [humanCallActive]);
+
+  const maybeEscalate = useCallback((utterance: { id: string; text: string }) => {
+    if (humanHandoffRef.current || humanCallActiveRef.current) return;
+    if (hintedUtteranceIdsRef.current.has(utterance.id)) return;
+    hintedUtteranceIdsRef.current.add(utterance.id);
+    const hint = detectEscalationHint(utterance.text, share?.senderName);
+    if (hint) setEscalationHint(hint);
+  }, [share?.senderName]);
+
   // Turn counters are derived from the full message history each time, so
   // repeated events stay idempotent.
   const handleMessageHistory = useCallback((messages: Message[]) => {
     const metrics = metricsRef.current;
+    for (const utterance of normalizeAnamHistory(messages)) {
+      if (utterance.role === "user") maybeEscalate(utterance);
+    }
     let userTurns = 0;
     let agentTurns = 0;
     dialogueRef.current = [];
     for (const message of messages) {
+      if (message.interrupted) continue;
       if (message.role === "user") {
         userTurns += 1;
         pushDialogue("user", message.content);
@@ -275,25 +300,30 @@ export default function LiveAvatarLandingPage({
         metrics.lastEvent = "conversation";
       }
     }
-  }, [pushDialogue]);
+  }, [pushDialogue, maybeEscalate]);
 
-  const handleBookingClick = useCallback(() => {
-    const url = bookingUrlRef.current;
-    if (!url) return;
+  const markBookingClicked = useCallback(() => {
     metricsRef.current.bookingClicked = true;
     metricsRef.current.lastEvent = "booking_clicked";
     const shareId = shareIdRef.current;
     if (shareId) trackBookingClicked({ shareId, surface: "live_page" });
     // Persist the click immediately in case the tab closes right after.
     sendHeartbeat();
-    window.open(url, "_blank", "noopener,noreferrer");
   }, [sendHeartbeat]);
+
+  const handleBookingClick = useCallback(() => {
+    const url = bookingUrlRef.current;
+    if (!url) return;
+    markBookingClicked();
+    window.open(url, "_blank", "noopener,noreferrer");
+  }, [markBookingClicked]);
 
   const endSession = useCallback((reason: "manual" | "provider_closed" | "max_duration" | "unload" | "human_handoff" = "manual") => {
     clearMaxDurationTimer();
     clearHeartbeatTimer();
     recordSessionEnd(reason);
     dialogueRef.current = [];
+    setEscalationHint(null);
     if (reason === "human_handoff") {
       humanHandoffRef.current = true;
       setLiveSessionInfo(null);
@@ -314,7 +344,7 @@ export default function LiveAvatarLandingPage({
       } finally {
         lkRoomRef.current = null;
         setLkTwin(null);
-        providerRef.current = null;
+        transportRef.current = null;
         startedRef.current = false;
         setLive(false);
         setStatus("Click below to start the live conversation");
@@ -364,10 +394,10 @@ export default function LiveAvatarLandingPage({
     setMicBusy(true);
     setMicError(null);
     try {
-      if (providerRef.current === "synthesia" && lkRoomRef.current) {
+      if (transportRef.current === "livekit" && lkRoomRef.current) {
         await lkRoomRef.current.localParticipant.setMicrophoneEnabled(micMuted);
         setMicMuted(!lkRoomRef.current.localParticipant.isMicrophoneEnabled);
-      } else if (providerRef.current === "anam" && clientRef.current) {
+      } else if (transportRef.current === "anam-sdk" && clientRef.current) {
         const state = micMuted
           ? clientRef.current.unmuteInputAudio()
           : clientRef.current.muteInputAudio();
@@ -389,6 +419,9 @@ export default function LiveAvatarLandingPage({
     sessionSyncedRef.current = false;
     humanHandoffRef.current = false;
     seenSegmentsRef.current.clear();
+    hintedUtteranceIdsRef.current.clear();
+    avatarParticipantIdentityRef.current = null;
+    setEscalationHint(null);
     dialogueRef.current = [];
     setOwnerArrived(false);
     setMicMuted(false);
@@ -454,6 +487,9 @@ export default function LiveAvatarLandingPage({
 
       const data = (await res.json()) as {
         provider?: "anam" | "synthesia";
+        transport?: "livekit" | "anam-sdk";
+        capabilities?: { transcripts?: boolean; reuseHumanRoom?: boolean };
+        avatarParticipantIdentity?: string;
         sessionToken?: string;
         serverUrl?: string;
         participantToken?: string;
@@ -464,9 +500,21 @@ export default function LiveAvatarLandingPage({
       liveSessionIdRef.current = data.sessionId;
       liveSessionSyncTokenRef.current = data.syncToken;
       setLiveSessionInfo({ id: data.sessionId, syncToken: data.syncToken });
+      const transport = data.transport
+        ?? (data.provider === "synthesia" ? "livekit" : data.provider === "anam" ? "anam-sdk" : undefined);
+      if (transport !== "livekit" && transport !== "anam-sdk") {
+        throw new Error("Could not start live session");
+      }
+      if (transport === "livekit" && (!data.serverUrl || !data.participantToken)) {
+        throw new Error("Could not start live session");
+      }
+      if (transport === "anam-sdk" && !data.sessionToken) {
+        throw new Error("Could not start live session");
+      }
 
-      if (data.provider === "synthesia" && data.serverUrl && data.participantToken) {
-        providerRef.current = "synthesia";
+      if (transport === "livekit") {
+        avatarParticipantIdentityRef.current = data.avatarParticipantIdentity ?? "synthesia-avatar-agent";
+        transportRef.current = "livekit";
         const room = new Room({ adaptiveStream: true, dynacast: true });
         lkRoomRef.current = room;
 
@@ -483,7 +531,7 @@ export default function LiveAvatarLandingPage({
         room.on(RoomEvent.ParticipantConnected, syncOwnerPresence);
         room.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => {
           const videoEl = videoRef.current;
-          if (track.kind === "video" && videoEl && participant.identity === "synthesia-avatar-agent") {
+          if (track.kind === "video" && videoEl && participant.identity === avatarParticipantIdentityRef.current) {
             track.attach(videoEl);
           } else if (track.kind === "audio") {
             const element = track.attach();
@@ -498,13 +546,14 @@ export default function LiveAvatarLandingPage({
           if (humanHandoffRef.current) return;
           const metrics = metricsRef.current;
           const isRecipient = participant?.identity?.startsWith("guest-") || participant === room.localParticipant;
-          for (const segment of segments) {
-            if (!segment.final || seenSegmentsRef.current.has(segment.id)) continue;
-            seenSegmentsRef.current.add(segment.id);
-            if (isRecipient) {
+          for (const utterance of normalizeLiveKitSegments(segments, { isRecipient })) {
+            if (seenSegmentsRef.current.has(utterance.id)) continue;
+            seenSegmentsRef.current.add(utterance.id);
+            if (utterance.role === "user") {
               metrics.userTurns += 1;
-              pushDialogue("user", segment.text);
-              for (const topic of classifyQuestionTopics(segment.text)) {
+              pushDialogue("user", utterance.text);
+              maybeEscalate(utterance);
+              for (const topic of classifyQuestionTopics(utterance.text)) {
                 metrics.topics.add(topic);
               }
               if (!metrics.firstUserTurnAt) {
@@ -515,7 +564,7 @@ export default function LiveAvatarLandingPage({
               }
             } else {
               metrics.agentTurns += 1;
-              pushDialogue("assistant", segment.text);
+              pushDialogue("assistant", utterance.text);
             }
           }
         });
@@ -532,7 +581,7 @@ export default function LiveAvatarLandingPage({
           if (humanHandoffRef.current) {
             lkRoomRef.current = null;
             setLkTwin(null);
-            providerRef.current = null;
+            transportRef.current = null;
             startedRef.current = false;
             return;
           }
@@ -542,14 +591,14 @@ export default function LiveAvatarLandingPage({
           dialogueRef.current = [];
           lkRoomRef.current = null;
           setLkTwin(null);
-          providerRef.current = null;
+          transportRef.current = null;
           startedRef.current = false;
           setStatus("Session ended");
           setLive(false);
           setLiveSessionInfo(null);
+          setEscalationHint(null);
         });
-
-        await room.connect(data.serverUrl, data.participantToken, { autoSubscribe: true });
+        await room.connect(data.serverUrl!, data.participantToken!, { autoSubscribe: true });
         await room.localParticipant.setMicrophoneEnabled(true);
         setAudioBlocked(!room.canPlaybackAudio);
         setLkTwin({ room, roomName: data.roomName || `nuncio-live-${data.sessionId}` });
@@ -568,7 +617,7 @@ export default function LiveAvatarLandingPage({
       }
 
       const client = createClient(data.sessionToken as string);
-      providerRef.current = "anam";
+      transportRef.current = "anam-sdk";
       clientRef.current = client;
 
       client.addListener(AnamEvent.CONNECTION_ESTABLISHED, () => {
@@ -594,6 +643,7 @@ export default function LiveAvatarLandingPage({
         setStatus("Session ended");
         setLive(false);
         setLiveSessionInfo(null);
+        setEscalationHint(null);
       });
 
       client.addListener(AnamEvent.MESSAGE_HISTORY_UPDATED, handleMessageHistory);
@@ -610,6 +660,7 @@ export default function LiveAvatarLandingPage({
       liveSessionSyncTokenRef.current = null;
       setLiveSessionInfo(null);
       sessionSyncedRef.current = false;
+      setEscalationHint(null);
       if (clientRef.current) {
         try {
           clientRef.current.removeListener(AnamEvent.MESSAGE_HISTORY_UPDATED, handleMessageHistory);
@@ -630,7 +681,7 @@ export default function LiveAvatarLandingPage({
         }
         lkRoomRef.current = null;
         setLkTwin(null);
-        providerRef.current = null;
+        transportRef.current = null;
       }
       trackLiveSessionFailed({ shareId: id, reason: err instanceof Error ? err.name : "unknown" });
       const newRetryCount = retryCount + 1;
@@ -707,7 +758,7 @@ export default function LiveAvatarLandingPage({
 
   const sender = share.senderName || "your contact";
   const recipient = share.recipientName || "there";
-  const bookingUrl = share.bookingUrl && share.bookingUrl.startsWith("https://") ? share.bookingUrl : null;
+  const bookingUrl = resolveSchedulingProvider(share.bookingUrl)?.url ?? null;
   const handoffMeta = (share as ShareRecord & {
     handoff?: {
       recommendedNextStep: "call" | "twin" | "book" | null;
@@ -857,7 +908,7 @@ export default function LiveAvatarLandingPage({
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-cream-dark bg-white/70 p-4 flex flex-col">
+              <div ref={requestCardRef} tabIndex={-1} className="rounded-2xl border border-cream-dark bg-white/70 p-4 flex flex-col outline-none">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="w-2 h-2 rounded-full bg-warm shrink-0" aria-hidden />
                   <p className="text-body-xs font-medium text-ink break-words">Request {sender}</p>
@@ -898,7 +949,7 @@ export default function LiveAvatarLandingPage({
               }}
               onHumanRoomConnected={() => {
                 setHumanCallActive(true);
-                if (providerRef.current) endSession("manual");
+                if (transportRef.current) endSession("manual");
               }}
               onCallEnded={() => {
                 expectedOwnerIdentityRef.current = null;
@@ -912,31 +963,72 @@ export default function LiveAvatarLandingPage({
               </div>
 
               {bookingUrl ? (
-              <div className="rounded-2xl border border-cream-dark bg-white/70 p-4 flex flex-col">
+              <div ref={scheduleCardRef} tabIndex={-1} className={`rounded-2xl border border-cream-dark bg-white/70 p-4 flex flex-col outline-none ${schedulerOpen ? "md:col-span-full" : ""}`}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="w-2 h-2 rounded-full bg-ink shrink-0" aria-hidden />
                   <p className="text-body-xs font-medium text-ink">Choose a time</p>
                 </div>
-                <p className="text-body-xs text-ink-muted mb-3">Opens {sender}&apos;s scheduling link</p>
+                <p className="text-body-xs text-ink-muted mb-3">{share.mode === "reconnect" ? `Opens ${sender}'s scheduling link` : "Pick a time that works — the provider handles the booking"}</p>
                 <div className="mt-auto flex justify-start">
+                {share.mode === "reconnect" ? (
                 <button
                   onClick={() => {
-                    if (share.mode === "reconnect") {
-                      trackReconnectCatchupClicked({ shareId: share.id, surface: "live_page" });
-                    }
+                    trackReconnectCatchupClicked({ shareId: share.id, surface: "live_page" });
                     handleBookingClick();
                   }}
-                  aria-label={share.mode === "reconnect" ? `Let's catch up with ${sender}` : `Book time with ${sender}`}
+                  aria-label={`Let's catch up with ${sender}`}
                   className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-5 py-2.5 text-body-sm font-medium hover:bg-white transition-colors flex items-center gap-2 min-h-[44px]"
                 >
                   <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <rect x="2" y="3" width="12" height="11" rx="2" />
                     <path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" />
                   </svg>
-                  {share.mode === "reconnect" ? `Let's catch up with ${sender}` : `Book time with ${sender}`}
+                  {`Let's catch up with ${sender}`}
                 </button>
+                ) : (
+                  <SchedulingEmbed
+                    shareId={share.id}
+                    senderName={sender}
+                    bookingUrl={bookingUrl}
+                    getBriefDialogue={getBriefDialogue}
+                    sessionProof={liveSessionInfo}
+                    onBookingClicked={markBookingClicked}
+                    onOpenChange={setSchedulerOpen}
+                  />
+                )}
                 </div>
               </div>
+              ) : null}
+            </div>
+            <div aria-live="polite">
+              {escalationHint && !humanCallActive && (escalationHint === "request-human" || Boolean(bookingUrl)) ? (
+                <div role="status" className="mt-3 mx-auto max-w-md rounded-xl border border-accent/25 bg-accent-soft/40 px-4 py-3 flex flex-wrap items-center justify-center gap-3">
+                  <p className="text-body-sm text-ink">
+                    {escalationHint === "request-human"
+                      ? `Want to speak to ${sender}?`
+                      : "Want to choose a time?"}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = escalationHint === "request-human" ? requestCardRef.current : scheduleCardRef.current;
+                      const reduced = typeof window !== "undefined"
+                        && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+                      target?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
+                      target?.focus();
+                    }}
+                    className="min-h-[44px] rounded-lg border border-ink/15 bg-white/80 px-4 text-body-sm font-medium text-ink"
+                  >
+                    {escalationHint === "request-human" ? "Go to request" : "Go to scheduling"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEscalationHint(null)}
+                    className="min-h-[44px] text-body-sm text-ink-faint"
+                  >
+                    Dismiss
+                  </button>
+                </div>
               ) : null}
             </div>
             {micError && (

@@ -79,6 +79,8 @@ function enableAll() {
   vi.stubEnv("NUNCIO_LIVELINK_WORKSPACE_IDS", "ws-1");
   vi.stubEnv("NUNCIO_CREDITS_ENFORCED", "false");
   vi.stubEnv("NUNCIO_SYNTHESIA_WORKER_ENABLED", "true");
+  vi.stubEnv("NUNCIO_LIVE_WORKER_TOKEN", "worker-tok");
+  vi.stubEnv("ANAM_API_KEY", "anam-key");
   vi.stubEnv("ANAM_AVATAR_ID", "anam-av");
   vi.stubEnv("ANAM_VOICE_ID", "anam-voice");
   accountStore.workspace = {
@@ -141,6 +143,7 @@ describe("POST /api/live/session provider routing", () => {
     expect(livekit.createSynthesiaSession).not.toHaveBeenCalled();
     expect(livekit.cleanupSynthesiaSession).not.toHaveBeenCalled();
     expect(liveSessionStore.created[0].provider).toBe("anam");
+    expect(liveSessionStore.update.mock.calls.at(-1)?.[0]).toMatchObject({ provider: "anam", transport: "anam-sdk", reuseHumanRoom: false });
   });
 
   it("falls back to Anam once after Synthesia startup failure, with cleanup first", async () => {

@@ -278,9 +278,12 @@ export function twinSessionRoomIsReusable(
   shareId: string,
   workspaceId: string,
 ): session is LiveSessionRecord & { roomName: string } {
+  const transport = session?.transport ?? (session?.provider === "synthesia" ? "livekit" : undefined);
+  const reuseHumanRoom = session?.reuseHumanRoom ?? (session?.provider === "synthesia");
   return Boolean(
     session
-    && session.provider === "synthesia"
+    && transport === "livekit"
+    && reuseHumanRoom
     && session.roomName
     && session.shareId === shareId
     && session.workspaceId === workspaceId

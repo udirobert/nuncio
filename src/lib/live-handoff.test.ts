@@ -181,8 +181,8 @@ describe("getHandoffOptions / effectiveHandoffNextStep", () => {
   });
 
   it("computes honest option availability from config", () => {
-    const workspace = { id: "ws-1", bookingUrl: "https://cal.com/x" };
-    const options = getHandoffOptions(share, workspace as never, true);
+    const workspace = { id: "ws-1", bookingUrl: "https://cal.com/workspace-only" };
+    const options = getHandoffOptions(makeShare({ handoffId: "h-1", bookingUrl: "https://cal.com/x" }), workspace as never, true);
     expect(options.twin).toBe(false);
     expect(options.bookingUrl).toBe("https://cal.com/x");
     expect(options.acceptingCalls).toBe(false);
@@ -202,10 +202,12 @@ describe("getHandoffOptions / effectiveHandoffNextStep", () => {
   });
 
   it("omits invalid booking URLs and validates the live voice id shape", () => {
-    const badBooking = getHandoffOptions(share, { id: "ws-1", bookingUrl: "http://cal.com/x" } as never, true);
+    const badBooking = getHandoffOptions(makeShare({ handoffId: "h-1", bookingUrl: "http://cal.com/x" }), { id: "ws-1", bookingUrl: "https://cal.com/x" } as never, true);
     expect(badBooking.bookingUrl).toBeNull();
-    const credentialed = getHandoffOptions(share, { id: "ws-1", bookingUrl: "https://u:p@cal.com/x" } as never, true);
+    const credentialed = getHandoffOptions(makeShare({ handoffId: "h-1", bookingUrl: "https://u:p@cal.com/x" }), { id: "ws-1" } as never, true);
     expect(credentialed.bookingUrl).toBeNull();
+    const workspaceOnly = getHandoffOptions(share, { id: "ws-1", bookingUrl: "https://cal.com/x" } as never, true);
+    expect(workspaceOnly.bookingUrl).toBeNull();
   });
 
   it("falls back through twin → book → call and preserves a valid requested step", () => {

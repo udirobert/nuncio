@@ -70,7 +70,7 @@ export class FileLiveSessionStorageProvider implements LiveSessionStorageProvide
     await this.load();
     return Array.from(this.records.values()).filter(
       (record) =>
-        record.provider === "synthesia"
+        (record.transport ?? (record.provider === "synthesia" ? "livekit" : undefined)) === "livekit"
         && Boolean(record.roomName)
         && !record.roomClosedAt
         && record.status !== "pending"

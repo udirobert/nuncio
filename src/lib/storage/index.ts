@@ -1,4 +1,4 @@
-import type { AccountStorageProvider, BandActivityStorageProvider, BatchStorageProvider, CallRequestStorageProvider, HandoffStorageProvider, LiveSessionStorageProvider, MediaStorageProvider, ProofStorageProvider, ShareStorageProvider, TokenStorageProvider } from "./types";
+import type { AccountStorageProvider, BandActivityStorageProvider, BatchStorageProvider, CallRequestStorageProvider, HandoffStorageProvider, LiveSessionStorageProvider, MediaStorageProvider, ProofStorageProvider, SchedulingStorageProvider, ShareStorageProvider, TokenStorageProvider } from "./types";
 import { FileLiveSessionStorageProvider } from "./file-live-session-provider";
 import { TursoLiveSessionStorageProvider } from "./turso-live-session-provider";
 import { FileCallRequestStorageProvider } from "./file-call-request-provider";
@@ -15,6 +15,8 @@ import { TursoAccountStorageProvider } from "./turso-account-provider";
 import { TursoBatchStorageProvider } from "./turso-batch-provider";
 import { TursoTokenStorageProvider } from "./turso-token-provider";
 import { TursoBandActivityProvider } from "./turso-band-provider";
+import { FileSchedulingStorageProvider } from "./file-scheduling-provider";
+import { TursoSchedulingStorageProvider } from "./turso-scheduling-provider";
 import { GroveProofStorageProvider } from "./grove-provider";
 import { B2MediaStorageProvider, isB2Configured } from "./b2-provider";
 
@@ -28,6 +30,7 @@ let mediaProvider: MediaStorageProvider | null = null;
 let liveSessionProvider: LiveSessionStorageProvider | null = null;
 let callRequestProvider: CallRequestStorageProvider | null = null;
 let handoffProvider: HandoffStorageProvider | null = null;
+let schedulingProvider: SchedulingStorageProvider | null = null;
 
 export type {
   AccountStorageProvider,
@@ -47,6 +50,9 @@ export type {
   LiveSessionStatus,
   LiveSessionStorageProvider,
   MagicLinkToken,
+  SchedulingRecord,
+  SchedulingStatus,
+  SchedulingStorageProvider,
   MediaStorageProvider,
   ProofPublishResult,
   ProofStorageProvider,
@@ -181,6 +187,20 @@ export function getHandoffStorageProvider(): HandoffStorageProvider {
   return handoffProvider;
 }
 
+export function getSchedulingStorageProvider(): SchedulingStorageProvider {
+  if (schedulingProvider) return schedulingProvider;
+
+  if (process.env.TURSO_DATABASE_URL) {
+    schedulingProvider = new TursoSchedulingStorageProvider();
+    console.log("[storage] Using Turso scheduling storage");
+    return schedulingProvider;
+  }
+
+  schedulingProvider = new FileSchedulingStorageProvider();
+  console.log("[storage] Using file scheduling storage");
+  return schedulingProvider;
+}
+
 export function getMediaStorageProvider(): MediaStorageProvider | null {
   if (mediaProvider) return mediaProvider;
 
@@ -204,4 +224,5 @@ export function resetStorageProvidersForTests(): void {
   liveSessionProvider = null;
   callRequestProvider = null;
   handoffProvider = null;
+  schedulingProvider = null;
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { expireStaleLiveSessions } from "@/lib/live-session";
 import { getLiveSessionStorageProvider } from "@/lib/storage";
 import { hasAcceptedRoom, runCallRequestCleanup } from "@/lib/call-request";
-import { cleanupSynthesiaSession } from "@/lib/livekit";
+import { cleanupLiveKitRoom } from "@/lib/livekit";
 
 function isAuthorized(request: NextRequest): boolean {
   const expected = process.env.NUNCIO_LIVELINK_CRON_TOKEN;
@@ -23,7 +23,8 @@ export async function POST(request: NextRequest) {
     const pendingTwinCleanup = await liveProvider.listForCleanup();
     const byId = new Map(pendingTwinCleanup.map((session) => [session.id, session]));
     for (const session of expired) {
-      if (session.provider === "synthesia" && session.roomName && !session.roomClosedAt) {
+      const transport = session.transport ?? (session.provider === "synthesia" ? "livekit" : undefined);
+      if (transport === "livekit" && session.roomName && !session.roomClosedAt) {
         byId.set(session.id, session);
       }
     }
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
         twinErrors += 1;
         continue;
       }
-      const closed = await cleanupSynthesiaSession({ roomName: session.roomName! });
+      const closed = await cleanupLiveKitRoom({ roomName: session.roomName! });
       const current = await liveProvider.get(session.id);
       if (current) {
         await liveProvider.update(closed

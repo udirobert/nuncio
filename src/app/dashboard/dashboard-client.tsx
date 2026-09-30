@@ -10,6 +10,7 @@ import { QuickActions } from "./components/quick-actions";
 import { UsageSummary } from "./components/usage-summary";
 import { ScoreboardCard } from "./components/scoreboard-card";
 import { CallRequestsCard } from "./components/call-requests-card";
+import { ScheduledConversations } from "./components/scheduled-conversations";
 import { SetupPanel } from "./components/setup-panel";
 import { OnboardingModal } from "@/components/onboarding-modal";
 import Link from "next/link";
@@ -128,6 +129,9 @@ export default function DashboardClient() {
                     Needs your attention
                   </h2>
                   <CallRequestsCard />
+                </section>
+                <section aria-label="Scheduled conversations">
+                  <ScheduledConversations />
                 </section>
                 <section aria-label="Recent first touches">
                   <RecentVideos />

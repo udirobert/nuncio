@@ -136,6 +136,8 @@ export interface LiveSessionRecord {
   reservationId?: string;
   syncTokenHash: string;
   provider?: string;
+  transport?: string;
+  reuseHumanRoom?: boolean;
   /** LiveKit room name for Synthesia sessions; reused by an accepted human call. */
   roomName?: string;
   /** Set only after the LiveKit room's absence is confirmed post-teardown. */
@@ -273,6 +275,43 @@ export interface HandoffStorageProvider {
   get(id: string): Promise<HandoffRecord | null>;
   revoke(id: string, workspaceId: string, now: Date): Promise<HandoffRecord | null>;
   listByWorkspace(workspaceId: string, limit?: number): Promise<HandoffRecord[]>;
+}
+
+export type SchedulingStatus = "started" | "requested" | "confirmed" | "cancelled";
+
+export interface SchedulingRecord {
+  id: string;
+  shareId: string;
+  workspaceId: string;
+  provider: string;
+  eventTypeId: number;
+  createdAt: string;
+  status: SchedulingStatus;
+  providerBookingUid?: string;
+  lastProviderEventAt?: string;
+  lastProviderEvent?: string;
+  startsAt?: string;
+  endsAt?: string;
+  reviewedBrief?: {
+    goal: string;
+    discussed: string;
+    openQuestions: string;
+    reason: string;
+    source: "recipient_reviewed";
+    sharedAt: string;
+  };
+  version: number;
+}
+
+export interface SchedulingStorageProvider {
+  readonly name: string;
+  create(record: SchedulingRecord): Promise<SchedulingRecord>;
+  get(id: string): Promise<SchedulingRecord | null>;
+  applyProviderEvent(
+    id: string,
+    event: import("@/lib/scheduling-server").SchedulingProviderEvent,
+  ): Promise<SchedulingRecord | null>;
+  listByWorkspace(workspaceId: string, limit?: number): Promise<SchedulingRecord[]>;
 }
 
 export interface AccountStorageProvider {

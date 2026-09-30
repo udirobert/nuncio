@@ -6,34 +6,16 @@ import { creditsEnforced, getCreditBalance, reserveCredits, refundCreditReservat
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 import type { LiveSessionRecord, WorkspaceAccount } from "@/lib/storage/types";
 import { isLiveLinkAllowed, LIVE_SESSION_MAX_CREDITS, LIVE_SESSION_MAX_DURATION_MS } from "@/lib/live-link";
-import { authorizeHandoffShare, getActiveHandoffForShare } from "@/lib/live-handoff";
+import { authorizeHandoffShare, getActiveHandoffForShare, validateHandoffBookingUrl } from "@/lib/live-handoff";
 import { createLiveSessionRecord, hashLiveSessionToken, reconcileLiveSession } from "@/lib/live-session";
-import { createAnamSessionToken } from "@/lib/anam";
 import { buildLiveSystemPrompt } from "@/lib/live-prompt";
-import { createSynthesiaSession, cleanupSynthesiaSession, isLiveKitConfigured } from "@/lib/livekit";
-import { SYNTHESIA_AGENT_NAME, browserMutationAllowed } from "@/lib/call-request";
-
-type LiveProvider = "synthesia" | "anam";
-
-function resolvePrimaryProvider(): LiveProvider {
-  return process.env.NUNCIO_LIVE_PRIMARY_PROVIDER === "anam" ? "anam" : "synthesia";
-}
-
-function synthesiaReady(workspace: WorkspaceAccount | null): { avatarId: string; voiceId: string } | null {
-  if (!isLiveKitConfigured()) return null;
-  if (process.env.NUNCIO_SYNTHESIA_WORKER_ENABLED !== "true") return null;
-  const avatarId = workspace?.synthesiaAvatarId || process.env.SYNTHESIA_AVATAR_ID;
-  const voiceId = workspace?.liveVoiceId || process.env.ELEVENLABS_VOICE_ID;
-  if (!avatarId || !voiceId) return null;
-  return { avatarId, voiceId };
-}
-
-function anamReady(input: { workspace: WorkspaceAccount | null; share: { anamAvatarId?: string; anamVoiceId?: string } }): { avatarId: string; voiceId: string } | null {
-  const avatarId = input.workspace?.anamAvatarId || input.share.anamAvatarId || process.env.ANAM_AVATAR_ID;
-  const voiceId = input.workspace?.anamVoiceId || input.share.anamVoiceId || process.env.ANAM_VOICE_ID;
-  if (!avatarId || !voiceId) return null;
-  return { avatarId, voiceId };
-}
+import {
+  resolvePrimaryProvider,
+  resolveStartAttempts,
+  type LiveAvatarAdapter,
+  type ProviderStartHandle,
+} from "@/lib/live-avatar-providers";
+import { browserMutationAllowed } from "@/lib/call-request";
 
 export async function POST(request: NextRequest) {
   let sessionRecord: Awaited<ReturnType<typeof createLiveSessionRecord>> | undefined;
@@ -90,10 +72,15 @@ export async function POST(request: NextRequest) {
     }
 
     const primary = resolvePrimaryProvider();
-    const synthesia = synthesiaReady(workspace);
-    const anam = anamReady({ workspace, share });
+    if (!primary) {
+      return NextResponse.json(
+        { error: "Live avatar is not configured for this sender" },
+        { status: 503 }
+      );
+    }
+    const attempts = resolveStartAttempts(primary, { workspace, share });
 
-    if (!synthesia && !anam) {
+    if (attempts.length === 0) {
       return NextResponse.json(
         { error: "Live avatar is not configured for this sender" },
         { status: 503 }
@@ -119,7 +106,7 @@ export async function POST(request: NextRequest) {
       action: "live.session",
       amount: LIVE_SESSION_MAX_CREDITS,
       reason: "Live avatar session maximum reservation",
-      provider: primary === "synthesia" && synthesia ? "synthesia" : "anam",
+      provider: attempts[0].adapter.id,
     });
     reservationId = reservation.id;
 
@@ -128,7 +115,7 @@ export async function POST(request: NextRequest) {
       shareId,
       workspaceId: share.workspaceId,
       reservationId,
-      provider: primary === "synthesia" && synthesia ? "synthesia" : "anam",
+      provider: attempts[0].adapter.id,
       syncTokenHash: hashLiveSessionToken(syncToken),
       reservedCredits: reservationId ? LIVE_SESSION_MAX_CREDITS : 0,
       creditsEnforced: creditsEnforced(),
@@ -153,80 +140,25 @@ export async function POST(request: NextRequest) {
       },
       workspace,
       handoff?.context,
+      { schedulingAvailable: Boolean(validateHandoffBookingUrl(share.bookingUrl)) },
     );
-
-    const attempts: LiveProvider[] =
-      primary === "synthesia" && synthesia
-        ? (anam ? ["synthesia", "anam"] : ["synthesia"])
-        : ["anam"];
 
     const record = sessionRecord;
 
-    for (const provider of attempts) {
-      if (provider === "synthesia") {
-        const ids = synthesia!;
-        let roomName = `nuncio-live-${record.id}`;
-        let dispatchId: string | undefined;
-        try {
-          await getLiveSessionStorageProvider().update({ ...record, provider: "synthesia", roomName });
-          const started = await createSynthesiaSession({
-            sessionId: record.id,
-            avatarId: ids.avatarId,
-            voiceId: ids.voiceId,
-            recipientIdentity: `guest-${record.id}`,
-            recipientTtlSeconds: Math.ceil(LIVE_SESSION_MAX_DURATION_MS / 1000),
-          });
-          roomName = started.roomName;
-          dispatchId = started.dispatchId;
-          return NextResponse.json({
-            provider: "synthesia",
-            serverUrl: started.serverUrl,
-            participantToken: started.participantToken,
-            roomName,
-            sessionId: record.id,
-            syncToken,
-            agentName: SYNTHESIA_AGENT_NAME,
-          });
-        } catch (error) {
-          console.warn("[api/live/session] synthesia start failed: stage=avatar session=%s name=%s", record?.id ?? "none", (error as Error)?.name ?? "unknown");
-          const cleaned = await cleanupSynthesiaSession({ roomName, dispatchId }).catch(() => false);
-          if (!cleaned) {
-            await reconcileLiveSession({
-              record: { ...record, provider: "synthesia", roomName, cleanupError: true },
-              durationMs: LIVE_SESSION_MAX_DURATION_MS,
-              reason: "provider_closed",
-            }).catch(() => {});
-            return NextResponse.json(
-              { error: "Live session could not be started safely. Please try again." },
-              { status: 500 }
-            );
-          }
-          continue;
-        }
-      }
-
-      try {
-        const ids = anam!;
-        const { sessionToken } = await createAnamSessionToken({
-          avatarId: ids.avatarId,
-          voiceId: ids.voiceId,
-          systemPrompt,
-          avatarModel: "cara-4",
+    for (const { adapter, ids } of attempts) {
+      const started = await tryAdapterStart(adapter, ids, record, systemPrompt);
+      if ("response" in started && started.ok) {
+        return NextResponse.json({
+          ...started.response,
+          sessionId: record.id,
+          syncToken,
         });
-        if (record.provider !== "anam") {
-          const updated: LiveSessionRecord = {
-            ...record,
-            provider: "anam",
-            roomName: undefined,
-            roomClosedAt: new Date().toISOString(),
-          };
-          await getLiveSessionStorageProvider().update(updated);
-        }
-        return NextResponse.json({ provider: "anam", sessionToken, sessionId: record.id, syncToken });
-      } catch (error) {
-        console.warn("[api/live/session] anam start failed: stage=avatar session=%s name=%s", record?.id ?? "none", (error as Error)?.name ?? "unknown");
-        await reconcileLiveSession({ record, durationMs: 0, reason: "start_failed" }).catch(() => {});
-        return NextResponse.json({ error: "Failed to start live session" }, { status: 500 });
+      }
+      if (started.fatal) {
+        return NextResponse.json(
+          { error: "Live session could not be started safely. Please try again." },
+          { status: 500 }
+        );
       }
     }
 
@@ -240,5 +172,92 @@ export async function POST(request: NextRequest) {
       await refundCreditReservation(reservationId, "live_session_record_failure").catch(() => {});
     }
     return NextResponse.json({ error: "Failed to start live session" }, { status: 500 });
+  }
+}
+
+type StartOutcome =
+  | { ok: true; response: Record<string, unknown> }
+  | { ok: false; fatal: boolean };
+
+async function tryAdapterStart(
+  adapter: LiveAvatarAdapter,
+  ids: { avatarId: string; voiceId: string },
+  record: LiveSessionRecord,
+  systemPrompt: string,
+): Promise<StartOutcome> {
+  const provisionalRoom = adapter.transport === "livekit"
+    ? `nuncio-live-${record.id}`
+    : undefined;
+  let started: ProviderStartHandle | null = null;
+  try {
+    const currentRecord: LiveSessionRecord = {
+      ...record,
+      provider: adapter.id,
+      transport: adapter.transport,
+      reuseHumanRoom: adapter.capabilities.reuseHumanRoom,
+      roomName: provisionalRoom,
+      roomClosedAt: undefined,
+    };
+    await getLiveSessionStorageProvider().update(currentRecord);
+    started = await adapter.start({
+      sessionId: record.id,
+      systemPrompt,
+      recipientIdentity: `guest-${record.id}`,
+      recipientTtlSeconds: Math.ceil(LIVE_SESSION_MAX_DURATION_MS / 1000),
+      avatarId: ids.avatarId,
+      voiceId: ids.voiceId,
+    });
+    const finalRecord: LiveSessionRecord = {
+      ...currentRecord,
+      roomName: adapter.transport === "livekit" ? started.roomName : undefined,
+      roomClosedAt: undefined,
+    };
+    if (
+      finalRecord.provider !== record.provider
+      || finalRecord.transport !== record.transport
+      || finalRecord.roomName !== record.roomName
+    ) {
+      await getLiveSessionStorageProvider().update(finalRecord);
+    }
+    return { ok: true, response: started.response };
+  } catch (error) {
+    console.warn("[api/live/session] %s start failed: stage=avatar session=%s name=%s", adapter.id, record?.id ?? "none", (error as Error)?.name ?? "unknown");
+    const partial = {
+      roomName: started?.roomName ?? provisionalRoom ?? `nuncio-live-${record.id}`,
+      dispatchId: started?.dispatchId,
+    };
+    const cleaned = await adapter.cleanup(started, partial).catch(() => false);
+    if (adapter.transport === "livekit") {
+      if (!cleaned) {
+        await reconcileLiveSession({
+          record: {
+            ...record,
+            provider: adapter.id,
+            transport: adapter.transport,
+            reuseHumanRoom: adapter.capabilities.reuseHumanRoom,
+            roomName: partial.roomName,
+            cleanupError: true,
+          },
+          durationMs: LIVE_SESSION_MAX_DURATION_MS,
+          reason: "provider_closed",
+        }).catch(() => {});
+        return { ok: false, fatal: true };
+      }
+      return { ok: false, fatal: false };
+    }
+    if (!cleaned) {
+      await reconcileLiveSession({
+        record: { ...record, provider: adapter.id, transport: adapter.transport, cleanupError: true },
+        durationMs: 0,
+        reason: "start_failed",
+      }).catch(() => {});
+      return { ok: false, fatal: true };
+    }
+    await reconcileLiveSession({
+      record: { ...record, provider: adapter.id, transport: adapter.transport },
+      durationMs: 0,
+      reason: "start_failed",
+    }).catch(() => {});
+    return { ok: false, fatal: true };
   }
 }
