@@ -123,9 +123,9 @@ Per `docs/STRATEGY.md`, the live link is a personal front door — the recipient
 
 ### Recipient (`CallRequestPanel` on `/live/[id]`)
 - Compact card below the twin controls; cream surface, Instrument Serif headline, muted mono labels — no new visual language.
-- States: `Request a call now` → `Waiting for {sender} to respond` (pending, poll every 3s) → `Request accepted — connect` → `Waiting for {sender} to join` → `{sender} joined` (only on observed room presence, never on acceptance).
+- States: `Request a call now` → `Waiting for {sender} to respond` (pending, poll every 3s) → `Request accepted — preparing call…` (background join binding; no premature Join) → a single `Join call` once the room is ready → `Waiting for {sender} to join` → `{sender} joined` (only on observed room presence, never on acceptance). A reused twin room auto-connects on the bound join — the request itself is the explicit intent, no second click.
 - Declined/expired states collapse back to the twin + booking-link alternatives — never a dead end.
-- Microphone access only on explicit "Connect" click; no camera, ever. Autoplay-blocked audio shows a visible "Enable audio" control.
+- Microphone access only on the explicit "Join call" click; no camera, ever. Autoplay-blocked audio shows a visible "Enable audio" control.
 - Request capability token lives in memory only — never in the URL or localStorage.
 
 ### Owner (`CallRequestsCard` on `/dashboard`)
@@ -137,8 +137,9 @@ Per `docs/STRATEGY.md`, the live link is a personal front door — the recipient
 
 ### Text→live handoff entry (`/live/[id]` with `handoffId` marker)
 - The live start controls, `CallRequestPanel`, and booking link compose into a single "Choose how to continue" area so the recipient never has to start the paid avatar session to see their options.
-- Three distinct actions per surface: "Talk to {sender}'s AI twin" (explicit click starts mic + session), "Request {sender} now" (or "not taking calls right now" when availability is off), "Book time with {sender}" (only when a valid configured HTTPS booking URL exists). One primary CTA; `recommendedNextStep` is advisory only and never auto-starts anything.
+- Three distinct actions per surface: "Talk to {sender}'s AI representative" (explicit click starts mic + session), "Request {sender} now" (or "not taking calls right now" when availability is off), "Book time with {sender}" (only when a valid configured HTTPS booking URL exists). One primary CTA; `recommendedNextStep` is advisory only and never auto-starts anything.
 - Handoff context stays server-side — the private summary is not returned in public share/status APIs, though the twin may refer to its contents; the owner sees it in the dashboard inbox as "Text conversation context" before accepting and inside the connected call view.
+- **Recipient-reviewed live brief**: the recipient can optionally ask for a draft brief ("Draft brief" sends the conversation to the AI service only on that explicit click), review/edit the four fields, and check "Share this brief" before it accompanies the call request. The brief is a recipient-reviewed draft — never a transcript, never verified fact; the owner UI labels it accordingly. The nuncio app never persists, logs, or returns raw dialogue via status/join APIs (provider/observability retention is operator-visible separately); only the owner inbox surfaces the reviewed brief.
 
 ---
 

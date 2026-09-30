@@ -19,7 +19,7 @@ const TILES = [
   {
     step: "04",
     title: "Open a door",
-    body: "Your disclosed AI twin takes the first meeting live — with a recorded video riding along as fallback.",
+    body: "Your disclosed AI representative keeps the conversation moving; you join a real call when both sides want one. Recorded video can be included as a fallback.",
   },
 ];
 

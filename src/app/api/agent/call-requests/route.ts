@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
       expiresAt: callRecord.expiresAt,
       recipientName: scopedShare?.recipientName ?? null,
       context,
+      liveBrief: callRecord.liveBrief ?? null,
       dashboardUrl: absoluteUrl("/dashboard", request),
     };
   }));

@@ -1,20 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readAccountSession } from "@/lib/auth/session";
 import { getAccountStorageProvider } from "@/lib/storage";
-import { isLiveLinkEnabled } from "@/lib/live-link";
+import { isLiveLinkEnabled, isLiveLinkAllowed } from "@/lib/live-link";
 import { browserMutationAllowed } from "@/lib/call-request";
+import { getHandoffOptions } from "@/lib/live-handoff";
+import { hasSenderPlaybook } from "@/lib/playbook";
+
+const NO_STORE = { "Cache-Control": "no-store", Vary: "Cookie" } as const;
+const NO_READINESS = { configured: false, playbookConfigured: false } as const;
 
 export async function GET(request: NextRequest) {
   const session = readAccountSession(request);
   if (!session) {
-    return NextResponse.json({ senderBrief: null, senderName: null, plan: "trial" });
+    return NextResponse.json({ senderBrief: null, senderName: null, plan: "trial", liveReadiness: NO_READINESS }, { headers: NO_STORE });
   }
 
   const provider = getAccountStorageProvider();
   const workspace = await provider.getWorkspace(session.workspaceId);
   if (!workspace) {
-    return NextResponse.json({ senderBrief: null, senderName: null, plan: "trial" });
+    return NextResponse.json({ senderBrief: null, senderName: null, plan: "trial", liveReadiness: NO_READINESS }, { headers: NO_STORE });
   }
+
+  const liveReadiness = {
+    configured: isLiveLinkAllowed({ workspaceId: workspace.id, senderEmail: session.email })
+      && getHandoffOptions(
+        { workspaceId: workspace.id, senderEmail: session.email },
+        workspace,
+        true,
+      ).twin,
+    playbookConfigured: hasSenderPlaybook(workspace),
+  };
 
   return NextResponse.json({
     senderBrief: workspace.lastSenderBrief || null,
@@ -39,7 +54,8 @@ export async function GET(request: NextRequest) {
       ? "video"
       : (workspace.deliveryMode || (isLiveLinkEnabled() ? "livelink" : "video")),
     plan: workspace.plan || (workspace.stripePlanType || "trial").toLowerCase(),
-  });
+    liveReadiness,
+  }, { headers: NO_STORE });
 }
 
 export async function PATCH(request: NextRequest) {

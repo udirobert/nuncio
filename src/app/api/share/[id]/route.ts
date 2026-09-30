@@ -11,6 +11,7 @@ import {
   getHandoffOptions,
 } from "@/lib/live-handoff";
 import { browserMutationAllowed, isWorkspaceOwner } from "@/lib/call-request";
+import { hasSenderPlaybook } from "@/lib/playbook";
 
 const PRIVATE_HEADERS = { "Cache-Control": "no-store", Vary: "Cookie" };
 
@@ -47,12 +48,21 @@ export async function GET(
   const signed = await signRecordAssets(record);
   const publicRecord: Record<string, unknown> = { ...signed };
   delete publicRecord.senderEmail;
+  const workspace = record.deliveryMode === "livelink" && record.workspaceId
+    ? await getAccountStorageProvider().getWorkspace(record.workspaceId)
+    : null;
+  const liveOptions = record.deliveryMode === "livelink"
+    ? getHandoffOptions(record, workspace, true)
+    : null;
+  if (liveOptions) {
+    publicRecord.liveReadiness = {
+      configured: liveOptions.twin,
+      playbookConfigured: hasSenderPlaybook(workspace),
+    };
+  }
   if (handoff) {
     delete publicRecord.handoffId;
-    const workspace = record.workspaceId
-      ? await getAccountStorageProvider().getWorkspace(record.workspaceId)
-      : null;
-    const options = getHandoffOptions(record, workspace, true);
+    const options = liveOptions ?? getHandoffOptions(record, workspace, true);
     publicRecord.handoff = {
       recommendedNextStep: effectiveHandoffNextStep(handoff.recommendedNextStep, options),
       expiresAt: handoff.expiresAt,

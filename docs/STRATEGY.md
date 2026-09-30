@@ -101,7 +101,7 @@ Concentric expansion (gated on Phase 2 results): founders → high-ticket servic
 - Recipient→sender conversion coefficient (`viral_cta_clicked` → `viral_landing` → signup).
 - Sean Ellis %.
 
-> **Shipped:** a `ScoreboardCard` on `/dashboard` now surfaces live-session aggregates from `GET /api/live/sessions` — total sessions, start rate, completed, bookings, median user turns, median duration, and a question-topic distribution bar chart.
+> **Shipped:** a `ScoreboardCard` on `/dashboard` surfaces live-session aggregates from `GET /api/live/sessions` — total sessions, "Spoke to AI" rate, "Ended", "Booking clicks", median user turns, median duration, and a question-topic distribution bar chart — labeled as recent ended/expired/failed sessions, not page-load conversion.
 
 ## The first move
 Pick the thesis sentence, get **one** founder's twin live this week, and watch a real prospect talk to it. Everything else — including which secret is actually true — gets answered by that conversation.

@@ -88,4 +88,36 @@ describe("LLM fallback chain", () => {
     delete process.env.PREFERRED_LLM_PROVIDER;
     expect(getActiveProvider()).toContain("anthropic");
   });
+
+  it("redactErrors logs provider + error class only, never the raw error message", async () => {
+    process.env.FEATHERLESS_API_KEY = "fl-test";
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.GOOGLE_API_KEY;
+    delete process.env.VENICE_API_KEY;
+    delete process.env.TOKENROUTER_API_KEY;
+    delete process.env.PREFERRED_LLM_PROVIDER;
+
+    const marker = "SECRET_TRANSCRIPT_MARKER_9f3c";
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error(`upstream echoed ${marker}`); }));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await expect(
+        chatCompletion("system", "hello", { maxTokens: 800, redactErrors: true }),
+      ).rejects.toThrow("LLM providers unavailable");
+      for (const call of warn.mock.calls) {
+        expect(String(call.join(" "))).not.toContain(marker);
+      }
+    } finally {
+      warn.mockRestore();
+    }
+
+    const warn2 = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await expect(chatCompletion("system", "hello")).rejects.toThrow(marker);
+      const logged = warn2.mock.calls.map((call) => String(call.join(" "))).join("\n");
+      expect(logged).toContain(marker);
+    } finally {
+      warn2.mockRestore();
+    }
+  });
 });

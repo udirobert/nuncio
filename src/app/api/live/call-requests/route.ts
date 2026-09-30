@@ -9,6 +9,7 @@ import {
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 import { readAccountSession } from "@/lib/auth/session";
 import { hashLiveSessionToken } from "@/lib/live-session";
+import { parseLiveCallBrief } from "@/lib/live-call-brief";
 import { isLiveLinkEnabled } from "@/lib/live-link";
 import { authorizeHandoffShare } from "@/lib/live-handoff";
 import {
@@ -39,6 +40,8 @@ export async function POST(request: NextRequest) {
     shareId?: string;
     liveSessionId?: string;
     syncToken?: string;
+    liveBrief?: unknown;
+    briefConsent?: unknown;
   } | null;
   const shareId = body?.shareId;
   if (!shareId || typeof shareId !== "string") {
@@ -87,12 +90,27 @@ export async function POST(request: NextRequest) {
     const session = await getLiveSessionStorageProvider().get(body.liveSessionId);
     const valid = session
       && session.shareId === shareId
+      && session.workspaceId === share.workspaceId
       && (session.status === "pending" || session.status === "active")
       && typeof body.syncToken === "string"
       && hashLiveSessionToken(body.syncToken) === session.syncTokenHash;
     if (!valid) {
       return NextResponse.json({ error: "Invalid live session proof" }, { status: 403, headers: NO_STORE });
     }
+  }
+
+  // A live brief is stored only when the recipient explicitly reviewed and
+  // consented — and only while bound to a proven live session.
+  let liveBrief: import("@/lib/storage/types").CallRequestRecord["liveBrief"];
+  if (body.liveBrief !== undefined) {
+    if (body.briefConsent !== true || !body.liveSessionId) {
+      return NextResponse.json({ error: "Invalid brief consent" }, { status: 400, headers: NO_STORE });
+    }
+    const parsed = parseLiveCallBrief(body.liveBrief);
+    if (!parsed) {
+      return NextResponse.json({ error: "Invalid live brief" }, { status: 400, headers: NO_STORE });
+    }
+    liveBrief = { ...parsed, source: "recipient_reviewed", sharedAt: new Date().toISOString() };
   }
 
   const { token, hash } = mintRecipientToken();
@@ -106,6 +124,7 @@ export async function POST(request: NextRequest) {
     createdAt: now.toISOString(),
     expiresAt: new Date(now.getTime() + CALL_REQUEST_PENDING_TTL_MS).toISOString(),
     liveSessionId: body.liveSessionId,
+    liveBrief,
   }, now);
 
   if (!record) {
@@ -155,6 +174,7 @@ export async function GET(request: NextRequest) {
       createdAt: string; expiresAt: string; acceptedAt?: string; liveSessionId?: string;
       roomName?: string; roomReady?: boolean; cleanupError?: boolean;
       connection?: import("@/lib/call-connection").CallConnectionMetrics;
+      liveBrief?: import("@/lib/storage/types").CallRequestRecord["liveBrief"];
     };
     if (!shareCache.has(r.shareId)) shareCache.set(r.shareId, await getShareRecord(r.shareId));
     const share = shareCache.get(r.shareId);
@@ -178,6 +198,7 @@ export async function GET(request: NextRequest) {
       recipientRole: share?.profile?.current_role || null,
       recipientCompany: share?.profile?.company || null,
       questionTopics: sessionRecord?.metrics?.questionTopics ?? [],
+      liveBrief: r.liveBrief ?? null,
       handoffContext: share?.handoffId && share.workspaceId === session.workspaceId
         ? await getHandoffStorageProvider().get(share.handoffId).then((handoff) =>
           handoff

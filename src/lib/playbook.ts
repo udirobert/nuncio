@@ -1,4 +1,15 @@
 import type { IntentId } from "@/components/intent-chips";
+import type { WorkspaceAccount } from "@/lib/storage/types";
+
+export function hasSenderPlaybook(
+  workspace: Pick<WorkspaceAccount, "playbookWants" | "playbookOffer" | "playbookConstraints"> | null | undefined,
+): boolean {
+  return Boolean(
+    workspace?.playbookWants?.trim()
+    && workspace?.playbookOffer?.trim()
+    && workspace?.playbookConstraints?.trim(),
+  );
+}
 
 export interface PlaybookEntry {
   id: string;

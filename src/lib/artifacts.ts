@@ -61,6 +61,10 @@ export interface ShareRecord {
   /** Generation provenance (Genblaze manifests, content hashes, models used). */
   generation?: GenerationProvenance;
   handoffId?: string;
+  liveReadiness?: {
+    configured: boolean;
+    playbookConfigured: boolean;
+  };
 }
 
 export function buildAgentTrace(input: {

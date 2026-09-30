@@ -97,10 +97,15 @@ All unit-level — no live provider calls:
 - `src/app/api/agent/handoffs.test.ts` — mocked-provider route checks: bearer auth, `NUNCIO_AGENT_WORKSPACE_ID` required, allowlist gate, body/list/TTL validation, source-share ownership, private share shape + hashed-token invite URL, honest options/effective recommendation, redacted listing, idempotent monotonic revoke, cookie exchange (raw-token cookie value + flags + bounded maxAge), protected-share denial on GET/session/availability/call-request-create before signing or credits, revoked invite denial for cookie holders, ordinary shares unaffected, agent inbox exact-linkage context scoping/redaction, generic-500 boundary, worker gateway revocation denial before any LLM call.
 - `src/app/api/live/provider-routing.test.ts` — primary selection, missing Synthesia config → Anam fallback, cleanup ordering before fallback, cleanup failure refuses fallback, all-providers-missing safe error, gate/allowlist rejection before provider calls/credits, actual provider+room recorded on the session, secret-free response.
 - `src/app/api/live/agent-chat.test.ts` — worker gateway auth (fail-closed absent token, constant-time compare), ignored client system/developer injection, message limits, `chatCompletion` invoked only with the server prompt + exact untrusted-dialogue wrapper.
+- `src/lib/live-call-brief.test.ts` (authored this pass, not yet re-run) — `parseBriefDialogue` bounds (0/21 messages, 2001-char message, 12001-char total, disallowed roles, whitespace normalization), `parseLiveCallBrief` schema (exact four fields, 501-char rejection, unknown keys), `draftLiveCallBrief` mocked-LLM invalid-JSON/extra-key/success paths, `hasSenderPlaybook` blank/partial/full.
+- `src/lib/live-room-attach.test.ts` — `detachUnsubscribedTrack` keeps the React-owned video element mounted on unsubscribe while removing dynamically created audio elements; a second track can attach afterwards.
+- `src/lib/llm.test.ts` (authored this pass, not yet re-run) — `chatCompletion` with `redactErrors: true` logs provider + exception class only and never the raw error message; default behavior unchanged.
+- `src/app/api/agent/handoffs.test.ts` (brief + liveBrief + readiness cases, authored this pass, not yet re-run) — `POST /api/live/brief` rejects missing consent, malformed dialogue, invalid session proof, cross-share and cross-workspace sessions, terminal sessions, cross-origin posts, expired/revoked handoff invites (404), and rate-limit denial (429, no LLM call) before any LLM call; returns the draft only on a valid consented request; 503s on draft failure without storing dialogue. Call-request creation stores only the four reviewed brief fields with `source: "recipient_reviewed"`/`sharedAt`, and rejects a brief without `briefConsent`, a malformed brief, or a brief without a valid live-session binding. Public status and join responses exclude `liveBrief`; the owner list includes it. `GET /api/account/brief` reports `liveReadiness.configured` false when unauthenticated, off-allowlist, or provider-unconfigured, and true for a Synthesia-only workspace with no Anam assets.
+- `src/app/api/live/agent-chat.test.ts` (amended, not yet re-run) — the worker gateway asserts `chatCompletion` is called with `redactErrors: true` so provider error messages carrying dialogue are never logged.
 
 Browser smoke (mocked APIs only, no provider calls): pending ≠ joined states, autoplay/mic-denied alternatives visible, video target mounted before SDK start, Synthesia branch renders a LiveKit room — all pending the user's verification run; none have been re-run since the hardening pass.
 
-The Python worker (`workers/live-avatar/agent.py`) has had no import or syntax verification in this pass — only static review against the pinned 1.8.2 wheel sources; do not run it against live credentials until user-verified.
+The Python worker (`workers/live-avatar/agent.py`) passed `python3 -m py_compile` on an intermediate revision of this pass; the worker file changed afterwards and has not been recompiled. It has not been run against live credentials — do not run it against live credentials until user-verified. Its logging reports a stage name plus exception class only (initialization, connect, STT, session, avatar, conversation) — never raw exception messages, prompts, request bodies, or tokens.
 
 ### Controlled external smoke test
 
@@ -121,14 +126,14 @@ The check validates Anam token issuance and sends one bounded terminal sync to `
 
 Use Playwright or a real browser on desktop and mobile Safari/Chrome to verify the planned hardening:
 
-- the recorded HeyGen share remains the default path;
+- an allowlisted pilot defaults to a live conversation link; explicit recorded-video delivery remains available;
 - a gated LiveLink share can start only for an allowlisted sender/workspace;
 - the page clearly discloses the AI avatar and microphone behavior;
 - first connection, interruption, tab close, reconnect, idle timeout, and manual end behave safely;
 - a failed Synthesia start cleans up and falls back to Anam once; a failed live path ultimately falls back to the recorded `/v/[id]` artifact;
 - session duration, connection state, and failure reason are captured without raw audio by default.
 
-The current page supports the initial connection/error/retry flow, active five-minute cap, SDK cleanup, client lifecycle telemetry, durable terminal sync, provider startup fallback, and recorded-video fallback. The worker adds a five-minute maximum, three-minute idle timeout, and 45-second recipient reconnect grace. Provider-authoritative duration, real LiveKit/Synthesia verification, push notifications, and phone bridging remain launch work.
+The current page implements the initial connection/error/retry flow, active five-minute cap, SDK cleanup, client lifecycle telemetry, durable terminal sync, provider startup fallback, and recorded-video fallback when a recorded artifact exists. The worker adds a five-minute maximum, three-minute idle timeout, and 45-second recipient reconnect grace. Synthesia/LiveKit startup was verified on the previous deployed revision; this consolidation is undeployed and its final revision has not been execution-verified. The user owns the full two-person speech-to-handoff check, desktop/mobile checks, and final automated verification. Provider-authoritative duration, push notifications, and phone bridging remain launch work.
 
 ### Pilot measurement
 

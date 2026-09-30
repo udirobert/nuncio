@@ -171,7 +171,7 @@ async function callProvider(
 export async function chatCompletion(
   systemPrompt: string,
   userMessage: string,
-  options?: { maxTokens?: number }
+  options?: { maxTokens?: number; redactErrors?: boolean }
 ): Promise<string> {
   const configs = getConfigs();
   const maxTokens = options?.maxTokens || 1024;
@@ -186,7 +186,11 @@ export async function chatCompletion(
       return await callProvider(config, systemPrompt, userMessage, maxTokens);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[llm] ${config.provider} failed: ${msg}`);
+      if (options?.redactErrors) {
+        console.warn(`[llm] ${config.provider} failed: ${err instanceof Error ? err.name : "Error"}`);
+      } else {
+        console.warn(`[llm] ${config.provider} failed: ${msg}`);
+      }
       lastError = err instanceof Error ? err : new Error(msg);
 
       // Every failure falls through to the next provider — including 400s. An
@@ -196,6 +200,7 @@ export async function chatCompletion(
     }
   }
 
+  if (options?.redactErrors) throw new Error("LLM providers unavailable");
   throw lastError || new Error("All LLM providers failed");
 }
 

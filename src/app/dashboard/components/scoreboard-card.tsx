@@ -148,12 +148,15 @@ export function ScoreboardCard() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
         <Stat value={stats.total} label="Total" />
-        <Stat value={`${stats.startRate}%`} label="Started" />
-        <Stat value={stats.ended} label="Completed" />
-        <Stat value={stats.bookings} label="Bookings" />
+        <Stat value={`${stats.startRate}%`} label="Spoke to AI" />
+        <Stat value={stats.ended} label="Ended" />
+        <Stat value={stats.bookings} label="Booking clicks" />
         <Stat value={`${stats.medianUserTurns}`} label="Median turns" />
         <Stat value={formatDuration(stats.medianDuration)} label="Median time" />
       </div>
+      <p className="text-label-xs text-ink-faint">
+        Recent ended/expired/failed sessions; not page-load conversion. Booking clicks are not confirmed meetings.
+      </p>
 
       {stats.topicList.length > 0 && (
         <div className="space-y-2">

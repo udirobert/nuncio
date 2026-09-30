@@ -73,13 +73,21 @@ export default function DashboardClient() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.05 }}
           >
+            <CallRequestsCard />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+          >
             <Link
               href="/studio"
               className="btn-press flex items-center justify-between rounded-2xl bg-ink text-cream px-6 py-5 hover:bg-ink-light transition-colors group"
             >
               <div>
-                <span className="text-sm font-medium">Create a new video</span>
-                <p className="text-xs text-cream/60 mt-0.5">Drop a profile URL — your twin takes the first meeting</p>
+                <span className="text-sm font-medium">Create a conversation link</span>
+                <p className="text-xs text-cream/60 mt-0.5">Drop a profile URL — your AI representative takes the first conversation</p>
               </div>
               <svg viewBox="0 0 16 16" className="w-5 h-5 text-cream/50 group-hover:text-cream group-hover:translate-x-0.5 transition-[color,background-color,border-color,opacity,box-shadow,transform]" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M3 8h10M9 4l4 4-4 4" />
@@ -90,7 +98,7 @@ export default function DashboardClient() {
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
+            transition={{ duration: 0.4, delay: 0.15 }}
             className="grid grid-cols-1 md:grid-cols-3 gap-4"
           >
             <CreditCard />
@@ -101,17 +109,9 @@ export default function DashboardClient() {
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.15 }}
-          >
-            <ScoreboardCard />
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.18 }}
           >
-            <CallRequestsCard />
+            <ScoreboardCard />
           </motion.div>
 
           <motion.div

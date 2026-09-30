@@ -102,7 +102,7 @@ export type HandoffOptions = {
 export type HandoffNextStep = "call" | "twin" | "book";
 
 export function getHandoffOptions(
-  share: ShareRecord,
+  share: Pick<ShareRecord, "workspaceId" | "senderEmail" | "anamAvatarId" | "anamVoiceId" | "bookingUrl">,
   workspace: WorkspaceAccount | null,
   active: boolean,
 ): HandoffOptions {

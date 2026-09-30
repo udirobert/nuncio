@@ -4,7 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { createClient, AnamEvent, type AnamClient, type Message } from "@anam-ai/js-sdk";
-import { Room, RoomEvent, type Participant, type TranscriptionSegment } from "livekit-client";
+import { Room, RoomEvent, Track, type Participant, type TranscriptionSegment } from "livekit-client";
+import {
+  LIVE_CALL_BRIEF_MESSAGE_CHAR_LIMIT,
+  LIVE_CALL_BRIEF_MESSAGE_LIMIT,
+  LIVE_CALL_BRIEF_TOTAL_CHAR_LIMIT,
+  type BriefDialogueMessage,
+} from "@/lib/live-call-brief";
+import { detachUnsubscribedTrack } from "@/lib/live-room-attach";
 import type { ShareRecord } from "@/lib/artifacts";
 import {
   trackBookingClicked,
@@ -51,6 +58,15 @@ export default function LiveAvatarLandingPage({
   const liveSessionSyncTokenRef = useRef<string | null>(null);
   const [liveSessionInfo, setLiveSessionInfo] = useState<{ id: string; syncToken: string } | null>(null);
   const [humanCallActive, setHumanCallActive] = useState(false);
+  const [ownerArrived, setOwnerArrived] = useState(false);
+  const [micMuted, setMicMuted] = useState(false);
+  const [micBusy, setMicBusy] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadNonce, setLoadNonce] = useState(0);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const expectedOwnerIdentityRef = useRef<string | null>(null);
+  const dialogueRef = useRef<BriefDialogueMessage[]>([]);
   const [audioBlocked, setAudioBlocked] = useState(false);
   const sessionStartedAtRef = useRef<number | null>(null);
   const sessionSyncedRef = useRef(false);
@@ -78,8 +94,12 @@ export default function LiveAvatarLandingPage({
           signal: controller.signal,
         });
         if (disposed) return;
-        if (!res.ok) {
+        if (res.status === 404) {
           setNotFound(true);
+          return;
+        }
+        if (!res.ok) {
+          setLoadFailed(true);
           return;
         }
         const data = (await res.json()) as ShareRecord;
@@ -98,7 +118,7 @@ export default function LiveAvatarLandingPage({
           });
         }
       } catch {
-        if (!disposed) setNotFound(true);
+        if (!disposed && !controller.signal.aborted) setLoadFailed(true);
       } finally {
         if (!disposed) setLoading(false);
       }
@@ -108,7 +128,7 @@ export default function LiveAvatarLandingPage({
       disposed = true;
       controller.abort();
     };
-  }, [params]);
+  }, [params, loadNonce]);
 
   const recordSessionEnd = useCallback((reason: "manual" | "provider_closed" | "max_duration" | "unload" | "human_handoff") => {
     const shareId = shareIdRef.current;
@@ -206,20 +226,38 @@ export default function LiveAvatarLandingPage({
     }).catch(() => {});
   }, []);
 
+  const pushDialogue = useCallback((role: BriefDialogueMessage["role"], content: string) => {
+    const text = content.trim().slice(0, LIVE_CALL_BRIEF_MESSAGE_CHAR_LIMIT);
+    if (!text) return;
+    const buffer = dialogueRef.current;
+    buffer.push({ role, content: text });
+    while (buffer.length > LIVE_CALL_BRIEF_MESSAGE_LIMIT) buffer.shift();
+    let total = buffer.reduce((sum, m) => sum + m.content.length, 0);
+    while (total > LIVE_CALL_BRIEF_TOTAL_CHAR_LIMIT && buffer.length > 1) {
+      total -= buffer[0].content.length;
+      buffer.shift();
+    }
+  }, []);
+
+  const getBriefDialogue = useCallback(() => dialogueRef.current.map((m) => ({ ...m })), []);
+
   // Turn counters are derived from the full message history each time, so
   // repeated events stay idempotent.
   const handleMessageHistory = useCallback((messages: Message[]) => {
     const metrics = metricsRef.current;
     let userTurns = 0;
     let agentTurns = 0;
+    dialogueRef.current = [];
     for (const message of messages) {
       if (message.role === "user") {
         userTurns += 1;
+        pushDialogue("user", message.content);
         for (const topic of classifyQuestionTopics(message.content)) {
           metrics.topics.add(topic);
         }
       } else if (message.role === "persona") {
         agentTurns += 1;
+        pushDialogue("assistant", message.content);
       }
     }
     metrics.userTurns = userTurns;
@@ -232,7 +270,7 @@ export default function LiveAvatarLandingPage({
         metrics.lastEvent = "conversation";
       }
     }
-  }, []);
+  }, [pushDialogue]);
 
   const handleBookingClick = useCallback(() => {
     const url = bookingUrlRef.current;
@@ -250,6 +288,7 @@ export default function LiveAvatarLandingPage({
     clearMaxDurationTimer();
     clearHeartbeatTimer();
     recordSessionEnd(reason);
+    dialogueRef.current = [];
     if (reason === "human_handoff") {
       humanHandoffRef.current = true;
       setLiveSessionInfo(null);
@@ -315,6 +354,27 @@ export default function LiveAvatarLandingPage({
     };
   }, [endSession]);
 
+  const toggleTwinMic = useCallback(async () => {
+    if (micBusy) return;
+    setMicBusy(true);
+    setMicError(null);
+    try {
+      if (providerRef.current === "synthesia" && lkRoomRef.current) {
+        await lkRoomRef.current.localParticipant.setMicrophoneEnabled(micMuted);
+        setMicMuted(!lkRoomRef.current.localParticipant.isMicrophoneEnabled);
+      } else if (providerRef.current === "anam" && clientRef.current) {
+        const state = micMuted
+          ? clientRef.current.unmuteInputAudio()
+          : clientRef.current.muteInputAudio();
+        setMicMuted(state.isMuted);
+      }
+    } catch {
+      setMicError("Microphone could not be changed. Try again.");
+    } finally {
+      setMicBusy(false);
+    }
+  }, [micMuted, micBusy]);
+
   async function startSession() {
     if (startedRef.current) return;
     const id = (await params).id;
@@ -324,6 +384,12 @@ export default function LiveAvatarLandingPage({
     sessionSyncedRef.current = false;
     humanHandoffRef.current = false;
     seenSegmentsRef.current.clear();
+    dialogueRef.current = [];
+    setOwnerArrived(false);
+    setMicMuted(false);
+    setMicBusy(false);
+    setMicError(null);
+    expectedOwnerIdentityRef.current = null;
     setLkTwin(null);
     // Fresh per-session instrumentation; a pre-session booking click carries over.
     metricsRef.current = {
@@ -337,6 +403,7 @@ export default function LiveAvatarLandingPage({
     setStarting(true);
     setError(null);
     setErrorReason(null);
+    setStatus("Preparing conversation…");
     trackLiveSessionRequested({ shareId: id });
 
     // Check microphone permission before starting
@@ -397,9 +464,20 @@ export default function LiveAvatarLandingPage({
         providerRef.current = "synthesia";
         const room = new Room({ adaptiveStream: true, dynacast: true });
         lkRoomRef.current = room;
-        const videoEl = document.getElementById("anam-video") as HTMLVideoElement | null;
 
+        const syncOwnerPresence = () => {
+          const expected = expectedOwnerIdentityRef.current;
+          if (!expected) return;
+          for (const participant of room.remoteParticipants.values()) {
+            if (participant.identity === expected) {
+              setOwnerArrived(true);
+              return;
+            }
+          }
+        };
+        room.on(RoomEvent.ParticipantConnected, syncOwnerPresence);
         room.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => {
+          const videoEl = videoRef.current;
           if (track.kind === "video" && videoEl && participant.identity === "synthesia-avatar-agent") {
             track.attach(videoEl);
           } else if (track.kind === "audio") {
@@ -409,7 +487,7 @@ export default function LiveAvatarLandingPage({
           }
         });
         room.on(RoomEvent.TrackUnsubscribed, (track) => {
-          track.detach().forEach((element) => element.remove());
+          detachUnsubscribedTrack(track, videoRef.current);
         });
         room.on(RoomEvent.TranscriptionReceived, (segments: TranscriptionSegment[], participant?: Participant) => {
           if (humanHandoffRef.current) return;
@@ -420,6 +498,7 @@ export default function LiveAvatarLandingPage({
             seenSegmentsRef.current.add(segment.id);
             if (isRecipient) {
               metrics.userTurns += 1;
+              pushDialogue("user", segment.text);
               for (const topic of classifyQuestionTopics(segment.text)) {
                 metrics.topics.add(topic);
               }
@@ -431,11 +510,18 @@ export default function LiveAvatarLandingPage({
               }
             } else {
               metrics.agentTurns += 1;
+              pushDialogue("assistant", segment.text);
             }
           }
         });
         room.on(RoomEvent.AudioPlaybackStatusChanged, () => {
           setAudioBlocked(!room.canPlaybackAudio);
+        });
+        room.on(RoomEvent.LocalTrackPublished, (publication) => {
+          if (publication.source === Track.Source.Microphone) setMicMuted(false);
+        });
+        room.on(RoomEvent.LocalTrackUnpublished, (publication) => {
+          if (publication.source === Track.Source.Microphone) setMicMuted(true);
         });
         room.on(RoomEvent.Disconnected, () => {
           if (humanHandoffRef.current) {
@@ -448,6 +534,7 @@ export default function LiveAvatarLandingPage({
           clearMaxDurationTimer();
           clearHeartbeatTimer();
           recordSessionEnd("provider_closed");
+          dialogueRef.current = [];
           lkRoomRef.current = null;
           setLkTwin(null);
           providerRef.current = null;
@@ -496,10 +583,12 @@ export default function LiveAvatarLandingPage({
         clearMaxDurationTimer();
         clearHeartbeatTimer();
         recordSessionEnd("provider_closed");
+        dialogueRef.current = [];
         clientRef.current = null;
         startedRef.current = false;
         setStatus("Session ended");
         setLive(false);
+        setLiveSessionInfo(null);
       });
 
       client.addListener(AnamEvent.MESSAGE_HISTORY_UPDATED, handleMessageHistory);
@@ -511,6 +600,7 @@ export default function LiveAvatarLandingPage({
       clearMaxDurationTimer();
       clearHeartbeatTimer();
       sessionStartedAtRef.current = null;
+      dialogueRef.current = [];
       liveSessionIdRef.current = null;
       liveSessionSyncTokenRef.current = null;
       setLiveSessionInfo(null);
@@ -537,19 +627,47 @@ export default function LiveAvatarLandingPage({
         setLkTwin(null);
         providerRef.current = null;
       }
-      trackLiveSessionFailed({ shareId: id, reason: message });
+      trackLiveSessionFailed({ shareId: id, reason: err instanceof Error ? err.name : "unknown" });
       const newRetryCount = retryCount + 1;
       setRetryCount(newRetryCount);
       // Classify the error for better messaging
       const lowerMessage = message.toLowerCase();
       const isProviderError = lowerMessage.includes("not configured") || lowerMessage.includes("configured") || lowerMessage.includes("token") || lowerMessage.includes("auth") || lowerMessage.includes("unavailable");
       setErrorReason(isProviderError ? "provider" : "connection");
-      setError(message);
-      setStatus(isProviderError ? "Live twin not configured" : "Click below to try again");
+      setError(isProviderError
+        ? "The conversation could not be started. Please try again."
+        : "Connection failed — check your network and try again.");
+      setStatus(isProviderError ? "AI representative not configured" : "Click below to try again");
       startedRef.current = false;
     } finally {
       setStarting(false);
     }
+  }
+
+  if (loadFailed && !share) {
+    return (
+      <div className="min-h-screen bg-cream flex items-center justify-center px-6">
+        <div className="max-w-sm text-center space-y-4">
+          <Link href="/" className="font-display text-lg tracking-tight text-ink">
+            nuncio
+          </Link>
+          <h1 className="font-display text-4xl tracking-tight">Invitation unavailable</h1>
+          <p className="text-sm text-ink-muted leading-relaxed">
+            The page couldn&apos;t be loaded — check your connection and try again.
+          </p>
+          <button
+            onClick={() => {
+              setLoadFailed(false);
+              setLoading(true);
+              setLoadNonce((n) => n + 1);
+            }}
+            className="btn-press inline-flex rounded-xl bg-ink text-cream px-5 py-3 text-sm font-medium"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {
@@ -567,9 +685,9 @@ export default function LiveAvatarLandingPage({
           <Link href="/" className="font-display text-lg tracking-tight text-ink">
             nuncio
           </Link>
-          <h1 className="font-display text-4xl tracking-tight">Live link expired</h1>
+          <h1 className="font-display text-4xl tracking-tight">Invitation unavailable</h1>
           <p className="text-sm text-ink-muted leading-relaxed">
-            This live conversation link is no longer available.
+            This live conversation link isn&apos;t available.
           </p>
           <Link
             href="/"
@@ -616,7 +734,7 @@ export default function LiveAvatarLandingPage({
               <p className="text-sm text-ink-faint mb-2">Hey {recipient}</p>
             )}
             <h1 className="font-display text-4xl md:text-5xl tracking-tight leading-[0.9] mb-3">
-              Meet {sender} — anytime
+              {handoffMeta ? `Continue the conversation started by ${sender}` : `A conversation with ${sender}`}
             </h1>
             <div className="flex flex-col items-center gap-2">
               <SenderTrustBadge
@@ -624,13 +742,144 @@ export default function LiveAvatarLandingPage({
                 recipientName={share.recipientName}
                 mode={share.mode}
                 deliveryMode={share.deliveryMode}
+                playbookConfigured={share.liveReadiness?.playbookConfigured ?? false}
               />
-              <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
-                Trained on their playbook · disclosed, never disguised
+              <p className="text-body-xs text-ink-faint">
+                Start with their AI representative, or request {sender} when available.
               </p>
             </div>
           </motion.div>
 
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-6 rounded-2xl border border-cream-dark bg-white/70 p-4 space-y-3 mb-0"
+          >
+            <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium text-center">
+              Choose how to continue
+            </p>
+            <div className="flex flex-wrap items-center gap-3 justify-center">
+              {humanCallActive ? null : !live ? (
+                handoffMeta && handoffMeta.options?.twin === false ? (
+                  <p className="text-body-sm text-ink-muted">The AI representative isn&apos;t configured for this link</p>
+                ) : (
+                <button
+                  onClick={startSession}
+                  disabled={starting}
+                  aria-label={starting ? "Starting live conversation" : `Talk to ${sender}'s AI representative`}
+                  className="btn-press rounded-xl bg-accent text-white px-6 py-3 text-body-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {starting ? (
+                    <>
+                      <LottieIcon name="spinner-light" className="w-4 h-4" />
+                      Starting...
+                    </>
+                  ) : errorReason === "provider" ? (
+                    <>
+                      Try again
+                    </>
+                  ) : (
+                    <>
+                      <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M8 12.5a4.5 4.5 0 004.5-4.5M8 12.5a4.5 4.5 0 01-4.5-4.5M8 12.5V14m0-13v1.5" />
+                      </svg>
+                      Talk to {sender}&apos;s AI representative
+                    </>
+                  )}
+                </button>
+                )
+              ) : (
+                <>
+                <button
+                  onClick={toggleTwinMic}
+                  disabled={micBusy}
+                  aria-label={micMuted ? "Unmute microphone" : "Mute microphone"}
+                  className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-4 py-3 text-body-sm font-medium hover:bg-white transition-colors flex items-center gap-2 disabled:opacity-50"
+                >
+                  {micMuted ? "Unmute" : "Mute"}
+                </button>
+                <button
+                  onClick={() => endSession("manual")}
+                  aria-label="End live conversation"
+                  className="btn-press rounded-xl bg-warm text-white px-6 py-3 text-body-sm font-medium hover:bg-warm/90 transition-colors flex items-center gap-2"
+                >
+                  <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="10" height="10" rx="2" />
+                  </svg>
+                  End conversation
+                </button>
+                </>
+              )}
+            </div>
+            {micError && (
+              <p role="alert" className="text-body-xs text-warm text-center">{micError}</p>
+            )}
+            <CallRequestPanel
+              shareId={share.id}
+              liveSessionId={liveSessionInfo?.id}
+              syncToken={liveSessionInfo?.syncToken}
+              senderName={sender}
+              twinRoom={lkTwin?.room ?? null}
+              twinRoomName={lkTwin?.roomName ?? null}
+              ownerArrived={ownerArrived}
+              getBriefDialogue={getBriefDialogue}
+              onCallReady={({ roomName, expectedOtherIdentity, reusedRoom }) => {
+                const room = lkRoomRef.current;
+                if (reusedRoom && room && room.name === roomName) {
+                  expectedOwnerIdentityRef.current = expectedOtherIdentity;
+                } else {
+                  expectedOwnerIdentityRef.current = null;
+                }
+                const expected = expectedOwnerIdentityRef.current;
+                if (expected && room) {
+                  for (const participant of room.remoteParticipants.values()) {
+                    if (participant.identity === expected) {
+                      setOwnerArrived(true);
+                      break;
+                    }
+                  }
+                }
+              }}
+              onOwnerPresent={() => {
+                setHumanCallActive(true);
+                endSession("human_handoff");
+              }}
+              onHumanRoomConnected={() => {
+                setHumanCallActive(true);
+                if (providerRef.current) endSession("manual");
+              }}
+              onCallEnded={() => {
+                expectedOwnerIdentityRef.current = null;
+                setOwnerArrived(false);
+                setHumanCallActive(false);
+                humanHandoffRef.current = false;
+                if (lkRoomRef.current) endSession("manual");
+              }}
+            />
+            {bookingUrl ? (
+              <div className="flex justify-center">
+                <button
+                  onClick={() => {
+                    if (share.mode === "reconnect") {
+                      trackReconnectCatchupClicked({ shareId: share.id, surface: "live_page" });
+                    }
+                    handleBookingClick();
+                  }}
+                  aria-label={share.mode === "reconnect" ? `Let's catch up with ${sender}` : `Book time with ${sender}`}
+                  className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-5 py-2.5 text-body-sm font-medium hover:bg-white transition-colors flex items-center gap-2"
+                >
+                  <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="2" y="3" width="12" height="11" rx="2" />
+                    <path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" />
+                  </svg>
+                  {share.mode === "reconnect" ? `Let's catch up with ${sender}` : `Book time with ${sender}`}
+                </button>
+              </div>
+            ) : null}
+          </motion.div>
+
+          <div className={(starting || live || error) && !humanCallActive ? "relative mt-6" : "hidden"}>
           <motion.div
             initial={{ opacity: 0, scale: 0.92, y: 24 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -645,6 +894,7 @@ export default function LiveAvatarLandingPage({
                   LiveKit attach calls need a stable target. */}
               <video
                 id="anam-video"
+                ref={videoRef}
                 autoPlay
                 playsInline
                 className={`absolute inset-0 w-full h-full object-cover ${live ? "" : "invisible"}`}
@@ -680,105 +930,7 @@ export default function LiveAvatarLandingPage({
               )}
             </div>
           </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-6 rounded-2xl border border-cream-dark bg-white/70 p-4 space-y-3"
-          >
-            <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium text-center">
-              Choose how to continue
-            </p>
-            <div className="flex items-center gap-3 justify-center">
-              {humanCallActive ? null : !live ? (
-                handoffMeta && handoffMeta.options?.twin === false ? (
-                  <p className="text-body-sm text-ink-muted">The live twin isn&apos;t configured for this link</p>
-                ) : (
-                <button
-                  onClick={startSession}
-                  disabled={starting || errorReason === "provider"}
-                  aria-label={starting ? "Starting live conversation" : errorReason === "provider" ? "Live twin not configured" : `Talk to ${sender}'s AI twin`}
-                  className="btn-press rounded-xl bg-accent text-white px-6 py-3 text-body-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {starting ? (
-                    <>
-                      <LottieIcon name="spinner-light" className="w-4 h-4" />
-                      Starting...
-                    </>
-                  ) : errorReason === "provider" ? (
-                    <>
-                      Live twin unavailable right now
-                    </>
-                  ) : (
-                    <>
-                      <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M8 12.5a4.5 4.5 0 004.5-4.5M8 12.5a4.5 4.5 0 01-4.5-4.5M8 12.5V14m0-13v1.5" />
-                      </svg>
-                      Talk to {sender}&apos;s AI twin
-                    </>
-                  )}
-                </button>
-                )
-              ) : (
-                <button
-                  onClick={() => endSession("manual")}
-                  aria-label="End live conversation"
-                  className="btn-press rounded-xl bg-warm text-white px-6 py-3 text-body-sm font-medium hover:bg-warm/90 transition-colors flex items-center gap-2"
-                >
-                  <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="3" width="10" height="10" rx="2" />
-                  </svg>
-                  End conversation
-                </button>
-              )}
-            </div>
-            <CallRequestPanel
-              shareId={share.id}
-              liveSessionId={liveSessionInfo?.id}
-              syncToken={liveSessionInfo?.syncToken}
-              senderName={sender}
-              twinRoom={lkTwin?.room ?? null}
-              twinRoomName={lkTwin?.roomName ?? null}
-              onOwnerPresent={() => {
-                setHumanCallActive(true);
-                endSession("human_handoff");
-              }}
-              onHumanRoomConnected={() => {
-                setHumanCallActive(true);
-                if (providerRef.current) endSession("manual");
-              }}
-              onCallEnded={() => {
-                setHumanCallActive(false);
-                humanHandoffRef.current = false;
-                if (lkRoomRef.current) endSession("manual");
-              }}
-            />
-            {bookingUrl ? (
-              <div className="flex justify-center">
-                <button
-                  onClick={() => {
-                    if (share.mode === "reconnect") {
-                      trackReconnectCatchupClicked({ shareId: share.id, surface: "live_page" });
-                    }
-                    handleBookingClick();
-                  }}
-                  aria-label={share.mode === "reconnect" ? `Let's catch up with ${sender}` : `Book time with ${sender}`}
-                  className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-5 py-2.5 text-body-sm font-medium hover:bg-white transition-colors flex items-center gap-2"
-                >
-                  <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <rect x="2" y="3" width="12" height="11" rx="2" />
-                    <path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" />
-                  </svg>
-                  {share.mode === "reconnect" ? `Let's catch up with ${sender}` : `Book time with ${sender}`}
-                </button>
-              </div>
-            ) : handoffMeta ? (
-              <p className="text-body-xs text-ink-faint text-center">
-                Scheduling link isn&apos;t configured for this sender yet
-              </p>
-            ) : null}
-          </motion.div>
+          </div>
 
           {(audioBlocked && (live || humanCallActive)) && (
             <div className="mt-3 flex justify-center">
@@ -806,8 +958,8 @@ export default function LiveAvatarLandingPage({
             </p>
             <p className="text-xs text-ink-muted leading-relaxed">
               {share.mode === "reconnect"
-                ? `This is an AI twin of ${sender}. It can answer questions about the message — but the card was built around a real memory they shared, and they reviewed every word before it was sent. You'll need to allow microphone access to talk. Your mic is only active while the session is running.`
-                : `This is an AI avatar of ${sender}. It can answer questions, explain the reason for reaching out${bookingUrl ? ", and book a meeting" : ""} — all within the sender's playbook. You'll need to allow microphone access to talk. Your mic is only active while the session is running.`}
+                ? `This is an AI representative speaking for ${sender}. It can answer questions about the message — the card was built around a real memory they shared and approved before it was sent. You'll need to allow microphone access to talk. Your mic is only active while the session is running.`
+                : `This is an AI representative for ${sender}. It can answer questions about the reason for reaching out${bookingUrl ? ", and point you to scheduling" : ""}. You'll need to allow microphone access to talk. Your mic is only active while the session is running.`}
             </p>
           </motion.div>
         </div>

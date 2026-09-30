@@ -16,7 +16,7 @@ import { trackViralLanding } from "@/lib/analytics";
 const OUTREACH_FLOW: { id: string; label: string; desc: string }[] = [
   { id: "account", label: "Pick the account", desc: "Start with the person or company you genuinely want to reach." },
   { id: "reason", label: "Make your case", desc: "Give Nuncio the reason this conversation should happen now." },
-  { id: "review", label: "Review before sending", desc: "Approve the research, hook, and every word in your name." },
+  { id: "review", label: "Review before sending", desc: "Approve the opening. Guide live answers with your playbook." },
 ];
 
 const RECONNECT_FLOW: { id: string; label: string; desc: string }[] = [
@@ -124,7 +124,7 @@ export default function HomeClient() {
                   >
                     {mode === "reconnect"
                       ? "Paste their public profile, add a memory only you would share, and we'll help you turn it into a short, warm video. You review every word before it sends."
-                      : "For founders and small B2B teams pursuing high-value accounts. Your AI twin researches them, writes the approach, and takes the first meeting live — disclosed as AI, on your playbook, at any hour."}
+                      : "Your SDR opens the conversation. Your disclosed AI representative keeps it moving. You join when it matters."}
                   </motion.p>
                 </div>
                 <motion.div
@@ -136,7 +136,7 @@ export default function HomeClient() {
                     href={mode === "reconnect" ? "/studio?mode=reconnect" : "/studio"}
                     className="btn-press w-full rounded-2xl px-6 py-4 text-body-sm font-medium bg-ink text-cream shadow-xl shadow-ink/15 hover:shadow-2xl hover:shadow-ink/20 hover:-translate-y-0.5 transition-[box-shadow,transform] duration-300 flex items-center justify-center gap-2"
                   >
-                    {mode === "reconnect" ? "Create a reconnection card" : "Build your twin's first touch"}
+                    {mode === "reconnect" ? "Create a reconnection card" : "Create your first conversation link"}
                     <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M3 8h10M9 4l4 4-4 4" />
                     </svg>
@@ -221,8 +221,8 @@ export default function HomeClient() {
                 data-reveal="scale"
                 className="text-center"
               >
-                <span className="block font-display text-2xl text-ink">100%</span>
-                <span className="text-label-sm uppercase tracking-wide sm:tracking-widest text-ink-faint">human reviewed</span>
+                <span className="block font-display text-2xl text-ink">Sender-approved</span>
+                <span className="text-label-sm uppercase tracking-wide sm:tracking-widest text-ink-faint">opening</span>
               </div>
               <div className="w-px h-8 bg-cream-dark hidden sm:block" />
               <div
@@ -239,6 +239,24 @@ export default function HomeClient() {
             </p>
           </section>
 
+          <section className="px-6 py-8 max-w-[720px] mx-auto" data-reveal="fade-up">
+            <p className="text-body-xs uppercase tracking-widest text-ink-faint font-medium mb-4">
+              How the handoff works
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                { n: "1", t: "Text", d: "The sender writes the opening; the recipient replies by text or arrives on the live link." },
+                { n: "2", t: "AI conversation", d: "The disclosed AI representative answers from the sender's playbook — never disguised as the human." },
+                { n: "3", t: "Owner-approved call", d: "The sender accepts a call request and joins the shared browser room when both want to talk." },
+              ].map((step) => (
+                <div key={step.n} className="rounded-2xl border border-cream-dark bg-white/70 p-5 text-left">
+                  <span className="text-label-sm uppercase tracking-widest text-accent font-medium">{step.n}</span>
+                  <h3 className="font-display text-xl tracking-tight mt-1 mb-1">{step.t}</h3>
+                  <p className="text-body-xs text-ink-muted leading-relaxed">{step.d}</p>
+                </div>
+              ))}
+            </div>
+          </section>
           <VideoProof />
           <ShowcaseStrip items={SHOWCASE_RECIPIENTS} />
           <HowItWorks />

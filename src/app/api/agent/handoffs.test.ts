@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { HandoffRecord, WorkspaceAccount } from "@/lib/storage/types";
+import type { CallRequestRecord, HandoffRecord, WorkspaceAccount } from "@/lib/storage/types";
 import type { ShareRecord } from "@/lib/artifacts";
 import { hashHandoffToken } from "@/lib/live-handoff";
+import { hashRecipientToken } from "@/lib/call-request";
 
 const handoffStore = vi.hoisted(() => ({
   records: new Map<string, HandoffRecord>(),
@@ -39,7 +40,10 @@ const accountStore = vi.hoisted(() => ({
 }));
 
 const callRequestStore = vi.hoisted(() => ({
+  records: new Map<string, CallRequestRecord>(),
   listByWorkspace: vi.fn(async (): Promise<Record<string, unknown>[]> => []),
+  listForCleanup: vi.fn(async () => []),
+  get: vi.fn(async (id: string) => callRequestStore.records.get(id) || null),
   createIfNoOpen: vi.fn(async () => null),
 }));
 
@@ -128,9 +132,15 @@ import { GET as agentInbox } from "./call-requests/route";
 import { POST as exchangeAccess } from "../live/handoffs/[shareId]/access/route";
 import { GET as getShareRoute, PATCH as patchShare } from "../share/[id]/route";
 import { GET as getAvailability } from "../live/availability/route";
-import { POST as createCallRequest } from "../live/call-requests/route";
+import { POST as createCallRequest, GET as ownerListCallRequests } from "../live/call-requests/route";
+import { GET as getCallRequestStatus } from "../live/call-requests/[id]/route";
+import { POST as joinCallRequest } from "../live/call-requests/[id]/join/route";
 import { POST as createLiveSession } from "../live/session/route";
 import { POST as workerChat } from "../live/agent/chat/completions/route";
+import { POST as draftBriefRoute } from "../live/brief/route";
+import { GET as accountBrief } from "../account/brief/route";
+import { isCallRequestInfraConfigured, getLiveKitConfig, isLiveKitConfigured } from "@/lib/livekit";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { chatCompletion } from "@/lib/llm";
 import { reserveCredits } from "@/lib/billing/credits";
 import { signRecordAssets } from "@/lib/storage/media-store";
@@ -169,9 +179,14 @@ afterEach(() => {
   handoffStore.records.clear();
   shareStore.records.clear();
   liveSessionStore.records.clear();
+  callRequestStore.records.clear();
   sessionState.session = null;
   callRequestStore.listByWorkspace.mockResolvedValue([]);
+  callRequestStore.createIfNoOpen.mockReset();
   callRequestStore.createIfNoOpen.mockResolvedValue(null);
+  vi.mocked(isCallRequestInfraConfigured).mockReturnValue(false);
+  vi.mocked(isLiveKitConfigured).mockReturnValue(false);
+  vi.mocked(getLiveKitConfig).mockReturnValue(null);
 });
 
 describe("POST /api/agent/handoffs", () => {
@@ -665,5 +680,285 @@ describe("PATCH protected share authorization", () => {
       body: JSON.stringify({ trace: [] }),
     }), { params: Promise.resolve({ id: "s1" }) });
     expect(res.status).toBe(403);
+  });
+});
+
+describe("POST /api/live/brief", () => {
+  const sessionRecord = {
+    id: "ls-1", shareId: "s1", workspaceId: "ws-1", status: "active", syncTokenHash: "hash",
+  };
+
+  function briefRequest(body: unknown, origin = "http://x", cookie?: string) {
+    return new NextRequest("http://x/api/live/brief", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin, ...(cookie ? { cookie } : {}) },
+      body: JSON.stringify(body),
+    });
+  }
+
+  function seed() {
+    vi.stubEnv("NUNCIO_LIVELINK_ENABLED", "true");
+    vi.stubEnv("NUNCIO_LIVELINK_WORKSPACE_IDS", "ws-1");
+    accountStore.workspace = WORKSPACE;
+    shareStore.records.set("s1", {
+      id: "s1", workspaceId: "ws-1", deliveryMode: "livelink",
+    } as ShareRecord);
+    liveSessionStore.records.set("ls-1", sessionRecord);
+  }
+
+  it("rejects missing consent, malformed dialogue, and invalid session proof", async () => {
+    seed();
+    const noConsent = await draftBriefRoute(briefRequest({ shareId: "s1", sessionId: "ls-1", syncToken: "tok", messages: [{ role: "user", content: "hi" }] }));
+    expect(noConsent.status).toBe(400);
+    const badDialogue = await draftBriefRoute(briefRequest({ shareId: "s1", sessionId: "ls-1", syncToken: "tok", consent: true, messages: [{ role: "system", content: "x" }] }));
+    expect(badDialogue.status).toBe(400);
+    const badSession = await draftBriefRoute(briefRequest({ shareId: "s1", sessionId: "ls-x", syncToken: "tok", consent: true, messages: [{ role: "user", content: "hi" }] }));
+    expect(badSession.status).toBe(403);
+    const emptyDialogue = await draftBriefRoute(briefRequest({ shareId: "s1", sessionId: "ls-1", syncToken: "tok", consent: true, messages: [] }));
+    expect(emptyDialogue.status).toBe(400);
+    expect(llm.chatCompletion).not.toHaveBeenCalled();
+  });
+
+  it("returns the drafted brief for a valid consented request", async () => {
+    seed();
+    llm.chatCompletion.mockResolvedValueOnce(JSON.stringify({
+      goal: "pricing", discussed: "twin explained plans", openQuestions: "discount?", reason: "wants a demo",
+    }));
+    const res = await draftBriefRoute(briefRequest({
+      shareId: "s1", sessionId: "ls-1", syncToken: "tok", consent: true,
+      messages: [{ role: "user", content: "what is pricing?" }],
+    }));
+    expect(res.status).toBe(200);
+    const data = await res.json() as { brief: { goal: string } };
+    expect(data.brief.goal).toBe("pricing");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("503s when drafting fails and never stores the dialogue", async () => {
+    seed();
+    llm.chatCompletion.mockRejectedValueOnce(new Error("llm down"));
+    const res = await draftBriefRoute(briefRequest({
+      shareId: "s1", sessionId: "ls-1", syncToken: "tok", consent: true,
+      messages: [{ role: "user", content: "secret transcript body" }],
+    }));
+    expect(res.status).toBe(503);
+    llm.chatCompletion.mockResolvedValueOnce("not json");
+    const bad = await draftBriefRoute(briefRequest({
+      shareId: "s1", sessionId: "ls-1", syncToken: "tok", consent: true,
+      messages: [{ role: "user", content: "hi" }],
+    }));
+    expect(bad.status).toBe(503);
+    expect(callRequestStore.createIfNoOpen).not.toHaveBeenCalled();
+  });
+
+  it("rejects sessions bound to a different share or workspace, terminal sessions, cross-origin, and rate limits", async () => {
+    seed();
+    shareStore.records.set("s2", {
+      id: "s2", workspaceId: "ws-1", deliveryMode: "livelink",
+    } as ShareRecord);
+    liveSessionStore.records.set("ls-2", { ...sessionRecord, id: "ls-2", shareId: "s2" });
+    liveSessionStore.records.set("ls-3", { ...sessionRecord, id: "ls-3", workspaceId: "ws-2" });
+    liveSessionStore.records.set("ls-4", { ...sessionRecord, id: "ls-4", status: "ended" });
+    const messages = [{ role: "user", content: "hi" }];
+
+    const crossShare = await draftBriefRoute(briefRequest({ shareId: "s1", sessionId: "ls-2", syncToken: "tok", consent: true, messages }));
+    expect(crossShare.status).toBe(403);
+    const wrongWorkspace = await draftBriefRoute(briefRequest({ shareId: "s1", sessionId: "ls-3", syncToken: "tok", consent: true, messages }));
+    expect(wrongWorkspace.status).toBe(403);
+    const terminal = await draftBriefRoute(briefRequest({ shareId: "s1", sessionId: "ls-4", syncToken: "tok", consent: true, messages }));
+    expect(terminal.status).toBe(403);
+    const crossOrigin = await draftBriefRoute(briefRequest({ shareId: "s1", sessionId: "ls-1", syncToken: "tok", consent: true, messages }, "http://evil.example"));
+    expect(crossOrigin.status).toBe(403);
+
+    vi.mocked(checkRateLimit).mockResolvedValueOnce({ allowed: false, resetIn: 30 } as never);
+    const limited = await draftBriefRoute(briefRequest({ shareId: "s1", sessionId: "ls-1", syncToken: "tok", consent: true, messages }));
+    expect(limited.status).toBe(429);
+
+    expect(llm.chatCompletion).not.toHaveBeenCalled();
+  });
+
+  it("denies expired or revoked handoff invites before any LLM call", async () => {
+    seed();
+    shareStore.records.set("s1", {
+      id: "s1", workspaceId: "ws-1", deliveryMode: "livelink", privacy: "private", handoffId: "h1",
+    } as ShareRecord);
+    const messages = [{ role: "user", content: "hi" }];
+    handoffStore.records.set("h1", {
+      id: "h1", shareId: "s1", workspaceId: "ws-1", createdAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: new Date(Date.now() - 1000).toISOString(), tokenHash: hashHandoffToken("tok"),
+      context: { summary: "", interests: [], unansweredQuestions: [] }, recommendedNextStep: "twin",
+    });
+    const expired = await draftBriefRoute(briefRequest(
+      { shareId: "s1", sessionId: "ls-1", syncToken: "tok", consent: true, messages },
+      "http://x", "nuncio_handoff_s1=tok",
+    ));
+    expect(expired.status).toBe(404);
+    handoffStore.records.set("h1", {
+      id: "h1", shareId: "s1", workspaceId: "ws-1", createdAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(), tokenHash: hashHandoffToken("tok"),
+      revokedAt: new Date().toISOString(),
+      context: { summary: "", interests: [], unansweredQuestions: [] }, recommendedNextStep: "twin",
+    });
+    const revoked = await draftBriefRoute(briefRequest(
+      { shareId: "s1", sessionId: "ls-1", syncToken: "tok", consent: true, messages },
+      "http://x", "nuncio_handoff_s1=tok",
+    ));
+    expect(revoked.status).toBe(404);
+    expect(llm.chatCompletion).not.toHaveBeenCalled();
+  });
+});
+
+describe("call-request liveBrief storage", () => {
+  it("stores only the four reviewed fields with explicit consent; rejects without", async () => {
+    vi.stubEnv("NUNCIO_LIVELINK_ENABLED", "true");
+    vi.stubEnv("NUNCIO_LIVELINK_WORKSPACE_IDS", "ws-1");
+    accountStore.workspace = {
+      ...WORKSPACE,
+      callAvailabilityUntil: new Date(Date.now() + 600_000).toISOString(),
+    };
+    vi.mocked(isCallRequestInfraConfigured).mockReturnValue(true);
+    shareStore.records.set("s1", {
+      id: "s1", workspaceId: "ws-1", deliveryMode: "livelink",
+    } as ShareRecord);
+    liveSessionStore.records.set("ls-1", {
+      id: "ls-1", shareId: "s1", workspaceId: "ws-1", status: "active", syncTokenHash: "hash",
+    });
+    callRequestStore.createIfNoOpen.mockResolvedValue({ id: "cr-1" } as never);
+
+    const body = {
+      shareId: "s1", liveSessionId: "ls-1", syncToken: "tok",
+      liveBrief: { goal: "g", discussed: "d", openQuestions: "q", reason: "r" },
+      briefConsent: true,
+    };
+    const res = await createCallRequest(new NextRequest("http://x/api/live/call-requests", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }));
+    expect(res.status).toBe(200);
+    const stored = (callRequestStore.createIfNoOpen.mock.calls[0] as unknown[])[0] as { liveBrief?: Record<string, string> };
+    expect(stored.liveBrief?.goal).toBe("g");
+    expect(stored.liveBrief?.source).toBe("recipient_reviewed");
+    expect(Object.keys(stored.liveBrief || {}).sort()).toEqual(
+      ["discussed", "goal", "openQuestions", "reason", "sharedAt", "source"].sort(),
+    );
+
+    callRequestStore.createIfNoOpen.mockClear();
+    const noConsent = await createCallRequest(new NextRequest("http://x/api/live/call-requests", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...body, briefConsent: false }),
+    }));
+    expect(noConsent.status).toBe(400);
+    const malformed = await createCallRequest(new NextRequest("http://x/api/live/call-requests", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...body, liveBrief: { goal: "g", extra: true } }),
+    }));
+    expect(malformed.status).toBe(400);
+    const noSession = await createCallRequest(new NextRequest("http://x/api/live/call-requests", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ shareId: "s1", liveBrief: { goal: "g", discussed: "", openQuestions: "", reason: "" }, briefConsent: true }),
+    }));
+    expect(noSession.status).toBe(400);
+  });
+
+  it("exposes liveBrief only to the owner inbox — public status and join stay redacted", async () => {
+    vi.stubEnv("NUNCIO_LIVELINK_ENABLED", "true");
+    vi.stubEnv("NUNCIO_LIVELINK_WORKSPACE_IDS", "ws-1");
+    accountStore.workspace = WORKSPACE;
+    shareStore.records.set("s1", {
+      id: "s1", workspaceId: "ws-1", deliveryMode: "livelink",
+    } as ShareRecord);
+    const liveBrief = {
+      goal: "g", discussed: "d", openQuestions: "q", reason: "r",
+      source: "recipient_reviewed", sharedAt: new Date().toISOString(),
+    } as CallRequestRecord["liveBrief"];
+    callRequestStore.records.set("cr-1", {
+      id: "cr-1", shareId: "s1", workspaceId: "ws-1", status: "accepted",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: new Date(Date.now() + 600_000).toISOString(),
+      recipientTokenHash: hashRecipientToken("rtok"),
+      recipientIdentity: "recipient-cr-1", ownerIdentity: "owner-user-1",
+      roomName: "nuncio-call-cr-1", roomReady: true,
+      liveBrief,
+    } as CallRequestRecord);
+
+    const status = await getCallRequestStatus(
+      new NextRequest("http://x/api/live/call-requests/cr-1", {
+        headers: { authorization: "Bearer rtok" },
+      }),
+      { params: Promise.resolve({ id: "cr-1" }) },
+    );
+    expect(status.status).toBe(200);
+    expect(Object.keys(await status.json()).sort()).toEqual(
+      ["expiresAt", "id", "roomReady", "status"].sort(),
+    );
+
+    vi.mocked(getLiveKitConfig).mockReturnValue({ url: "wss://lk.test" } as never);
+    const join = await joinCallRequest(
+      new NextRequest("http://x/api/live/call-requests/cr-1/join", {
+        method: "POST",
+        headers: { authorization: "Bearer rtok" },
+      }),
+      { params: Promise.resolve({ id: "cr-1" }) },
+    );
+    expect(join.status).toBe(200);
+    const joinBody = await join.json() as Record<string, unknown>;
+    expect(joinBody.liveBrief).toBeUndefined();
+    expect(joinBody.participantToken).toBe("lk-token");
+
+    sessionState.session = { userId: "user-1", workspaceId: "ws-1" };
+    callRequestStore.listByWorkspace.mockResolvedValueOnce([
+      { ...callRequestStore.records.get("cr-1")! },
+    ]);
+    const list = await ownerListCallRequests(new NextRequest("http://x/api/live/call-requests", {
+      headers: { cookie: "nuncio_session=x" },
+    }));
+    expect(list.status).toBe(200);
+    const listBody = await list.json() as { requests: Array<{ liveBrief?: { goal?: string } }> };
+    expect(listBody.requests[0]?.liveBrief?.goal).toBe("g");
+  });
+});
+
+describe("GET /api/account/brief liveReadiness", () => {
+  function briefGet() {
+    return accountBrief(new NextRequest("http://x/api/account/brief"));
+  }
+
+  it("reports configured:false when unauthenticated, off-allowlist, or unconfigured; true for Synthesia without Anam", async () => {
+    const anon = await briefGet();
+    expect(anon.status).toBe(200);
+    const anonBody = await anon.json() as { liveReadiness: { configured: boolean; playbookConfigured: boolean } };
+    expect(anonBody.liveReadiness).toEqual({ configured: false, playbookConfigured: false });
+    expect(anon.headers.get("cache-control")).toBe("no-store");
+
+    sessionState.session = { userId: "user-1", workspaceId: "ws-1" };
+    accountStore.workspace = WORKSPACE;
+    const offAllowlist = await briefGet();
+    expect((await offAllowlist.json() as typeof anonBody).liveReadiness.configured).toBe(false);
+
+    vi.stubEnv("NUNCIO_LIVELINK_ENABLED", "true");
+    vi.stubEnv("NUNCIO_LIVELINK_WORKSPACE_IDS", "ws-1");
+    vi.stubEnv("ANAM_API_KEY", "");
+    vi.stubEnv("ANAM_AVATAR_ID", "");
+    vi.stubEnv("ANAM_VOICE_ID", "");
+    const unconfigured = await briefGet();
+    expect((await unconfigured.json() as typeof anonBody).liveReadiness.configured).toBe(false);
+
+    vi.mocked(isLiveKitConfigured).mockReturnValue(true);
+    vi.stubEnv("NUNCIO_SYNTHESIA_WORKER_ENABLED", "true");
+    vi.stubEnv("NUNCIO_LIVE_WORKER_TOKEN", "worker-tok");
+    accountStore.workspace = {
+      ...WORKSPACE,
+      synthesiaAvatarId: "av_testavatar",
+      liveVoiceId: "voice_1",
+      playbookWants: "w", playbookOffer: "o", playbookConstraints: "c",
+    };
+    const configured = await briefGet();
+    const configuredBody = await configured.json() as typeof anonBody;
+    expect(configuredBody.liveReadiness.configured).toBe(true);
+    expect(configuredBody.liveReadiness.playbookConfigured).toBe(true);
   });
 });

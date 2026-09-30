@@ -32,6 +32,7 @@ export function LiveCallRoom({
   onEndRequested,
   onCleanupPending,
   onPresenceHeartbeat,
+  autoConnect,
 }: {
   serverUrl: string;
   participantToken?: string;
@@ -47,6 +48,8 @@ export function LiveCallRoom({
   onEndRequested?: () => Promise<boolean | void>;
   onCleanupPending?: () => void;
   onPresenceHeartbeat?: () => void;
+  /** Caller already pressed Join — connect + mic without a second prompt. */
+  autoConnect?: boolean;
 }) {
   const borrowed = Boolean(existingRoom);
   const [roomState, setRoomState] = useState<RoomState>(borrowed ? "in_call" : "idle");
@@ -63,6 +66,7 @@ export function LiveCallRoom({
   const audioContainerRef = useRef<HTMLDivElement | null>(null);
   const attachedRef = useRef<Map<Track, Set<HTMLMediaElement>>>(new Map());
   const connectGenRef = useRef(0);
+  const autoConnectRef = useRef(false);
   const otherJoinedNotifiedRef = useRef(false);
   const endedRef = useRef(false);
 
@@ -187,6 +191,7 @@ export function LiveCallRoom({
   useEffect(() => {
     endedRef.current = false;
     return () => {
+      autoConnectRef.current = false;
       connectGenRef.current += 1;
       endedRef.current = true;
       detachRef.current?.();
@@ -274,6 +279,12 @@ export function LiveCallRoom({
     }
   }, [attachAudioTrack, attachRoom, borrowed, getJoinCredentials, participantToken, roomState, serverUrl]);
 
+  useEffect(() => {
+    if (!autoConnect || autoConnectRef.current || borrowed) return;
+    autoConnectRef.current = true;
+    void connect();
+  }, [autoConnect, borrowed, connect]);
+
   const toggleMic = useCallback(async () => {
     const room = roomRef.current;
     if (!room || roomState !== "in_call") return;
@@ -357,7 +368,7 @@ export function LiveCallRoom({
             onClick={connect}
             className="btn-press rounded-xl bg-accent text-white px-5 py-2.5 text-body-sm font-medium hover:bg-accent/90 transition-colors"
           >
-            Connect to call
+            Join call
           </button>
         )}
         {roomState === "connecting" && (

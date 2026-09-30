@@ -204,6 +204,10 @@ export interface CallRequestRecord {
   cleanupError?: boolean;
   /** Server-observed room presence — first/last-seen timestamps only. */
   connection?: import("@/lib/call-connection").CallConnectionMetrics;
+  liveBrief?: import("@/lib/live-call-brief").LiveCallBrief & {
+    source: "recipient_reviewed";
+    sharedAt: string;
+  };
 }
 
 export interface CallRequestStorageProvider {

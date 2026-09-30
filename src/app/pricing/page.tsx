@@ -15,7 +15,7 @@ const CREDIT_PACKS = [
     price: "$15",
     priceId: process.env.NEXT_PUBLIC_STRIPE_CREDITS_100_PRICE_ID || "",
     note: "Top up for a short campaign.",
-    videos: "≈ 9 first meetings taken live or rendered",
+    videos: "Credits for research, recorded video and live conversations — usage varies",
   },
   {
     id: "credits-500",
@@ -23,7 +23,7 @@ const CREDIT_PACKS = [
     price: "$99",
     priceId: process.env.NEXT_PUBLIC_STRIPE_CREDITS_500_PRICE_ID || "",
     note: "Best for founder-led prospecting.",
-    videos: "≈ 45 first meetings taken live or rendered",
+    videos: "Credits for research, recorded video and live conversations — usage varies",
   },
 ] as const;
 
@@ -35,10 +35,10 @@ const PLAN_TIERS = [
     price: "$0",
     period: "monthly",
     hookModel: "15 starter credits",
-    hookEstimate: "≈ 1 full twin first touch, free",
+    hookEstimate: "Try research, script and render stages",
     quality: "Account ledger",
     allowance: "Spend across research, scripts, canvas, render",
-    speed: "5 credits per render",
+    speed: "Credits tracked per stage",
     watermark: "Public share",
     cta: "Try free",
     note: "Unlocks extra rerolls and a shareable campaign link.",
@@ -53,13 +53,13 @@ const PLAN_TIERS = [
     period: "month",
     annualPeriod: "year",
     hookModel: "200 credits / month",
-    hookEstimate: "≈ 18 twin first touches / month",
-    quality: "Cinematic renders",
+    hookEstimate: "Credits for research, recorded video and live conversations — usage varies",
+    quality: "Live + recorded conversations",
     allowance: "Credits spend across every Nuncio stage",
     speed: "Unused credits tracked in ledger",
     watermark: "No watermark",
     cta: "Get Pro",
-    note: "Your twin holds the first meeting — you take the ones that matter.",
+    note: "Your disclosed AI representative starts the conversation; you decide when to join.",
     featured: true,
   },
   {
@@ -69,13 +69,13 @@ const PLAN_TIERS = [
     price: "$79+",
     period: "month",
     hookModel: "1,000+ credits / month",
-    hookEstimate: "90+ twin first touches / month",
+    hookEstimate: "Credits for research, recorded video and live conversations — usage varies",
     quality: "Team workspace",
     allowance: "Shared credit pool and usage history",
     speed: "Priority render capacity",
     watermark: "No watermark",
     cta: "Talk to us",
-    note: "For teams that want shared credits, brand review, and many first meetings.",
+    note: "For teams that want shared credits, brand review, and usage reporting.",
     featured: false,
   },
 ] as const;
@@ -83,7 +83,7 @@ const PLAN_TIERS = [
 const FAQS = [
   { q: "What are Nuncio credits?", a: "Credits are the single balance used for research, script generation, canvas creation, rendering, translation, captions, and delivery." },
   { q: "Can I cancel anytime?", a: "Absolutely. Cancel through your dashboard in one click. No long-term commitments." },
-  { q: "How many credits does a video use?", a: "A typical Quick-mode video costs ~11 credits total: 1 for research, 1 for script, 1 for canvas, 1 for soundscape, and 8 for rendering. Deep research or translation add a few more." },
+  { q: "How many credits does a video use?", a: "A recorded render uses credits alongside research and optional creative stages. The breakdown below shows individual stage costs; live conversations have a separate reservation." },
   { q: "Do you offer agency plans?", a: "We do. Studio is for teams that want more first meetings each month, shared credits, brand review, and usage reporting." },
 ];
 
@@ -97,12 +97,6 @@ const CREDIT_COSTS = [
   { action: "Translation", cost: "2" },
   { action: "Captions", cost: "1" },
 ];
-
-const VIDEO_TOTALS = [
-  { mode: "Quick", credits: "~11", note: "1 research · 1 script · 1 canvas · 1 soundscape · 8 render" },
-  { mode: "Balanced", credits: "~16", note: "Quick + deeper hooks and creative refinement" },
-  { mode: "Deep", credits: "~19", note: "Quick + deep research and translation" },
-] as const;
 
 function PricingContent() {
   const [loading, setLoading] = useState<string | null>(null);
@@ -125,7 +119,7 @@ function PricingContent() {
   async function handleCheckout(priceId = currentPriceId, planType = annual ? "pro-annual" : "pro-monthly", mode: "subscription" | "payment" = "subscription") {
     setCheckoutError("");
     if (!priceId) {
-      setCheckoutError("Payments aren't configured yet. Please contact support.");
+      setCheckoutError("Purchases unavailable right now — please try again later.");
       return;
     }
     setLoading(planType);
@@ -160,10 +154,10 @@ function PricingContent() {
           Pricing
         </span>
         <h1 className="font-display text-5xl md:text-7xl tracking-tighter leading-[0.85] mb-6">
-          Scale your impact,<br />not your costs.
+          Credits for conversations,<br />not more sends.
         </h1>
         <p className="text-ink-muted text-base max-w-lg">
-          One credit balance. Spend it across research, scripts, creative canvases, renders, translations, captions, and delivery.
+          One credit balance. Spend it across research, recorded video, and live conversations — scripts, canvases, renders, translations, captions, and delivery.
         </p>
       </motion.div>
 
@@ -295,7 +289,7 @@ function PricingContent() {
                   <span className="font-semibold text-ink text-right">{tier.hookModel}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="text-ink-muted">That&apos;s about</span>
+                  <span className="text-ink-muted">Use for</span>
                   <span className="font-semibold text-accent text-right">{tier.hookEstimate}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3 text-sm">
@@ -317,9 +311,14 @@ function PricingContent() {
                 ))}
               </ul>
 
+              {!currentPriceId && (
+                <p className="text-body-xs text-ink-faint text-center mb-3">
+                  Purchases unavailable right now — please try again later.
+                </p>
+              )}
               <button
                 onClick={() => handleCheckout()}
-                disabled={loading !== null}
+                disabled={loading !== null || !currentPriceId}
                 className="btn-press w-full rounded-xl py-4 text-sm font-bold transition-[color,background-color,border-color,opacity,box-shadow,transform] mt-auto disabled:opacity-40 bg-ink text-cream hover:bg-ink-light shadow-xl shadow-ink/10 flex items-center justify-center gap-2"
               >
                 {isLoading ? (
@@ -384,9 +383,13 @@ function PricingContent() {
       </div>
 
       <p className="mt-6 text-center text-label-base text-ink-faint">
-        Credits are the meter. Meetings booked are the metric — we never charge for “more sends”.
+        Credits are the meter for research, recorded video and live conversations — never “more sends”.
+      </p>
+      <p className="mt-2 text-center text-label-base text-ink-faint max-w-xl mx-auto normal-case">
+        Live conversations are available to configured pilot workspaces; a plan does not configure your avatar or playbook.
       </p>
 
+      {CREDIT_PACKS.some((pack) => pack.priceId) && (
       <motion.section
         id="packs"
         initial={{ opacity: 0, y: 16 }}
@@ -408,7 +411,7 @@ function PricingContent() {
           </p>
         </div>
         <div className="mt-5 grid gap-3 md:grid-cols-2">
-          {CREDIT_PACKS.map((pack) => (
+          {CREDIT_PACKS.filter((pack) => pack.priceId).map((pack) => (
             <button
               key={pack.id}
               onClick={() => handleCheckout(pack.priceId, pack.id, "payment")}
@@ -422,17 +425,18 @@ function PricingContent() {
               <p className="mt-1 text-xs text-ink-muted">{pack.note}</p>
               <p className="mt-2 text-xs font-medium text-accent">{pack.videos}</p>
               <p className="mt-3 text-label-sm uppercase tracking-widest text-ink-faint flex items-center justify-center gap-1">
-                {pack.priceId ? loading === pack.id ? (
+                {loading === pack.id ? (
                   <>
                     <LottieIcon name="spinner" className="w-3 h-3" />
                     Opening checkout...
                   </>
-                ) : "Buy pack" : "Price ID missing"}
+                ) : "Buy pack"}
               </p>
             </button>
           ))}
         </div>
       </motion.section>
+      )}
 
       {/* Cost breakdown */}
       <motion.section
@@ -444,24 +448,15 @@ function PricingContent() {
         <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between mb-5">
           <div>
             <span className="text-label-sm uppercase tracking-widest font-medium text-accent">
-              Think in videos
+              Example stage costs
             </span>
             <h2 className="mt-2 font-display text-3xl tracking-tight">
-              Know what a video costs.
+              Know what each stage costs.
             </h2>
           </div>
           <p className="max-w-md text-sm text-ink-muted">
-            One complete video, start to finish. Pro&apos;s 200 credits is about 18 Quick videos a month.
+            Recorded video stage costs; live sessions reserve credits separately. Costs and availability depend on configuration.
           </p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-          {VIDEO_TOTALS.map((t) => (
-            <div key={t.mode} className="rounded-xl border border-cream-dark bg-cream/40 p-4 text-center">
-              <p className="font-display text-4xl text-accent">{t.credits}</p>
-              <p className="text-sm font-semibold text-ink mt-1">{t.mode} video</p>
-              <p className="text-label-base text-ink-muted mt-2 leading-relaxed">{t.note}</p>
-            </div>
-          ))}
         </div>
         <p className="text-label-sm uppercase tracking-widest text-ink-faint text-center mb-3">Per-step breakdown</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -473,7 +468,12 @@ function PricingContent() {
           ))}
         </div>
         <p className="text-label-sm text-ink-faint mt-3 text-center">
-          Costs are per stage. The totals above reflect a complete run at each depth.
+          Costs are per stage.
+        </p>
+        <p className="text-label-sm text-ink-faint mt-2 text-center max-w-lg mx-auto normal-case">
+          Live sessions reserve credits up front from the sender&apos;s balance, with reconciliation
+          under pilot rules and a cap per session. A direct owner-approved human call uses no avatar
+          credits — only metered transport.
         </p>
       </motion.section>
 
@@ -484,19 +484,6 @@ function PricingContent() {
         transition={{ delay: 0.4 }}
         className="flex flex-wrap items-center justify-center gap-10 mt-20 text-label-sm uppercase tracking-widest font-semibold text-ink-faint"
       >
-        <span className="flex items-center gap-2">
-          <svg viewBox="0 0 14 14" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M7 1l1.5 3.1L12 4.6l-2 2.4.5 3.5L7 8.5l-3.5 2L4 7l-2-2.4 3.5-.5L7 1z" />
-          </svg>
-          Stripe Verified
-        </span>
-        <span className="flex items-center gap-2">
-          <svg viewBox="0 0 14 14" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <rect x="1.5" y="5.5" width="11" height="7" rx="1" />
-            <path d="M4.5 5.5V4a2.5 2.5 0 015 0v1.5" />
-          </svg>
-          256-bit Encryption
-        </span>
         <span className="flex items-center gap-2">
           <svg viewBox="0 0 14 14" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M2 7.5L5 11l7-8" />

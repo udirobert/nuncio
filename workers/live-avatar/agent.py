@@ -111,7 +111,7 @@ async def nuncio_synthesia(ctx: agents.JobContext) -> None:
     try:
         metadata = parse_metadata(ctx)
     except (ValueError, json.JSONDecodeError) as exc:
-        logger.error("refusing job without valid metadata: %s", exc)
+        logger.error("refusing job without valid metadata: stage=initialization error=%s", type(exc).__name__)
         return
 
     missing = [
@@ -137,8 +137,10 @@ async def nuncio_synthesia(ctx: agents.JobContext) -> None:
     http_client = None
     tasks: list[asyncio.Task[None]] = []
     connected = False
+    stage = "initialization"
 
     try:
+        stage = "connect"
         await ctx.connect()
         connected = True
 
@@ -157,12 +159,15 @@ async def nuncio_synthesia(ctx: agents.JobContext) -> None:
             api_key=WORKER_TOKEN,
             default_headers={"x-nuncio-live-session": metadata.session_id},
         )
+        stage = "stt"
+        stt = elevenlabs.STT(
+            model="scribe_v2_realtime",
+            api_key=os.environ["ELEVEN_API_KEY"],
+        )
+        stage = "session"
         session = AgentSession(
             vad=silero.VAD.load(),
-            stt=elevenlabs.STT(
-                model="scribe_v2_realtime",
-                api_key=os.environ["ELEVEN_API_KEY"],
-            ),
+            stt=stt,
             llm=openai.LLM(model="nuncio", client=http_client),
             tts=elevenlabs.TTS(
                 model="eleven_flash_v2_5",
@@ -174,6 +179,7 @@ async def nuncio_synthesia(ctx: agents.JobContext) -> None:
         # The backend builds the authoritative prompt and ignores any supplied
         # system messages, so the agent itself carries no instructions and no
         # generated greeting.
+        stage = "avatar"
         avatar = synthesia.AvatarSession(
             synthesia.AvatarConfig(avatar_ids=[metadata.avatar_id]),
         )
@@ -237,17 +243,19 @@ async def nuncio_synthesia(ctx: agents.JobContext) -> None:
         if has_owner() or shutdown.is_set():
             logger.info("human owner joined during startup — refusing twin start")
             return
+        stage = "avatar"
         await avatar.start(session, room=ctx.room)
         if has_owner() or shutdown.is_set():
             logger.info("human owner joined during avatar start — stepping aside")
             return
         # Instructions intentionally empty: the backend gateway is the sole
         # prompt authority and drops any supplied system messages anyway.
+        stage = "conversation"
         await session.start(agent=agents.Agent(instructions=""), room=ctx.room)
         logger.info("twin session started for live session %s", metadata.session_id)
         await shutdown.wait()
     except Exception as exc:
-        logger.error("twin session failed: %s", type(exc).__name__)
+        logger.error("twin session failed: stage=%s session=%s error=%s", stage, metadata.session_id, type(exc).__name__)
     finally:
         for task in tasks:
             task.cancel()

@@ -40,11 +40,11 @@ export function Header({ stage, isDemo }: HeaderProps) {
   }, []);
 
   const NAV_LINKS = [
-    { label: "Studio", href: "/studio", subtitle: "Build video" },
+    { label: "Studio", href: "/studio", subtitle: "Create a link" },
     { label: "Playbook", href: "/playbook" },
     { label: "Pricing", href: "/pricing" },
     { label: "Batch", href: "/batch" },
-    { label: "Dashboard", href: "/dashboard" },
+    { label: "Conversations", href: "/dashboard" },
   ];
 
   return (

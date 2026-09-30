@@ -282,6 +282,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
   const [buildElapsedSeconds, setBuildElapsedSeconds] = useState(0);
   const [videoRenderResult, setVideoRenderResult] = useState<{ videoUrl: string; videoId: string } | null>(null);
   const [videoCustomization, setVideoCustomization] = useState<VideoCustomization | undefined>();
+  const [serverLiveConfigured, setServerLiveConfigured] = useState(false);
   const [showCustomization, setShowCustomization] = useState(() => initialDeliveryMode === "livelink" && !initialIsReconnect);
   const [bandSessionId, setBandSessionId] = useState<string | null>(null);
   const [bandEvents, setBandEvents] = useState<BandEvent[]>([]);
@@ -451,6 +452,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
         if (data.plan) {
           setUserPlan(data.plan as UserPlan);
         }
+        setServerLiveConfigured(Boolean(data.liveReadiness?.configured));
       })
       .catch(() => {});
   }, [liveLinkEnabled, searchParams]);
@@ -1137,6 +1139,26 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
     setAudioMemoLoading(false);
   }
 
+  function hasAvailableAnamAssets(): boolean {
+    const avatar = videoCustomization?.anamAvatarId
+      || (typeof window !== "undefined" ? localStorage.getItem("nuncio_anam_avatar_id") : null);
+    const voice = videoCustomization?.anamVoiceId
+      || (typeof window !== "undefined" ? localStorage.getItem("nuncio_anam_voice_id") : null);
+    return Boolean(avatar && voice);
+  }
+
+  async function refreshServerLiveReadiness(): Promise<boolean> {
+    try {
+      const res = await fetch("/api/account/brief");
+      const data = await res.json().catch(() => null);
+      const configured = Boolean(data?.liveReadiness?.configured);
+      setServerLiveConfigured(configured);
+      return configured;
+    } catch {
+      return serverLiveConfigured;
+    }
+  }
+
   async function handleConfirmBuild() {
     if (!reviewProfile || !reviewScript) return;
     if (!capturedEmail) {
@@ -1161,11 +1183,9 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
     setShowHookReasoning(false);
 
     if (deliveryMode === "livelink") {
-      const anamAvatarId = videoCustomization?.anamAvatarId;
-      const anamVoiceId = videoCustomization?.anamVoiceId;
-      const liveReady = anamAvatarId && anamVoiceId;
-      if (!liveReady) {
-        setToastMessage("Enable 'Train live twin' and upload a photo + voice sample before creating a live link.");
+      const serverReady = await refreshServerLiveReadiness();
+      if (!(serverReady || hasAvailableAnamAssets())) {
+        setToastMessage("Configure a live representative in Conversations setup, or add Anam avatar/voice assets here before creating a live link.");
         setStage("review");
         return;
       }
@@ -1190,15 +1210,18 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
 
   async function handleCreateLiveLink(): Promise<string | null> {
     if (!reviewProfile) return null;
-    const anamAvatarId = videoCustomization
-      ? videoCustomization.anamAvatarId
-      : (typeof window !== "undefined" ? localStorage.getItem("nuncio_anam_avatar_id") : null) || undefined;
-    const anamVoiceId = videoCustomization
-      ? videoCustomization.anamVoiceId
-      : (typeof window !== "undefined" ? localStorage.getItem("nuncio_anam_voice_id") : null) || undefined;
-    if (deliveryMode === "livelink" && videoCustomization && (!anamAvatarId || !anamVoiceId)) {
-      setToastMessage("Enable 'Train live twin' and upload a photo + voice sample before creating a live link.");
-      return null;
+    const anamAvatarId = videoCustomization?.anamAvatarId
+      || (typeof window !== "undefined" ? localStorage.getItem("nuncio_anam_avatar_id") : null)
+      || undefined;
+    const anamVoiceId = videoCustomization?.anamVoiceId
+      || (typeof window !== "undefined" ? localStorage.getItem("nuncio_anam_voice_id") : null)
+      || undefined;
+    if (deliveryMode === "livelink") {
+      const serverReady = await refreshServerLiveReadiness();
+      if (!(serverReady || hasAvailableAnamAssets())) {
+        setToastMessage("Configure a live representative in Conversations setup, or add Anam avatar/voice assets here before creating a live link.");
+        return null;
+      }
     }
     try {
       const res = await fetch("/api/share", {
@@ -1519,7 +1542,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15">
                       <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
                       <span className="text-label-sm uppercase tracking-widest font-medium text-accent">
-                        AI twin · disclosed to your recipient
+                        AI representative · disclosed to your recipient
                       </span>
                     </div>
                     <h1 className="font-display text-5xl lg:text-6xl tracking-tight leading-[1.02]">
@@ -1531,9 +1554,9 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                         </>
                       ) : (
                         <>
-                          Brief an agent.
+                          Open a conversation.
                           <br />
-                          <span className="text-ink-muted">Get personalised creative.</span>
+                          <span className="text-ink-muted">Stay in control.</span>
                         </>
                       )}
                     </h1>
@@ -1568,7 +1591,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <p className="text-body-sm font-medium text-ink">Talk to your video agent</p>
+                              <p className="text-body-sm font-medium text-ink">Brief your representative</p>
                               <span className="rounded-full bg-white/70 border border-accent/15 px-2 py-0.5 text-label-xs uppercase tracking-widest text-accent">
                                 Speech Engine
                               </span>
@@ -1586,7 +1609,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                             }}
                             className="btn-press flex-1 rounded-xl border border-cream-dark bg-white text-ink py-3 text-body-sm font-medium hover:bg-cream-dark/30 transition-colors flex items-center justify-center gap-2"
                           >
-                            Voice brief
+                            Brief your representative
                             <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                               <path d="M3 8h10M9 4l4 4-4 4" />
                             </svg>
@@ -1873,8 +1896,8 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                               ) : null}
                               <p className="mt-1.5 text-label-sm text-ink-muted">
                                 {deliveryMode === "video" || !liveLinkEnabled
-                                  ? "Render a recorded MP4 share page. No live twin required."
-                                  : "Your AI twin takes the first meeting live. Requires a trained live twin (photo + voice) and uses Anam credits per minute."}
+                                  ? "Render a recorded MP4 share page. No live representative required."
+                                  : "A disclosed AI representative answers live; human calls require your availability and acceptance. Synthesia is primary, with Anam as startup fallback when configured."}
                               </p>
                             </div>
 
@@ -2548,6 +2571,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                           creditBalance={session?.balance}
                           trainingCreditCost={avatarTrainingCost + voiceTrainingCost}
                           onDeliveryModeChange={handleDeliveryModeChange}
+                          liveBackendConfigured={serverLiveConfigured}
                         />
                       </motion.div>
                     )}
@@ -2583,12 +2607,12 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                       onClick={handleConfirmBuild}
                       disabled={
                         deliveryMode === "livelink" &&
-                        (!videoCustomization?.anamAvatarId || !videoCustomization?.anamVoiceId)
+                        !(serverLiveConfigured || hasAvailableAnamAssets())
                       }
                       title={
                         deliveryMode === "livelink" &&
-                        (!videoCustomization?.anamAvatarId || !videoCustomization?.anamVoiceId)
-                          ? "Enable 'Train live twin' and upload a photo + voice sample first"
+                        !(serverLiveConfigured || hasAvailableAnamAssets())
+                          ? "Configure a live representative in Conversations setup, or add Anam avatar/voice assets"
                           : undefined
                       }
                       className="flex-[2] btn-press rounded-xl bg-ink text-cream py-3 text-body-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"

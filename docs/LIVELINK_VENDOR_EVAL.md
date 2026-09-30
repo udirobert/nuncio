@@ -100,7 +100,7 @@ Do not market LiveLink as a paid upsell until the pilot demonstrates conversion 
 
 **Product overview** (per `docs.synthesia.io/reference/ia-overview`, `ia-concepts`, `ia-operational-trust`, and `synthesia.io/features/avatars/interactive-avatars`):
 - Interactive avatars are **GA**. They run inside a **customer-owned LiveKit project** — a Python `livekit-agents` worker (≥ 1.8.2) with the official `livekit-plugins-synthesia` plugin renders the avatar into the room.
-- Only **synthetic/personal Interactive Avatar IDs (`av_*`)** are eligible; stock actor avatars cannot be used interactively.
+- Interactive sessions use **synthetic/personal Interactive Avatar IDs (`av_*`)**; the gallery persona Kenji was verified eligible during evaluation — eligibility of other stock actors is unverified.
 - Transport is **LiveKit only**. Synthesia's own docs state mobile is "not optimized" for interactive avatars — test early on mobile Safari.
 - Because the avatar is just another participant in *our* LiveKit room, a human call can reuse the same room: the worker silences/removes the avatar when an `owner-*` participant joins, and the room is preserved until call expiry.
 

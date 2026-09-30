@@ -7,19 +7,19 @@ const STORAGE_KEY = "nuncio_onboarding_done";
 
 const TIPS = [
   {
-    title: "Paste a social URL",
+    title: "Set the context",
     description:
-      "LinkedIn, Twitter, or any profile link. Nuncio enriches public context to personalise your video.",
+      "Tell Nuncio who you're reaching and why — the recipient and your reason shape the opening.",
   },
   {
-    title: "Review before rendering",
+    title: "Guide the answers",
     description:
-      "Read the generated script, edit it to match your voice, then click render.",
+      "Your playbook steers what your AI representative can say live — what it offers, what it won't.",
   },
   {
-    title: "Share the link",
+    title: "Share a conversation link",
     description:
-      "Send the video link to your recipient. No download needed — it plays right in the browser.",
+      "The recipient chooses: talk to the AI representative, request you live, or book time if you add a scheduling link. A recorded video can ride along.",
   },
 ];
 

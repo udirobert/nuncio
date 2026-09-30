@@ -173,7 +173,7 @@ NUNCIO_LIVE_PRIMARY_PROVIDER=synthesia
 # Enable Synthesia path on the Next server (worker must also be running).
 NUNCIO_SYNTHESIA_WORKER_ENABLED=false
 # Fallback interactive avatar id (must be an eligible 'av_*' personal/synthetic ID;
-# stock actor avatars are not eligible). Workspace synthesiaAvatarId takes precedence.
+# the verified gallery exception is Kenji; other stock actor eligibility is unverified). Workspace synthesiaAvatarId takes precedence.
 SYNTHESIA_AVATAR_ID=
 # Fallback ElevenLabs voice id for the twin; workspace liveVoiceId takes precedence.
 ELEVENLABS_VOICE_ID=
@@ -220,6 +220,18 @@ NUNCIO_AGENT_WORKSPACE_ID=
 # sessions AND sweeps call-request rooms (expired opens + terminal rooms missing
 # roomClosedAt), so accepted-call duration is bounded by the cleanup cadence,
 # not just the join-token TTL.
+
+# Recipient-reviewed live-call briefs are optional and need no extra env:
+# POST /api/live/brief uses the same LLM fallback chain as the rest of the app.
+# Nothing is persisted unless the recipient reviews and explicitly shares the
+# brief with their call request; the nuncio app never stores or logs raw
+# dialogue. Model-provider and LiveKit/observability retention are governed by
+# those services' own settings — review them separately on your accounts.
+
+# Worker logging: the live-avatar worker logs a stage name plus the exception
+# class only (stages: initialization, connect, STT, session, avatar,
+# conversation). Raw exception messages, prompts, request bodies, and tokens
+# are never logged.
 
 # Speechmatics — speech-to-text
 SPEECHMATICS_API_KEY=
@@ -423,6 +435,7 @@ Once deployed, verify:
 3. **API routes respond:** `curl -X POST https://your-domain.com/api/enrich -H "Content-Type: application/json" -d '{"urls":["https://linkedin.com/in/test"]}'`
 4. **LiveLink remains gated:** keep `NUNCIO_LIVELINK_ENABLED=false` except for the controlled pilot. When enabled, verify the workspace/sender allowlist and scheduled `/api/live/expire` job; the gate fails closed without explicit allowlist entries.
 5. **LiveLink pilot:** when enabled for a test share, verify HTTPS/WebRTC connection, microphone disclosure, maximum duration, idle timeout, disconnect cleanup, safe provider failure, and recorded-video fallback.
+6. **Two-person call path (still unverified end-to-end):** startup has been smoke-checked, but the full twin → accepted call → both parties in the LiveKit room path still requires a real two-person proof. With two browsers on a disposable allowlisted share: recipient requests a call, owner accepts in the dashboard, both join via the single "Join call" control — in a new call room each side clicks once; when the recipient's existing twin room is reused they connect automatically once the owner is present, and confirm presence flips only on real room join, mute/unmute reflects actual mic state on both sides, cancel/decline/expiry each clean up the room, and the optional brief flow (draft → review → share) shows only the four reviewed fields in the owner inbox — never raw dialogue.
 
 ---
 

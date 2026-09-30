@@ -72,6 +72,8 @@ interface VideoCustomizationProps {
   trainingCreditCost?: number;
   /** Optional callback to switch delivery mode from the cross-sell prompt. */
   onDeliveryModeChange?: (mode: "video" | "livelink") => void;
+  /** Server-reported live readiness — Synthesia etc. configured independent of Anam assets. */
+  liveBackendConfigured?: boolean;
 }
 
 export function VideoCustomization({
@@ -90,6 +92,7 @@ export function VideoCustomization({
   creditBalance,
   trainingCreditCost = 2,
   onDeliveryModeChange,
+  liveBackendConfigured = false,
 }: VideoCustomizationProps) {
   const [avatars, setAvatars] = useState<HeyGenAvatar[]>(() => {
     const base = initialAvatars || readCache<HeyGenAvatar[]>(CACHE_KEY_AVATARS) || [];
@@ -501,7 +504,7 @@ export function VideoCustomization({
   const aspect = ASPECT_RATIOS[aspectIndex];
   const missingVideoClone = defaultToClone && (!photoAvatarId || !clonedVoiceId);
   const missingLiveTwin =
-    liveTwinEnabled && deliveryMode === "livelink" && (!anamAvatarId || !anamVoiceId);
+    liveTwinEnabled && deliveryMode === "livelink" && !liveBackendConfigured && (!anamAvatarId || !anamVoiceId);
 
   if (loading) {
     return (
@@ -558,7 +561,7 @@ export function VideoCustomization({
             <circle cx="8" cy="11" r="0.5" fill="currentColor" />
           </svg>
           <p className="text-label-base text-ink-muted">
-            Live link mode is on but your live twin isn&apos;t ready yet. Enable &quot;Train live twin&quot; below and upload a photo + voice sample.
+            Live link mode is on but no live representative is configured yet. Configure Synthesia in Conversations setup, or add Anam avatar/voice assets below.
           </p>
         </div>
       )}
@@ -615,6 +618,7 @@ export function VideoCustomization({
         anamAvatarError={anamAvatarError}
         anamVoiceError={anamVoiceError}
         onDeliveryModeChange={onDeliveryModeChange}
+        liveBackendConfigured={liveBackendConfigured}
       />
 
       {/* Aspect ratio */}

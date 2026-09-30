@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LiveCallRoom } from "@/components/live-call-room";
 import { LottieIcon } from "@/components/lottie-icon";
+import { hasSenderPlaybook } from "@/lib/playbook";
 
 interface CallRequestSummary {
   id: string;
@@ -22,6 +23,14 @@ interface CallRequestSummary {
     summary: string;
     interests: string[];
     unansweredQuestions: string[];
+  } | null;
+  liveBrief?: {
+    goal: string;
+    discussed: string;
+    openQuestions: string;
+    reason: string;
+    source: "recipient_reviewed";
+    sharedAt: string;
   } | null;
 }
 
@@ -51,6 +60,28 @@ const POLL_MS = 5_000;
  * expiring "available now" toggle. Nothing auto-connects: the mic is only
  * enabled by an explicit Connect press inside the room.
  */
+function LiveBriefBlock({ brief }: { brief: NonNullable<CallRequestSummary["liveBrief"]> }) {
+  const fields: [string, string][] = [
+    ["What they want", brief.goal],
+    ["What the AI explained", brief.discussed],
+    ["Still unresolved", brief.openQuestions],
+    ["Why they want to speak", brief.reason],
+  ];
+  return (
+    <div className="mt-1.5 rounded-lg border border-accent/15 bg-accent-soft/30 px-3 py-2 space-y-1">
+      <p className="text-body-xs text-ink-faint font-medium">Recipient-reviewed live brief</p>
+      {fields.filter(([, v]) => v).map(([label, v]) => (
+        <p key={label} className="text-body-xs text-ink-muted">
+          <span className="text-ink-faint">{label}: </span>{v}
+        </p>
+      ))}
+      <p className="text-[10px] text-ink-faint italic">
+        Recipient-reviewed summary, not a verified transcript or sender commitment.
+      </p>
+    </div>
+  );
+}
+
 export function CallRequestsCard() {
   const [accepting, setAccepting] = useState(false);
   const [callsEnabled, setCallsEnabled] = useState(false);
@@ -69,6 +100,7 @@ export function CallRequestsCard() {
   const [setupError, setSetupError] = useState<string | null>(null);
   const [setupBusy, setSetupBusy] = useState(false);
   const [pollError, setPollError] = useState(false);
+  const [playbookConfigured, setPlaybookConfigured] = useState<boolean | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const mountedRef = useRef(true);
   const refreshAbortRef = useRef<AbortController | null>(null);
@@ -81,6 +113,11 @@ export function CallRequestsCard() {
         if (!mountedRef.current || !data) return;
         setSynthesiaAvatarId(data.synthesiaAvatarId || "");
         setLiveVoiceId(data.liveVoiceId || "");
+        setPlaybookConfigured(hasSenderPlaybook({
+          playbookWants: data.playbookWants,
+          playbookOffer: data.playbookOffer,
+          playbookConstraints: data.playbookConstraints,
+        }));
       })
       .catch(() => {});
     return () => {
@@ -301,6 +338,7 @@ export function CallRequestsCard() {
             Leave call view
           </button>
         </div>
+        {join.request.liveBrief && <LiveBriefBlock brief={join.request.liveBrief} />}
         {join.request.handoffContext && (
           <div className="rounded-xl border border-ink/10 bg-cream/40 px-3 py-2 space-y-1">
             <p className="text-body-xs text-ink-faint font-medium">Text conversation context</p>
@@ -322,6 +360,7 @@ export function CallRequestsCard() {
         <LiveCallRoom
           serverUrl={join.serverUrl}
           getJoinCredentials={getJoinCredentials}
+          autoConnect
           role="owner"
           otherName={join.request.recipient || "the recipient"}
           expectedOtherIdentity={join.expectedOtherIdentity}
@@ -363,9 +402,25 @@ export function CallRequestsCard() {
       {pollError && (
         <p className="text-body-xs text-warm">Inbox refresh failed — retrying automatically.</p>
       )}
+      {playbookConfigured === null && (
+        <p className="text-body-xs text-ink-faint">Readiness couldn&apos;t be confirmed — check your playbook setup.</p>
+      )}
+      {playbookConfigured === false && (
+        <p className="text-body-xs text-warm leading-relaxed">
+          Your sender playbook isn&apos;t configured — your AI representative answers from general
+          guidance only.{" "}
+          <a href="/playbook" className="underline text-accent hover:text-accent/80 transition-colors">
+            Set up your playbook
+          </a>
+          .
+        </p>
+      )}
       <p className="text-body-xs text-ink-faint leading-relaxed">
-        Available for 15 minutes per toggle — recipients can request a call only while it&apos;s on.
-        The twin never promises you&apos;re reachable.
+        The pilot avatar is a representative persona and may not resemble you.
+      </p>
+      <p className="text-body-xs text-ink-faint leading-relaxed">
+        Keep this dashboard open to receive requests. Availability ends after 15 minutes —
+        recipients can request a call only while it&apos;s on. The representative never promises you&apos;re reachable.
         {accepting && secondsLeft !== null && secondsLeft > 0 && (
           <> Window closes in {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}.</>
         )}
@@ -396,6 +451,7 @@ export function CallRequestsCard() {
                       Asked about: {request.questionTopics.join(", ")}
                     </p>
                   )}
+                  {request.liveBrief && <LiveBriefBlock brief={request.liveBrief} />}
                   {request.handoffContext && (
                     <div className="mt-1.5 rounded-lg border border-ink/10 bg-cream/40 px-3 py-2 space-y-1">
                       <p className="text-body-xs text-ink-faint font-medium">Text conversation context</p>
@@ -463,9 +519,13 @@ export function CallRequestsCard() {
         </ul>
       )}
 
-      <div className="border-t border-cream-dark pt-4 space-y-3">
-        <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
-          Live twin setup (Synthesia)
+      <details className="border-t border-cream-dark pt-4 space-y-3">
+        <summary className="text-label-sm uppercase tracking-widest text-ink-faint font-medium cursor-pointer list-none">
+          Pilot setup (provider fields)
+        </summary>
+        <p className="text-body-xs text-ink-faint">
+          Pilot fields — the live twin uses this Synthesia avatar and voice for your representative.
+          The demo avatar may not resemble you.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <label className="block">
@@ -497,7 +557,7 @@ export function CallRequestsCard() {
           {setupSaved && <span className="text-body-xs text-success">Saved</span>}
           {setupError && <span className="text-body-xs text-warm">{setupError}</span>}
         </div>
-      </div>
+      </details>
     </div>
   );
 }

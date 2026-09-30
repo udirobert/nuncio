@@ -17,6 +17,7 @@ interface LiveTwinPanelProps {
   anamAvatarError?: string | null;
   anamVoiceError?: string | null;
   onDeliveryModeChange?: (mode: "video" | "livelink") => void;
+  liveBackendConfigured?: boolean;
 }
 
 export function LiveTwinPanel({
@@ -32,6 +33,7 @@ export function LiveTwinPanel({
   anamAvatarError,
   anamVoiceError,
   onDeliveryModeChange,
+  liveBackendConfigured = false,
 }: LiveTwinPanelProps) {
   const insufficientCredits =
     typeof creditBalance === "number" && creditBalance < trainingCreditCost;
@@ -53,11 +55,13 @@ export function LiveTwinPanel({
           <div className="flex items-start justify-between gap-3">
             <div>
               <label className="text-label-sm uppercase tracking-widest font-medium text-ink-faint block">
-                Live twin
+                {liveBackendConfigured ? "Anam fallback setup (optional)" : "Anam fallback setup"}
               </label>
               <p className="text-label-base text-ink-muted mt-0.5">
-                Train a talkable AI twin from your photo and voice for real-time conversations.
-                Estimated cost: <strong>{trainingCreditCost} credits</strong> to train;
+                {liveBackendConfigured
+                  ? "Your live representative is configured on the server. These photo/voice controls are optional Anam fallback assets."
+                  : "Configure Synthesia in Conversations, or add Anam avatar/voice assets here."}{" "}
+                Optional training costs <strong>{trainingCreditCost} credits</strong>;
                 conversations use <strong>{LIVE_SESSION_CREDITS_PER_MINUTE} credit/min</strong> (max {LIVE_SESSION_MAX_CREDITS} per session).
               </p>
             </div>
@@ -78,7 +82,7 @@ export function LiveTwinPanel({
           {typeof creditBalance === "number" && (
             <p className={`text-label-base ${insufficientCredits ? "text-warm" : "text-ink-faint"}`}>
               {insufficientCredits
-                ? `You need at least ${trainingCreditCost} credits to train a live twin.`
+                ? `You need at least ${trainingCreditCost} credits to train a live representative.`
                 : `${creditBalance} credits available.`}
               {insufficientCredits && (
                 <a href="/pricing" className="ml-1.5 text-accent hover:text-accent/80 underline">
@@ -108,9 +112,9 @@ export function LiveTwinPanel({
             </div>
           )}
 
-          {deliveryMode === "livelink" && !liveTwinEnabled && !insufficientCredits && (
+          {deliveryMode === "livelink" && !liveTwinEnabled && !liveBackendConfigured && !insufficientCredits && (
             <p className="text-label-base text-warm">
-              Live link mode is on, but you haven&apos;t enabled a live twin. Switch to Video or enable this to use your own face and voice.
+              Live link mode is on, but no live representative is configured. Configure Synthesia in Conversations setup, or enable Anam fallback assets here.
             </p>
           )}
         </div>
@@ -127,7 +131,7 @@ export function LiveTwinPanel({
             >
               Switch to Live link
             </button>{" "}
-            if you also want recipients to talk to your AI twin.
+            if you also want recipients to talk to your AI representative.
           </p>
         </div>
       )}

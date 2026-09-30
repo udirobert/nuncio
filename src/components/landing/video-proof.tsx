@@ -25,7 +25,7 @@ export function VideoProof() {
         {/* Label */}
         <div className="flex items-center justify-between mb-4">
           <p className="text-body-xs uppercase tracking-widest text-ink-faint font-medium">
-            Real output — generated automatically
+            Recorded video — fallback example
           </p>
           <Link
             href={GOLDEN_SHARE_PAGE}

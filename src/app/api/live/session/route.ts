@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
             agentName: SYNTHESIA_AGENT_NAME,
           });
         } catch (error) {
-          console.warn("[api/live/session] synthesia start failed:", (error as Error)?.name ?? "unknown");
+          console.warn("[api/live/session] synthesia start failed: stage=avatar session=%s name=%s", record?.id ?? "none", (error as Error)?.name ?? "unknown");
           const cleaned = await cleanupSynthesiaSession({ roomName, dispatchId }).catch(() => false);
           if (!cleaned) {
             await reconcileLiveSession({
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
         }
         return NextResponse.json({ provider: "anam", sessionToken, sessionId: record.id, syncToken });
       } catch (error) {
-        console.warn("[api/live/session] anam start failed:", (error as Error)?.name ?? "unknown");
+        console.warn("[api/live/session] anam start failed: stage=avatar session=%s name=%s", record?.id ?? "none", (error as Error)?.name ?? "unknown");
         await reconcileLiveSession({ record, durationMs: 0, reason: "start_failed" }).catch(() => {});
         return NextResponse.json({ error: "Failed to start live session" }, { status: 500 });
       }
@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
     await reconcileLiveSession({ record, durationMs: 0, reason: "start_failed" }).catch(() => {});
     return NextResponse.json({ error: "Failed to start live session" }, { status: 500 });
   } catch (error) {
-    console.error("[api/live/session] error:", error);
+    console.error("[api/live/session] error: stage=session session=%s name=%s", sessionRecord?.id ?? "none", (error as Error)?.name ?? "unknown");
     if (sessionRecord) {
       await reconcileLiveSession({ record: sessionRecord, durationMs: 0, reason: "start_failed" }).catch(() => {});
     } else if (reservationId) {
