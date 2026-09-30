@@ -13,8 +13,9 @@ interface with it, only the owner can authorize.
 The backend pipeline lives in the parent repo ([nuncio](https://github.com/udirobert/nuncio),
 production: https://nuncio.persidian.com). Without a token the agent uses the
 public, rate-limited `POST /api/agent/lite` (research + script, no render);
-installs with `NUNCIO_AGENT_TOKEN` unlock the full pipeline including HeyGen
-video and live-avatar renders.
+installs with `NUNCIO_AGENT_TOKEN` unlock the full pipeline: HeyGen video
+renders (`nuncio-render`) and the owner-authorized text-to-live handoff
+(`nuncio-followup`).
 
 ## Run it
 
