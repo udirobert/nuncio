@@ -5,12 +5,14 @@ import { useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { LottieIcon } from "@/components/lottie-icon";
+import { resolveLoginNext } from "@/lib/auth/login-next";
 
 type Step = "email" | "check" | "done";
 
 export function LoginForm() {
   const searchParams = useSearchParams();
   const errorParam = searchParams.get("error");
+  const next = resolveLoginNext(searchParams.get("next"));
 
   const [initialError] = useState(() => {
     if (errorParam === "invalid_or_expired") {
@@ -37,7 +39,7 @@ export function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, next }),
       });
       const data = await res.json();
 

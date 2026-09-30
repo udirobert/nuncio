@@ -1538,6 +1538,17 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
             >
               <section className="relative px-6 pt-24 pb-16">
                 <div className="max-w-lg mx-auto space-y-8">
+                  <nav aria-label="Progress" className="flex items-center justify-center gap-1.5 text-label-sm">
+                    <Link href="/dashboard?view=setup" className="text-ink-faint hover:text-ink transition-colors font-medium">
+                      1 Set up
+                    </Link>
+                    <span className="text-ink-faint" aria-hidden>→</span>
+                    <span className="text-accent font-medium" aria-current="step">2 Create first touch</span>
+                    <span className="text-ink-faint" aria-hidden>→</span>
+                    <Link href="/dashboard" className="text-ink-faint hover:text-ink transition-colors font-medium">
+                      3 Continue conversation
+                    </Link>
+                  </nav>
                   <div className="space-y-7 text-center">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15">
                       <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
@@ -1683,6 +1694,12 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                         <label className="text-label-sm uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
                           {mode === "reconnect" ? "Their public profile" : "Profile URL"}
                         </label>
+                        {mode !== "reconnect" && (
+                          <p className="text-label-base text-ink-faint mb-2">
+                            You approve the opening before anything sends. The link is your prospect&apos;s front door —
+                            they can ask your AI representative, request you live, or choose a time.
+                          </p>
+                        )}
                         {mode === "reconnect" && (
                           <p className="text-label-base text-ink-faint mb-2">
                             We only look at their public profile for context — the card is built from your memory, and you review every word.

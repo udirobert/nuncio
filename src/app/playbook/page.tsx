@@ -4,11 +4,11 @@ import { PLAYBOOK } from "@/lib/playbook";
 import { PlaybookList } from "@/components/playbook-list";
 
 export const metadata: Metadata = {
-  title: "The nuncio playbook — worked examples of great personalised outreach",
+  title: "First-touch examples — worked examples of great personalised outreach",
   description:
     "Six teardowns showing what makes outreach land: founder-to-founder, investor pitch, recruiting, conference follow-up, and product feedback. Each shows the brief, the generated script, and what was deliberately skipped.",
   openGraph: {
-    title: "The nuncio playbook",
+    title: "First-touch examples",
     description:
       "Worked examples of AI-twin first touches — with teardowns of what made each one land.",
   },
@@ -25,14 +25,15 @@ export default function PlaybookPage() {
         {/* Hero */}
         <section className="px-6 py-16 max-w-[720px] mx-auto">
           <h1 className="font-display text-4xl md:text-5xl tracking-tight leading-[0.9] mb-4">
-            The nuncio
+            First-touch
             <br />
-            <span className="text-ink-light">playbook</span>
+            <span className="text-ink-light">examples</span>
           </h1>
           <p className="text-ink-muted text-[15px] leading-relaxed max-w-[480px] mb-2">
             Worked examples of great personalised outreach. Each one shows the
             recipient, the brief, the generated script, and a teardown of what
-            made it land — and what was deliberately left out.
+            made it land — and what was deliberately left out. These are
+            examples to read, not your own playbook — that lives in setup.
           </p>
           <p className="text-label-base text-ink-faint">
             Composite examples for illustration. Names and details may be fictionalised.
@@ -51,14 +52,14 @@ export default function PlaybookPage() {
               Ready to send yours?
             </h2>
             <p className="text-sm text-ink-muted mb-5">
-              Paste a profile URL. Get a disclosed AI twin that takes the first
-              meeting — live link first, recorded video included.
+              Set your playbook, then create a first touch. The recipient chooses
+              how to continue; recorded video is optional.
             </p>
             <Link
-              href="/"
+              href="/dashboard?view=setup"
               className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-6 py-3.5 text-sm font-medium shadow-xl shadow-ink/15 hover:shadow-2xl hover:-translate-y-0.5 transition-[color,background-color,border-color,opacity,box-shadow,transform]"
             >
-              Build your twin
+              Set up your representative
               <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M3 8h10M9 4l4 4-4 4" />
               </svg>

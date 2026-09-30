@@ -3,23 +3,23 @@
 const TILES = [
   {
     step: "01",
-    title: "Choose",
-    body: "Start with a person or company worth real effort—not a list you plan to blast.",
+    title: "Set up",
+    body: "Tell Nuncio who your representative speaks for and set the playbook boundaries it answers within.",
   },
   {
     step: "02",
-    title: "Ground it",
-    body: "Nuncio turns public context and your reason for reaching out into a relevant, specific opening.",
+    title: "Send a relevant opening",
+    body: "Start with a person worth real effort. You approve the opening before anything leaves your name.",
   },
   {
     step: "03",
-    title: "Make it yours",
-    body: "Edit the hook, script, and creative direction until it sounds like a message you would actually send.",
+    title: "The recipient chooses",
+    body: "On the link they can ask your disclosed AI representative, request you when you're taking calls, or choose a time if you configured a scheduling link — no AI step is compulsory.",
   },
   {
     step: "04",
-    title: "Open a door",
-    body: "Your disclosed AI representative keeps the conversation moving; you join a real call when both sides want one. Recorded video can be included as a fallback.",
+    title: "You join when it matters",
+    body: "You accept a request and join a shared browser call. The AI steps aside — it bridges the conversation, it isn't part of it.",
   },
 ];
 
@@ -39,9 +39,8 @@ export function HowItWorks() {
             conversations that can change your business.
           </h2>
           <p className="text-ink-muted text-body-sm leading-relaxed">
-            Research accelerates the work. You retain the judgement. Review the
-            context, the hook, and the final script before anything is sent in
-            your name.
+            Research accelerates the work. You retain the judgement — approve the
+            opening, and set the boundaries the representative answers within.
           </p>
         </div>
 

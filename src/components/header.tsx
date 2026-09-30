@@ -10,6 +10,7 @@ import { AccountMenu } from "@/components/account-menu";
 interface HeaderProps {
   stage?: PipelineState["stage"];
   isDemo?: boolean;
+  activeWorkspaceView?: "conversations" | "setup";
 }
 
 const STAGE_LABELS: Record<PipelineState["stage"], string> = {
@@ -22,7 +23,7 @@ const STAGE_LABELS: Record<PipelineState["stage"], string> = {
   error: "",
 };
 
-export function Header({ stage, isDemo }: HeaderProps) {
+export function Header({ stage, isDemo, activeWorkspaceView }: HeaderProps) {
   const pathname = usePathname();
   const showStage = stage && stage !== "input" && stage !== "error";
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
@@ -39,13 +40,20 @@ export function Header({ stage, isDemo }: HeaderProps) {
       .catch(() => {});
   }, []);
 
-  const NAV_LINKS = [
-    { label: "Studio", href: "/studio", subtitle: "Create a link" },
-    { label: "Playbook", href: "/playbook" },
+  const NAV_LINKS: { label: string; href: string; view?: "conversations" | "setup"; subtitle?: string }[] = [
+    { label: "Conversations", href: "/dashboard", view: "conversations" as const },
+    { label: "Setup", href: "/dashboard?view=setup", view: "setup" as const },
+    { label: "Create a first touch", href: "/studio" },
+    { label: "Examples", href: "/playbook" },
     { label: "Pricing", href: "/pricing" },
-    { label: "Batch", href: "/batch" },
-    { label: "Conversations", href: "/dashboard" },
   ];
+
+  const isLinkActive = (link: (typeof NAV_LINKS)[number]) => {
+    if (link.view === "setup") return pathname === "/dashboard" && activeWorkspaceView === "setup";
+    if (link.view === "conversations")
+      return pathname === "/dashboard" && activeWorkspaceView !== "setup";
+    return pathname === link.href;
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between bg-cream/80 backdrop-blur-md border-b border-cream-dark/60 pointer-events-auto">
@@ -57,10 +65,11 @@ export function Header({ stage, isDemo }: HeaderProps) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="md:hidden pointer-events-auto absolute top-full left-6 right-6 mt-2 rounded-2xl border border-cream-dark bg-cream shadow-lg shadow-ink/5 p-2 flex flex-col"
+            aria-label="Main navigation"
+            className="xl:hidden pointer-events-auto absolute top-full left-6 right-6 mt-2 rounded-2xl border border-cream-dark bg-cream shadow-lg shadow-ink/5 p-2 flex flex-col"
           >
             {NAV_LINKS.map((link, i) => {
-              const isActive = pathname === link.href;
+              const isActive = isLinkActive(link);
               return (
                 <motion.div
                   key={link.href}
@@ -70,6 +79,7 @@ export function Header({ stage, isDemo }: HeaderProps) {
                 >
                   <Link
                     href={link.href}
+                    aria-current={isActive ? "page" : undefined}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`block rounded-xl px-4 py-3 text-body-sm font-medium transition-colors ${
                       isActive ? "bg-accent-soft text-accent" : "text-ink hover:bg-cream-dark/50"
@@ -83,6 +93,14 @@ export function Header({ stage, isDemo }: HeaderProps) {
                 </motion.div>
               );
             })}
+            <Link
+              href="/batch"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-current={pathname === "/batch" ? "page" : undefined}
+              className="block rounded-xl px-4 py-3 text-label-base font-medium text-ink-faint hover:text-ink hover:bg-cream-dark/50 transition-colors border-t border-cream-dark mt-1"
+            >
+              Batch
+            </Link>
           </motion.nav>
         )}
       </AnimatePresence>
@@ -102,7 +120,7 @@ export function Header({ stage, isDemo }: HeaderProps) {
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label="Toggle navigation"
           aria-expanded={mobileMenuOpen}
-          className="md:hidden btn-press flex items-center justify-center w-9 h-9 rounded-lg border border-cream-dark bg-white/70 text-ink-muted hover:text-ink transition-colors"
+          className="xl:hidden btn-press flex items-center justify-center w-9 h-9 rounded-lg border border-cream-dark bg-white/70 text-ink-muted hover:text-ink transition-colors"
         >
           <AnimatePresence mode="wait" initial={false}>
             {mobileMenuOpen ? (
@@ -143,9 +161,9 @@ export function Header({ stage, isDemo }: HeaderProps) {
       </motion.div>
 
       <div className="pointer-events-auto flex items-center gap-6">
-        <nav className="hidden md:flex items-center gap-5">
+        <nav aria-label="Main navigation" className="hidden xl:flex items-center gap-5">
           {NAV_LINKS.map((link) => {
-            const isActive = pathname === link.href;
+            const isActive = isLinkActive(link);
             return (
               <motion.div
                 key={link.href}
@@ -155,6 +173,7 @@ export function Header({ stage, isDemo }: HeaderProps) {
               >
                 <Link
                   href={link.href}
+                  aria-current={isActive ? "page" : undefined}
                   className={`text-label-base uppercase tracking-widest font-medium transition-colors ${
                     isActive ? "text-accent" : "text-ink-muted hover:text-ink"
                   }`}
@@ -170,6 +189,16 @@ export function Header({ stage, isDemo }: HeaderProps) {
             );
           })}
         </nav>
+
+          <Link
+            href="/batch"
+            aria-current={pathname === "/batch" ? "page" : undefined}
+            className={`hidden xl:inline text-label-sm font-medium transition-colors ${
+              pathname === "/batch" ? "text-accent" : "text-ink-faint hover:text-ink"
+            }`}
+          >
+            Batch
+          </Link>
 
           {creditBalance !== null && (
             <Link

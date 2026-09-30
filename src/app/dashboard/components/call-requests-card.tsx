@@ -94,11 +94,6 @@ export function CallRequestsCard() {
   const [busy, setBusy] = useState<string | null>(null);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [synthesiaAvatarId, setSynthesiaAvatarId] = useState("");
-  const [liveVoiceId, setLiveVoiceId] = useState("");
-  const [setupSaved, setSetupSaved] = useState(false);
-  const [setupError, setSetupError] = useState<string | null>(null);
-  const [setupBusy, setSetupBusy] = useState(false);
   const [pollError, setPollError] = useState(false);
   const [playbookConfigured, setPlaybookConfigured] = useState<boolean | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -111,8 +106,6 @@ export function CallRequestsCard() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!mountedRef.current || !data) return;
-        setSynthesiaAvatarId(data.synthesiaAvatarId || "");
-        setLiveVoiceId(data.liveVoiceId || "");
         setPlaybookConfigured(hasSenderPlaybook({
           playbookWants: data.playbookWants,
           playbookOffer: data.playbookOffer,
@@ -226,26 +219,6 @@ export function CallRequestsCard() {
       setAvailabilityBusy(false);
     }
   }, [accepting, availabilityBusy]);
-
-  const saveSetup = useCallback(async () => {
-    if (setupBusy) return;
-    setSetupBusy(true);
-    setSetupError(null);
-    const res = await fetch("/api/account/brief", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ synthesiaAvatarId, liveVoiceId }),
-    }).catch(() => null);
-    setSetupBusy(false);
-    if (!res || !res.ok) {
-      const data = res ? ((await res.json().catch(() => ({}))) as { error?: string }) : {};
-      setSetupError(data.error || "Could not save the live setup — try again.");
-      setSetupSaved(false);
-      return;
-    }
-    setSetupSaved(true);
-    setTimeout(() => setSetupSaved(false), 3000);
-  }, [synthesiaAvatarId, liveVoiceId, setupBusy]);
 
   const decide = useCallback(async (id: string, action: "accept" | "decline") => {
     setBusy(id);
@@ -409,7 +382,7 @@ export function CallRequestsCard() {
         <p className="text-body-xs text-warm leading-relaxed">
           Your sender playbook isn&apos;t configured — your AI representative answers from general
           guidance only.{" "}
-          <a href="/playbook" className="underline text-accent hover:text-accent/80 transition-colors">
+          <a href="/dashboard?view=setup" className="underline text-accent hover:text-accent/80 transition-colors">
             Set up your playbook
           </a>
           .
@@ -519,45 +492,6 @@ export function CallRequestsCard() {
         </ul>
       )}
 
-      <details className="border-t border-cream-dark pt-4 space-y-3">
-        <summary className="text-label-sm uppercase tracking-widest text-ink-faint font-medium cursor-pointer list-none">
-          Pilot setup (provider fields)
-        </summary>
-        <p className="text-body-xs text-ink-faint">
-          Pilot fields — the live twin uses this Synthesia avatar and voice for your representative.
-          The demo avatar may not resemble you.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <label className="block">
-            <span className="text-body-xs text-ink-muted">Synthesia interactive avatar ID</span>
-            <input
-              value={synthesiaAvatarId}
-              onChange={(e) => setSynthesiaAvatarId(e.target.value)}
-              placeholder="av_…"
-              className="mt-1 w-full rounded-lg border border-ink/15 bg-white px-3 py-2 text-body-sm text-ink placeholder:text-ink-faint"
-            />
-          </label>
-          <label className="block">
-            <span className="text-body-xs text-ink-muted">ElevenLabs voice ID</span>
-            <input
-              value={liveVoiceId}
-              onChange={(e) => setLiveVoiceId(e.target.value)}
-              placeholder="ElevenLabs voice id"
-              className="mt-1 w-full rounded-lg border border-ink/15 bg-white px-3 py-2 text-body-sm text-ink placeholder:text-ink-faint"
-            />
-          </label>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={saveSetup}
-            className="btn-press rounded-lg bg-ink text-cream px-4 py-2 text-body-xs font-medium"
-          >
-            Save live setup
-          </button>
-          {setupSaved && <span className="text-body-xs text-success">Saved</span>}
-          {setupError && <span className="text-body-xs text-warm">{setupError}</span>}
-        </div>
-      </details>
     </div>
   );
 }

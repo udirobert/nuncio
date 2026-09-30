@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createMagicLinkToken } from "@/lib/auth/magic-link";
 import { sendMagicLinkEmail } from "@/lib/email";
 import { absoluteUrl } from "@/lib/url";
+import { resolveLoginNext } from "@/lib/auth/login-next";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: NextRequest) {
-  const { email } = await request.json();
+  const { email, next } = await request.json();
   const normalized = typeof email === "string" ? email.trim().toLowerCase() : "";
 
   if (!EMAIL_RE.test(normalized)) {
@@ -14,7 +15,10 @@ export async function POST(request: NextRequest) {
   }
 
   const token = await createMagicLinkToken(normalized);
-  const link = absoluteUrl(`/api/auth/verify?token=${token}`, request);
+  const link = absoluteUrl(
+    `/api/auth/verify?${new URLSearchParams({ token, next: resolveLoginNext(next) })}`,
+    request
+  );
 
   sendMagicLinkEmail(normalized, link);
 

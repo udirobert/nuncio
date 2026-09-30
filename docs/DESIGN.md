@@ -130,16 +130,26 @@ Per `docs/STRATEGY.md`, the live link is a personal front door — the recipient
 
 ### Owner (`CallRequestsCard` on `/dashboard`)
 - Availability toggle is explicit and expiring ("Available for calls — 15 min"), never inferred from a calendar. Pending requests list with accept/decline; accepted state shows a "Join call" button — no automatic mic/camera prompts.
-- Owner-facing setup fields (`synthesiaAvatarId` `av_*`, `liveVoiceId`) are labeled pilot fields inside the same card.
+- Owner-facing setup fields (`synthesiaAvatarId` `av_*`, `liveVoiceId`, identity, playbook, booking URL) live in the Setup view (`/dashboard?view=setup`, `SetupPanel`) — not inside the inbox card.
 
 ### Shared room (`LiveCallRoom`)
 - One component for owner and recipient; distinct LiveKit identities (`owner-<userId>` / `recipient-<requestId>`), audio-only publish grants.
 
 ### Text→live handoff entry (`/live/[id]` with `handoffId` marker)
-- The live start controls, `CallRequestPanel`, and booking link compose into a single "Choose how to continue" area so the recipient never has to start the paid avatar session to see their options.
-- Three distinct actions per surface: "Talk to {sender}'s AI representative" (explicit click starts mic + session), "Request {sender} now" (or "not taking calls right now" when availability is off), "Book time with {sender}" (only when a valid configured HTTPS booking URL exists). One primary CTA; `recommendedNextStep` is advisory only and never auto-starts anything.
+- The live start controls, `CallRequestPanel`, and booking link render as three peer cards under "Choose how to continue" so the recipient never has to start the paid avatar session to see their options. Cards: "Ask the AI representative" (Questions first, without scheduling), "Request {sender}" (availability- and acceptance-gated), "Choose a time" (only when a valid configured HTTPS booking URL exists). During the human-call phase a top "Human call room" banner marks the phase — observed participant presence remains the `LiveCallRoom` component's job; the banner does not claim anyone joined. The avatar stage stays mounted but hidden.
+- Eyebrow is "A personal invitation" for bearer-protected handoffs (possession of the link is not verified identity) and "Conversation link" for ordinary shares. Heading: "A conversation with {sender}"; protected handoffs add "Continue the conversation started by {sender}".
+- `recommendedNextStep` is advisory only and never auto-starts anything.
 - Handoff context stays server-side — the private summary is not returned in public share/status APIs, though the twin may refer to its contents; the owner sees it in the dashboard inbox as "Text conversation context" before accepting and inside the connected call view.
 - **Recipient-reviewed live brief**: the recipient can optionally ask for a draft brief ("Draft brief" sends the conversation to the AI service only on that explicit click), review/edit the four fields, and check "Share this brief" before it accompanies the call request. The brief is a recipient-reviewed draft — never a transcript, never verified fact; the owner UI labels it accordingly. The nuncio app never persists, logs, or returns raw dialogue via status/join APIs (provider/observability retention is operator-visible separately); only the owner inbox surfaces the reviewed brief.
+
+### Homepage journey illustration (`RelationshipJourney`)
+- `#prospect-experience` is a single self-contained, manually steppable illustration (Alex → Maya) labeled "Illustrative journey · not a live session" — four stages (First touch / Your choices / Request / Human call) with `aria-pressed` stage buttons, reduced-motion respect, and no autoplay, timers, network, or real chat/call UI.
+- It teaches the actual branch semantics: ask the AI, request the sender, or choose a configured scheduling link; a request is not an acceptance, and a human call happens only when the owner accepts and both participants join — the AI steps aside. No qualification is implied and no call auto-connects.
+
+### Dashboard views
+- `/dashboard` (Conversations) = operational inbox: "Needs your attention" (`CallRequestsCard`), "Recent first touches" (`RecentVideos` incl. the `firstTouches` projection of `GET /api/videos/recent`), plus a compact "Your representative" readiness aside and a collapsed "Usage & account" section.
+- `/dashboard?view=setup` = `SetupPanel`: identity, playbook, scheduling (HTTPS-only booking URL input), and collapsible provider fields, with a server-loaded status checklist — configuration presence, never provider health. The checklist reports "unknown" while readiness can't be fetched, and derives only from the last saved server snapshot, not unsaved form input. `SetupPanel variant="summary"` renders the same saved statuses (no form) in the conversations aside.
+- Login return target: `resolveLoginNext` (`src/lib/auth/login-next.ts`) allowlists only `/dashboard?view=setup`, `/dashboard`, `/studio`, `/pricing` — everything else falls back to `/studio`. The `next` param flows LoginForm → `POST /api/auth/login` → verify-link query → `/api/auth/verify` redirect, and is preserved on error redirects.
 
 ---
 

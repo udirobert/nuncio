@@ -2,24 +2,27 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import Link from "next/link";
 
-const STORAGE_KEY = "nuncio_onboarding_done";
+const STORAGE_KEY = "nuncio_onboarding_done_v2";
 
-const TIPS = [
+const TIPS: { title: string; description: string; href?: string; linkLabel?: string }[] = [
   {
-    title: "Set the context",
+    title: "Set up your representative",
     description:
-      "Tell Nuncio who you're reaching and why — the recipient and your reason shape the opening.",
+      "In Setup, tell Nuncio who your AI representative speaks for and set its playbook boundaries — what it offers, what it must never promise. Do that before you create any link.",
+    href: "/dashboard?view=setup",
+    linkLabel: "Open setup",
   },
   {
-    title: "Guide the answers",
+    title: "Create a first touch",
     description:
-      "Your playbook steers what your AI representative can say live — what it offers, what it won't.",
+      "In the studio, paste a profile and approve the opening message. The link you share is the prospect's front door — the SDR opens the relationship, the twin keeps it warm.",
   },
   {
-    title: "Share a conversation link",
+    title: "The recipient chooses",
     description:
-      "The recipient chooses: talk to the AI representative, request you live, or book time if you add a scheduling link. A recorded video can ride along.",
+      "On your link they can ask your disclosed AI representative, request you live, or choose a time if you add a scheduling link. Human calls need your acceptance; AI conversations start only when the prospect chooses them.",
   },
 ];
 
@@ -107,6 +110,15 @@ exit={{ opacity: 0, y: 16, scale: 0.95 }}
                   <p className="text-body-sm text-ink-muted mt-2 leading-relaxed">
                     {TIPS[step].description}
                   </p>
+                  {TIPS[step].href && (
+                    <Link
+                      href={TIPS[step].href!}
+                      onClick={handleDismiss}
+                      className="inline-block mt-3 text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
+                    >
+                      {TIPS[step].linkLabel} →
+                    </Link>
+                  )}
                 </motion.div>
               </AnimatePresence>
 

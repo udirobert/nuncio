@@ -723,19 +723,36 @@ export default function LiveAvatarLandingPage({
       </header>
 
       <main className="flex-1 flex items-center justify-center px-6 py-8">
-        <div className="w-full max-w-[720px]">
+        <div className="w-full max-w-[960px]">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="mb-8 text-center"
           >
+            <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium mb-3">
+              {handoffMeta ? "A personal invitation" : "Conversation link"}
+            </p>
             {share.recipientName && (
-              <p className="text-sm text-ink-faint mb-2">Hey {recipient}</p>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className="w-7 h-7 rounded-full bg-cream-dark flex items-center justify-center text-label-sm font-medium text-ink-muted">
+                  {recipient.slice(0, 1).toUpperCase()}
+                </span>
+                <span className="text-ink-faint text-sm">·</span>
+                <span className="w-7 h-7 rounded-full bg-ink flex items-center justify-center text-label-sm font-medium text-cream">
+                  {sender.slice(0, 1).toUpperCase()}
+                </span>
+                <p className="text-sm text-ink-faint ml-1">Hey {recipient}</p>
+              </div>
             )}
             <h1 className="font-display text-4xl md:text-5xl tracking-tight leading-[0.9] mb-3">
-              {handoffMeta ? `Continue the conversation started by ${sender}` : `A conversation with ${sender}`}
+              A conversation with {sender}
             </h1>
+            {handoffMeta && (
+              <p className="text-body-sm text-ink-muted mb-2">
+                Continue the conversation started by {sender}
+              </p>
+            )}
             <div className="flex flex-col items-center gap-2">
               <SenderTrustBadge
                 senderName={share.senderName}
@@ -744,31 +761,52 @@ export default function LiveAvatarLandingPage({
                 deliveryMode={share.deliveryMode}
                 playbookConfigured={share.liveReadiness?.playbookConfigured ?? false}
               />
-              <p className="text-body-xs text-ink-faint">
-                Start with their AI representative, or request {sender} when available.
-              </p>
             </div>
           </motion.div>
+
+          {humanCallActive && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 rounded-2xl border border-ink/20 bg-white/80 px-5 py-3.5 flex flex-col items-center gap-1"
+              role="status"
+            >
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full border border-ink" aria-hidden />
+                <span className="text-body-sm font-medium text-ink">Human call room</span>
+              </span>
+              <span className="text-body-xs text-ink-faint">Presence and microphone status appear below.</span>
+            </motion.div>
+          )}
 
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.35, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-6 rounded-2xl border border-cream-dark bg-white/70 p-4 space-y-3 mb-0"
+            className="mt-6 mb-0"
           >
-            <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium text-center">
+            <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium text-center mb-3">
               Choose how to continue
             </p>
-            <div className="flex flex-wrap items-center gap-3 justify-center">
-              {humanCallActive ? null : !live ? (
+            <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${bookingUrl ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+              <div className="rounded-2xl border border-cream-dark bg-white/70 p-4 flex flex-col">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${live ? "bg-accent" : "bg-accent/40"}`} aria-hidden />
+                  <p className="text-body-xs font-medium text-ink">Ask the AI representative</p>
+                </div>
+                <p className="text-body-xs text-ink-muted mb-3">Questions first, without scheduling</p>
+                <div className="mt-auto flex flex-wrap items-center gap-2">
+              {humanCallActive ? (
+                <p className="text-body-xs text-ink-faint">Human call controls are below.</p>
+              ) : !live ? (
                 handoffMeta && handoffMeta.options?.twin === false ? (
-                  <p className="text-body-sm text-ink-muted">The AI representative isn&apos;t configured for this link</p>
+                  <p className="text-body-sm text-ink-muted">Not configured for this link</p>
                 ) : (
                 <button
                   onClick={startSession}
                   disabled={starting}
                   aria-label={starting ? "Starting live conversation" : `Talk to ${sender}'s AI representative`}
-                  className="btn-press rounded-xl bg-accent text-white px-6 py-3 text-body-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="btn-press rounded-xl bg-accent text-white px-6 py-3 text-body-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-h-[44px]"
                 >
                   {starting ? (
                     <>
@@ -784,7 +822,7 @@ export default function LiveAvatarLandingPage({
                       <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M8 12.5a4.5 4.5 0 004.5-4.5M8 12.5a4.5 4.5 0 01-4.5-4.5M8 12.5V14m0-13v1.5" />
                       </svg>
-                      Talk to {sender}&apos;s AI representative
+                      Talk to {sender}&apos;s AI
                     </>
                   )}
                 </button>
@@ -795,14 +833,14 @@ export default function LiveAvatarLandingPage({
                   onClick={toggleTwinMic}
                   disabled={micBusy}
                   aria-label={micMuted ? "Unmute microphone" : "Mute microphone"}
-                  className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-4 py-3 text-body-sm font-medium hover:bg-white transition-colors flex items-center gap-2 disabled:opacity-50"
+                  className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-4 py-3 text-body-sm font-medium hover:bg-white transition-colors flex items-center gap-2 disabled:opacity-50 min-h-[44px]"
                 >
                   {micMuted ? "Unmute" : "Mute"}
                 </button>
                 <button
                   onClick={() => endSession("manual")}
                   aria-label="End live conversation"
-                  className="btn-press rounded-xl bg-warm text-white px-6 py-3 text-body-sm font-medium hover:bg-warm/90 transition-colors flex items-center gap-2"
+                  className="btn-press rounded-xl bg-warm text-white px-6 py-3 text-body-sm font-medium hover:bg-warm/90 transition-colors flex items-center gap-2 min-h-[44px]"
                 >
                   <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
                     <rect x="3" y="3" width="10" height="10" rx="2" />
@@ -811,10 +849,18 @@ export default function LiveAvatarLandingPage({
                 </button>
                 </>
               )}
-            </div>
-            {micError && (
-              <p role="alert" className="text-body-xs text-warm text-center">{micError}</p>
-            )}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-cream-dark bg-white/70 p-4 flex flex-col">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full bg-warm shrink-0" aria-hidden />
+                  <p className="text-body-xs font-medium text-ink break-words">Request {sender}</p>
+                </div>
+                <p className="text-body-xs text-ink-muted mb-1">
+                  When they&apos;re taking calls, send a request. They decide whether to join.
+                </p>
+                <div className="mt-auto">
             <CallRequestPanel
               shareId={share.id}
               liveSessionId={liveSessionInfo?.id}
@@ -857,8 +903,17 @@ export default function LiveAvatarLandingPage({
                 if (lkRoomRef.current) endSession("manual");
               }}
             />
-            {bookingUrl ? (
-              <div className="flex justify-center">
+                </div>
+              </div>
+
+              {bookingUrl ? (
+              <div className="rounded-2xl border border-cream-dark bg-white/70 p-4 flex flex-col">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full bg-ink shrink-0" aria-hidden />
+                  <p className="text-body-xs font-medium text-ink">Choose a time</p>
+                </div>
+                <p className="text-body-xs text-ink-muted mb-3">Opens {sender}&apos;s scheduling link</p>
+                <div className="mt-auto flex justify-start">
                 <button
                   onClick={() => {
                     if (share.mode === "reconnect") {
@@ -867,7 +922,7 @@ export default function LiveAvatarLandingPage({
                     handleBookingClick();
                   }}
                   aria-label={share.mode === "reconnect" ? `Let's catch up with ${sender}` : `Book time with ${sender}`}
-                  className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-5 py-2.5 text-body-sm font-medium hover:bg-white transition-colors flex items-center gap-2"
+                  className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-5 py-2.5 text-body-sm font-medium hover:bg-white transition-colors flex items-center gap-2 min-h-[44px]"
                 >
                   <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <rect x="2" y="3" width="12" height="11" rx="2" />
@@ -875,8 +930,13 @@ export default function LiveAvatarLandingPage({
                   </svg>
                   {share.mode === "reconnect" ? `Let's catch up with ${sender}` : `Book time with ${sender}`}
                 </button>
+                </div>
               </div>
-            ) : null}
+              ) : null}
+            </div>
+            {micError && (
+              <p role="alert" className="text-body-xs text-warm text-center mt-3">{micError}</p>
+            )}
           </motion.div>
 
           <div className={(starting || live || error) && !humanCallActive ? "relative mt-6" : "hidden"}>
@@ -931,6 +991,12 @@ export default function LiveAvatarLandingPage({
             </div>
           </motion.div>
           </div>
+
+          {(live || starting || humanCallActive) && (
+            <p className="mt-3 text-center text-body-xs text-ink-faint">
+              No camera needed. Microphone is active only during the conversation.
+            </p>
+          )}
 
           {(audioBlocked && (live || humanCallActive)) && (
             <div className="mt-3 flex justify-center">

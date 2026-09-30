@@ -215,3 +215,17 @@ The latest concurrency/lifecycle hardening pass was implemented without automate
 7. Worker: build a named image from the worker directory (`docker build -t nuncio-live-avatar workers/live-avatar` — installs the hash-locked `requirements.lock`, downloads the Silero resource at build time, runs non-root), then run it with the worker env (`docker run --env-file <worker-env> nuncio-live-avatar`) — confirm it fails closed on missing config/bad metadata, steps aside on `owner-*`, and shuts down promptly (no full idle wait after shutdown).
 8. Owner dashboard: availability toggle persists only after PATCH success, countdown ticks locally, accept/decline/join/poll failures surface safe errors.
 9. Handoff path (all untested this pass): `POST /api/agent/handoffs` with bearer + `NUNCIO_AGENT_WORKSPACE_ID`, open `#handoff=` link in a fresh browser — cookie exchange grants entry, revoking via DELETE denies new entry but does not force-end a connected call, expired invites show the unavailable state instead of polling forever, handoff context appears in the owner inbox as "Text conversation context" and reaches the twin prompt as untrusted data.
+
+## Frontend IA redesign manual checklist (user-owned)
+
+The frontend redesign (homepage journey illustration, `/dashboard?view=setup`, recipient front-door cards, first-touch list) was implemented without automated verification — the user owns testing. Nothing below has been run.
+
+1. Setup view: load `/dashboard?view=setup` — the panel loads saved values or reports a load error with Retry; save with/without a booking URL; non-HTTPS booking URLs are rejected client-side; the status checklist shows "unknown" when the brief fetch fails and never claims provider health.
+2. Keyboard: tab through the homepage `RelationshipJourney` — all four stage buttons and choice buttons are focusable, `aria-pressed` reflects the active stage, and no timer advances anything.
+3. Reduced motion: with `prefers-reduced-motion` on, the journey swaps stages without transforms/durations.
+4. Mobile + long names: narrow viewport and very long sender names wrap in the live front-door cards; touch targets ≥44px.
+5. Request states on `/live/[id]`: pending ≠ accepted ≠ joined; the "Human call room" banner marks the human phase (room open), while the joined/connected text inside `LiveCallRoom` is the only observed-presence claim.
+5b. Login return: sign out, visit `/dashboard?view=setup` → login → verify lands on setup (not studio); `/login?next=https://evil.example` falls back to `/studio`; invalid verify tokens return to login with `next` preserved.
+6. Stable video: starting/stopping the AI session and entering a human call never remounts the `<video>` element or `CallRequestPanel`.
+7. Consent: "Draft brief" only sends dialogue after explicit click; the skip path ("Request … now") is never blocked by brief drafting.
+8. Copied links: "Copy link" on the dashboard only appears for ordinary shares; invitation-protected handoffs show "Owner view" and never offer a copyable link missing its fragment.
