@@ -11,6 +11,8 @@
 
 Recorded video is the fallback artifact inside the live link. Live conversation is the product. The `SenderPlaybook` is the compounding moat. The schlep (latency, guardrails, booking, compliance) is the barrier to entry.
 
+The SDR opens the relationship; the twin maintains continuity; the actual sender joins when both parties want to talk. The card/live link is a personal front door, not a compulsory AI qualification step. Recipients can ask the twin, request the sender now, or choose a time. Availability is an explicit expiring sender setting, never inferred from a calendar gap. No promise of human availability or connection before owner acceptance and actual room presence. The twin is a bridge to the sender, not a replacement.
+
 ---
 
 ## Incumbent orthodoxies (what we attack)
@@ -18,14 +20,14 @@ Recorded video is the fallback artifact inside the live link. Live conversation 
 | Player | Core belief | Hidden assumption |
 |---|---|---|
 | **11x / Artisan** | SDR labor can be replaced by a fictional AI "employee" | Disguise works; volume still compounds; sender identity doesn't matter |
-| **Tavus / HeyGen** | Video is a *medium upgrade* over email; scale one recording into 1,000 variants | One-way is enough; the artifact is an ad for a later conversation |
+| **Tavus / HeyGen / Synthesia** | Avatars are a *medium upgrade* over email; scale one recording into 1,000 variants | The avatar is the product; vendor APIs already expose conversation/tooling primitives — the differentiation is the authorized sender's judgment, workflow, and human handoff, not exclusive realtime capability |
 | **Both camps** | The game is "get attention at scale" | Attention isn't scarce anymore — *credibility* is |
 
 ## The secrets
 
 Evaluated on four criteria: contrary to incumbent beliefs, plausibly true, actionable now, monopoly-accumulating when acted on.
 
-- **S1 — Identity is the product, not the labor.** *(core)* In a world of infinite generated content, the only unforgeable asset in sales is a real person's verified identity and judgment. Prospects don't want to meet an AI employee — they want the person who can actually say yes. Founders *are* that person; today their presence doesn't scale. 11x can't copy this without killing their "fire your SDRs" pitch; Tavus can't because their model is one-actor-many-variants, not one-sender-real-conversation.
+- **S1 — Identity is the product, not the labor.** *(core)* In a world of infinite generated content, the only unforgeable asset in sales is a real person's verified identity and judgment. Prospects don't want to meet an AI employee — they want the person who can actually say yes. Founders *are* that person; today their presence doesn't scale. 11x can't copy this without killing their "fire your SDRs" pitch; Avatar vendors already supply conversation and tools; nuncio's bet is that approved sender judgment, relationship context, and the human handoff form a differentiated workflow, not an exclusive rendering capability.
 - **S2 — Honest AI beats disguised AI.** 11x's model depends on the prospect initially believing a human wrote the email — a decaying asset (detection improves, backlash grows, regulation arrives: CA SB 1001, EU AI Act transparency). Disclosure is a *feature*: "This is my AI twin, trained on my face, voice and playbook, so you can get real answers at 11pm" builds more trust than a fake human email.
 - **S3 — The demo is the first call.** Every outbound artifact today is an advertisement for a future conversation. The live link collapses the two: the artifact *is* the conversation. The funnel step "get them to agree to a call" disappears — the call starts at first touch, on the prospect's schedule, with booking inside the conversation.
 - **S4 — Prospects prefer the founder's twin to the founder's calendar.** *(behavioral bet, cheap to test)* Scheduling is friction. A twin available at 11pm that answers without pressure and lets the prospect self-qualify may convert better than a Calendly link. If false: retreat to recorded video + booking CTA, lose little.
@@ -92,6 +94,7 @@ Concentric expansion (gated on Phase 2 results): founders → high-ticket servic
 
 ## Scoreboard
 - **North star:** meetings booked per artifact sent (`booking_clicked` ÷ artifacts sent).
+- **Call-request metrics** (the twin→human bridge): call-request acceptance = accepted requests / created requests; connection success = requests with both authenticated owner and recipient observed in room / accepted requests; owner response latency = acceptedAt - createdAt; human connection latency = first joint room presence - createdAt. Booking clicks are a proxy, not confirmed meetings. These definitions are fixed; no new thresholds until the pilot produces data.
 - Conversation-start rate (`live_session_connected` ÷ live-link page loads) and median turns (`LiveSessionRecord.metrics.userTurns`) on live links.
 - Question-topic distribution (`metrics.questionTopics`) → playbook coverage gaps.
 - Video control arm: `video_watch_through` rate for P-b comparison.

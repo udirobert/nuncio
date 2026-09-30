@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { createClient, AnamEvent, type AnamClient, type Message } from "@anam-ai/js-sdk";
+import { Room, RoomEvent, type Participant, type TranscriptionSegment } from "livekit-client";
 import type { ShareRecord } from "@/lib/artifacts";
 import {
   trackBookingClicked,
@@ -19,6 +20,7 @@ import { LIVE_SESSION_MAX_DURATION_MS } from "@/lib/live-link";
 import { classifyQuestionTopics } from "@/lib/live-topics";
 import { LottieIcon } from "@/components/lottie-icon";
 import { SenderTrustBadge } from "@/components/sender-trust-badge";
+import { CallRequestPanel } from "@/components/call-request-panel";
 
 export default function LiveAvatarLandingPage({
   params,
@@ -36,10 +38,19 @@ export default function LiveAvatarLandingPage({
   const [retryCount, setRetryCount] = useState(0);
   const [live, setLive] = useState(false);
   const clientRef = useRef<AnamClient | null>(null);
+  const lkRoomRef = useRef<Room | null>(null);
+  const [lkTwin, setLkTwin] = useState<{ room: Room; roomName: string } | null>(null);
+  const humanHandoffRef = useRef(false);
+  const seenSegmentsRef = useRef<Set<string>>(new Set());
+  const lkAudioContainerRef = useRef<HTMLDivElement | null>(null);
+  const providerRef = useRef<"anam" | "synthesia" | null>(null);
   const startedRef = useRef(false);
   const shareIdRef = useRef<string | null>(null);
   const liveSessionIdRef = useRef<string | null>(null);
   const liveSessionSyncTokenRef = useRef<string | null>(null);
+  const [liveSessionInfo, setLiveSessionInfo] = useState<{ id: string; syncToken: string } | null>(null);
+  const [humanCallActive, setHumanCallActive] = useState(false);
+  const [audioBlocked, setAudioBlocked] = useState(false);
   const sessionStartedAtRef = useRef<number | null>(null);
   const sessionSyncedRef = useRef(false);
   const maxDurationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -86,7 +97,7 @@ export default function LiveAvatarLandingPage({
     load();
   }, [params]);
 
-  const recordSessionEnd = useCallback((reason: "manual" | "provider_closed" | "max_duration" | "unload") => {
+  const recordSessionEnd = useCallback((reason: "manual" | "provider_closed" | "max_duration" | "unload" | "human_handoff") => {
     const shareId = shareIdRef.current;
     const sessionId = liveSessionIdRef.current;
     const startedAt = sessionStartedAtRef.current;
@@ -222,10 +233,37 @@ export default function LiveAvatarLandingPage({
     window.open(url, "_blank", "noopener,noreferrer");
   }, [sendHeartbeat]);
 
-  const endSession = useCallback((reason: "manual" | "provider_closed" | "max_duration" | "unload" = "manual") => {
+  const endSession = useCallback((reason: "manual" | "provider_closed" | "max_duration" | "unload" | "human_handoff" = "manual") => {
     clearMaxDurationTimer();
     clearHeartbeatTimer();
     recordSessionEnd(reason);
+    if (reason === "human_handoff") {
+      humanHandoffRef.current = true;
+      setLiveSessionInfo(null);
+      setLive(false);
+      return;
+    }
+    setLiveSessionInfo(null);
+
+    if (lkRoomRef.current) {
+      const room = lkRoomRef.current;
+      try {
+        room.localParticipant.getTrackPublications().forEach((publication) => {
+          publication.track?.stop();
+        });
+        room.disconnect();
+      } catch {
+        // best-effort cleanup
+      } finally {
+        lkRoomRef.current = null;
+        setLkTwin(null);
+        providerRef.current = null;
+        startedRef.current = false;
+        setLive(false);
+        setStatus("Click below to start the live conversation");
+        setLiveSessionInfo(null);
+      }
+    }
 
     if (clientRef.current) {
       try {
@@ -233,7 +271,6 @@ export default function LiveAvatarLandingPage({
         clientRef.current.stopStreaming?.();
         (clientRef.current as { disconnect?: () => void }).disconnect?.();
       } catch {
-        // best-effort cleanup
       } finally {
         clientRef.current = null;
         startedRef.current = false;
@@ -270,6 +307,9 @@ export default function LiveAvatarLandingPage({
     liveSessionIdRef.current = null;
     liveSessionSyncTokenRef.current = null;
     sessionSyncedRef.current = false;
+    humanHandoffRef.current = false;
+    seenSegmentsRef.current.clear();
+    setLkTwin(null);
     // Fresh per-session instrumentation; a pre-session booking click carries over.
     metricsRef.current = {
       userTurns: 0,
@@ -325,10 +365,103 @@ export default function LiveAvatarLandingPage({
         throw new Error(data.error || "Could not start live session");
       }
 
-      const data = (await res.json()) as { sessionToken: string; sessionId: string; syncToken: string };
+      const data = (await res.json()) as {
+        provider?: "anam" | "synthesia";
+        sessionToken?: string;
+        serverUrl?: string;
+        participantToken?: string;
+        roomName?: string;
+        sessionId: string;
+        syncToken: string;
+      };
       liveSessionIdRef.current = data.sessionId;
       liveSessionSyncTokenRef.current = data.syncToken;
-      const client = createClient(data.sessionToken);
+      setLiveSessionInfo({ id: data.sessionId, syncToken: data.syncToken });
+
+      if (data.provider === "synthesia" && data.serverUrl && data.participantToken) {
+        providerRef.current = "synthesia";
+        const room = new Room({ adaptiveStream: true, dynacast: true });
+        lkRoomRef.current = room;
+        const videoEl = document.getElementById("anam-video") as HTMLVideoElement | null;
+
+        room.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => {
+          if (track.kind === "video" && videoEl && participant.identity === "synthesia-avatar-agent") {
+            track.attach(videoEl);
+          } else if (track.kind === "audio") {
+            const element = track.attach();
+            element.autoplay = true;
+            lkAudioContainerRef.current?.appendChild(element);
+          }
+        });
+        room.on(RoomEvent.TrackUnsubscribed, (track) => {
+          track.detach().forEach((element) => element.remove());
+        });
+        room.on(RoomEvent.TranscriptionReceived, (segments: TranscriptionSegment[], participant?: Participant) => {
+          if (humanHandoffRef.current) return;
+          const metrics = metricsRef.current;
+          const isRecipient = participant?.identity?.startsWith("guest-") || participant === room.localParticipant;
+          for (const segment of segments) {
+            if (!segment.final || seenSegmentsRef.current.has(segment.id)) continue;
+            seenSegmentsRef.current.add(segment.id);
+            if (isRecipient) {
+              metrics.userTurns += 1;
+              for (const topic of classifyQuestionTopics(segment.text)) {
+                metrics.topics.add(topic);
+              }
+              if (!metrics.firstUserTurnAt) {
+                metrics.firstUserTurnAt = new Date().toISOString();
+                metrics.lastEvent = "first_user_turn";
+              } else {
+                metrics.lastEvent = "conversation";
+              }
+            } else {
+              metrics.agentTurns += 1;
+            }
+          }
+        });
+        room.on(RoomEvent.AudioPlaybackStatusChanged, () => {
+          setAudioBlocked(!room.canPlaybackAudio);
+        });
+        room.on(RoomEvent.Disconnected, () => {
+          if (humanHandoffRef.current) {
+            lkRoomRef.current = null;
+            setLkTwin(null);
+            providerRef.current = null;
+            startedRef.current = false;
+            return;
+          }
+          clearMaxDurationTimer();
+          clearHeartbeatTimer();
+          recordSessionEnd("provider_closed");
+          lkRoomRef.current = null;
+          setLkTwin(null);
+          providerRef.current = null;
+          startedRef.current = false;
+          setStatus("Session ended");
+          setLive(false);
+          setLiveSessionInfo(null);
+        });
+
+        await room.connect(data.serverUrl, data.participantToken, { autoSubscribe: true });
+        await room.localParticipant.setMicrophoneEnabled(true);
+        setAudioBlocked(!room.canPlaybackAudio);
+        setLkTwin({ room, roomName: data.roomName || `nuncio-live-${data.sessionId}` });
+        sessionStartedAtRef.current = Date.now();
+        trackLiveSessionConnected({ shareId: id });
+        setRetryCount(0);
+        maxDurationTimerRef.current = setTimeout(() => {
+          setStatus("Session limit reached");
+          endSession("max_duration");
+        }, LIVE_SESSION_MAX_DURATION_MS);
+        heartbeatTimerRef.current = setInterval(sendHeartbeat, 15_000);
+        setStatus("Connected — say hello!");
+        setLive(true);
+        startedRef.current = true;
+        return;
+      }
+
+      const client = createClient(data.sessionToken as string);
+      providerRef.current = "anam";
       clientRef.current = client;
 
       client.addListener(AnamEvent.CONNECTION_ESTABLISHED, () => {
@@ -365,6 +498,7 @@ export default function LiveAvatarLandingPage({
       sessionStartedAtRef.current = null;
       liveSessionIdRef.current = null;
       liveSessionSyncTokenRef.current = null;
+      setLiveSessionInfo(null);
       sessionSyncedRef.current = false;
       if (clientRef.current) {
         try {
@@ -372,9 +506,21 @@ export default function LiveAvatarLandingPage({
           clientRef.current.stopStreaming?.();
           (clientRef.current as { disconnect?: () => void }).disconnect?.();
         } catch {
-          // best-effort cleanup after a failed start
         }
         clientRef.current = null;
+      }
+      // best-effort cleanup after a failed start
+      if (lkRoomRef.current) {
+        try {
+          lkRoomRef.current.localParticipant.getTrackPublications().forEach((publication) => {
+            publication.track?.stop();
+          });
+          lkRoomRef.current.disconnect();
+        } catch {
+        }
+        lkRoomRef.current = null;
+        setLkTwin(null);
+        providerRef.current = null;
       }
       trackLiveSessionFailed({ shareId: id, reason: message });
       const newRetryCount = retryCount + 1;
@@ -472,15 +618,17 @@ export default function LiveAvatarLandingPage({
             <div className="absolute -inset-3 rounded-3xl bg-cream-dark/60 -z-10 transform rotate-1" />
             <div className="absolute -inset-1.5 rounded-3xl bg-cream-dark -z-5 transform -rotate-0.5" />
 
-            <div className="aspect-video w-full rounded-2xl overflow-hidden bg-ink shadow-2xl shadow-ink/20 ring-1 ring-ink/5 flex items-center justify-center">
-              {live ? (
-                <video
-                  id="anam-video"
-                  autoPlay
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
-              ) : (
+            <div className="aspect-video w-full rounded-2xl overflow-hidden bg-ink shadow-2xl shadow-ink/20 ring-1 ring-ink/5 flex items-center justify-center relative">
+              {/* The video element mounts before any SDK stream — the Anam and
+                  LiveKit attach calls need a stable target. */}
+              <video
+                id="anam-video"
+                autoPlay
+                playsInline
+                className={`absolute inset-0 w-full h-full object-cover ${live ? "" : "invisible"}`}
+              />
+              <div ref={lkAudioContainerRef} aria-hidden className="hidden" />
+              {!live && (
                 <div className="text-center text-cream/80 px-6">
                   <div className="w-16 h-16 mx-auto rounded-full bg-cream/10 flex items-center justify-center mb-4">
                     <svg viewBox="0 0 24 24" className="w-8 h-8 text-cream" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -517,7 +665,7 @@ export default function LiveAvatarLandingPage({
             transition={{ delay: 0.35, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             className="mt-6 flex items-center gap-3 justify-center"
           >
-            {!live ? (
+            {humanCallActive ? null : !live ? (
               <button
                 onClick={startSession}
                 disabled={starting || errorReason === "provider"}
@@ -581,6 +729,49 @@ export default function LiveAvatarLandingPage({
               </button>
             </motion.div>
           )}
+
+          {(audioBlocked && (live || humanCallActive)) && (
+            <div className="mt-3 flex justify-center">
+              <button
+                onClick={() => {
+                  void lkRoomRef.current?.startAudio().finally(() => {
+                    setAudioBlocked(!(lkRoomRef.current?.canPlaybackAudio ?? true));
+                  });
+                }}
+                className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-4 py-2 text-body-xs font-medium hover:bg-white transition-colors"
+              >
+                Enable audio
+              </button>
+            </div>
+          )}
+
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <CallRequestPanel
+              shareId={share.id}
+              liveSessionId={liveSessionInfo?.id}
+              syncToken={liveSessionInfo?.syncToken}
+              senderName={sender}
+              twinRoom={lkTwin?.room ?? null}
+              twinRoomName={lkTwin?.roomName ?? null}
+              onOwnerPresent={() => {
+                setHumanCallActive(true);
+                endSession("human_handoff");
+              }}
+              onHumanRoomConnected={() => {
+                setHumanCallActive(true);
+                if (providerRef.current) endSession("manual");
+              }}
+              onCallEnded={() => {
+                setHumanCallActive(false);
+                humanHandoffRef.current = false;
+                if (lkRoomRef.current) endSession("manual");
+              }}
+            />
+          </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 16 }}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readAccountSession } from "@/lib/auth/session";
 import { getAccountStorageProvider } from "@/lib/storage";
 import { isLiveLinkEnabled } from "@/lib/live-link";
+import { browserMutationAllowed } from "@/lib/call-request";
 
 export async function GET(request: NextRequest) {
   const session = readAccountSession(request);
@@ -31,6 +32,8 @@ export async function GET(request: NextRequest) {
     bookingUrl: workspace.bookingUrl || null,
     anamAvatarId: workspace.anamAvatarId || null,
     anamVoiceId: workspace.anamVoiceId || null,
+    synthesiaAvatarId: workspace.synthesiaAvatarId || null,
+    liveVoiceId: workspace.liveVoiceId || null,
     // STRATEGY Phase 1: live link is the default primary artifact.
     deliveryMode: workspace.deliveryMode === "livelink" && !isLiveLinkEnabled()
       ? "video"
@@ -44,14 +47,23 @@ export async function PATCH(request: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+  if (!browserMutationAllowed(request, true)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const body = await request.json();
-  const { senderBrief, senderName, senderBusiness, senderBrand, senderPersonality, senderAudience, senderOffer, senderProofPoints, playbookWants, playbookOffer, playbookWiggleRoom, playbookConstraints, bookingUrl, deliveryMode, anamAvatarId, anamVoiceId } = body;
+  const { senderBrief, senderName, senderBusiness, senderBrand, senderPersonality, senderAudience, senderOffer, senderProofPoints, playbookWants, playbookOffer, playbookWiggleRoom, playbookConstraints, bookingUrl, deliveryMode, anamAvatarId, anamVoiceId, synthesiaAvatarId, liveVoiceId } = body;
 
   const provider = getAccountStorageProvider();
   const workspace = await provider.getWorkspace(session.workspaceId);
   if (!workspace) {
     return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+  }
+  if (
+    workspace.ownerUserId !== session.userId
+    && (typeof synthesiaAvatarId === "string" || typeof liveVoiceId === "string")
+  ) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const updates: Record<string, string> = {};
@@ -78,6 +90,24 @@ export async function PATCH(request: NextRequest) {
   }
   if (typeof anamAvatarId === "string") updates.anamAvatarId = anamAvatarId;
   if (typeof anamVoiceId === "string") updates.anamVoiceId = anamVoiceId;
+  if (typeof synthesiaAvatarId === "string") {
+    const trimmed = synthesiaAvatarId.trim();
+    if (!trimmed) {
+      updates.synthesiaAvatarId = "";
+    } else if (/^av_[A-Za-z0-9_-]{1,64}$/.test(trimmed)) {
+      updates.synthesiaAvatarId = trimmed;
+    } else {
+      return NextResponse.json({ error: "synthesiaAvatarId must be an interactive avatar ID (av_*)" }, { status: 400 });
+    }
+  }
+  if (typeof liveVoiceId === "string") {
+    const trimmed = liveVoiceId.trim();
+    if (!trimmed || /^[A-Za-z0-9_-]{1,64}$/.test(trimmed)) {
+      updates.liveVoiceId = trimmed;
+    } else {
+      return NextResponse.json({ error: "liveVoiceId must be an ElevenLabs voice ID" }, { status: 400 });
+    }
+  }
 
   await provider.updateWorkspace(session.workspaceId, updates);
 

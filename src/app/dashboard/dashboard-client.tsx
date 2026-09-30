@@ -9,6 +9,7 @@ import { RecentVideos } from "./components/recent-videos";
 import { QuickActions } from "./components/quick-actions";
 import { UsageSummary } from "./components/usage-summary";
 import { ScoreboardCard } from "./components/scoreboard-card";
+import { CallRequestsCard } from "./components/call-requests-card";
 import { OnboardingModal } from "@/components/onboarding-modal";
 import Link from "next/link";
 import { LottieIcon } from "@/components/lottie-icon";
@@ -103,6 +104,14 @@ export default function DashboardClient() {
             transition={{ duration: 0.4, delay: 0.15 }}
           >
             <ScoreboardCard />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.18 }}
+          >
+            <CallRequestsCard />
           </motion.div>
 
           <motion.div

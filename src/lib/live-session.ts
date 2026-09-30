@@ -17,7 +17,8 @@ export type LiveSessionEndReason =
   | "unload"
   | "start_failed"
   | "expired"
-  | "idle_timeout";
+  | "idle_timeout"
+  | "human_handoff";
 
 const reconciliationLocks = new Map<string, Promise<LiveSessionRecord>>();
 
@@ -34,6 +35,7 @@ export async function createLiveSessionRecord(input: {
   shareId: string;
   workspaceId?: string;
   reservationId?: string;
+  provider?: string;
   syncTokenHash: string;
   reservedCredits: number;
   creditsEnforced: boolean;
@@ -44,7 +46,7 @@ export async function createLiveSessionRecord(input: {
     workspaceId: input.workspaceId,
     reservationId: input.reservationId,
     syncTokenHash: input.syncTokenHash,
-    provider: "anam",
+    provider: input.provider || "anam",
     reservedCredits: input.reservedCredits,
     chargedCredits: input.reservedCredits,
     creditsEnforced: input.creditsEnforced,

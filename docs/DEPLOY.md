@@ -17,8 +17,9 @@ Never commit `.env.local` or push secrets to your repository.
 
 ### API key hygiene
 
-- Each API key used by nuncio (TinyFish, Anthropic, Featherless, HeyGen, Anam, Speechmatics, Turso)
-  grants access to a paid service. Treat them as credentials, not configuration.
+- Each API key used by nuncio (TinyFish, Anthropic, Featherless, HeyGen, Anam, Synthesia,
+  ElevenLabs, LiveKit, Speechmatics, Turso) grants access to a paid service. Treat them as
+  credentials, not configuration.
 - Rotate keys if they are ever exposed in logs, error messages, or commit history.
 - The `NEXT_PUBLIC_*` prefix in Next.js exposes variables to the browser. Only use it for values
   that are safe to share (app URL, PostHog host). API keys are **never** prefixed with `NEXT_PUBLIC_`.
@@ -33,7 +34,9 @@ API routes implement per-IP sliding-window rate limits (`src/lib/rate-limit.ts`)
 - Transcription: 10 req/min
 - Live avatar session: 3 req/min
 
-LiveLink is a tightly controlled pilot. It requires `NUNCIO_LIVELINK_ENABLED=true` plus a non-empty `NUNCIO_LIVELINK_WORKSPACE_IDS` and/or `NUNCIO_LIVELINK_SENDER_EMAILS` allowlist; otherwise it fails closed. The browser caps sessions at five minutes and syncs terminal lifecycle events using a per-session token. The server stores durable session records, permits only one open session per link, and reserves a five-credit maximum; provider-start failures refund, while client-reported duration is telemetry only because Anam has no server-authoritative duration endpoint. Configure a scheduler to POST `/api/live/expire` with `Authorization: Bearer $NUNCIO_LIVELINK_CRON_TOKEN` at least every minute. For multi-instance deployments, configure Turso; file-based live-session admission and billing idempotency locks are process-local and are intended only for a single app process. If a reservation/refund write fails, reconcile the affected reservation before re-enabling the pilot. Idle timeout and recorded-video fallback remain future work. Do not open the feature broadly until those controls and a fallback are in place.
+LiveLink is a tightly controlled pilot. It requires `NUNCIO_LIVELINK_ENABLED=true` plus a non-empty `NUNCIO_LIVELINK_WORKSPACE_IDS` and/or `NUNCIO_LIVELINK_SENDER_EMAILS` allowlist; otherwise it fails closed. The browser caps sessions at five minutes and syncs terminal lifecycle events using a per-session token. The server stores durable session records, permits only one open session per link, and reserves a five-credit maximum; provider-start failures refund, while client-reported duration is telemetry only because Anam has no server-authoritative duration endpoint. The Synthesia worker also enforces a five-minute maximum, three-minute idle timeout, and 45-second recipient reconnect grace. The live page falls back to `/v/[id]` after a provider failure or repeated connection failure; microphone-denied remains an explicit in-page recovery path. Configure a scheduler to POST `/api/live/expire` with `Authorization: Bearer $NUNCIO_LIVELINK_CRON_TOKEN` at least every minute. For multi-instance deployments, configure Turso; file-based live-session admission and billing idempotency locks are process-local and are intended only for a single app process. If a reservation/refund write fails, reconcile the affected reservation before re-enabling the pilot. Keep LiveLink disabled until the Synthesia/LiveKit path and worker have been live-verified.
+
+Recipient→owner call requests additionally require the LiveKit trio above plus explicit owner availability (`/api/live/availability`); they fail closed without them. The Synthesia path also requires the `workers/live-avatar` Python worker running against the same LiveKit project; without it the route falls back to Anam. Direct human calls reserve no avatar credits; LiveKit transport is metered separately.
 
 By default, limits are stored in-memory and reset on server restart. For multi-instance or
 production deployments, enable Redis-backed rate limiting:
@@ -148,7 +151,7 @@ HEYGEN_API_KEY=
 HEYGEN_AVATAR_ID=
 HEYGEN_VOICE_ID=
 
-# Anam — gated LiveLink avatar sessions (keep disabled until pilot controls are ready)
+# Anam — gated LiveLink avatar sessions (startup fallback; keep disabled until live-verified)
 ANAM_API_KEY=
 ANAM_AVATAR_ID=
 ANAM_VOICE_ID=
@@ -159,6 +162,46 @@ NUNCIO_LIVELINK_ENABLED=false
 NUNCIO_LIVELINK_WORKSPACE_IDS=
 NUNCIO_LIVELINK_SENDER_EMAILS=
 NUNCIO_LIVELINK_CRON_TOKEN=
+
+# Synthesia / LiveKit live twin (primary live provider)
+# Customer-owned LiveKit project; also required for recipient→owner call requests.
+LIVEKIT_URL=
+LIVEKIT_API_KEY=
+LIVEKIT_API_SECRET=
+# Primary provider: 'synthesia' (default) or 'anam'; the other is the startup fallback.
+NUNCIO_LIVE_PRIMARY_PROVIDER=synthesia
+# Enable Synthesia path on the Next server (worker must also be running).
+NUNCIO_SYNTHESIA_WORKER_ENABLED=false
+# Fallback interactive avatar id (must be an eligible 'av_*' personal/synthetic ID;
+# stock actor avatars are not eligible). Workspace synthesiaAvatarId takes precedence.
+SYNTHESIA_AVATAR_ID=
+# Fallback ElevenLabs voice id for the twin; workspace liveVoiceId takes precedence.
+ELEVENLABS_VOICE_ID=
+# Shared bearer token between the Python worker and /api/live/agent/chat/completions.
+NUNCIO_LIVE_WORKER_TOKEN=
+# Public app URL used by the worker to reach the gateway.
+APP_URL=
+
+# Python worker (workers/live-avatar/agent.py) env — set on the worker host only,
+# never on the Next server: SYNTHESIA_API_KEY, LIVEKIT_URL, LIVEKIT_API_KEY,
+# LIVEKIT_API_SECRET, ELEVENLABS_API_KEY, NUNCIO_LIVE_WORKER_TOKEN, APP_URL.
+# Run: cd workers/live-avatar && pip install --require-hashes -r requirements.lock && python agent.py start
+# Container: docker build -t nuncio-live-avatar workers/live-avatar
+#            docker run --env-file <path-to-worker-env-file> nuncio-live-avatar
+#            (env file lives outside the repo — it must not be committed)
+# (non-root; Silero model files downloaded at image build; CMD is 'agent.py start').
+# LiveKit transport is metered in addition to Synthesia minutes.
+
+# LiveKit webhook (presence + room lifecycle): configure the LiveKit project to
+# POST events to https://your-domain.com/api/live/call-requests/webhook — it is
+# authenticated with the same LIVEKIT_API_KEY/LIVEKIT_API_SECRET pair via the
+# webhook Authorization header. Unsigned/unverifiable events are rejected (401).
+
+# Scheduler: POST /api/live/expire every minute with
+# 'Authorization: Bearer $NUNCIO_LIVELINK_CRON_TOKEN'. It expires stale twin
+# sessions AND sweeps call-request rooms (expired opens + terminal rooms missing
+# roomClosedAt), so accepted-call duration is bounded by the cleanup cadence,
+# not just the join-token TTL.
 
 # Speechmatics — speech-to-text
 SPEECHMATICS_API_KEY=

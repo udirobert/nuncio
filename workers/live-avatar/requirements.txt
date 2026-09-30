@@ -1,0 +1,7 @@
+livekit-agents==1.8.2
+livekit-plugins-synthesia==1.8.2
+livekit-plugins-elevenlabs==1.8.2
+livekit-plugins-openai==1.8.2
+livekit-plugins-silero==1.8.2
+livekit-api==1.2.1
+openai[realtime]==2.50.0

@@ -117,6 +117,26 @@ The happy path is: enter URLs → review script → render video → copy link. 
 
 ---
 
+## Live call-request UX (twin → human bridge)
+
+Per `docs/STRATEGY.md`, the live link is a personal front door — the recipient can ask the twin, request the sender now, or book time. The UI must never blur "request sent," "request accepted," and "sender is actually in the room."
+
+### Recipient (`CallRequestPanel` on `/live/[id]`)
+- Compact card below the twin controls; cream surface, Instrument Serif headline, muted mono labels — no new visual language.
+- States: `Request a call now` → `Waiting for {sender} to respond` (pending, poll every 3s) → `Request accepted — connect` → `Waiting for {sender} to join` → `{sender} joined` (only on observed room presence, never on acceptance).
+- Declined/expired states collapse back to the twin + booking-link alternatives — never a dead end.
+- Microphone access only on explicit "Connect" click; no camera, ever. Autoplay-blocked audio shows a visible "Enable audio" control.
+- Request capability token lives in memory only — never in the URL or localStorage.
+
+### Owner (`CallRequestsCard` on `/dashboard`)
+- Availability toggle is explicit and expiring ("Available for calls — 15 min"), never inferred from a calendar. Pending requests list with accept/decline; accepted state shows a "Join call" button — no automatic mic/camera prompts.
+- Owner-facing setup fields (`synthesiaAvatarId` `av_*`, `liveVoiceId`) are labeled pilot fields inside the same card.
+
+### Shared room (`LiveCallRoom`)
+- One component for owner and recipient; distinct LiveKit identities (`owner-<userId>` / `recipient-<requestId>`), audio-only publish grants.
+
+---
+
 ## Component inventory
 
 ### Input form

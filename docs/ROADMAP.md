@@ -35,34 +35,40 @@ nuncio's thesis is that the scarce resource in sales is no longer attention but 
 
 ### Conversational SDR / LiveLink
 
-Per `docs/STRATEGY.md`, the live link is becoming the **primary artifact** with recorded video as its fallback (STRATEGY Phase 1). Provider posture: **HeyGen remains the default recorded-video layer; Anam is the experimental live-conversation layer**, opt-in via `NUNCIO_LIVELINK_ENABLED=true` and limited to one sender during validation. HeyGen LiveAvatar Lite is retained as fallback vendor; do not build both live providers during the first experiment.
+Per `docs/STRATEGY.md`, the live link is becoming the **primary artifact** with recorded video as its fallback (STRATEGY Phase 1). Provider posture (updated 2026-09): **Synthesia Interactive Avatars via customer-owned LiveKit is the primary live provider, Anam is the startup fallback** (`NUNCIO_LIVE_PRIMARY_PROVIDER` defaults to `synthesia`); **HeyGen remains the default recorded-video layer** and the artifact fallback. Live stays opt-in via `NUNCIO_LIVELINK_ENABLED=true` and limited to allowlisted senders during validation. LiveLink is locally implemented for Synthesia routing but **pending account setup**: no LiveKit project or eligible `av_*` interactive avatar exists yet — live verification is outstanding.
 
 The next goal is not broad commercialization; it is to prove that an honest, disclosed AI twin of the sender increases qualified conversations and booked meetings enough to justify live-session cost and operational complexity (see STRATEGY falsification criteria).
 
 #### LiveLink decision gate
 
 - **Default:** recorded HeyGen video remains available and unchanged.
-- **Experimental path:** Anam LiveLink is now opt-in via `NUNCIO_LIVELINK_ENABLED=true`; keep it limited to one sender during validation. Workspace/sender allowlisting remains planned.
-- **Fallback (planned):** if the live session fails, expires, or is unavailable, preserve the recorded share experience rather than showing a dead end.
+- **Experimental path:** Synthesia/LiveKit is the primary live path and Anam is the startup fallback; LiveLink stays opt-in via `NUNCIO_LIVELINK_ENABLED=true` and workspace/sender allowlists, limited to one sender during validation.
+- **Fallback:** provider startup failure falls back from Synthesia to Anam only after confirmed cleanup; a failed live path preserves the recorded `/v/[id]` share experience rather than showing a dead end.
 - **Commercial posture:** do not call LiveLink a paid upsell until the pilot demonstrates conversion lift, acceptable latency, predictable cost per booked meeting, and safe playbook adherence.
-- **Fallback vendor:** retain HeyGen LiveAvatar Lite as a later option; do not build both live providers during the first experiment.
+- **Fallback vendor:** retain HeyGen LiveAvatar Lite as a later option; do not build additional live providers during the first experiment.
+
+#### Twin → human bridge (call requests)
+
+First local slice is implemented: recipient-side `CallRequestPanel` on `/live/[id]` ("Request a call now" → pending → accepted → joined), owner-side `CallRequestsCard` on `/dashboard` (explicit expiring availability toggle + accept/decline + join), durable `CallRequestRecord` storage (file + Turso, versioned CAS), and a shared `LiveCallRoom` LiveKit component for both parties. Room presence — not acceptance — is "joined," now recorded server-side via a presence endpoint + signed LiveKit webhook feeding the frozen `call-connection` metrics module. Room lifecycle is hardened: accepts claim before creating unique rooms, terminal requests share one idempotent cleanup path, and reused twin rooms are protected while an accepted call is active. Owner notifications are **dashboard polling only**; Plow push notification is still next (no Plow backend/push or phone-voice interface is known — both remain blocked, no generic webhook proxy invented). Accepted calls may reuse the Synthesia LiveKit room; direct human calls never touch avatar credits.
+
+Remaining for the pilot: live end-to-end verification (needs LiveKit project + `av_*` avatar + worker deploy — the hardening pass was **implemented without automated verification**, manual checklist in `docs/TESTING.md`), push notifications, and scheduling ("choose a time").
 
 #### LiveLink implementation plan
 
-**Phase 0 — Stabilise the existing path**
+**Phase 0 — Stabilise the provider path**
 
-- Confirm `/live/[id]`, `/api/live/session`, Anam SDK versions, and required production secrets.
-- ✅ Keep Anam disabled by default behind the server-side `NUNCIO_LIVELINK_ENABLED` gate.
-- Add provider-neutral session status/error handling so the share link can fall back to the recorded video (planned; current page still shows retry/error state).
+- Confirm `/live/[id]`, `/api/live/session` provider routing, the `workers/live-avatar` LiveKit worker, webhook delivery, and required production secrets.
+- ✅ Keep all live providers disabled by default behind the server-side `NUNCIO_LIVELINK_ENABLED` gate.
+- ✅ Provider-neutral session routing is implemented: Synthesia primary, Anam after confirmed Synthesia cleanup, recorded `/v/[id]` as the artifact fallback.
 - Keep the existing research → synthesis → Sender Playbook pipeline as the single source of context.
 
 **Phase 1 — Make the experiment safe and measurable**
 
-- ✅ Add server-side feature gating and a five-minute browser-side maximum session duration; workspace/sender allowlisting remains.
-- Add idle timeout and server-side cleanup/reconciliation; the current cap and client cleanup are spend guardrails, not duration-aware billing.
-- ✅ Add client-side lifecycle analytics for requested, connected, ended, and failed sessions; durable server-side duration/provider/outcome recording remains.
-- Make the live prompt explicitly identify the avatar as AI and enforce hard constraints before adding booking tools.
-- Add a mockable provider boundary and credit-safe tests before repeated external calls.
+- ✅ Add server-side feature gating, workspace/sender allowlisting, and a five-minute browser-side maximum session duration.
+- Implemented locally, pending live verification: worker idle timeout, recipient reconnect grace, expiry/cron room cleanup, call-request CAS, and confirmed-cleanup retries; duration-aware billing remains unresolved.
+- ✅ Add client-side lifecycle analytics for requested, connected, ended, and failed sessions; durable server-side call-request presence metrics are implemented, provider-authoritative duration/outcome recording remains.
+- ✅ The server-built live prompt explicitly identifies the avatar as AI and carries playbook constraints; continue live guardrail tuning.
+- ✅ Add a mockable provider boundary and credit-safe tests; rerun the full suite after the hardening pass before pilot traffic.
 
 **Phase 2 — Run the pilot**
 
@@ -149,13 +155,13 @@ Sequencing and gates come from `docs/STRATEGY.md` phases. Engineering items:
 ### STRATEGY Phase 1 — commit and instrument
 1. ~~**Live-link-first defaults**~~ ✅ — studio + `/api/share` + `/api/pipeline` default to livelink when the pilot allows; explicit `video` always respected; recorded video remains the fallback inside the live link
 2. ~~**Live-session instrumentation**~~ ✅ — started, turns, question topics (classified labels only, never raw transcript), booking event, drop-off marker persisted as `LiveSessionRecord.metrics`; 15s heartbeats + terminal sync via `/api/live/sync`; read path `GET /api/live/sessions`
-3. **LiveLink experiment controls** — allowlist, idle timeout, fallback, provider-neutral errors (feature gate and initial session cap are in place)
+3. **LiveLink experiment controls** — allowlist, capped/idle sessions, provider startup fallback, recorded-video fallback, call-request lifecycle cleanup, and provider-neutral error surfacing are implemented; live-provider verification, owner push notifications, and scheduling remain
 4. **Guardrails and booking integration** — hard constraints, explicit AI disclosure (S2: disclosure as a feature), fallback answers, calendar booking (booking-link field + on-page CTA + prompt guidance shipped; guardrail tuning continues in Phase 2)
 5. **Reply-to-live escalation** — email replies can open a live avatar session instead of static follow-up (the artifact stays a conversation)
 
 ### STRATEGY Phase 2 — ten founders, hand-served
 6. ~~**Playbook capture**~~ ✅ — `VoiceOverlay` now supports `campaign` and `playbook` modes; extraction prompts capture sender identity + `SenderPlaybook` fields (`offer`, `wants`, `wiggleRoom`, `constraints`, `bookingUrl`, `senderBusiness`, `senderBrand`, `senderPersonality`, `senderAudience`, `senderOffer`, `senderProofPoints`); studio applies and persists them via `/api/account/brief`.
-7. **LiveLink pilot** — one Anam sender/avatar, 5–10 prospects, explicit AI disclosure, short capped sessions, HeyGen-only comparison where practical
+7. **LiveLink pilot** — one sender/avatar (Synthesia primary, Anam fallback), 5–10 prospects, explicit AI disclosure, short capped sessions, call-request bridge to the real sender when available, HeyGen-only comparison where practical
 8. ~~**Outcome tracking**~~ ✅ — lifecycle events already emitted (`live_session_*`, `booking_clicked`, `video_watch_through`); new `ScoreboardCard` on `/dashboard` surfaces start rate, bookings, median turns/duration, and question-topic distribution from `GET /api/live/sessions`.
 9. **Pre-send review** — research, hook, script, and visual plan reviewable before credits are spent
 
@@ -177,11 +183,12 @@ Sequencing and gates come from `docs/STRATEGY.md` phases. Engineering items:
 4. **Credit spend transparency** — show credits spent this session on the ready screen; replace token-start reservation with duration-aware live usage reconciliation before commercialization
 
 ### Suggested immediate next steps
-1. **Reply-to-live escalation** — email replies can open a live avatar session instead of static follow-up (keeps the artifact as a conversation).
-2. **LiveLink pilot guardrails** — idle timeout, server-side duration-aware cleanup, provider-neutral error fallback, and workspace/sender allowlist before running the Anam pilot.
-3. **Pre-send review** — let users review research, hook, script, and visual plan before credits are spent.
-4. **Share-page trust signals** — sender photo, company logo, or verified-sender badge on `/v/[id]` and `/live/[id]`.
-5. **Visual proof brief** — collect 1–3 sender assets (screenshot, logo, proof point, case study, deck slide) and wire them into a proof-first composition.
+1. **Verify the Synthesia/LiveKit pilot** — configure the project, `av_*` avatar, ElevenLabs voice, webhook, cleanup scheduler, and deployed worker; run the manual checklist in `docs/TESTING.md`.
+2. **Exercise the twin→human bridge** — request, accept/decline, shared-room connect, avatar step-aside, cancellation, expiry, and fallback to Anam or recorded video.
+3. **Reply-to-live escalation** — email replies can open a live avatar session instead of static follow-up (keeps the artifact as a conversation).
+4. **Pre-send review** — let users review research, hook, script, and visual plan before credits are spent.
+5. **Share-page trust signals** — sender photo, company logo, or verified-sender badge on `/v/[id]` and `/live/[id]`.
+6. **Visual proof brief** — collect 1–3 sender assets (screenshot, logo, proof point, case study, deck slide) and wire them into a proof-first composition.
 
 ---
 

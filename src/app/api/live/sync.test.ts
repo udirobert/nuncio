@@ -30,6 +30,14 @@ vi.mock("@/lib/storage", () => ({
     listOpen: async () => Array.from(sessionRecords.values()).filter(
       (record) => record.status === "pending" || record.status === "active",
     ),
+    listForCleanup: async () => Array.from(sessionRecords.values()).filter(
+      (record) => record.roomName && !record.roomClosedAt
+        && record.status !== "pending" && record.status !== "active",
+    ),
+  }),
+  getCallRequestStorageProvider: () => ({
+    hasAcceptedRoom: async () => false,
+    listForCleanup: async () => [],
   }),
   getAccountStorageProvider: () => ({
     getCreditSummary: async () => null,

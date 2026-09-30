@@ -1,74 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { getShareRecord } from "@/lib/share-store";
-import { getAccountStorageProvider } from "@/lib/storage";
+import { getAccountStorageProvider, getLiveSessionStorageProvider } from "@/lib/storage";
 import { creditsEnforced, getCreditBalance, reserveCredits, refundCreditReservation, getCreditSubject } from "@/lib/billing/credits";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
-import type { Profile } from "@/lib/claude";
-import type { WorkspaceAccount } from "@/lib/storage/types";
-import { isLiveLinkAllowed, LIVE_SESSION_MAX_CREDITS } from "@/lib/live-link";
+import type { LiveSessionRecord, WorkspaceAccount } from "@/lib/storage/types";
+import { isLiveLinkAllowed, LIVE_SESSION_MAX_CREDITS, LIVE_SESSION_MAX_DURATION_MS } from "@/lib/live-link";
 import { createLiveSessionRecord, hashLiveSessionToken, reconcileLiveSession } from "@/lib/live-session";
 import { createAnamSessionToken } from "@/lib/anam";
+import { buildLiveSystemPrompt } from "@/lib/live-prompt";
+import { createSynthesiaSession, cleanupSynthesiaSession, isLiveKitConfigured } from "@/lib/livekit";
+import { SYNTHESIA_AGENT_NAME } from "@/lib/call-request";
 
-interface AnamPersonaConfig {
-  avatarId: string;
-  voiceId: string;
-  systemPrompt: string;
-  avatarModel?: string;
+type LiveProvider = "synthesia" | "anam";
+
+function resolvePrimaryProvider(): LiveProvider {
+  return process.env.NUNCIO_LIVE_PRIMARY_PROVIDER === "anam" ? "anam" : "synthesia";
 }
 
-function buildSystemPrompt(share: {
-  recipientName?: string;
-  senderName?: string;
-  profile?: Profile;
-  language?: string;
-}, workspace?: WorkspaceAccount | null): string {
-  const profile = share.profile;
-  const recipient = share.recipientName || profile?.name || "there";
-  const sender = share.senderName || "your contact";
-  const role = profile?.current_role ? `, ${profile.current_role}` : "";
-  const company = profile?.company ? ` at ${profile.company}` : "";
-  const language = share.language || "en";
-  const languageHint = language !== "en"
-    ? `Respond in the recipient's primary language (${language}).`
-    : "Respond in English.";
+function synthesiaReady(workspace: WorkspaceAccount | null): { avatarId: string; voiceId: string } | null {
+  if (!isLiveKitConfigured()) return null;
+  if (process.env.NUNCIO_SYNTHESIA_WORKER_ENABLED !== "true") return null;
+  const avatarId = workspace?.synthesiaAvatarId || process.env.SYNTHESIA_AVATAR_ID;
+  const voiceId = workspace?.liveVoiceId || process.env.ELEVENLABS_VOICE_ID;
+  if (!avatarId || !voiceId) return null;
+  return { avatarId, voiceId };
+}
 
-  const hooks = profile?.personalization_hooks?.length
-    ? profile.personalization_hooks.map((h) => `- ${h}`).join("\n")
-    : "- No specific hooks available.";
-
-  const wants = workspace?.playbookWants || "start a conversation";
-  const offer = workspace?.playbookOffer || "help where it makes sense";
-  const wiggle = workspace?.playbookWiggleRoom || "tone and timing";
-  const constraints = workspace?.playbookConstraints?.trim()
-    ? workspace.playbookConstraints.split("\n").filter(Boolean).join("\n")
-    : "- Be honest, concise, and respectful.\n- Do not promise pricing or terms the sender cannot commit to.\n- Do not disparage competitors.";
-
-  const bookingGuidance = workspace?.bookingUrl
-    ? `\n- A booking link is shown on this page. If the recipient wants time with ${sender}, invite them to use it: "Use the booking button below to grab time with ${sender}." Never invent specific times or promise meetings on ${sender}'s behalf beyond pointing to that link.`
-    : "";
-
-  return `You are a live AI representative for ${sender}. You are speaking one-on-one with ${recipient}${role}${company}.
-
-Your goal is to represent ${sender} naturally, answer the recipient's questions, and move the conversation toward a clear next step. You should feel like a helpful colleague, not a sales script.
-
-Context about ${recipient}:
-${hooks}
-
-Sender's playbook:
-- What ${sender} wants: ${wants}
-- What ${sender} can offer: ${offer}
-- Where ${sender} has wiggle room: ${wiggle}
-- Hard constraints (never violate):
-${constraints}
-
-Instructions for the conversation:
-- Keep responses short (1-2 sentences) so the conversation feels natural.
-- If you don't know something, offer to follow up rather than guessing.
-- Always stay within the playbook constraints above.
-- End by offering a clear next step (e.g., book a short call, answer follow-up questions, or share more information).
-- Address the recipient by name when it feels natural.
-- ${languageHint}${bookingGuidance}`;
+function anamReady(input: { workspace: WorkspaceAccount | null; share: { anamAvatarId?: string; anamVoiceId?: string } }): { avatarId: string; voiceId: string } | null {
+  const avatarId = input.workspace?.anamAvatarId || input.share.anamAvatarId || process.env.ANAM_AVATAR_ID;
+  const voiceId = input.workspace?.anamVoiceId || input.share.anamVoiceId || process.env.ANAM_VOICE_ID;
+  if (!avatarId || !voiceId) return null;
+  return { avatarId, voiceId };
 }
 
 export async function POST(request: NextRequest) {
@@ -113,9 +76,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const avatarId = workspace?.anamAvatarId || share.anamAvatarId || process.env.ANAM_AVATAR_ID;
-    const voiceId = workspace?.anamVoiceId || share.anamVoiceId || process.env.ANAM_VOICE_ID;
-    if (!avatarId || !voiceId) {
+    const primary = resolvePrimaryProvider();
+    const synthesia = synthesiaReady(workspace);
+    const anam = anamReady({ workspace, share });
+
+    if (!synthesia && !anam) {
       return NextResponse.json(
         { error: "Live avatar is not configured for this sender" },
         { status: 503 }
@@ -140,8 +105,8 @@ export async function POST(request: NextRequest) {
       subject: creditSubject,
       action: "live.session",
       amount: LIVE_SESSION_MAX_CREDITS,
-      reason: "Anam live avatar session maximum reservation",
-      provider: "anam",
+      reason: "Live avatar session maximum reservation",
+      provider: primary === "synthesia" && synthesia ? "synthesia" : "anam",
     });
     reservationId = reservation.id;
 
@@ -150,6 +115,7 @@ export async function POST(request: NextRequest) {
       shareId,
       workspaceId: share.workspaceId,
       reservationId,
+      provider: primary === "synthesia" && synthesia ? "synthesia" : "anam",
       syncTokenHash: hashLiveSessionToken(syncToken),
       reservedCredits: reservationId ? LIVE_SESSION_MAX_CREDITS : 0,
       creditsEnforced: creditsEnforced(),
@@ -165,23 +131,93 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const personaConfig: AnamPersonaConfig = {
-      avatarId,
-      voiceId,
-      systemPrompt: buildSystemPrompt(
-        {
-          recipientName: share.recipientName,
-          senderName: share.senderName,
-          profile: share.profile,
-          language: share.language,
-        },
-        workspace
-      ),
-      avatarModel: "cara-4",
-    };
+    const systemPrompt = buildLiveSystemPrompt(
+      {
+        recipientName: share.recipientName,
+        senderName: share.senderName,
+        profile: share.profile,
+        language: share.language,
+      },
+      workspace
+    );
 
-    const { sessionToken } = await createAnamSessionToken(personaConfig);
-    return NextResponse.json({ sessionToken, sessionId: sessionRecord.id, syncToken });
+    const attempts: LiveProvider[] =
+      primary === "synthesia" && synthesia
+        ? (anam ? ["synthesia", "anam"] : ["synthesia"])
+        : ["anam"];
+
+    const record = sessionRecord;
+
+    for (const provider of attempts) {
+      if (provider === "synthesia") {
+        const ids = synthesia!;
+        let roomName = `nuncio-live-${record.id}`;
+        let dispatchId: string | undefined;
+        try {
+          await getLiveSessionStorageProvider().update({ ...record, provider: "synthesia", roomName });
+          const started = await createSynthesiaSession({
+            sessionId: record.id,
+            avatarId: ids.avatarId,
+            voiceId: ids.voiceId,
+            recipientIdentity: `guest-${record.id}`,
+            recipientTtlSeconds: Math.ceil(LIVE_SESSION_MAX_DURATION_MS / 1000),
+          });
+          roomName = started.roomName;
+          dispatchId = started.dispatchId;
+          return NextResponse.json({
+            provider: "synthesia",
+            serverUrl: started.serverUrl,
+            participantToken: started.participantToken,
+            roomName,
+            sessionId: record.id,
+            syncToken,
+            agentName: SYNTHESIA_AGENT_NAME,
+          });
+        } catch (error) {
+          console.warn("[api/live/session] synthesia start failed:", (error as Error)?.name ?? "unknown");
+          const cleaned = await cleanupSynthesiaSession({ roomName, dispatchId }).catch(() => false);
+          if (!cleaned) {
+            await reconcileLiveSession({
+              record: { ...record, provider: "synthesia", roomName, cleanupError: true },
+              durationMs: LIVE_SESSION_MAX_DURATION_MS,
+              reason: "provider_closed",
+            }).catch(() => {});
+            return NextResponse.json(
+              { error: "Live session could not be started safely. Please try again." },
+              { status: 500 }
+            );
+          }
+          continue;
+        }
+      }
+
+      try {
+        const ids = anam!;
+        const { sessionToken } = await createAnamSessionToken({
+          avatarId: ids.avatarId,
+          voiceId: ids.voiceId,
+          systemPrompt,
+          avatarModel: "cara-4",
+        });
+        if (record.provider !== "anam") {
+          const updated: LiveSessionRecord = {
+            ...record,
+            provider: "anam",
+            roomName: undefined,
+            roomClosedAt: new Date().toISOString(),
+          };
+          await getLiveSessionStorageProvider().update(updated);
+        }
+        return NextResponse.json({ provider: "anam", sessionToken, sessionId: record.id, syncToken });
+      } catch (error) {
+        console.warn("[api/live/session] anam start failed:", (error as Error)?.name ?? "unknown");
+        await reconcileLiveSession({ record, durationMs: 0, reason: "start_failed" }).catch(() => {});
+        return NextResponse.json({ error: "Failed to start live session" }, { status: 500 });
+      }
+    }
+
+    await reconcileLiveSession({ record, durationMs: 0, reason: "start_failed" }).catch(() => {});
+    return NextResponse.json({ error: "Failed to start live session" }, { status: 500 });
   } catch (error) {
     console.error("[api/live/session] error:", error);
     if (sessionRecord) {

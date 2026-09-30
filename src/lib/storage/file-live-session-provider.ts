@@ -66,6 +66,18 @@ export class FileLiveSessionStorageProvider implements LiveSessionStorageProvide
       .slice(0, limit);
   }
 
+  async listForCleanup(): Promise<LiveSessionRecord[]> {
+    await this.load();
+    return Array.from(this.records.values()).filter(
+      (record) =>
+        record.provider === "synthesia"
+        && Boolean(record.roomName)
+        && !record.roomClosedAt
+        && record.status !== "pending"
+        && record.status !== "active",
+    );
+  }
+
   private async load(): Promise<void> {
     if (this.loaded) return;
     this.loaded = true;

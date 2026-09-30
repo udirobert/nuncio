@@ -1,6 +1,8 @@
-import type { AccountStorageProvider, BandActivityStorageProvider, BatchStorageProvider, LiveSessionStorageProvider, MediaStorageProvider, ProofStorageProvider, ShareStorageProvider, TokenStorageProvider } from "./types";
+import type { AccountStorageProvider, BandActivityStorageProvider, BatchStorageProvider, CallRequestStorageProvider, LiveSessionStorageProvider, MediaStorageProvider, ProofStorageProvider, ShareStorageProvider, TokenStorageProvider } from "./types";
 import { FileLiveSessionStorageProvider } from "./file-live-session-provider";
 import { TursoLiveSessionStorageProvider } from "./turso-live-session-provider";
+import { FileCallRequestStorageProvider } from "./file-call-request-provider";
+import { TursoCallRequestStorageProvider } from "./turso-call-request-provider";
 import { FileShareStorageProvider } from "./file-provider";
 import { FileAccountStorageProvider } from "./file-account-provider";
 import { FileBatchStorageProvider } from "./file-batch-provider";
@@ -22,6 +24,7 @@ let batchProvider: BatchStorageProvider | null = null;
 let bandActivityProvider: BandActivityStorageProvider | null = null;
 let mediaProvider: MediaStorageProvider | null = null;
 let liveSessionProvider: LiveSessionStorageProvider | null = null;
+let callRequestProvider: CallRequestStorageProvider | null = null;
 
 export type {
   AccountStorageProvider,
@@ -29,6 +32,9 @@ export type {
   BandActivityEvent,
   BandActivityStorageProvider,
   BatchStorageProvider,
+  CallRequestRecord,
+  CallRequestStatus,
+  CallRequestStorageProvider,
   CreditAccountSummary,
   CreditTransactionRecord,
   LiveSessionMetrics,
@@ -142,6 +148,20 @@ export function getLiveSessionStorageProvider(): LiveSessionStorageProvider {
   return liveSessionProvider;
 }
 
+export function getCallRequestStorageProvider(): CallRequestStorageProvider {
+  if (callRequestProvider) return callRequestProvider;
+
+  if (process.env.TURSO_DATABASE_URL) {
+    callRequestProvider = new TursoCallRequestStorageProvider();
+    console.log("[storage] Using Turso call request storage");
+    return callRequestProvider;
+  }
+
+  callRequestProvider = new FileCallRequestStorageProvider();
+  console.log("[storage] Using file call request storage");
+  return callRequestProvider;
+}
+
 export function getMediaStorageProvider(): MediaStorageProvider | null {
   if (mediaProvider) return mediaProvider;
 
@@ -163,4 +183,5 @@ export function resetStorageProvidersForTests(): void {
   bandActivityProvider = null;
   mediaProvider = null;
   liveSessionProvider = null;
+  callRequestProvider = null;
 }

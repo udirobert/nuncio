@@ -1,0 +1,17 @@
+[project]
+name = "nuncio-live-avatar-worker"
+version = "0.1.0"
+description = "nuncio Synthesia live-avatar LiveKit worker"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "livekit-agents==1.8.2",
+    "livekit-plugins-synthesia==1.8.2",
+    "livekit-plugins-elevenlabs==1.8.2",
+    "livekit-plugins-openai==1.8.2",
+    "livekit-plugins-silero==1.8.2",
+    "livekit-api==1.2.1",
+    "openai[realtime]==2.50.0",
+]
+
+[tool.uv]
+package = false

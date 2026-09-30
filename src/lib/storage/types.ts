@@ -68,6 +68,12 @@ export interface WorkspaceAccount {
   anamAvatarId?: string;
   /** Anam custom voice ID for live AI twin sessions. */
   anamVoiceId?: string;
+  /** Synthesia Interactive Avatar ID (av_*), primary live twin provider. */
+  synthesiaAvatarId?: string;
+  /** ElevenLabs voice ID used by the Synthesia/LiveKit twin. */
+  liveVoiceId?: string;
+  /** Explicit expiring sender availability for human call requests (ISO). Never inferred. */
+  callAvailabilityUntil?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -130,6 +136,12 @@ export interface LiveSessionRecord {
   reservationId?: string;
   syncTokenHash: string;
   provider?: string;
+  /** LiveKit room name for Synthesia sessions; reused by an accepted human call. */
+  roomName?: string;
+  /** Set only after the LiveKit room's absence is confirmed post-teardown. */
+  roomClosedAt?: string;
+  /** True when room teardown could not be verified; retried by the cleanup pass. */
+  cleanupError?: boolean;
   reservedCredits: number;
   chargedCredits: number;
   creditsEnforced: boolean;
@@ -153,6 +165,86 @@ export interface LiveSessionStorageProvider {
   listOpen(): Promise<LiveSessionRecord[]>;
   /** Recent terminal sessions for a workspace (scoreboard read path), newest first. */
   listRecent(input: { workspaceId: string; limit?: number }): Promise<LiveSessionRecord[]>;
+  /** Terminal Synthesia sessions whose room is not confirmed closed — cleanup retry set. */
+  listForCleanup(): Promise<LiveSessionRecord[]>;
+}
+
+export type CallRequestStatus = "pending" | "accepted" | "declined" | "expired" | "cancelled";
+
+/**
+ * An owner-approved human call request on a live share. The recipient holds a
+ * random capability (stored hashed); it is returned once at creation and never
+ * appears in URLs or list payloads. No transcripts or contact data are stored.
+ */
+export interface CallRequestRecord {
+  id: string;
+  shareId: string;
+  workspaceId: string;
+  recipientTokenHash: string;
+  status: CallRequestStatus;
+  createdAt: string;
+  /** Current expiry: pending TTL from creation, extended on accept. */
+  expiresAt: string;
+  acceptedAt?: string;
+  /** LiveKit room backing the accepted call. */
+  roomName?: string;
+  /** Synthesia twin session whose room was reused for the call, if any. */
+  liveSessionId?: string;
+  /** Optimistic-concurrency counter; absent on legacy records (treated as 0). */
+  version?: number;
+  /** LiveKit identity minted for the owner side of the accepted call. */
+  ownerIdentity?: string;
+  /** LiveKit identity minted for the recipient side of the accepted call. */
+  recipientIdentity?: string;
+  /** True once the backing LiveKit room is confirmed created (or reused). */
+  roomReady?: boolean;
+  /** Confirmed room teardown time; absent while a room may still exist. */
+  roomClosedAt?: string;
+  /** Cleanup could not be confirmed; flagged for the cron cleanup pass. */
+  cleanupError?: boolean;
+  /** Server-observed room presence — first/last-seen timestamps only. */
+  connection?: import("@/lib/call-connection").CallConnectionMetrics;
+}
+
+export interface CallRequestStorageProvider {
+  readonly name: string;
+  /**
+   * Atomically create a request only when the share has no non-expired
+   * pending/accepted request. `now` bounds what counts as expired.
+   */
+  createIfNoOpen(record: CallRequestRecord, now?: Date): Promise<CallRequestRecord | null>;
+  get(id: string): Promise<CallRequestRecord | null>;
+  /**
+   * Latest record bound to a room name — including terminal states. Used by
+   * webhook/cleanup paths that must not guess room ownership.
+   */
+  getByRoomName(roomName: string): Promise<CallRequestRecord | null>;
+  /**
+   * Records whose room may still need teardown: expired open records or
+   * terminal records with a roomName and no confirmed roomClosedAt.
+   */
+  listForCleanup(now?: Date, workspaceId?: string): Promise<CallRequestRecord[]>;
+  /**
+   * Whether any accepted, non-expired request is bound to this room — the
+   * protection check that keeps a shared room alive during a human call.
+   */
+  hasAcceptedRoom(roomName: string, now?: Date): Promise<boolean>;
+  /**
+   * Compare-and-swap: update only when the stored status is in `from`. When
+   * `now` is provided the transition also requires the stored record to be
+   * non-expired. When `expectedVersion` is provided the stored record's
+   * version (absent = 0) must equal it. Returns the updated record or null
+   * when the CAS lost.
+   */
+  transition(
+    id: string,
+    from: CallRequestStatus[],
+    next: CallRequestRecord,
+    now?: Date,
+    expectedVersion?: number,
+  ): Promise<CallRequestRecord | null>;
+  /** Records for a workspace, newest first, without token hashes. */
+  listByWorkspace(workspaceId: string, limit?: number): Promise<Omit<CallRequestRecord, "recipientTokenHash">[]>;
 }
 
 export interface AccountStorageProvider {

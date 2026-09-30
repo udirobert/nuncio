@@ -81,6 +81,18 @@ export class TursoLiveSessionStorageProvider implements LiveSessionStorageProvid
     return result.rows.map((row) => parseRow(row.record_json)).filter((row): row is LiveSessionRecord => Boolean(row));
   }
 
+  async listForCleanup(): Promise<LiveSessionRecord[]> {
+    await this.ensureSchema();
+    const result = await this.client.execute({
+      sql: `SELECT record_json FROM live_sessions
+            WHERE status NOT IN ('pending', 'active')
+              AND json_extract(record_json,'$.provider') = 'synthesia'
+              AND json_extract(record_json,'$.roomName') IS NOT NULL
+              AND json_extract(record_json,'$.roomClosedAt') IS NULL`,
+    });
+    return result.rows.map((row) => parseRow(row.record_json)).filter((row): row is LiveSessionRecord => Boolean(row));
+  }
+
   private async ensureSchema(): Promise<void> {
     if (!this.ready) {
       this.ready = Promise.all([

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getShareRecord } from "@/lib/share-store";
 import { getLiveSessionStorageProvider } from "@/lib/storage";
+import { cleanupSynthesiaSession } from "@/lib/livekit";
+import { hasAcceptedRoom } from "@/lib/call-request";
+import type { LiveSessionRecord } from "@/lib/storage/types";
 import { isLiveLinkEnabled } from "@/lib/live-link";
 import {
   expireStaleLiveSessions,
@@ -18,9 +21,37 @@ const END_REASONS: LiveSessionEndReason[] = [
   "provider_closed",
   "max_duration",
   "unload",
+  "human_handoff",
 ];
 
 const MAX_TOPIC_LABELS = LIVE_QUESTION_TOPICS.length;
+
+/**
+ * Tear down the LiveKit room of a terminal Synthesia session — unless an
+ * accepted, still-live call request is reusing that room for the human
+ * conversation. Never deletes a room an open call depends on.
+ */
+async function cleanupLiveSessionRoom(record: LiveSessionRecord): Promise<void> {
+  if (!record.roomName || record.provider !== "synthesia") return;
+  if (record.roomClosedAt) return;
+  const provider = getLiveSessionStorageProvider();
+  const persist = async (patch: Partial<LiveSessionRecord>) => {
+    const current = await provider.get(record.id);
+    if (current) await provider.update({ ...current, ...patch });
+  };
+  try {
+    if (await hasAcceptedRoom(record.roomName)) return;
+  } catch {
+    await persist({ cleanupError: true });
+    return;
+  }
+  const closed = await cleanupSynthesiaSession({ roomName: record.roomName });
+  await persist(
+    closed
+      ? { roomClosedAt: new Date().toISOString(), cleanupError: false }
+      : { cleanupError: true },
+  );
+}
 
 function clampTurns(value: unknown): number {
   const parsed = typeof value === "number" && Number.isFinite(value) ? Math.floor(value) : 0;
@@ -147,6 +178,7 @@ export async function POST(request: NextRequest) {
       : "manual";
     const updated = await reconcileLiveSession({ record, durationMs, reason, metrics });
     await expireStaleLiveSessions();
+    await cleanupLiveSessionRoom(updated);
 
     return NextResponse.json({
       sessionId: updated.id,

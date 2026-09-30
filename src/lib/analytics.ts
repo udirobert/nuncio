@@ -144,7 +144,7 @@ export function trackLiveSessionConnected(props: { shareId: string }) {
 export function trackLiveSessionEnded(props: {
   shareId: string;
   durationMs: number;
-  reason: "manual" | "provider_closed" | "max_duration" | "unload";
+  reason: "manual" | "provider_closed" | "max_duration" | "unload" | "human_handoff";
   /** STRATEGY Phase 1 scoreboard instrumentation. */
   userTurns?: number;
   agentTurns?: number;

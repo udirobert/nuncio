@@ -13,9 +13,11 @@ This doc evaluates the two layers required for a LiveLink prototype:
 
 ## Decision: controlled experiment, not immediate upsell
 
-Keep HeyGen as Nuncio's default provider for recorded personalized outreach. Pursue Anam only as the initial LiveLink avatar provider, behind a feature gate and a small pilot. The customer-facing proposition is not "choose Anam"; it is **"let your prospect talk to an AI version of you."**
+> **Update (2026-09):** The live provider decision has moved from "Anam only" to **Synthesia primary, Anam startup fallback**. Synthesia Interactive Avatars are GA and run over a customer-owned LiveKit room — which is what lets the twin share the room with the real sender for the owner-approved human call bridge (the recipient can request the actual sender from the live link). Anam remains the fallback when the Synthesia/LiveKit stack is not provisioned; HeyGen stays the recorded-video fallback. See "Synthesia Interactive Avatars" below.
 
-Do not market LiveLink as a paid upsell until the pilot demonstrates conversion lift, safe playbook adherence, reliable browser/mobile behavior, and a cost per booked meeting that supports margin. Do not build HeyGen LiveAvatar and Anam in parallel during the first experiment; retain HeyGen LiveAvatar Lite as a fallback decision, not a second MVP.
+Keep HeyGen as Nuncio's default provider for recorded personalized outreach. The live provider is **Synthesia Interactive Avatars as primary, with Anam as the startup fallback**, behind a feature gate and a small pilot. The customer-facing proposition is not "choose a vendor"; it is **"let your prospect talk to an AI version of you."**
+
+Do not market LiveLink as a paid upsell until the pilot demonstrates conversion lift, safe playbook adherence, reliable browser/mobile behavior, and a cost per booked meeting that supports margin. Do not build multiple live avatar providers in parallel beyond the Synthesia→Anam fallback; retain HeyGen LiveAvatar Lite as a fallback decision, not a second MVP.
 
 ## Use-Case Requirements
 
@@ -94,15 +96,29 @@ Do not market LiveLink as a paid upsell until the pilot demonstrates conversion 
 - Full Mode is a black box and likely slower; Lite Mode requires building the rest of the pipeline anyway.
 - Highest per-minute cost of the avatar options.
 
+### Synthesia Interactive Avatars (verified 2026-09)
+
+**Product overview** (per `docs.synthesia.io/reference/ia-overview`, `ia-concepts`, `ia-operational-trust`, and `synthesia.io/features/avatars/interactive-avatars`):
+- Interactive avatars are **GA**. They run inside a **customer-owned LiveKit project** — a Python `livekit-agents` worker (≥ 1.8.2) with the official `livekit-plugins-synthesia` plugin renders the avatar into the room.
+- Only **synthetic/personal Interactive Avatar IDs (`av_*`)** are eligible; stock actor avatars cannot be used interactively.
+- Transport is **LiveKit only**. Synthesia's own docs state mobile is "not optimized" for interactive avatars — test early on mobile Safari.
+- Because the avatar is just another participant in *our* LiveKit room, a human call can reuse the same room: the worker silences/removes the avatar when an `owner-*` participant joins, and the room is preserved until call expiry.
+
+**Pricing conflict (unresolved):** the marketing page advertises ~$0.12/min while docs reference ~$0.10/min — **account terms must confirm** the actual rate before pilot economics are computed. LiveKit transport is metered separately.
+
+**Implication for this doc's earlier claims:** the "Anam is the only realtime option" framing is outdated — the vendor APIs all expose conversation/tooling primitives. The defensible layer is the authorized sender's judgment, workflow, and the twin→human handoff, not exclusive capability. A phone line remains a proven *text* escalation path only (see `docs/OPENCLAW-HACKATHON.md`); voice bridging to a phone is **not implemented or verified**.
+
 ### Avatar Recommendation
 
-**Start with Anam.ai** for the LiveLink prototype.
+**Updated:** **Synthesia primary** (`NUNCIO_LIVE_PRIMARY_PROVIDER` defaults to `synthesia`), **Anam as startup fallback** when LiveKit/Synthesia is not provisioned or a Synthesia start fails cleanly, **HeyGen recorded video** as the artifact fallback when a rendered share exists. The historical note below is preserved.
 
-- It is the only option optimized first for real-time conversation, not for polished pre-rendered video.
-- Single-photo avatar creation matches the user request to "put in their own face."
-- The latency story is explicit and competitive.
+**Start with Synthesia Interactive Avatars** for the LiveLink prototype; keep **Anam** as the startup fallback when the Synthesia/LiveKit stack is not provisioned or a Synthesia start fails cleanly.
 
-Keep **HeyGen LiveAvatar Lite** as a fallback if the existing HeyGen relationship, compliance requirements, or visual fidelity become deciding factors.
+- Synthesia's customer-owned LiveKit room is what enables the owner-approved human call bridge — the recipient's twin room can become the shared room with the real sender.
+- Anam's single-photo avatar creation still matches the "put in their own face" requirement and keeps the fallback cheap to start.
+- Both paths are optimized first for real-time conversation, not for polished pre-rendered video.
+
+Keep **HeyGen LiveAvatar Lite** as a fallback decision if the existing HeyGen relationship, compliance requirements, or visual fidelity become deciding factors.
 
 ## Voice Layer
 
@@ -168,12 +184,12 @@ Keep **HeyGen LiveAvatar Lite** as a fallback if the existing HeyGen relationshi
 
 | Layer | Primary | Fallback |
 |-------|---------|----------|
-| Avatar | Anam.ai | HeyGen LiveAvatar Lite |
+| Avatar | Synthesia Interactive `av_*` avatar (LiveKit) | Anam.ai (startup fallback), HeyGen LiveAvatar Lite |
 | TTS | ElevenLabs | Cartesia Sonic |
 | STT | ElevenLabs / WebRTC VAD | Cartesia Ink |
-| Orchestration | Pipecat or LiveKit | Custom WebRTC + WebSocket |
+| Orchestration | LiveKit (`livekit-agents` worker) | Anam SDK session (fallback) |
 | LLM | Existing LLM fallback chain | — |
-| Face data | Single photo upload | HeyGen photo avatar |
+| Face data | Sender-created Synthesia personal/synthetic Interactive Avatar | Anam single-photo avatar or HeyGen photo avatar |
 
 ## End-to-End Latency Budget
 
@@ -182,14 +198,14 @@ Keep **HeyGen LiveAvatar Lite** as a fallback if the existing HeyGen relationshi
 | STT | 100–200 ms | ElevenLabs or Cartesia Ink. |
 | LLM inference | 300–500 ms | Use fast model; stream first sentence. |
 | TTS first byte | 50–300 ms | ElevenLabs Flash or Cartesia Sonic. |
-| Avatar render | ~150 ms | Anam.ai server-side. |
+| Avatar render | Provider-dependent | Synthesia avatar joins through the LiveKit worker; measure startup/render latency in the pilot. |
 | Network overhead | 50–100 ms | WebRTC / SFU proximity. |
 | **Total** | **600–900 ms** | Must stay under ~800 ms to feel natural. |
 
 The biggest wins will come from:
 - Streaming the LLM response sentence-by-sentence so TTS/avatar can start before the full response is ready.
 - Using `turn.eager_end` (Cartesia) or an aggressive VAD to begin LLM inference during the user's final words.
-- Keeping the avatar session warm (pre-initialized) so the 150 ms Anam render cost is only paid once.
+- Starting the paid avatar session only after explicit recipient action, then minimizing room/dispatch startup work on the critical path.
 
 ## Integration Risks
 
@@ -197,23 +213,23 @@ The biggest wins will come from:
 2. **Guardrails in real time.** The sender playbook must be enforced inside the live prompt; the avatar cannot promise pricing or terms outside the playbook.
 3. **Fallback when live fails.** If WebRTC or avatar service errors, fall back to a static share page or async video.
 4. **Privacy / consent.** Recording or processing a prospect's voice requires clear consent and a way to delete data.
-5. **Mobile browser support.** WebRTC + real-time avatar on mobile Safari is historically flaky; test early.
+5. **Mobile browser support.** WebRTC + real-time avatar on mobile Safari is historically flaky, and Synthesia documents mobile as not optimized; test early.
 6. **Custom-avatar IP.** The sender owns their likeness; terms should not grant broad rights to the vendor.
 
 ## Recommendation
 
 **For the LiveLink MVP:**
 
-1. **Build with Anam.ai + ElevenLabs.** This gives the fastest path to a working real-time conversation using the sender's face and voice, without needing a new voice-vendor integration.
+1. **Build with Synthesia + LiveKit + ElevenLabs, Anam fallback.** *(Updated 2026-09 — was "Anam.ai + ElevenLabs".)* Synthesia's customer-owned-LiveKit model enables the owner-approved human call bridge; Anam remains the tested fallback path.
 2. **Use the existing nuncio pipeline** to produce the profile, script, and Sender Playbook; feed those into the live session's system prompt.
 3. **Put the provider behind a small adapter boundary** so the live page does not depend on Anam-specific response shapes and a recorded HeyGen share can remain the fallback.
-4. **Add controls before pilot traffic:** feature flag, sender/workspace allowlist, maximum duration, idle timeout, disconnect cleanup, explicit AI disclosure, and lifecycle telemetry.
+4. **Keep controls enforced for pilot traffic:** feature flag, sender/workspace allowlist, maximum duration, idle timeout, disconnect cleanup, explicit AI disclosure, and lifecycle telemetry are implemented and must be verified live.
 5. **Prototype with one test sender** and 5–10 prospects to measure end-to-end latency, session cost, guardrail adherence, and conversion to booked meetings.
 6. **If latency > 800 ms**, first optimize turn-taking and streaming; then evaluate Cartesia Sonic as a TTS replacement. If cost, reliability, or realism is the issue, evaluate HeyGen LiveAvatar Lite.
 
 ### Implementation sequence
 
-1. **Stabilize:** verify the existing `/live/[id]` page and `/api/live/session` route, document `ANAM_*` secrets, and keep LiveLink disabled by default until the gate exists.
+1. **Stabilize:** verify the `/live/[id]` page, `/api/live/session` provider routing, LiveKit webhook, call-request lifecycle, and worker deployment; keep LiveLink disabled until the Synthesia path is live-verified.
 2. **Instrument:** capture session requested, token issued, WebRTC connected, disconnected, duration, failure reason, latency samples, and meeting outcome. Avoid raw audio retention by default.
 3. **Protect spend:** replace the current token-start-only credit assumption with a bounded session policy and duration-aware reconciliation before opening the link broadly.
 4. **Harden behavior:** test playbook constraints, unknown questions, pricing requests, competitor questions, booking handoff, consent/disclosure, tab close, reconnect, and provider failure.
