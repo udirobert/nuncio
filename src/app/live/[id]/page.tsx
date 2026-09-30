@@ -88,7 +88,12 @@ export default function LiveAvatarLandingPage({
     async function load() {
       try {
         const { id } = await params;
-        await prepareHandoffAccess(id);
+        try {
+          await prepareHandoffAccess(id);
+        } catch {
+          // A failed fragment exchange doesn't decide access — the share fetch
+          // is authoritative and an existing cookie may still authorize.
+        }
         const res = await fetch(`/api/share/${encodeURIComponent(id)}`, {
           cache: "no-store",
           signal: controller.signal,

@@ -867,6 +867,7 @@ describe("call-request liveBrief storage", () => {
   it("exposes liveBrief only to the owner inbox — public status and join stay redacted", async () => {
     vi.stubEnv("NUNCIO_LIVELINK_ENABLED", "true");
     vi.stubEnv("NUNCIO_LIVELINK_WORKSPACE_IDS", "ws-1");
+    vi.mocked(isCallRequestInfraConfigured).mockReturnValue(true);
     accountStore.workspace = WORKSPACE;
     shareStore.records.set("s1", {
       id: "s1", workspaceId: "ws-1", deliveryMode: "livelink",

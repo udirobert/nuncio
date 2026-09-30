@@ -221,7 +221,7 @@ describe("POST /api/live/call-requests", () => {
     ownerWorkspace();
     const { createHash } = await import("node:crypto");
     liveSessionStore.get.mockResolvedValueOnce({
-      id: "ls-1", shareId: "share-1", status: "active", provider: "synthesia",
+      id: "ls-1", shareId: "share-1", workspaceId: "ws-1", status: "active", provider: "synthesia",
       syncTokenHash: createHash("sha256").update("good-token").digest("hex"),
     } as never);
     callRequestStore.createIfNoOpen.mockImplementationOnce(async (record: CallRequestRecord) => record);
