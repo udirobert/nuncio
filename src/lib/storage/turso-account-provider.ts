@@ -257,7 +257,10 @@ export class TursoAccountStorageProvider implements AccountStorageProvider {
           ON credit_transactions(idempotency_key)
           WHERE idempotency_key IS NOT NULL
         `);
-      })();
+      })().catch((error) => {
+        this.ready = null;
+        throw error;
+      });
     }
 
     return this.ready;

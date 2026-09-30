@@ -95,8 +95,11 @@ export class TursoLiveSessionStorageProvider implements LiveSessionStorageProvid
 
   private async ensureSchema(): Promise<void> {
     if (!this.ready) {
-      this.ready = Promise.all([
-        this.client.execute(`
+      // Table before index: concurrent execution can land the index first and
+      // fail on a missing table. A failed init clears `ready` so the next call
+      // retries instead of replaying a cached rejection forever.
+      this.ready = (async () => {
+        await this.client.execute(`
           CREATE TABLE IF NOT EXISTS live_sessions (
             id TEXT PRIMARY KEY,
             share_id TEXT NOT NULL,
@@ -105,9 +108,12 @@ export class TursoLiveSessionStorageProvider implements LiveSessionStorageProvid
             created_at TEXT NOT NULL,
             record_json TEXT NOT NULL
           )
-        `),
-        this.client.execute(`CREATE INDEX IF NOT EXISTS idx_live_sessions_status ON live_sessions(status)`),
-      ]).then(() => undefined);
+        `);
+        await this.client.execute(`CREATE INDEX IF NOT EXISTS idx_live_sessions_status ON live_sessions(status)`);
+      })().catch((error) => {
+        this.ready = null;
+        throw error;
+      });
     }
     return this.ready;
   }

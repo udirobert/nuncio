@@ -52,7 +52,10 @@ export class TursoTokenStorageProvider implements TokenStorageProvider {
           email TEXT NOT NULL,
           expires_at INTEGER NOT NULL
         )
-      `).then(() => undefined);
+      `).then(() => undefined).catch((error) => {
+        this.ready = null;
+        throw error;
+      });
     }
     return this.ready;
   }

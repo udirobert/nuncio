@@ -200,7 +200,9 @@ NUNCIO_AGENT_WORKSPACE_ID=
 
 # Python worker (workers/live-avatar/agent.py) env — set on the worker host only,
 # never on the Next server: SYNTHESIA_API_KEY, LIVEKIT_URL, LIVEKIT_API_KEY,
-# LIVEKIT_API_SECRET, ELEVENLABS_API_KEY, NUNCIO_LIVE_WORKER_TOKEN, APP_URL.
+# LIVEKIT_API_SECRET, ELEVEN_API_KEY, NUNCIO_LIVE_WORKER_TOKEN, APP_URL.
+# Note: the livekit elevenlabs plugin reads ELEVEN_API_KEY (not the app's
+# ELEVENLABS_API_KEY name) — set it on the worker host.
 # Run: cd workers/live-avatar && pip install --require-hashes -r requirements.lock && python agent.py start
 # Container: docker build -t nuncio-live-avatar workers/live-avatar
 #            docker run --env-file <path-to-worker-env-file> nuncio-live-avatar

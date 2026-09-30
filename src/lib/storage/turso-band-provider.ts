@@ -35,7 +35,10 @@ export class TursoBandActivityProvider implements BandActivityStorageProvider {
       await this.client.execute(`
         CREATE INDEX IF NOT EXISTS idx_band_events_session ON band_events(session_id)
       `);
-    })();
+    })().catch((error) => {
+      this.ready = null;
+      throw error;
+    });
     return this.ready;
   }
 

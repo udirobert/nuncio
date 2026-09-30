@@ -806,8 +806,8 @@ export default function LiveAvatarLandingPage({
             </p>
             <p className="text-xs text-ink-muted leading-relaxed">
               {share.mode === "reconnect"
-                ? `This is an AI twin of ${sender}. It can answer questions about the message — but the card was built around a real memory they shared, and they reviewed every word before it was sent. You&apos;ll need to allow microphone access to talk. Your mic is only active while the session is running.`
-                : `This is an AI avatar of ${sender}. It can answer questions, explain the reason for reaching out, and book a meeting — all within the sender&apos;s playbook. You&apos;ll need to allow microphone access to talk. Your mic is only active while the session is running.`}
+                ? `This is an AI twin of ${sender}. It can answer questions about the message — but the card was built around a real memory they shared, and they reviewed every word before it was sent. You'll need to allow microphone access to talk. Your mic is only active while the session is running.`
+                : `This is an AI avatar of ${sender}. It can answer questions, explain the reason for reaching out${bookingUrl ? ", and book a meeting" : ""} — all within the sender's playbook. You'll need to allow microphone access to talk. Your mic is only active while the session is running.`}
             </p>
           </motion.div>
         </div>

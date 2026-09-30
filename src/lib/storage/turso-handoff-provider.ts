@@ -77,7 +77,10 @@ export class TursoHandoffStorageProvider implements HandoffStorageProvider {
           created_at TEXT NOT NULL,
           record_json TEXT NOT NULL
         )
-      `).then(() => undefined);
+      `).then(() => undefined).catch((error) => {
+        this.ready = null;
+        throw error;
+      });
     }
     return this.ready;
   }

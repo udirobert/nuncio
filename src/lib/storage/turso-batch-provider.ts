@@ -65,7 +65,10 @@ export class TursoBatchStorageProvider implements BatchStorageProvider {
           record_json TEXT NOT NULL,
           created_at TEXT NOT NULL
         )
-      `).then(() => undefined);
+      `).then(() => undefined).catch((error) => {
+        this.ready = null;
+        throw error;
+      });
     }
     return this.ready;
   }

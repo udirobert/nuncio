@@ -130,8 +130,11 @@ export class TursoCallRequestStorageProvider implements CallRequestStorageProvid
 
   private async ensureSchema(): Promise<void> {
     if (!this.ready) {
-      this.ready = Promise.all([
-        this.client.execute(`
+      // Table before index: concurrent execution can land the index first and
+      // fail on a missing table. A failed init clears `ready` so the next call
+      // retries instead of replaying a cached rejection forever.
+      this.ready = (async () => {
+        await this.client.execute(`
           CREATE TABLE IF NOT EXISTS call_requests (
             id TEXT PRIMARY KEY,
             share_id TEXT NOT NULL,
@@ -141,9 +144,12 @@ export class TursoCallRequestStorageProvider implements CallRequestStorageProvid
             created_at TEXT NOT NULL,
             record_json TEXT NOT NULL
           )
-        `),
-        this.client.execute(`CREATE INDEX IF NOT EXISTS idx_call_requests_share_open ON call_requests(share_id, status, expires_at)`),
-      ]).then(() => undefined);
+        `);
+        await this.client.execute(`CREATE INDEX IF NOT EXISTS idx_call_requests_share_open ON call_requests(share_id, status, expires_at)`);
+      })().catch((error) => {
+        this.ready = null;
+        throw error;
+      });
     }
     return this.ready;
   }

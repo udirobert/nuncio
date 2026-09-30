@@ -120,7 +120,7 @@ async def nuncio_synthesia(ctx: agents.JobContext) -> None:
             "NUNCIO_LIVE_WORKER_TOKEN",
             "APP_URL",
             "SYNTHESIA_API_KEY",
-            "ELEVENLABS_API_KEY",
+            "ELEVEN_API_KEY",
             "LIVEKIT_URL",
             "LIVEKIT_API_KEY",
             "LIVEKIT_API_SECRET",
@@ -159,9 +159,16 @@ async def nuncio_synthesia(ctx: agents.JobContext) -> None:
         )
         session = AgentSession(
             vad=silero.VAD.load(),
-            stt=elevenlabs.STT(model="scribe_v2_realtime"),
+            stt=elevenlabs.STT(
+                model="scribe_v2_realtime",
+                api_key=os.environ["ELEVEN_API_KEY"],
+            ),
             llm=openai.LLM(model="nuncio", client=http_client),
-            tts=elevenlabs.TTS(model="eleven_flash_v2_5", voice_id=metadata.voice_id),
+            tts=elevenlabs.TTS(
+                model="eleven_flash_v2_5",
+                voice_id=metadata.voice_id,
+                api_key=os.environ["ELEVEN_API_KEY"],
+            ),
         )
 
         # The backend builds the authoritative prompt and ignores any supplied
