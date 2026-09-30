@@ -33,7 +33,7 @@ Positioning rationale lives in [`STRATEGY.md` → "Application: OpenClaw 2.0 fir
 
 - **Listing:** https://aiworthusing.com/agent-index/nuncio — verified, 1-click deploy enabled, finished (video + screenshot + install link)
 - **Live line:** +1 (650) 315-6335 (`ln_p2` / Aspen) — `ln_p1` was retired (outbound stuck at `sent`, never `delivered`; Plow-side)
-- **Pinned image:** `ghcr.io/udirobert/nuncio-openclaw@sha256:4db774749a9b83759f536a6c15a53d3594a7173e957e084509dcc37d26f5e579` — includes post-test persona fixes
+- **Pinned image:** `ghcr.io/udirobert/nuncio-openclaw:v3` @ `sha256:13d104eb9a66d20bc17197d45220a62946eee57094865c3f151acc71b6539586` — adds the text→live handoff procedure. The submission ran `v2` @ `sha256:4db774749a9b83759f536a6c15a53d3594a7173e957e084509dcc37d26f5e579` (post-test persona fixes).
 - **Demo video:** https://youtu.be/wwwtA8X1kNs (66s; `demo-video/` HyperFrames composition, cream/Instrument-Serif brand pass, lo-fi bed cut to an 80.7bpm grid)
 - **Multiplayer proven end-to-end** (chat `cht_1pTh486INwln9r2Bd-CN1w`): onboarding → playbook → draft → owner approval → `plow_start_thread` group → prospect objections → `plow_ask_owner` escalation → owner answers in DM → `plow_reply_to` relay → booking link
 - **Fixture:** `openclaw-agent/prospect-sim/` — skeptical-VP agent (Maya) for repeatable thread tests; parked at `/root/openclaw-prospect` on the Vultr box (`docker compose -p prospect up -d` revives)
