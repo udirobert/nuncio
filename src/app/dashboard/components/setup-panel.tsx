@@ -247,6 +247,16 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
   const savedBooking = snapshot?.bookingUrl?.trim() ?? "";
   const savedBookingOk = validHttpsUrl(savedBooking);
 
+  // Live preview values: prefer unsaved form edits so the preview reacts as
+  // the sender types; fall back to saved snapshot, then to neutral examples.
+  const previewName = senderName.trim() || snapshot?.senderName?.trim() || "";
+  const previewBusiness = senderBusiness.trim() || snapshot?.senderBusiness?.trim() || "";
+  const previewOffer = playbookOffer.trim() || snapshot?.playbookOffer?.trim() || "";
+  const previewBookingOk = (!bookingUrl.trim() && savedBookingOk) || validHttpsUrl(bookingUrl);
+  const previewTwinLine = previewOffer
+    ? `“${previewOffer.length > 90 ? `${previewOffer.slice(0, 90)}…` : previewOffer}”`
+    : "“I can answer from their playbook, or you can ask for them directly.”";
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       <div className="lg:col-span-7 rounded-2xl border border-cream-dark bg-white p-5 space-y-6">
@@ -270,11 +280,11 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="block">
                   <span className="text-body-xs text-ink-muted">Your name <span className="text-warm">*</span></span>
-                  <input value={senderName} onChange={(e) => edit(setSenderName)(e.target.value)} required className={inputCls} />
+                  <input value={senderName} onChange={(e) => edit(setSenderName)(e.target.value)} required placeholder="e.g. Alex Rivera" className={inputCls} />
                 </label>
                 <label className="block">
                   <span className="text-body-xs text-ink-muted">Business or role (optional)</span>
-                  <input value={senderBusiness} onChange={(e) => edit(setSenderBusiness)(e.target.value)} className={inputCls} />
+                  <input value={senderBusiness} onChange={(e) => edit(setSenderBusiness)(e.target.value)} placeholder="e.g. Founder, Northwind — onboarding software" className={inputCls} />
                 </label>
               </div>
             </section>
@@ -283,19 +293,19 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
               <h3 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">2 · Playbook</h3>
               <label className="block">
                 <span className="text-body-xs text-ink-muted">What you want</span>
-                <textarea value={playbookWants} onChange={(e) => edit(setPlaybookWants)(e.target.value)} rows={2} className={inputCls} />
+                <textarea value={playbookWants} onChange={(e) => edit(setPlaybookWants)(e.target.value)} rows={2} placeholder="e.g. Book 20-minute intro calls with ops leads at 50–200 person companies" className={inputCls} />
               </label>
               <label className="block">
                 <span className="text-body-xs text-ink-muted">What you offer</span>
-                <textarea value={playbookOffer} onChange={(e) => edit(setPlaybookOffer)(e.target.value)} rows={2} className={inputCls} />
+                <textarea value={playbookOffer} onChange={(e) => edit(setPlaybookOffer)(e.target.value)} rows={2} placeholder="e.g. Done-for-you onboarding cleanup — handoffs mapped in a week, no rip-and-replace" className={inputCls} />
               </label>
               <label className="block">
                 <span className="text-body-xs text-ink-muted">Where there is room to move (optional)</span>
-                <textarea value={playbookWiggleRoom} onChange={(e) => edit(setPlaybookWiggleRoom)(e.target.value)} rows={2} className={inputCls} />
+                <textarea value={playbookWiggleRoom} onChange={(e) => edit(setPlaybookWiggleRoom)(e.target.value)} rows={2} placeholder="e.g. Can offer a free pilot for one team; timing is flexible this month" className={inputCls} />
               </label>
               <label className="block">
                 <span className="text-body-xs text-ink-muted">What it must never promise</span>
-                <textarea value={playbookConstraints} onChange={(e) => edit(setPlaybookConstraints)(e.target.value)} rows={2} className={inputCls} />
+                <textarea value={playbookConstraints} onChange={(e) => edit(setPlaybookConstraints)(e.target.value)} rows={2} placeholder="e.g. Never promise pricing, timelines, or migrations on the call" className={inputCls} />
               </label>
             </section>
 
@@ -306,7 +316,7 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
                 <input
                   value={bookingUrl}
                   onChange={(e) => edit(setBookingUrl)(e.target.value)}
-                  placeholder="https://…"
+                  placeholder="e.g. https://cal.com/you/intro"
                   inputMode="url"
                   className={inputCls}
                 />
@@ -379,28 +389,32 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
         </div>
 
         <div className="rounded-2xl border border-cream-dark bg-cream/40 p-5 space-y-3">
-          <h3 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">Prospect preview · layout only</h3>
+          <h3 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">Prospect preview · updates as you type</h3>
           <div className="rounded-xl border border-cream-dark bg-white p-4 space-y-2.5 pointer-events-none select-none">
             <p className="text-label-base text-ink-faint">A conversation with</p>
-            <p className="font-display text-xl text-ink break-words">{snapshot?.senderName?.trim() || "Your name"}</p>
+            <p className="font-display text-xl text-ink break-words">{previewName || "Your name"}</p>
+            {previewBusiness && (
+              <p className="text-body-xs text-ink-muted break-words">{previewBusiness}</p>
+            )}
             <div className="space-y-1.5 pt-1">
-              {["Ask the AI representative", `Request ${snapshot?.senderName?.trim() || "you"}`].map((label) => (
+              <div className="rounded-lg border border-accent/20 bg-accent-soft/60 px-3 py-2 text-body-xs text-ink break-words">
+                {previewName ? `I’m ${previewName}’s AI representative — disclosed, never disguised.` : "I’m your disclosed AI representative — never disguised."}
+              </div>
+              <div className="rounded-lg border border-cream-dark bg-cream/60 px-3 py-2 text-body-xs text-ink-muted break-words">
+                {previewTwinLine}
+              </div>
+              {[`Ask the AI representative`, `Request ${previewName || "you"}`, ...(previewBookingOk ? ["Choose a time"] : [])].map((label) => (
                 <div key={label} className="rounded-lg border border-cream-dark bg-cream/60 px-3 py-2 text-body-xs text-ink-muted break-words">
                   {label}
                 </div>
               ))}
-              {savedBookingOk && (
-                <div className="rounded-lg border border-cream-dark bg-cream/60 px-3 py-2 text-body-xs text-ink-muted">
-                  Choose a time
-                </div>
-              )}
             </div>
             <p className="text-label-base text-ink-faint">
               {snapshot === null
                 ? "Status unknown — load the panel to preview readiness."
-                : snapshot.liveReadiness?.playbookConfigured
-                  ? "Playbook configured — the representative answers from it."
-                  : "No playbook saved yet."}
+                : snapshot.liveReadiness?.playbookConfigured || playbookOffer.trim() || playbookWants.trim()
+                  ? "Playbook present — the representative answers from it."
+                  : "No playbook saved yet — add what you offer above."}
             </p>
           </div>
           <Link href="/#prospect-experience" className="inline-block text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors">

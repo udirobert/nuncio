@@ -189,7 +189,7 @@ export default function HomeClient() {
               </div>
             </section>
           ) : (
-            <section className="px-6 pt-28 lg:pt-32 pb-12">
+            <section className="px-6 pt-28 lg:pt-32 pb-12 scroll-mt-20">
               <div className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
                 <div className="lg:col-span-5">
                   <motion.p
@@ -237,6 +237,10 @@ export default function HomeClient() {
                       </Link>
                       <a
                         href="#prospect-experience"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          document.getElementById("prospect-experience")?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+                        }}
                         className="btn-press rounded-xl border border-ink/15 text-ink px-6 py-3.5 text-body-sm font-medium hover:bg-white transition-colors min-h-[44px] inline-flex items-center"
                       >
                         See the prospect experience
