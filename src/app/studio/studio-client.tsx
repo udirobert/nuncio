@@ -2237,6 +2237,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                             type="text"
                             value={senderBusiness}
                             onChange={(e) => setSenderBusiness(e.target.value)}
+                            placeholder="e.g. Founder, Northwind — onboarding software"
                             className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
@@ -2266,6 +2267,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                             type="text"
                             value={senderAudience}
                             onChange={(e) => setSenderAudience(e.target.value)}
+                            placeholder="e.g. Ops leads at 50–200 person companies"
                             className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
@@ -2275,7 +2277,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                             type="text"
                             value={senderOffer}
                             onChange={(e) => setSenderOffer(e.target.value)}
-                            placeholder="What are you offering this person?"
+                            placeholder="e.g. Done-for-you onboarding cleanup — handoffs mapped in a week"
                             className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
@@ -2285,6 +2287,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                             type="text"
                             value={outreachGoal}
                             onChange={(e) => setOutreachGoal(e.target.value)}
+                            placeholder="e.g. Book a 20-minute intro call"
                             className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
@@ -2294,6 +2297,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                             type="text"
                             value={desiredOutcome}
                             onChange={(e) => setDesiredOutcome(e.target.value)}
+                            placeholder="e.g. A yes to the pilot next week"
                             className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>
@@ -2325,6 +2329,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                             value={reasonForReachingOutNow}
                             onChange={(e) => setReasonForReachingOutNow(e.target.value)}
                             rows={2}
+                            placeholder="e.g. They just posted about onboarding delays — strike while it matters"
                             className="w-full rounded-lg border border-cream-dark px-3 py-2 text-body-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30"
                           />
                         </div>

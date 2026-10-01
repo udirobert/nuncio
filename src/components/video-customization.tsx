@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import { LottieIcon } from "@/components/lottie-icon";
 import { AvatarSelector } from "@/components/avatar-selector";
@@ -561,7 +562,11 @@ export function VideoCustomization({
             <circle cx="8" cy="11" r="0.5" fill="currentColor" />
           </svg>
           <p className="text-label-base text-ink-muted">
-            Live link mode is on but no live representative is configured yet. Configure Synthesia in Conversations setup, or add Anam avatar/voice assets below.
+            Live link mode is on but no live representative is configured yet.{" "}
+            <Link href="/dashboard?view=setup" className="text-accent hover:underline">
+              Open Conversations setup →
+            </Link>{" "}
+            or add Anam avatar/voice assets below.
           </p>
         </div>
       )}

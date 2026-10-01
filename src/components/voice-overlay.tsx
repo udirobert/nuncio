@@ -482,16 +482,17 @@ function EditCard({ profile, onChange, linkUrl, onLinkChange, onConfirm, onRedo,
       {!isPlaybook && (
         <>
           <div className="grid sm:grid-cols-2 gap-3">
-            <EditField label="Recipient name" value={profile.name || ""} onChange={(v) => updateField("name", v)} />
-            <EditField label="Company" value={profile.company || ""} onChange={(v) => updateField("company", v)} />
-            <EditField label="Role" value={profile.role || ""} onChange={(v) => updateField("role", v)} />
-            <EditField label="Your name" value={profile.senderName || ""} onChange={(v) => updateField("senderName", v)} />
+            <EditField label="Recipient name" value={profile.name || ""} onChange={(v) => updateField("name", v)} placeholder="e.g. Maya Chen" />
+            <EditField label="Company" value={profile.company || ""} onChange={(v) => updateField("company", v)} placeholder="e.g. Northwind" />
+            <EditField label="Role" value={profile.role || ""} onChange={(v) => updateField("role", v)} placeholder="e.g. Head of Operations" />
+            <EditField label="Your name" value={profile.senderName || ""} onChange={(v) => updateField("senderName", v)} placeholder="e.g. Alex Rivera" />
           </div>
 
           <EditField
             label="Reason for outreach"
             value={profile.senderBrief || ""}
             onChange={(v) => updateField("senderBrief", v)}
+            placeholder="e.g. Saw their post about onboarding delays — reaching out with a pilot offer"
             multiline
           />
 
@@ -534,14 +535,14 @@ function EditCard({ profile, onChange, linkUrl, onLinkChange, onConfirm, onRedo,
       {isPlaybook && (
         <>
           <div className="grid sm:grid-cols-2 gap-3">
-            <EditField label="Your name" value={profile.senderName || ""} onChange={(v) => updateField("senderName", v)} />
-            <EditField label="Booking link" value={profile.bookingUrl || ""} onChange={(v) => updateField("bookingUrl", v)} placeholder="https://calendly.com/you" />
+            <EditField label="Your name" value={profile.senderName || ""} onChange={(v) => updateField("senderName", v)} placeholder="e.g. Alex Rivera" />
+            <EditField label="Booking link" value={profile.bookingUrl || ""} onChange={(v) => updateField("bookingUrl", v)} placeholder="e.g. https://cal.com/you/intro" />
           </div>
 
-          <EditField label="Business" value={profile.senderBusiness || ""} onChange={(v) => updateField("senderBusiness", v)} multiline />
-          <EditField label="Brand voice" value={profile.senderBrand || ""} onChange={(v) => updateField("senderBrand", v)} multiline />
-          <EditField label="Audience" value={profile.senderAudience || ""} onChange={(v) => updateField("senderAudience", v)} multiline />
-          <EditField label="Offer" value={profile.senderOffer || ""} onChange={(v) => updateField("senderOffer", v)} multiline />
+          <EditField label="Business" value={profile.senderBusiness || ""} onChange={(v) => updateField("senderBusiness", v)} placeholder="e.g. Founder, Northwind — onboarding software" multiline />
+          <EditField label="Brand voice" value={profile.senderBrand || ""} onChange={(v) => updateField("senderBrand", v)} placeholder="e.g. Direct, warm, no jargon" multiline />
+          <EditField label="Audience" value={profile.senderAudience || ""} onChange={(v) => updateField("senderAudience", v)} placeholder="e.g. Ops leads at 50–200 person companies" multiline />
+          <EditField label="Offer" value={profile.senderOffer || ""} onChange={(v) => updateField("senderOffer", v)} placeholder="e.g. Done-for-you onboarding cleanup in a week" multiline />
 
           <EditListField
             label="Proof points"
@@ -553,10 +554,10 @@ function EditCard({ profile, onChange, linkUrl, onLinkChange, onConfirm, onRedo,
           <div className="border-t border-cream-dark pt-4 space-y-3">
             <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">Live playbook</span>
             <div className="grid sm:grid-cols-2 gap-3">
-              <EditField label="Can offer" value={profile.offer || ""} onChange={(v) => updateField("offer", v)} />
-              <EditField label="Wants" value={profile.wants || ""} onChange={(v) => updateField("wants", v)} />
+              <EditField label="Can offer" value={profile.offer || ""} onChange={(v) => updateField("offer", v)} placeholder="e.g. A 20-minute walkthrough of the handoff map" />
+              <EditField label="Wants" value={profile.wants || ""} onChange={(v) => updateField("wants", v)} placeholder="e.g. A yes to the pilot next week" />
             </div>
-            <EditField label="Wiggle room" value={profile.wiggleRoom || ""} onChange={(v) => updateField("wiggleRoom", v)} multiline />
+            <EditField label="Wiggle room" value={profile.wiggleRoom || ""} onChange={(v) => updateField("wiggleRoom", v)} placeholder="e.g. Timing is flexible; can start with one team" multiline />
             <EditListField
               label="Constraints"
               value={(profile.constraints || []).join("\n")}

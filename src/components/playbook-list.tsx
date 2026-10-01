@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import type { PlaybookEntry } from "@/lib/playbook";
 import { trackPlaybookViewed } from "@/lib/analytics";
@@ -12,6 +12,7 @@ interface PlaybookListProps {
 
 export function PlaybookList({ entries }: PlaybookListProps) {
   const [expandedId, setExpandedId] = useState<string | null>(entries[0]?.id || null);
+  const reducedMotion = useReducedMotion();
 
   // Honour URL hash on mount and on hash changes — recipient-wall cards
   // deep-link as /playbook#entry-id; this opens that entry and scrolls to it.
@@ -27,13 +28,13 @@ export function PlaybookList({ entries }: PlaybookListProps) {
       requestAnimationFrame(() => {
         document
           .getElementById(`playbook-entry-${match.id}`)
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+          ?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
       });
     }
     applyHash();
     window.addEventListener("hashchange", applyHash);
     return () => window.removeEventListener("hashchange", applyHash);
-  }, [entries]);
+  }, [entries, reducedMotion]);
 
   return (
     <div className="space-y-3">
@@ -70,7 +71,7 @@ function PlaybookCard({
   return (
     <article
       id={`playbook-entry-${entry.id}`}
-      className="rounded-2xl border border-cream-dark bg-white overflow-hidden scroll-mt-6"
+      className="rounded-2xl border border-cream-dark bg-white overflow-hidden scroll-mt-24"
     >
       {/* Header — always visible */}
       <button
