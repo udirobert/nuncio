@@ -394,21 +394,36 @@ Caddy automatically provisions and renews SSL certificates and enforces HTTPS.
 
 ### 8. Deploy from your local machine (optional)
 
-The repo includes `scripts/deploy-vps.sh` for Docker-based deploys to the production VPS:
+Two scripts cover this, pick one:
+
+- `scripts/deploy-coolify.sh` — **current path** (rsync worktree → server-side
+  `docker build` → container swap → layered health check). Takes all identity
+  from `NUNCIO_*` env vars, so it works for any Coolify/Traefik-hosted service:
 
 ```bash
-ssh nuncio-vultr 'bash -s' < scripts/deploy-vps.sh
+NUNCIO_SSH_HOST=nuncio-vultr \
+NUNCIO_REMOTE_DIR=/opt/nuncio \
+NUNCIO_CONTAINER=iv3o80fe9jgfa30t88kud4wp-012325559756 \
+NUNCIO_IMAGE=nuncio:latest \
+NUNCIO_PUBLIC_URL=https://nuncio.persidian.com \
+  scripts/deploy-coolify.sh
 ```
 
-Or run it directly on the server:
+`scripts/deploy-nuncio.sh` (gitignored) presets exactly those values and execs
+the script above — `scripts/deploy-nuncio.sh` is the one-command deploy.
 
-```bash
-/opt/nuncio/scripts/deploy-vps.sh
-```
+Pre-flight guards fail fast when `/tmp/nuncio-env.txt` is thin/missing
+(`/tmp` is wiped on reboot — regenerate from the live container first) or when
+`coolify-proxy` isn't `running|healthy` (every `Host()`-routed site 521s
+without it — see the 2026-10-01 outage note in git history). Build success is
+proven by image freshness, not log grep. Health is layered: in-container app →
+public edge (521 explicitly blamed on the proxy, not the app) → scheduling
+webhook route state (`401` = configured, `404` = pilot env missing).
 
-It fetches the latest `main`, builds `nuncio:latest`, tags the previous image as `nuncio:previous` for rollback, replaces the running container with the same Coolify Traefik labels, and runs a smoke check (`homepage 200`, `/api/enrich` 400). If smoke checks fail, it stops the new container and restarts the previous image.
-
-For automated deploys on push, add a GitHub webhook on the server that runs `scripts/deploy-vps.sh`, or set up a cron-based pull and build.
+- `scripts/deploy-vps.sh` — older variant (fetch `origin/main` on the server,
+  rebuild, smoke-check homepage 200 + `/api/enrich` 400, auto-rollback to
+  `nuncio:previous` on failure). Kept for reference; `deploy-coolify.sh` is
+  the path with the outage guards.
 
 ---
 
