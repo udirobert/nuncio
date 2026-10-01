@@ -29,6 +29,7 @@ import { LottieIcon } from "@/components/lottie-icon";
 import { SenderTrustBadge } from "@/components/sender-trust-badge";
 import { CallRequestPanel } from "@/components/call-request-panel";
 import { SchedulingEmbed } from "@/components/scheduling-embed";
+import { SessionDebriefCard } from "@/components/session-debrief-card";
 import { detectEscalationHint } from "@/lib/escalation";
 import { normalizeAnamHistory, normalizeLiveKitSegments } from "@/lib/live-transcripts";
 import { resolveSchedulingProvider } from "@/lib/scheduling";
@@ -66,6 +67,15 @@ export default function LiveAvatarLandingPage({
   const [micMuted, setMicMuted] = useState(false);
   const [micBusy, setMicBusy] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
+  // Pre-join lobby state: mic probe status + post-session debrief snapshot.
+  // micReadyRef lets Join skip the second probe so the worker starts sooner.
+  const [micState, setMicState] = useState<"idle" | "checking" | "ready" | "blocked">("idle");
+  const micReadyRef = useRef(false);
+  const [debrief, setDebrief] = useState<{
+    userTurns: number;
+    questionTopics: string[];
+    bookingClicked: boolean;
+  } | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [loadNonce, setLoadNonce] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -319,9 +329,25 @@ export default function LiveAvatarLandingPage({
   }, [markBookingClicked]);
 
   const endSession = useCallback((reason: "manual" | "provider_closed" | "max_duration" | "unload" | "human_handoff" = "manual") => {
+    // Reset the lobby mic probe — each session re-verifies, never trusts a stale pass.
+    micReadyRef.current = false;
+    setMicState("idle");
     clearMaxDurationTimer();
     clearHeartbeatTimer();
     recordSessionEnd(reason);
+    // Post-session debrief: snapshot persisted metric labels only (never raw
+    // dialogue) so the card can render after the session ends. Skip silent
+    // unloads — the card is for deliberate/human-handoff endings.
+    if (reason === "manual" || reason === "max_duration" || reason === "human_handoff") {
+      const metrics = metricsRef.current;
+      if (metrics.userTurns > 0 || metrics.bookingClicked || metrics.topics.size > 0) {
+        setDebrief({
+          userTurns: metrics.userTurns,
+          questionTopics: [...metrics.topics],
+          bookingClicked: metrics.bookingClicked,
+        });
+      }
+    }
     dialogueRef.current = [];
     setEscalationHint(null);
     if (reason === "human_handoff") {
@@ -410,6 +436,50 @@ export default function LiveAvatarLandingPage({
     }
   }, [micMuted, micBusy]);
 
+  // Mic check shared by the pre-join lobby ("Check mic") and Join. Extracted
+  // from startSession so both paths run the same permission + getUserMedia
+  // probe — the lobby gives the worker a head start by verifying up front.
+  const checkMicrophone = useCallback(async (): Promise<boolean> => {
+    try {
+      if (typeof navigator !== "undefined" && navigator.permissions) {
+        const perm = await navigator.permissions.query({ name: "microphone" as PermissionName });
+        if (perm.state === "denied") {
+          setError("Microphone access is blocked. Please allow microphone access in your browser settings to start the live conversation.");
+          setErrorReason("mic");
+          setStatus("Microphone access required");
+          return false;
+        }
+      }
+      // Also try getUserMedia to prompt for permission
+      if (typeof navigator !== "undefined" && navigator.mediaDevices) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach((t) => t.stop());
+        } catch {
+          setError("Microphone access is required for the live conversation. Please allow access and try again.");
+          setErrorReason("mic");
+          setStatus("Microphone access required");
+          return false;
+        }
+      }
+    } catch {
+      // Permissions API not available — proceed and let the SDK handle it
+    }
+    return true;
+  }, []);
+
+  const handleCheckMic = useCallback(async () => {
+    setMicState("checking");
+    const ok = await checkMicrophone();
+    micReadyRef.current = ok;
+    setMicState(ok ? "ready" : "blocked");
+    if (ok) {
+      setError(null);
+      setErrorReason(null);
+      setStatus("Microphone ready — join when you're ready");
+    }
+  }, [checkMicrophone]);
+
   async function startSession() {
     if (startedRef.current) return;
     const id = (await params).id;
@@ -429,6 +499,8 @@ export default function LiveAvatarLandingPage({
     setMicError(null);
     expectedOwnerIdentityRef.current = null;
     setLkTwin(null);
+    // Clear any prior post-session debrief — a new session starts fresh.
+    setDebrief(null);
     // Fresh per-session instrumentation; a pre-session booking click carries over.
     metricsRef.current = {
       userTurns: 0,
@@ -444,33 +516,15 @@ export default function LiveAvatarLandingPage({
     setStatus("Preparing conversation…");
     trackLiveSessionRequested({ shareId: id });
 
-    // Check microphone permission before starting
-    try {
-      if (typeof navigator !== "undefined" && navigator.permissions) {
-        const perm = await navigator.permissions.query({ name: "microphone" as PermissionName });
-        if (perm.state === "denied") {
-          setError("Microphone access is blocked. Please allow microphone access in your browser settings to start the live conversation.");
-          setErrorReason("mic");
-          setStatus("Microphone access required");
-          setStarting(false);
-          return;
-        }
+    // Reuse the lobby mic check. When the lobby already verified the mic,
+    // skip the second probe so session creation — and the avatar worker —
+    // starts immediately (worker head start).
+    if (!micReadyRef.current) {
+      const micOk = await checkMicrophone();
+      if (!micOk) {
+        setStarting(false);
+        return;
       }
-      // Also try getUserMedia to prompt for permission
-      if (typeof navigator !== "undefined" && navigator.mediaDevices) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          stream.getTracks().forEach((t) => t.stop());
-        } catch {
-          setError("Microphone access is required for the live conversation. Please allow access and try again.");
-          setErrorReason("mic");
-          setStatus("Microphone access required");
-          setStarting(false);
-          return;
-        }
-      }
-    } catch {
-      // Permissions API not available — proceed and let the SDK handle it
     }
 
     try {
@@ -757,7 +811,9 @@ export default function LiveAvatarLandingPage({
   }
 
   const sender = share.senderName || "your contact";
-  const recipient = share.recipientName || "there";
+  // Recipient name comes from the share record only — never inferred.
+  // Guarded: empty/blank means no personalized greeting at all.
+  const recipientName = share.recipientName?.trim() || "";
   const bookingUrl = resolveSchedulingProvider(share.bookingUrl)?.url ?? null;
   const handoffMeta = (share as ShareRecord & {
     handoff?: {
@@ -789,16 +845,16 @@ export default function LiveAvatarLandingPage({
             <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium mb-3">
               {handoffMeta ? "A personal invitation" : "Conversation link"}
             </p>
-            {share.recipientName && (
+            {recipientName && (
               <div className="flex items-center justify-center gap-2 mb-2">
                 <span className="w-7 h-7 rounded-full bg-cream-dark flex items-center justify-center text-label-sm font-medium text-ink-muted">
-                  {recipient.slice(0, 1).toUpperCase()}
+                  {recipientName.slice(0, 1).toUpperCase()}
                 </span>
                 <span className="text-ink-faint text-sm">·</span>
                 <span className="w-7 h-7 rounded-full bg-ink flex items-center justify-center text-label-sm font-medium text-cream">
                   {sender.slice(0, 1).toUpperCase()}
                 </span>
-                <p className="text-sm text-ink-faint ml-1">Hey {recipient}</p>
+                <p className="text-sm text-ink-faint ml-1">Hey {recipientName}</p>
               </div>
             )}
             <h1 className="font-display text-4xl md:text-5xl tracking-tight leading-[0.9] mb-3">
@@ -844,6 +900,44 @@ export default function LiveAvatarLandingPage({
             <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium text-center mb-3">
               Choose how to continue
             </p>
+            {!live && !starting && !debrief && (
+              <div
+                aria-label="Before you join"
+                className="mb-3 rounded-2xl border border-cream-dark bg-white/70 p-4"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full bg-accent/60 shrink-0" aria-hidden />
+                  <p className="text-body-xs font-medium text-ink">Before you join</p>
+                </div>
+                <p className="text-body-xs text-ink-muted mb-3">
+                  You&apos;ll talk to {sender}&apos;s AI representative — disclosed, never disguised. It answers from {sender}&apos;s playbook and can point you to a booking link. Mic stays in this browser.
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleCheckMic}
+                    disabled={micState === "checking"}
+                    aria-label="Check microphone"
+                    className="btn-press rounded-xl border border-ink/15 bg-white/70 text-ink px-4 py-2.5 text-body-sm font-medium hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-h-[44px]"
+                  >
+                    {micState === "checking" ? (
+                      <>
+                        <LottieIcon name="spinner" className="w-4 h-4" />
+                        Checking…
+                      </>
+                    ) : (
+                      "Check mic"
+                    )}
+                  </button>
+                  <p className="text-label-base text-ink-faint" role="status">
+                    {micState === "ready"
+                      ? "Mic ready — Join starts the conversation right away."
+                      : micState === "blocked"
+                        ? "Mic blocked — allow access, then check again."
+                        : "A quick check avoids a second prompt on Join."}
+                  </p>
+                </div>
+              </div>
+            )}
             <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${bookingUrl ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
               <div className="rounded-2xl border border-cream-dark bg-white/70 p-4 flex flex-col">
                 <div className="flex items-center gap-2 mb-2">
@@ -861,13 +955,13 @@ export default function LiveAvatarLandingPage({
                 <button
                   onClick={startSession}
                   disabled={starting}
-                  aria-label={starting ? "Starting live conversation" : `Talk to ${sender}'s AI representative`}
+                  aria-label={starting ? "Joining live conversation" : `Join live conversation with ${sender}'s AI representative`}
                   className="btn-press rounded-xl bg-accent text-white px-6 py-3 text-body-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-h-[44px]"
                 >
                   {starting ? (
                     <>
                       <LottieIcon name="spinner-light" className="w-4 h-4" />
-                      Starting...
+                      Joining…
                     </>
                   ) : errorReason === "provider" ? (
                     <>
@@ -878,7 +972,7 @@ export default function LiveAvatarLandingPage({
                       <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M8 12.5a4.5 4.5 0 004.5-4.5M8 12.5a4.5 4.5 0 01-4.5-4.5M8 12.5V14m0-13v1.5" />
                       </svg>
-                      Talk to {sender}&apos;s AI
+                      {micState === "ready" ? `Join now — mic ready` : `Join conversation`}
                     </>
                   )}
                 </button>
@@ -1033,6 +1127,15 @@ export default function LiveAvatarLandingPage({
             </div>
             {micError && (
               <p role="alert" className="text-body-xs text-warm text-center mt-3">{micError}</p>
+            )}
+            {debrief && !live && (
+              <div className="mt-3">
+                <SessionDebriefCard
+                  metrics={debrief}
+                  title="What they asked about"
+                  subtitle={`Conversation labels from this session with ${sender} — labels only, nothing said is stored.`}
+                />
+              </div>
             )}
           </motion.div>
 

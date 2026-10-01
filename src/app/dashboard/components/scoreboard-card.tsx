@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { LottieIcon } from "@/components/lottie-icon";
+import { SessionDebriefCard } from "@/components/session-debrief-card";
+import { TeachingLadder } from "./teaching-ladder";
 
 interface LiveSessionMetrics {
   userTurns: number;
@@ -87,6 +89,20 @@ export function ScoreboardCard() {
       .slice(0, 6);
     const maxTopic = topicList[0]?.[1] || 1;
 
+    // Sender debrief: newest terminal session's persisted metric labels only
+    // (questionTopics, bookingClicked, userTurns). Sessions arrive
+    // newest-first, so sessions[0] is the latest. No raw dialogue exists on
+    // this path, so nothing spoken can leak through this card.
+    const latest = sessions[0];
+    const latestDebrief = latest?.metrics
+      ? {
+          userTurns: latest.metrics.userTurns || 0,
+          agentTurns: latest.metrics.agentTurns || 0,
+          questionTopics: latest.metrics.questionTopics || [],
+          bookingClicked: Boolean(latest.metrics.bookingClicked),
+        }
+      : null;
+
     return {
       total,
       started,
@@ -99,6 +115,7 @@ export function ScoreboardCard() {
       medianDuration: median(durations),
       topicList,
       maxTopic,
+      latestDebrief,
     };
   }, [sessions]);
 
@@ -124,8 +141,11 @@ export function ScoreboardCard() {
         <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
           Live scoreboard
         </span>
-        <p className="text-sm text-ink-muted mt-4 mb-3">No live sessions yet.</p>
-        <p className="text-xs text-ink-faint">Share a live link to start collecting metrics.</p>
+        <p className="text-sm text-ink-muted mt-4 mb-1">No live sessions yet.</p>
+        <p className="text-label-base text-ink-faint mb-3">Share a live link to start collecting metrics.</p>
+        <div className="max-w-[320px] mx-auto">
+          <TeachingLadder activeStep={1} compact />
+        </div>
       </div>
     );
   }
@@ -178,6 +198,14 @@ export function ScoreboardCard() {
             ))}
           </div>
         </div>
+      )}
+
+      {stats.latestDebrief && (
+        <SessionDebriefCard
+          metrics={stats.latestDebrief}
+          title="Latest session debrief"
+          subtitle="Labels from the most recent terminal session — topic labels only, never raw dialogue."
+        />
       )}
     </motion.div>
   );

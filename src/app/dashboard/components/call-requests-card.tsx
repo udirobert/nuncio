@@ -529,16 +529,23 @@ export function CallRequestsCard() {
                       <button
                         onClick={() => decide(request.id, "accept")}
                         disabled={busy === request.id}
-                        className="btn-press rounded-lg bg-accent text-white px-3 py-1.5 text-body-xs font-medium disabled:opacity-50"
+                        className="btn-press inline-flex items-center gap-1.5 rounded-lg bg-accent text-white px-3 py-1.5 text-body-xs font-medium disabled:opacity-50"
                       >
-                        Accept
+                        {busy === request.id ? (
+                          <>
+                            <LottieIcon name="spinner-light" className="w-3 h-3" />
+                            Accepting…
+                          </>
+                        ) : (
+                          "Accept"
+                        )}
                       </button>
                       <button
                         onClick={() => decide(request.id, "decline")}
                         disabled={busy === request.id}
-                        className="btn-press rounded-lg border border-ink/15 text-ink-muted px-3 py-1.5 text-body-xs font-medium hover:text-ink disabled:opacity-50"
+                        className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-ink/15 text-ink-muted px-3 py-1.5 text-body-xs font-medium hover:text-ink disabled:opacity-50"
                       >
-                        Decline
+                        {busy === request.id ? "Working…" : "Decline"}
                       </button>
                     </>
                   )}
@@ -546,9 +553,16 @@ export function CallRequestsCard() {
                     <button
                       onClick={() => joinCall(request)}
                       disabled={busy === request.id}
-                      className="btn-press rounded-lg bg-ink text-cream px-3 py-1.5 text-body-xs font-medium disabled:opacity-50"
+                      className="btn-press inline-flex items-center gap-1.5 rounded-lg bg-ink text-cream px-3 py-1.5 text-body-xs font-medium disabled:opacity-50"
                     >
-                      {busy === request.id ? <LottieIcon name="spinner-light" className="w-3 h-3" /> : "Join call"}
+                      {busy === request.id ? (
+                        <>
+                          <LottieIcon name="spinner-light" className="w-3 h-3" />
+                          Joining…
+                        </>
+                      ) : (
+                        "Join call"
+                      )}
                     </button>
                   )}
                   {request.status === "accepted" && !request.roomReady && (

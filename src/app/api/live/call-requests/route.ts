@@ -194,7 +194,7 @@ export async function GET(request: NextRequest) {
       cleanupError: Boolean(r.cleanupError),
       connection: r.connection ?? null,
       timings: callRequestTimings(r),
-      recipient: share?.profile?.name || share?.recipientName || null,
+      recipient: share?.recipientName || null,
       recipientRole: share?.profile?.current_role || null,
       recipientCompany: share?.profile?.company || null,
       questionTopics: sessionRecord?.metrics?.questionTopics ?? [],

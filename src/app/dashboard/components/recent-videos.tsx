@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { LottieIcon } from "@/components/lottie-icon";
+import { TeachingLadder } from "./teaching-ladder";
 
 interface VideoData {
   id: string;
@@ -166,13 +167,11 @@ export function RecentVideos() {
 
       {firstTouches.length === 0 ? (
         <div className="text-center py-4">
-          <p className="text-sm text-ink-muted mb-3">No first touches yet</p>
-          <Link
-            href="/studio"
-            className="inline-block text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
-          >
-            Create your first touch
-          </Link>
+          <p className="text-sm text-ink-muted mb-1">No first touches yet</p>
+          <p className="text-label-base text-ink-faint mb-3">Your first link is the start — conversations and bookings follow.</p>
+          <div className="max-w-[320px] mx-auto">
+            <TeachingLadder activeStep={0} compact />
+          </div>
         </div>
       ) : (
         <ul className="space-y-1">

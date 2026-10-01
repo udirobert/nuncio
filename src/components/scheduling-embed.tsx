@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { resolveSchedulingProvider } from "@/lib/scheduling";
+import { LottieIcon } from "@/components/lottie-icon";
 import type { LiveCallBrief, BriefDialogueMessage } from "@/lib/live-call-brief";
 
 interface SchedulingEmbedProps {
@@ -389,6 +390,7 @@ export function SchedulingEmbed({
       setContextToken(null);
     }
     if (genRef.current !== gen) return;
+    setSubmitting(false);
     mountCalcom(gen, token);
     busyRef.current = false;
   }, [provider, tracked, shareId, sessionProof, brief, mountCalcom, onBookingClicked]);
@@ -524,10 +526,19 @@ export function SchedulingEmbed({
           <button
             type="button"
             onClick={() => void continueScheduling(attachBrief)}
-            disabled={tracked === "pending" && provider.id === "calcom"}
-            className="w-full min-h-[44px] rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-cream disabled:opacity-50"
+            disabled={(tracked === "pending" && provider.id === "calcom") || submitting}
+            className="inline-flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-cream disabled:opacity-50"
           >
-            {provider.id === "link" ? `Open ${provider.host} in a new tab` : "Continue to scheduling"}
+            {submitting ? (
+              <>
+                <LottieIcon name="spinner-light" className="w-4 h-4" />
+                Preparing…
+              </>
+            ) : provider.id === "link" ? (
+              `Open ${provider.host} in a new tab`
+            ) : (
+              "Continue to scheduling"
+            )}
           </button>
           {contextError ? (
             <div className="space-y-1">

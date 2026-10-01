@@ -17,7 +17,10 @@ export function buildLiveSystemPrompt(share: {
   unansweredQuestions: string[];
 }, actions?: { schedulingAvailable: boolean }): string {
   const profile = share.profile;
-  const recipient = share.recipientName || profile?.name || "there";
+  // Recipient name comes from the share record only — never inferred from
+  // the researched profile. When absent, callers get a generic greeting.
+  const shareRecipient = share.recipientName?.trim();
+  const recipient = shareRecipient ? shareRecipient : "there";
   const sender = share.senderName || "your contact";
   const role = profile?.current_role ? `, ${profile.current_role}` : "";
   const company = profile?.company ? ` at ${profile.company}` : "";

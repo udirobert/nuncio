@@ -87,6 +87,24 @@ const ARCHETYPE_OPTIONS: { id: ArchetypeSelection; label: string; description: s
   { id: "day_in_the_life", label: "Day-in-life", description: "A vignette of their daily workflow or creative process." },
 ];
 
+const SAMPLE_BRIEFS: { label: string; brief: string; tone: string }[] = [
+  {
+    label: "Warm intro",
+    brief: "I'm reaching out because I admire their work and want to share how we help small teams hand off onboarding without the chaos.",
+    tone: "warm, conversational",
+  },
+  {
+    label: "Crisp follow-up",
+    brief: "Following up on their post about shipping faster — we cut onboarding handoff time to under a week for teams like theirs.",
+    tone: "crisp, direct",
+  },
+  {
+    label: "Bold ask",
+    brief: "I help founders turn cold first touches into booked calls. Want to see what an honest AI first touch could do for their pipeline?",
+    tone: "bold, confident",
+  },
+];
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Studio Client Props
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1790,6 +1808,24 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                               Set by voice
                             </span>
                           )}
+                          <div className="flex flex-wrap gap-2 mt-2" aria-label="Sample briefs">
+                            {SAMPLE_BRIEFS.map((sample) => (
+                              <button
+                                key={sample.label}
+                                type="button"
+                                onClick={() => {
+                                  setSenderBrief(sample.brief);
+                                  setTonePreference(sample.tone);
+                                }}
+                                className="text-label-base text-ink-muted hover:text-accent transition-colors px-2.5 py-1 rounded-md border border-cream-dark/70 hover:border-accent/30 bg-white/60"
+                              >
+                                {sample.label}
+                              </button>
+                            ))}
+                          </div>
+                          <p className="mt-1.5 text-label-base text-ink-faint">
+                            Fills the brief and tone below — edit freely before researching.
+                          </p>
                         </div>
 
                         {mode === "reconnect" && (
@@ -3112,7 +3148,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                   disabled={captureLoading || !captureEmail.trim()}
                   className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-body-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors"
                 >
-                  {captureLoading ? "Processing…" : captureIntent === "download" ? "Download video" : captureIntent === "share" ? "Get share link" : captureIntent === "saveBrief" ? "Save brief" : "Render video"}
+                  {captureLoading ? (captureIntent === "saveBrief" ? "Saving…" : "Working…") : captureIntent === "download" ? "Download video" : captureIntent === "share" ? "Get share link" : captureIntent === "saveBrief" ? "Save brief" : "Render video"}
                 </button>
               </motion.form>
             </motion.div>

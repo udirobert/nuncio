@@ -159,7 +159,8 @@ export default function VideoLandingPage({
 
   const hasVideo = Boolean(videoData.videoUrl);
   const senderName = videoData.senderName || "";
-  const recipientName = videoData.recipientName || "";
+  // Recipient name comes from the share record only — never inferred.
+  const recipientName = videoData.recipientName?.trim() || "";
   const senderCompany = videoData.profile?.company || "";
   const senderRole = videoData.profile?.current_role || "";
 

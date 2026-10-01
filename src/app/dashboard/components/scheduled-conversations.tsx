@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { TeachingLadder } from "./teaching-ladder";
 
 interface BookingRow {
   id: string;
@@ -86,7 +87,13 @@ export function ScheduledConversations() {
         </p>
       )}
       {loaded && !error && shown.length === 0 && (
-        <p className="text-body-xs text-ink-faint">No provider-confirmed bookings tracked here yet.</p>
+        <div className="text-center py-2">
+          <p className="text-body-xs text-ink-muted">No provider-confirmed bookings tracked here yet.</p>
+          <p className="text-label-base text-ink-faint mt-1 mb-2">Bookings appear once a prospect picks a time on your scheduling link.</p>
+          <div className="max-w-[320px] mx-auto">
+            <TeachingLadder activeStep={2} compact />
+          </div>
+        </div>
       )}
       <ul className="space-y-3">
         {shown.map((row) => (
