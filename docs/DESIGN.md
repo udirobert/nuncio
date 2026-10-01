@@ -129,7 +129,7 @@ Per `docs/STRATEGY.md`, the live link is a personal front door — the recipient
 - Request capability token lives in memory only — never in the URL or localStorage.
 
 ### Owner (`CallRequestsCard` on `/dashboard`)
-- Availability toggle is explicit and expiring ("Available for calls — 15 min"), never inferred from a calendar. Pending requests list with accept/decline; accepted state shows a "Join call" button — no automatic mic/camera prompts.
+- Availability toggle is explicit and expiring ("Available for calls — 15 min"), never inferred from a calendar. Pending requests list with accept/decline; accepted state shows a "Join call" button — no automatic mic/camera prompts. Accept/Join show optimistic busy states (`Accepting…` / `Joining…` with spinner, buttons disabled) so double-clicks never double-fire.
 - Owner-facing setup fields (`synthesiaAvatarId` `av_*`, `liveVoiceId`, identity, playbook, booking URL) live in the Setup view (`/dashboard?view=setup`, `SetupPanel`) — not inside the inbox card.
 
 ### Shared room (`LiveCallRoom`)
@@ -137,6 +137,8 @@ Per `docs/STRATEGY.md`, the live link is a personal front door — the recipient
 
 ### Text→live handoff entry (`/live/[id]` with `handoffId` marker)
 - The live start controls, `CallRequestPanel`, and booking link render as three peer cards under "Choose how to continue" so the recipient never has to start the paid avatar session to see their options. Cards: "Ask the AI representative" (Questions first, without scheduling), "Request {sender}" (availability- and acceptance-gated), "Choose a time" (only when a valid configured HTTPS booking URL exists). During the human-call phase a top "Human call room" banner marks the phase — observed participant presence remains the `LiveCallRoom` component's job; the banner does not claim anyone joined. The avatar stage stays mounted but hidden.
+- A `Before you join` lobby (Check mic + disclosure + mic status) precedes session start; a passed lobby check lets Join skip the second mic probe so the worker starts sooner. Mic state resets every session. The Join control shows `Joining…` with spinner while starting. After deliberate endings (manual / max-duration / human handoff), a `What they asked about` debrief card renders persisted metric labels only (`userTurns`, `questionTopics`, `bookingClicked`) — never raw dialogue.
+- Recipient names are share-record only, never inferred: the twin prompt falls back to a generic greeting when `share.recipientName` is absent, and the front-door greeting renders only for a trimmed non-empty name.
 - Eyebrow is "A personal invitation" for bearer-protected handoffs (possession of the link is not verified identity) and "Conversation link" for ordinary shares. Heading: "A conversation with {sender}"; protected handoffs add "Continue the conversation started by {sender}".
 - `recommendedNextStep` is advisory only and never auto-starts anything.
 - Handoff context stays server-side — the private summary is not returned in public share/status APIs, though the twin may refer to its contents; the owner sees it in the dashboard inbox as "Text conversation context" before accepting and inside the connected call view.
@@ -147,8 +149,8 @@ Per `docs/STRATEGY.md`, the live link is a personal front door — the recipient
 - It teaches the actual branch semantics: ask the AI, request the sender, or choose a configured scheduling link; a request is not an acceptance, and a human call happens only when the owner accepts and both participants join — the AI steps aside. No qualification is implied and no call auto-connects.
 
 ### Dashboard views
-- `/dashboard` (Conversations) = operational inbox: "Needs your attention" (`CallRequestsCard`), "Recent first touches" (`RecentVideos` incl. the `firstTouches` projection of `GET /api/videos/recent`), plus a compact "Your representative" readiness aside and a collapsed "Usage & account" section.
-- `/dashboard?view=setup` = `SetupPanel`: identity, playbook, scheduling (HTTPS-only booking URL input), and collapsible provider fields, with a server-loaded status checklist — configuration presence, never provider health. The checklist reports "unknown" while readiness can't be fetched, and derives only from the last saved server snapshot, not unsaved form input. `SetupPanel variant="summary"` renders the same saved statuses (no form) in the conversations aside.
+- `/dashboard` (Conversations) = operational inbox: "Needs your attention" (`CallRequestsCard`), "Scheduled conversations" (provider-verified bookings; empty state links the teaching ladder at the booking step), "Recent first touches" (`RecentVideos` incl. the `firstTouches` projection of `GET /api/videos/recent`; empty state links the ladder at the first-link step), plus a compact "Your representative" readiness aside and a collapsed "Usage & account" section (scoreboard empty state links the ladder at the conversation step; non-empty scoreboards carry a latest-session debrief card — metric labels only, never dialogue).
+- `/dashboard?view=setup` = `SetupPanel`: identity, playbook, scheduling (HTTPS-only booking URL input), and collapsible provider fields, with a server-loaded status checklist — configuration presence, never provider health. The checklist reports "unknown" while readiness can't be fetched, and derives only from the last saved server snapshot, not unsaved form input. `SetupPanel variant="summary"` renders the same saved statuses (no form) in the conversations aside. Setup guides blank fields with `e.g.` placeholders (Alex/Northwind fiction), a `Try an example` fill (dirty-marked, never autosaves), a live prospect preview that reacts to unsaved typing, a `Hear your twin` TTS preview of the disclosure line (non-blocking errors), staged save states (`Saving…` → `Saved ✓` + `Preview updated` + one reduced-motion-aware pulse), and a playbook coverage meter (`n/5`: wants/offer/constraints + wiggle-room + identity).
 - Login return target: `resolveLoginNext` (`src/lib/auth/login-next.ts`) allowlists only `/dashboard?view=setup`, `/dashboard`, `/studio`, `/pricing` — everything else falls back to `/studio`. The `next` param flows LoginForm → `POST /api/auth/login` → verify-link query → `/api/auth/verify` redirect, and is preserved on error redirects.
 
 ---
@@ -169,6 +171,8 @@ Per `docs/STRATEGY.md`, the live link is a personal front door — the recipient
 - Editable textarea in edit mode
 - Word count badge (green under 180 words, amber 180–200, red over 200)
 - Source attribution chips (small pills showing which platforms contributed)
+- Review-stage sender/playbook fields carry `e.g.` placeholders (Alex/Northwind fiction); brief input offers Warm/Crisp/Bold sample chips that fill brief + tone
+- Capture actions show busy labels (`Working…`, `Saving…` for brief saves) with buttons disabled to prevent double-submit
 
 ### Video player
 - Native `<video>` element, no third-party player for MVP

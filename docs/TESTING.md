@@ -230,9 +230,20 @@ The frontend redesign (homepage journey illustration, `/dashboard?view=setup`, r
 7. Consent: "Draft brief" only sends dialogue after explicit click; the skip path ("Request … now") is never blocked by brief drafting.
 8. Copied links: "Copy link" on the dashboard only appears for ordinary shares; invitation-protected handoffs show "Owner view" and never offer a copyable link missing its fragment.
 
+## Guided setup + delight manual checklist (user-owned)
+
+The Setup guidance (placeholders, `Try an example`, live preview, `Hear your twin`, staged save, coverage meter), studio sample chips, teaching ladders, money-button states, live lobby, debrief cards, and share-record-only recipient names were implemented with typecheck + lint only — the user owns browser verification. Nothing below has been run against a live session.
+
+1. Setup example: load `/dashboard?view=setup` empty — every field shows an `e.g.` placeholder; `Try an example` fills Alex/Northwind fiction and marks Save dirty without saving; the preview updates (name, business, twin line, `Choose a time` visibility) as you type.
+2. Twin voice: `Hear your twin` plays the disclosure line (default voice, or saved `liveVoiceId` when set); Stop halts it; with ElevenLabs unconfigured a non-blocking "Voice preview is unavailable right now" appears and saving still works.
+3. Save staging: Save shows `Saving…` → `Saved ✓` + `Preview updated`, the preview pulses once (no pulse under `prefers-reduced-motion`); coverage meter reads `n/5` with Getting started / Almost there / Playbook complete.
+4. Ladders + buttons: empty Conversations shows the three-step ladder at the right step per card; Accept shows `Accepting…`, Join shows `Joining…`, scheduling shows `Preparing…`; double-clicks never double-fire.
+5. Lobby + debrief: on `/live/[id]`, `Before you join` offers Check mic (ready/blocked/idle states); Join after a passed check skips the second probe; after a deliberate end, `What they asked about` shows metric labels only; greeting uses the share-record name or nothing — never a researched name.
+6. Playbook deep-links: `/playbook#<entry>` expands the entry and smooth-scrolls with header offset (instant under reduced motion).
+
 ## Conversational escalation + scheduling checklist
 
-The escalation hint, desktop alerts, embedded scheduling, and Cal.com webhook lifecycle are covered by automated tests and mocked browser QA in this pass. Automated coverage: `src/lib/escalation.test.ts`, `src/lib/live-transcripts.test.ts`, `src/lib/scheduling.test.ts`, `src/lib/scheduling-server.test.ts`, `src/lib/calcom-webhook.test.ts`, `src/lib/call-request-notifications.test.ts`, `src/lib/live-avatar-providers.test.ts`, `src/lib/storage/file-scheduling-provider.test.ts`, `src/lib/storage/turso-scheduling-provider.test.ts`, `src/app/api/scheduling/**`. Not verified: live avatar sessions, real Cal.com bookings/webhook delivery, and the two-person human call.
+The escalation hint, desktop alerts, embedded scheduling, and Cal.com webhook lifecycle are covered by automated tests and mocked browser QA in this pass. Automated coverage: `src/lib/escalation.test.ts`, `src/lib/live-transcripts.test.ts`, `src/lib/scheduling.test.ts`, `src/lib/scheduling-server.test.ts`, `src/lib/calcom-webhook.test.ts`, `src/lib/call-request-notifications.test.ts`, `src/lib/live-avatar-providers.test.ts`, `src/lib/storage/file-scheduling-provider.test.ts`, `src/lib/storage/turso-scheduling-provider.test.ts`, `src/app/api/scheduling/**`. The delight batch on top (lobby skip-probe, debrief snapshots, recipient-name guardrails, `Preparing…` busy flag) is typecheck + lint only. Not verified: live avatar sessions, real Cal.com bookings/webhook delivery, and the two-person human call.
 
 1. Spoken escalation: in a live twin session say "Can I speak to the actual sender?" — an in-page "Want to speak to {sender}?" hint appears and its action scrolls/focuses the existing request card; it never sends a request. Say "I do not want to speak to a person" — no hint. Hints are suppressed during a human call and cleared on session reset/end.
 2. Provider parity: the same utterance produces the same hint on Anam (message history) and Synthesia/LiveKit (final transcript segments); partial segments and assistant turns never trigger it.
