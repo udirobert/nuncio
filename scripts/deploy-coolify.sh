@@ -139,7 +139,7 @@ if [ -z "${IMAGE_CREATED}" ]; then
   ssh -o ConnectTimeout=5 "${REMOTE}" "tail -20 ${BUILD_LOG} 2>/dev/null | strings"
   exit 1
 fi
-IMAGE_AGE_S=$(( $(date +%s) - $(date -d "${IMAGE_CREATED}" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%S" "${IMAGE_CREATED%%.*}" +%s 2>/dev/null || echo 0) ))
+IMAGE_AGE_S=$(( $(date +%s) - $(date -d "${IMAGE_CREATED}" +%s 2>/dev/null || TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%S" "${IMAGE_CREATED%%.*}" +%s 2>/dev/null || echo 0) ))
 if [ "${IMAGE_AGE_S}" -gt 900 ] 2>/dev/null; then
   echo "✗ Image ${IMAGE} is stale (created ${IMAGE_CREATED}) — build likely failed. Log tail:"
   ssh -o ConnectTimeout=5 "${REMOTE}" "tail -20 ${BUILD_LOG} 2>/dev/null | strings"
