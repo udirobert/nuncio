@@ -54,3 +54,15 @@ Allowed patterns for our free → paid ladders:
 - https://developers.openai.com/plugins/plugin-guidelines
 - https://learn.chatgpt.com/docs/plugins
 - DevDay 2026 Plugin Extensions / mid-conversation discovery writeups (e.g. intent routing / "plugin SEO")
+
+## Usage-only scoreboard (Plugin Lane)
+
+Watch weekly. **Usage-first; don't chase ARPU yet** — no paid conversion, checkout, or monetisation metrics on this board. Free MCP wedge in ChatGPT: `research_and_draft`; render / live link stay off-platform if mentioned at all and are out of scope here. Instrument when you have analytics (MCP/`/api/mcp` request logs, product referral/`utm`, stable client ids); do not invent dashboards until those exist.
+
+| # | Metric | What “good” looks like |
+| --- | --- | --- |
+| 1 | Plugin connects | Successful connect + `tools/list` for `https://nuncio.persidian.com/api/mcp` |
+| 2 | Free tool calls / week | Calls to live free tool: `research_and_draft` |
+| 3 | Return users | ≥2 sessions in 7 days (same ChatGPT user / stable client id if logged) |
+
+Related: [CONNECT](./CONNECT.md) · free wedge vs paid follow-up (not in-plugin).

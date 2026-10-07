@@ -197,7 +197,7 @@ curl -X POST http://localhost:3000/api/mcp/research-and-draft \
   -d '{"demo":true,"url":"https://example.com"}'
 ```
 
-Playbook: [docs/CHATGPT_PLUGIN_PLAYBOOK.md](./docs/CHATGPT_PLUGIN_PLAYBOOK.md) · Connect: [docs/CONNECT.md](./docs/CONNECT.md) · Eval: [docs/EVAL.md](./docs/EVAL.md) · Starters: [docs/STARTER_PROMPTS.md](./docs/STARTER_PROMPTS.md)
+Playbook: [docs/CHATGPT_PLUGIN_PLAYBOOK.md](./docs/CHATGPT_PLUGIN_PLAYBOOK.md) · Connect: [docs/CONNECT.md](./docs/CONNECT.md) · Eval: [docs/EVAL.md](./docs/EVAL.md) · Starters: [docs/STARTER_PROMPTS.md](./docs/STARTER_PROMPTS.md) · Scoreboard: usage-only funnel in [docs/CHATGPT_PLUGIN_PLAYBOOK.md](./docs/CHATGPT_PLUGIN_PLAYBOOK.md#usage-only-scoreboard-plugin-lane) (usage-first; don’t chase ARPU yet)
 
 ---
 
