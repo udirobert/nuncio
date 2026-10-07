@@ -31,6 +31,8 @@ export const RATE_LIMITS = {
   live: { maxRequests: 3, windowSeconds: 60 },
   /** Public lite agent endpoint — quick-tier research + script, no render */
   agentLite: { maxRequests: 20, windowSeconds: 3600 },
+  /** ChatGPT / MCP free discovery wedge — research + draft (no render) */
+  mcpResearchDraft: { maxRequests: 20, windowSeconds: 3600 },
 } as const;
 
 export interface RateLimitResult {

@@ -180,6 +180,27 @@ See [`docs/DEPLOY.md`](./docs/DEPLOY.md) for deployment guide (Vultr + Coolify, 
 
 ---
 
+## ChatGPT plugin — "write my first message to this prospect"
+
+Thin MCP/HTTP wrapper for [chatgpt.com/plugins](https://chatgpt.com/plugins). Description in user words. **Free** `research_and_draft` first (quick-tier research + channel draft in-chat — discovery + mid-conversation recommendation). Render / live link second via an **existing account** or informational plans page on the product site — **not** in-plugin checkout (OpenAI allows plugin commerce for physical goods only).
+
+| Tool | Price | Endpoint |
+| --- | --- | --- |
+| `research_and_draft` | Free | `POST /api/mcp/research-and-draft` |
+| Service discovery | — | `GET /api/mcp/tools` |
+| Thin MCP stub | — | `POST /api/mcp` (`tools/list`, `tools/call`) |
+
+```bash
+# Demo path (no live research) — labelled sample draft
+curl -X POST http://localhost:3000/api/mcp/research-and-draft \
+  -H 'content-type: application/json' \
+  -d '{"demo":true,"url":"https://example.com"}'
+```
+
+Playbook: [docs/CHATGPT_PLUGIN_PLAYBOOK.md](./docs/CHATGPT_PLUGIN_PLAYBOOK.md) · Connect: [docs/CONNECT.md](./docs/CONNECT.md) · Eval: [docs/EVAL.md](./docs/EVAL.md) · Starters: [docs/STARTER_PROMPTS.md](./docs/STARTER_PROMPTS.md)
+
+---
+
 ## OpenClaw 2.0 — first-hire hackathon (SDR entry)
 
 AgentCribs "startup's first hire": nuncio as OpenClaw 2.0 multiplayer SDR. Submit by **Sep 29, 11:59pm PT** to the AI Worth Using Agent Index (MIT, usage reporting); leaderboard snapshot Sep 30.
