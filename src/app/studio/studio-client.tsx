@@ -1510,7 +1510,9 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
   return (
     <>
       <Header stage={stage === "ready" ? "review" : (stage === "building" || stage === "enriching" || stage === "collaborating" || stage === "generating") ? "progress" : stage === "review" ? "review" : "input"} />
-      <OnboardingModal />
+      {/* Setup walkthrough only makes sense once the visitor can act on it —
+          anonymous explorers don't get a modal selling a page behind login. */}
+      {session?.authenticated && <OnboardingModal />}
 
       <main className="flex-1 w-full">
         {/* Post-checkout success toast */}

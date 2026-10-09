@@ -147,7 +147,7 @@ export default function VideoLandingPage({
           </Link>
           <h1 className="font-display text-4xl tracking-tight">Video link expired</h1>
           <p className="text-sm text-ink-muted leading-relaxed">
-            This prototype keeps share records in the running app process. Generate a fresh video to create a new branded page.
+            This link is no longer active — the sender&apos;s copy may have expired or been replaced.
           </p>
           <Link
             href="/"
@@ -161,9 +161,27 @@ export default function VideoLandingPage({
   }
 
   if (!videoData) {
+    // Skeleton mirrors the loaded layout — greeting over a 16:9 card — so the
+    // page lands with structure instead of a bare spinner.
     return (
-      <div className="min-h-screen bg-cream flex items-center justify-center">
-        <LottieIcon name="spinner" className="w-10 h-10" />
+      <div className="min-h-screen bg-cream flex flex-col">
+        <header className="px-6 py-5">
+          <span className="font-display text-lg tracking-tight text-ink">nuncio</span>
+        </header>
+        <main className="flex-1 flex items-center justify-center px-6 py-8">
+          <div className="w-full max-w-[720px]">
+            <div className="mb-8 text-center">
+              <div className="mx-auto h-12 w-40 animate-pulse rounded-lg bg-cream-dark/70" />
+              <div className="mx-auto mt-3 h-4 w-64 animate-pulse rounded bg-cream-dark/50" />
+            </div>
+            <div className="relative aspect-video overflow-hidden rounded-2xl bg-ink/5">
+              <div className="absolute inset-0 animate-pulse bg-cream-dark/40" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <LottieIcon name="spinner" className="w-10 h-10 text-ink-faint" />
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }

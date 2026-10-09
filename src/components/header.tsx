@@ -27,26 +27,31 @@ export function Header({ stage, isDemo, activeWorkspaceView }: HeaderProps) {
   const pathname = usePathname();
   const showStage = stage && stage !== "input" && stage !== "error";
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [authenticated, setAuthenticated] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/account/session")
       .then((r) => r.json())
       .then((s) => {
-        if (s.authenticated && typeof s.balance === "number") {
-          setCreditBalance(s.balance);
+        if (s.authenticated) {
+          setAuthenticated(true);
+          if (typeof s.balance === "number") setCreditBalance(s.balance);
         }
       })
       .catch(() => {});
   }, []);
 
-  const NAV_LINKS: { label: string; href: string; view?: "conversations" | "setup"; subtitle?: string }[] = [
-    { label: "Conversations", href: "/dashboard", view: "conversations" as const },
-    { label: "Setup", href: "/dashboard?view=setup", view: "setup" as const },
+  const NAV_LINKS: { label: string; href: string; view?: "conversations" | "setup"; subtitle?: string; memberOnly?: boolean }[] = [
+    { label: "Conversations", href: "/dashboard", view: "conversations" as const, memberOnly: true },
+    { label: "Setup", href: "/dashboard?view=setup", view: "setup" as const, memberOnly: true },
     { label: "Create a first touch", href: "/studio" },
     { label: "Examples", href: "/playbook" },
     { label: "Pricing", href: "/pricing" },
   ];
+  // Member surfaces dead-end at the login wall for anonymous visitors —
+  // don't offer what they can't open.
+  const visibleLinks = NAV_LINKS.filter((l) => !l.memberOnly || authenticated);
 
   const isLinkActive = (link: (typeof NAV_LINKS)[number]) => {
     if (link.view === "setup") return pathname === "/dashboard" && activeWorkspaceView === "setup";
@@ -68,7 +73,7 @@ export function Header({ stage, isDemo, activeWorkspaceView }: HeaderProps) {
             aria-label="Main navigation"
             className="xl:hidden pointer-events-auto absolute top-full left-6 right-6 mt-2 rounded-2xl border border-cream-dark bg-cream shadow-lg shadow-ink/5 p-2 flex flex-col"
           >
-            {NAV_LINKS.map((link, i) => {
+            {visibleLinks.map((link, i) => {
               const isActive = isLinkActive(link);
               return (
                 <motion.div
@@ -93,14 +98,16 @@ export function Header({ stage, isDemo, activeWorkspaceView }: HeaderProps) {
                 </motion.div>
               );
             })}
-            <Link
-              href="/batch"
-              onClick={() => setMobileMenuOpen(false)}
-              aria-current={pathname === "/batch" ? "page" : undefined}
-              className="block rounded-xl px-4 py-3 text-label-base font-medium text-ink-faint hover:text-ink hover:bg-cream-dark/50 transition-colors border-t border-cream-dark mt-1"
-            >
-              Batch
-            </Link>
+            {authenticated && (
+              <Link
+                href="/batch"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-current={pathname === "/batch" ? "page" : undefined}
+                className="block rounded-xl px-4 py-3 text-label-base font-medium text-ink-faint hover:text-ink hover:bg-cream-dark/50 transition-colors border-t border-cream-dark mt-1"
+              >
+                Batch
+              </Link>
+            )}
           </motion.nav>
         )}
       </AnimatePresence>
@@ -162,7 +169,7 @@ export function Header({ stage, isDemo, activeWorkspaceView }: HeaderProps) {
 
       <div className="pointer-events-auto flex items-center gap-6">
         <nav aria-label="Main navigation" className="hidden xl:flex items-center gap-5">
-          {NAV_LINKS.map((link) => {
+          {visibleLinks.map((link) => {
             const isActive = isLinkActive(link);
             return (
               <motion.div
@@ -190,19 +197,23 @@ export function Header({ stage, isDemo, activeWorkspaceView }: HeaderProps) {
           })}
         </nav>
 
-          <Link
-            href="/batch"
-            aria-current={pathname === "/batch" ? "page" : undefined}
-            className={`hidden xl:inline text-label-sm font-medium transition-colors ${
-              pathname === "/batch" ? "text-accent" : "text-ink-faint hover:text-ink"
-            }`}
-          >
-            Batch
-          </Link>
+          {authenticated && (
+            <Link
+              href="/batch"
+              aria-current={pathname === "/batch" ? "page" : undefined}
+              className={`hidden xl:inline text-label-sm font-medium transition-colors ${
+                pathname === "/batch" ? "text-accent" : "text-ink-faint hover:text-ink"
+              }`}
+            >
+              Batch
+            </Link>
+          )}
 
           {creditBalance !== null && (
             <Link
               href="/pricing"
+              title="Credits — research, drafts and renders each spend from this balance. Click for packs."
+              aria-label={`${creditBalance} credits remaining — research, drafts and renders each spend from this balance`}
               className={`text-label-sm font-bold tabular-nums px-2 py-0.5 rounded-md transition-colors ${
                 creditBalance < 11
                   ? "bg-warm-soft text-warm hover:bg-warm-soft/80"

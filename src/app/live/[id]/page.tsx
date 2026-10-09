@@ -781,9 +781,27 @@ export default function LiveAvatarLandingPage({
   }
 
   if (loading) {
+    // Skeleton mirrors the loaded layout — greeting over a conversation card —
+    // so the recipient sees structure, not a spinner on an empty field.
     return (
-      <div className="min-h-screen bg-cream flex items-center justify-center">
-        <LottieIcon name="spinner" className="w-10 h-10" />
+      <div className="min-h-screen bg-cream flex flex-col">
+        <header className="px-6 py-5">
+          <span className="font-display text-lg tracking-tight text-ink">nuncio</span>
+        </header>
+        <main className="flex-1 flex items-center justify-center px-6 py-8">
+          <div className="w-full max-w-[960px]">
+            <div className="mb-8 text-center">
+              <div className="mx-auto h-12 w-56 animate-pulse rounded-lg bg-cream-dark/70" />
+              <div className="mx-auto mt-3 h-4 w-72 animate-pulse rounded bg-cream-dark/50" />
+            </div>
+            <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border border-cream-dark bg-white/60">
+              <div className="absolute inset-0 animate-pulse bg-cream-dark/30" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <LottieIcon name="spinner" className="w-10 h-10 text-ink-faint" />
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
