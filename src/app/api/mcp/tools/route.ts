@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { checkAccess, subjectForRequest } from "@/lib/governance/service";
 
 export const runtime = "nodejs";
 
@@ -91,29 +92,48 @@ const researchAndDraftOutput = {
   },
 } as const;
 
-export async function GET() {
+const TOOL_CATALOG = [
+  {
+    /** The governed name the access rules key on. */
+    governed: "mcp.research_and_draft",
+    spec: {
+      name: "research_and_draft",
+      title: "Research prospect and draft first message",
+      description:
+        "Use when the user wants to write a first message to a prospect, cold outreach opener, or personalized first touch. Researches a public profile URL and returns a channel-ready draft plus talking points. Free. Do not use for rendering video, starting a live avatar session, or sending messages — those live on nuncio.persidian.com with an existing account.",
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: true,
+      },
+      inputSchema: researchAndDraftInput,
+      outputSchema: researchAndDraftOutput,
+      endpoint: "POST /api/mcp/research-and-draft",
+      price: "free",
+    },
+  },
+];
+
+export async function GET(request: NextRequest) {
+  // Access hook: the listing itself is governed — a tool the caller may not
+  // see is absent, not refused. Adding a paid mcp.* tool later filters it out
+  // for anonymous callers with no code change here.
+  const subject = subjectForRequest(request);
+  const allowed = (
+    await Promise.all(
+      TOOL_CATALOG.map(async (t) =>
+        (await checkAccess(subject, t.governed)).decision === "allow" ? t : null,
+      ),
+    )
+  ).filter((t): t is (typeof TOOL_CATALOG)[number] => t !== null);
+
   return NextResponse.json({
     ok: true,
     service: "nuncio",
     protocol: "mcp-http",
     triggerPhrase: "write my first message to this prospect",
-    tools: [
-      {
-        name: "research_and_draft",
-        title: "Research prospect and draft first message",
-        description:
-          "Use when the user wants to write a first message to a prospect, cold outreach opener, or personalized first touch. Researches a public profile URL and returns a channel-ready draft plus talking points. Free. Do not use for rendering video, starting a live avatar session, or sending messages — those live on nuncio.persidian.com with an existing account.",
-        annotations: {
-          readOnlyHint: true,
-          destructiveHint: false,
-          openWorldHint: true,
-        },
-        inputSchema: researchAndDraftInput,
-        outputSchema: researchAndDraftOutput,
-        endpoint: "POST /api/mcp/research-and-draft",
-        price: "free",
-      },
-    ],
+    subjectClass: subject.class,
+    tools: allowed.map((t) => t.spec),
     paidFollowUp: {
       actions: ["video render", "live avatar / livelink"],
       where: "https://nuncio.persidian.com",

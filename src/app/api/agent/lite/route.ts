@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
+import { applyPost, checkPre, subjectForRequest } from "@/lib/governance/service";
 import { TinyFishApiError } from "@/lib/tinyfish";
 import {
   buildOutreachIntent,
@@ -70,6 +71,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "url must be http or https" }, { status: 400 });
   }
 
+  // Governance pre-hook: audits the anonymous call and enforces policy
+  // (e.g. domain denylists) before any research spend.
+  const subject = subjectForRequest(request);
+  const pre = await checkPre(subject, "agent.lite", { host: parsed.hostname });
+  if (pre.decision === "deny") {
+    return NextResponse.json({ error: pre.reason || "Denied by policy" }, { status: 403 });
+  }
+
   const senderBrief = cleanOptionalString(body.senderBrief)?.slice(0, MAX_BRIEF_LENGTH);
 
   const input: PipelineInput = {
@@ -84,6 +93,7 @@ export async function POST(request: NextRequest) {
     autoRender: false,
     scriptVariants: false,
     languageOverride: cleanOptionalString(body.languageOverride),
+    governanceSubject: subject,
   };
 
   try {
@@ -97,7 +107,9 @@ export async function POST(request: NextRequest) {
 
     const review = reviewScript(scriptResult, profile);
 
-    return NextResponse.json({
+    // Post-hook: anonymous callers get contact identifiers stripped from the
+    // response (post.anonymous-contact-redaction).
+    const { value: governedBody } = await applyPost(subject, "agent.lite", {
       profile,
       script: scriptResult.script,
       vibeId: scriptResult.vibeId,
@@ -108,6 +120,7 @@ export async function POST(request: NextRequest) {
         url: "https://nuncio.persidian.com",
       },
     });
+    return NextResponse.json(governedBody);
   } catch (error) {
     if (error instanceof TinyFishApiError) {
       return NextResponse.json(

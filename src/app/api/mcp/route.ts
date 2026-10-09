@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { captureServerEvent, mcpDistinctId } from "@/lib/analytics-server";
+import { checkAccess, subjectForRequest } from "@/lib/governance/service";
 
 export const runtime = "nodejs";
 
@@ -102,6 +103,20 @@ export async function POST(request: NextRequest) {
         ? (params.arguments as Record<string, unknown>)
         : {};
 
+    // Access hook: a tool this caller may not see is denied before dispatch.
+    // The governed name is mcp.<name>; the rule set decides, not this list.
+    const governedName = `mcp.${name}`;
+    const access = await checkAccess(subjectForRequest(request), governedName);
+    if (access.decision === "deny") {
+      return NextResponse.json({
+        jsonrpc: "2.0",
+        id,
+        error: {
+          code: -32601,
+          message: access.reason || `Tool not available: ${name || "(missing)"}`,
+        },
+      });
+    }
     if (name !== "research_and_draft") {
       return NextResponse.json({
         jsonrpc: "2.0",

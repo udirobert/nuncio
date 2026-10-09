@@ -1,5 +1,11 @@
 import type { ShareRecord } from "@/lib/artifacts";
 import type { Batch } from "@/lib/batch/types";
+import type {
+  GovernanceApproval,
+  ApprovalStatus,
+  GovernanceDecision,
+  GovernanceRule,
+} from "@/lib/governance/types";
 
 export type ShareRecordInput = Omit<ShareRecord, "id" | "createdAt">;
 
@@ -388,4 +394,56 @@ export interface MediaStorageProvider {
   signAssetUrl?(url: string, expiresIn?: number): Promise<string>;
   /** List object keys under a prefix (for building per-share asset manifests). Optional. */
   listKeys?(prefix: string): Promise<string[]>;
+}
+
+// ── Governance control plane ──────────────────────────────────────────
+
+export type {
+  GovernanceApproval,
+  ApprovalStatus,
+  GovernanceDecision,
+  GovernanceRule,
+  GovernanceSubject,
+  SubjectClass,
+} from "@/lib/governance/types";
+
+/**
+ * Policy, audit, and approval state for the governance control plane
+ * (src/lib/governance/). Rules are seeded from policies.json when the store
+ * is empty; after that the stored rows are the policy — edits are data, not
+ * deploys, and a hook that cannot evaluate fails closed.
+ */
+export interface GovernanceStorageProvider {
+  readonly name: string;
+  /** Every rule, enabled or not. Seeding is the service's job. */
+  listRules(): Promise<GovernanceRule[]>;
+  /** Replace the whole policy set (seed). */
+  putRules(rules: GovernanceRule[]): Promise<void>;
+  setRuleEnabled(id: string, enabled: boolean): Promise<void>;
+
+  /** Append-only audit: one row per hook decision, labels only. */
+  appendDecision(decision: GovernanceDecision): Promise<void>;
+  listDecisions(input: { workspaceId?: string; limit?: number }): Promise<GovernanceDecision[]>;
+
+  createApproval(record: GovernanceApproval): Promise<GovernanceApproval>;
+  getApproval(id: string): Promise<GovernanceApproval | null>;
+  /**
+   * CAS: write `next` only while the stored record is still `pending` and
+   * non-expired (when `now` is given). Returns the stored record on success,
+   * null when the decision was already made.
+   */
+  decideApproval(id: string, next: GovernanceApproval, now?: Date): Promise<GovernanceApproval | null>;
+  /**
+   * Single-use grant: flip `approved` → `consumed` atomically. Returns the
+   * record on success, null when already consumed / not approved / expired.
+   */
+  consumeGrant(id: string, now?: Date): Promise<GovernanceApproval | null>;
+  /** Lookup by stored grant token hash — the bearer token itself never touches the store. */
+  getApprovalByGrantHash(grantTokenHash: string): Promise<GovernanceApproval | null>;
+  /** Approvals for a workspace, newest first, without grant token hashes. */
+  listApprovals(input: {
+    workspaceId: string;
+    status?: ApprovalStatus;
+    limit?: number;
+  }): Promise<Omit<GovernanceApproval, "grantTokenHash">[]>;
 }

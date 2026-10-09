@@ -15,6 +15,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateAgentRequest } from "@/lib/agent-auth";
 import {
+  checkPre,
+  consumeApprovalGrant,
+  requestApproval,
+} from "@/lib/governance/service";
+import {
   reserveCredits,
   commitCreditReservation,
   refundCreditReservation,
@@ -82,12 +87,72 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "url is required" }, { status: 400 });
     }
 
+    // Governance pre-hook on the queue call itself (domain denylist, audit).
+    const subject = { class: "agent" as const, workspaceId: auth.workspaceId };
+    let host = "";
+    try {
+      host = new URL(url).hostname;
+    } catch {
+      return NextResponse.json({ error: "url must be a valid URL" }, { status: 400 });
+    }
+    const queuePre = await checkPre(subject, "agent.prospect-queue", { host });
+    if (queuePre.decision === "deny") {
+      return NextResponse.json({ error: queuePre.reason || "Denied by policy" }, { status: 403 });
+    }
+
     const senderBrief = cleanOptionalString(body.senderBrief);
     const senderName = cleanOptionalString(body.senderName);
     const senderProfile = buildSenderProfile(body);
     const outreachIntent = buildOutreachIntent(body);
     const autoRender = body.autoRender !== false; // default true for agent mode
     const researchTier = body.researchTier as "quick" | "balanced" | "deep" | undefined;
+
+    // Auto-render is a separately governed action: policy can deny it or
+    // require a human approval. A grant token (single-use, bound to this
+    // url) satisfies the requirement on retry.
+    if (autoRender) {
+      const grantToken = request.headers.get("x-nuncio-approval-grant")?.trim();
+      const renderPayload = { url };
+      if (grantToken) {
+        const consumed = await consumeApprovalGrant(grantToken, "agent.render", renderPayload);
+        if (!consumed.ok) {
+          return NextResponse.json({ error: consumed.error }, { status: 403 });
+        }
+      } else {
+        const renderPre = await checkPre(subject, "agent.render", { autoRender: true });
+        if (renderPre.decision === "deny") {
+          return NextResponse.json(
+            { error: renderPre.reason || "Denied by policy" },
+            { status: 403 },
+          );
+        }
+        if (renderPre.decision === "require_approval") {
+          const approval = await requestApproval({
+            subject,
+            tool: "agent.render",
+            payload: renderPayload,
+            summary:
+              `Auto-render video for prospect ${host} ` +
+              `(workspace ${auth.workspaceId})`,
+            estimatedCredits: estimateCreditCost("video.render"),
+            callbackUrl: request.headers.get("x-nuncio-approval-callback") ?? undefined,
+          });
+          return NextResponse.json(
+            {
+              status: "pending_approval",
+              approvalId: approval.id,
+              reason: renderPre.reason,
+              retry:
+                "Once approved, POST the same body again with header x-nuncio-approval-grant: <token>",
+              callback:
+                "Send x-nuncio-approval-callback: <url> on this request to have the grant POSTed to you on approval",
+              approvalStatusUrl: `/api/agent/approvals?id=${approval.id}`,
+            },
+            { status: 202 },
+          );
+        }
+      }
+    }
 
     const id = crypto.randomUUID().slice(0, 12);
     const entry: QueueEntry = {
@@ -120,6 +185,7 @@ export async function POST(request: NextRequest) {
       customization: body.customization,
       archetype: body.archetype,
       scriptVariants: false,
+      governanceSubject: subject,
     }).catch((err) => {
       console.error(`[agent-queue] ${id} unhandled:`, err);
     });

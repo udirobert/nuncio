@@ -17,6 +17,8 @@ import { ResearchOrchestrator } from "@/lib/research/orchestrator";
 import type { QualityTier } from "@/lib/research/types";
 import type { PipelineActivityEmitter } from "./activity-emitter";
 import { formatResearchSummary, formatProfileSummary, formatScriptDraft, formatReview } from "./format";
+import { applyPost } from "@/lib/governance/service";
+import type { GovernanceSubject } from "@/lib/governance/types";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -40,6 +42,8 @@ export interface PipelineInput {
   userTier?: "trial" | "free" | "pro" | "studio";
   /** Whether this is a reconnect card. Changes script rubric and guardrails. */
   mode?: "outreach" | "reconnect";
+  /** Who the run is for — the governance hooks key their audit rows on it. Defaults to a member-class subject for internal callers. */
+  governanceSubject?: GovernanceSubject;
 }
 
 export interface ResearchResult {
@@ -50,6 +54,8 @@ export interface ResearchResult {
   companyContext?: string;
   /** Quality assessment — used to warn the user before spending render credits. */
   researchQuality?: ResearchQuality;
+  /** Pattern ids the governance sweep removed from prospect-controlled text. */
+  sanitizedPatterns?: string[];
 }
 
 /**
@@ -248,43 +254,75 @@ export async function researchAndSynthesize(
     playbook: outreachIntent?.playbook,
   };
 
+  // Governance post-hook on prospect-controlled text: a LinkedIn bio or an X
+  // post is untrusted input addressed to this pipeline's model. The injection
+  // sweep strips text that is written for a machine before synthesis reads it.
+  const govSubject = input.governanceSubject ?? { class: "member" as const };
+  const sweptInput = await applyPost(govSubject, "pipeline.research", {
+    markdown,
+    recentActivity,
+    recentActivityPosts,
+  });
+  const cleanMarkdown = sweptInput.value.markdown;
+  const cleanActivity = sweptInput.value.recentActivity;
+  const cleanPosts = sweptInput.value.recentActivityPosts;
+  const sanitizedPatterns = sweptInput.removed;
+  if (sanitizedPatterns.length > 0) {
+    const note = `prospect content sanitized (${sanitizedPatterns.join(", ")})`;
+    warnings.push(note);
+    emitter?.thought("researcher", `Sanitized prospect content: ${sanitizedPatterns.join(", ")}`);
+  }
+
   // Prepend recent activity to the enrichment so synthesis sees it.
   // The LLM prompt already handles "Profile URL at top, other data below."
-  const synthesisInput = recentActivity
-    ? [recentActivity, ...markdown]
-    : markdown;
+  const synthesisInput = cleanActivity
+    ? [cleanActivity, ...cleanMarkdown]
+    : cleanMarkdown;
 
-  const profile = await synthesise(synthesisInput, { senderContext });
+  const rawProfile = await synthesise(synthesisInput, { senderContext });
 
-  if (profile.name === "there") {
+  if (rawProfile.name === "there") {
     throw new Error("Could not identify a person from this profile. Try a different URL.");
   }
 
   if (languageOverride) {
-    profile.language = languageOverride;
+    rawProfile.language = languageOverride;
   }
   if (senderProfile) {
-    profile.sender_profile = senderProfile;
+    rawProfile.sender_profile = senderProfile;
   }
   if (outreachIntent) {
-    profile.outreach_intent = outreachIntent;
+    rawProfile.outreach_intent = outreachIntent;
   }
-
-  emitter?.message("researcher", formatProfileSummary(profile));
 
   // ── Company context (still after synthesis — needs profile.company) ──
   let companyContext: string | undefined;
   if (researchTier === "quick" || !researchTier) {
-    if (profile.company && profile.company !== "there") {
-      const ctx = await enrichCompany(profile.company);
+    if (rawProfile.company && rawProfile.company !== "there") {
+      const ctx = await enrichCompany(rawProfile.company);
       if (ctx) companyContext = ctx;
     }
   }
 
+  // Defense in depth: the model can carry an injection through into the
+  // profile it writes, and company context is untrusted scraped text too —
+  // one sweep over everything the run hands downstream.
+  const sweptOutput = await applyPost(govSubject, "pipeline.research", {
+    profile: rawProfile,
+    companyContext,
+  });
+  const profile = sweptOutput.value.profile;
+  companyContext = sweptOutput.value.companyContext;
+  for (const id of sweptOutput.removed) {
+    if (!sanitizedPatterns.includes(id)) sanitizedPatterns.push(id);
+  }
+
+  emitter?.message("researcher", formatProfileSummary(profile));
+
   // ── Assess research quality ─────────────────────────────────────────
   const researchQuality = assessResearchQuality({
-    sourceCount: markdown.length,
-    recentPostCount: recentActivityPosts?.length || 0,
+    sourceCount: cleanMarkdown.length,
+    recentPostCount: cleanPosts?.length || 0,
     usedSearchFallback,
     warnings,
     hasRecentActivityWarning: !!recentActivityWarning,
@@ -300,11 +338,12 @@ export async function researchAndSynthesize(
 
   return {
     profile,
-    markdown,
-    recentActivity,
-    recentActivityPosts,
+    markdown: cleanMarkdown,
+    recentActivity: cleanActivity,
+    recentActivityPosts: cleanPosts,
     companyContext,
     researchQuality,
+    sanitizedPatterns,
   };
 }
 

@@ -22,6 +22,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { validateAgentRequest } from "@/lib/agent-auth";
+import {
+  checkPre,
+  consumeApprovalGrant,
+  requestApproval,
+} from "@/lib/governance/service";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -63,6 +68,50 @@ export async function POST(request: NextRequest) {
         { error: "prospectEmail and positive amount are required" },
         { status: 400 },
       );
+    }
+
+    // Governance pre-hook: minting a payment link is consequential —
+    // policy can deny it or require a human approval. A grant token
+    // (single-use, bound to this exact checkout) satisfies it on retry.
+    const subject = { class: "agent" as const, workspaceId: auth.workspaceId };
+    const checkoutPayload = {
+      prospectEmail: String(prospectEmail).toLowerCase(),
+      meetingType: meetingType || "meeting",
+      amount,
+    };
+    const grantToken = request.headers.get("x-nuncio-approval-grant")?.trim();
+    if (grantToken) {
+      const consumed = await consumeApprovalGrant(grantToken, "agent.earn-checkout", checkoutPayload);
+      if (!consumed.ok) {
+        return NextResponse.json({ error: consumed.error }, { status: 403 });
+      }
+    } else {
+      const pre = await checkPre(subject, "agent.earn-checkout", checkoutPayload);
+      if (pre.decision === "deny") {
+        return NextResponse.json({ error: pre.reason || "Denied by policy" }, { status: 403 });
+      }
+      if (pre.decision === "require_approval") {
+        const approval = await requestApproval({
+          subject,
+          tool: "agent.earn-checkout",
+          payload: checkoutPayload,
+          summary: `Checkout ${meetingType || "meeting"} for ${prospectEmail} — $${amount}`,
+          callbackUrl: request.headers.get("x-nuncio-approval-callback") ?? undefined,
+        });
+        return NextResponse.json(
+          {
+            status: "pending_approval",
+            approvalId: approval.id,
+            reason: pre.reason,
+            retry:
+              "Once approved, POST the same body again with header x-nuncio-approval-grant: <token>",
+            callback:
+              "Send x-nuncio-approval-callback: <url> on this request to have the grant POSTed to you on approval",
+            approvalStatusUrl: `/api/agent/approvals?id=${approval.id}`,
+          },
+          { status: 202 },
+        );
+      }
     }
 
     const stripeKey = process.env.STRIPE_SECRET_KEY;

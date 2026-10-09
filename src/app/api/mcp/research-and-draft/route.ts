@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { captureServerEvent, mcpDistinctId } from "@/lib/analytics-server";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
+import { applyPost, checkPre, subjectForRequest } from "@/lib/governance/service";
 import { TinyFishApiError } from "@/lib/tinyfish";
 import { chatCompletion } from "@/lib/llm";
 import {
@@ -160,6 +161,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "url must be http or https" }, { status: 400 });
   }
 
+  // Governance pre-hook: the call, its arguments and the caller, before
+  // anything executes. A denial's reason is policy text — show it verbatim.
+  const subject = subjectForRequest(request);
+  const pre = await checkPre(subject, "mcp.research_and_draft", { host: parsed.hostname });
+  if (pre.decision === "deny") {
+    return NextResponse.json({ error: pre.reason || "Denied by policy" }, { status: 403 });
+  }
+
   const senderBrief = cleanOptionalString(body.senderBrief)?.slice(0, MAX_BRIEF_LENGTH);
   const senderName = cleanOptionalString(body.senderName);
   const channelRaw = cleanOptionalString(body.channel)?.toLowerCase() || "email";
@@ -190,6 +199,7 @@ export async function POST(request: NextRequest) {
     autoRender: false,
     scriptVariants: false,
     languageOverride: cleanOptionalString(body.languageOverride),
+    governanceSubject: subject,
   };
 
   try {
@@ -216,7 +226,10 @@ export async function POST(request: NextRequest) {
       ` — researched (quick tier) and drafted a ${channel} first message. ` +
       `To render as video or open a live link, use an existing nuncio account at ${PRODUCT_URL} (not in-plugin checkout).`;
 
-    return NextResponse.json({
+    // Governance post-hook: what may come back is policy, not the pipeline's
+    // choice. Anonymous callers get contact identifiers stripped from the
+    // payload (post.anonymous-contact-redaction).
+    const { value: governedBody } = await applyPost(subject, "mcp.research_and_draft", {
       ok: true,
       tool: "nuncio.research-and-draft",
       summary,
@@ -234,6 +247,8 @@ export async function POST(request: NextRequest) {
         plansUrl: PLANS_URL,
       },
     });
+
+    return NextResponse.json(governedBody);
   } catch (error) {
     if (error instanceof TinyFishApiError) {
       return NextResponse.json(

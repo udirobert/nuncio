@@ -12,6 +12,7 @@ import {
 } from "@/lib/billing/credits";
 import { PipelineActivityEmitter } from "@/lib/pipeline/activity-emitter";
 import { formatProfileSummary } from "@/lib/pipeline/format";
+import { subjectForRequest } from "@/lib/governance/service";
 import { getBandActivityProvider } from "@/lib/storage";
 import { isLiveLinkAllowed } from "@/lib/live-link";
 import {
@@ -203,6 +204,9 @@ export async function POST(request: NextRequest) {
           archetype,
           userTier: subject.anonymous ? "trial" : await resolveUserPlan(subject, request),
           mode: (body.mode === "reconnect" ? "reconnect" : "outreach") as "outreach" | "reconnect",
+          // Governance attribution: member/anonymous so audit rows carry the
+          // real workspace (or the rate-limit client id for anonymous trials).
+          governanceSubject: subjectForRequest(request),
         };
 
         // ── Steps 1+2: Research & Synthesize ───────────────────────────

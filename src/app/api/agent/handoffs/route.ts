@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateAgentRequest } from "@/lib/agent-auth";
 import {
+  checkPre,
+  consumeApprovalGrant,
+  requestApproval,
+} from "@/lib/governance/service";
+import {
   getAccountStorageProvider,
   getHandoffStorageProvider,
   getShareStorageProvider,
@@ -117,6 +122,52 @@ export async function POST(request: NextRequest) {
   }
 
   const bookingUrl = validateHandoffBookingUrl(workspace.bookingUrl);
+
+  // Governance pre-hook: minting a bearer invitation is recorded in the
+  // audit trail even though no seeded rule gates it yet — the row is what
+  // lets a future deny/require_approval rule act on real traffic history.
+  const handoffSubject = { class: "agent" as const, workspaceId: auth.workspaceId };
+  const handoffPayload = {
+    recommendedNextStep,
+    sourceShareId: (body?.sourceShareId as string | undefined) ?? null,
+  };
+  const handoffGrant = request.headers.get("x-nuncio-approval-grant")?.trim();
+  if (handoffGrant) {
+    const consumed = await consumeApprovalGrant(handoffGrant, "agent.handoffs", handoffPayload);
+    if (!consumed.ok) {
+      return NextResponse.json({ error: consumed.error }, { status: 403, headers: NO_STORE });
+    }
+  } else {
+    const handoffPre = await checkPre(handoffSubject, "agent.handoffs", handoffPayload);
+    if (handoffPre.decision === "deny") {
+      return NextResponse.json(
+        { error: handoffPre.reason || "Denied by policy" },
+        { status: 403, headers: NO_STORE },
+      );
+    }
+    if (handoffPre.decision === "require_approval") {
+      const approval = await requestApproval({
+        subject: handoffSubject,
+        tool: "agent.handoffs",
+        payload: handoffPayload,
+        summary: `Handoff invitation for ${recipientName}`,
+        callbackUrl: request.headers.get("x-nuncio-approval-callback") ?? undefined,
+      });
+      return NextResponse.json(
+        {
+          status: "pending_approval",
+          approvalId: approval.id,
+          reason: handoffPre.reason,
+          retry:
+            "Once approved, POST the same body again with header x-nuncio-approval-grant: <token>",
+          callback:
+            "Send x-nuncio-approval-callback: <url> on this request to have the grant POSTed to you on approval",
+          approvalStatusUrl: `/api/agent/approvals?id=${approval.id}`,
+        },
+        { status: 202, headers: NO_STORE },
+      );
+    }
+  }
 
   const handoffId = crypto.randomUUID();
   const { token, hash } = mintHandoffToken();

@@ -10,6 +10,7 @@ import { QuickActions } from "./components/quick-actions";
 import { UsageSummary } from "./components/usage-summary";
 import { ScoreboardCard } from "./components/scoreboard-card";
 import { CallRequestsCard } from "./components/call-requests-card";
+import { ApprovalsCard } from "./components/approvals-card";
 import { ScheduledConversations } from "./components/scheduled-conversations";
 import { SetupPanel } from "./components/setup-panel";
 import { OnboardingModal } from "@/components/onboarding-modal";
@@ -151,6 +152,7 @@ export default function DashboardClient() {
                   <h2 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium mb-3">
                     Needs your attention
                   </h2>
+                  <ApprovalsCard />
                   <CallRequestsCard />
                 </section>
                 <section aria-label="Scheduled conversations">

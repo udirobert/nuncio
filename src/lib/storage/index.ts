@@ -1,4 +1,4 @@
-import type { AccountStorageProvider, BandActivityStorageProvider, BatchStorageProvider, CallRequestStorageProvider, HandoffStorageProvider, LiveSessionStorageProvider, MediaStorageProvider, ProofStorageProvider, SchedulingStorageProvider, ShareStorageProvider, TokenStorageProvider } from "./types";
+import type { AccountStorageProvider, BandActivityStorageProvider, BatchStorageProvider, CallRequestStorageProvider, GovernanceStorageProvider, HandoffStorageProvider, LiveSessionStorageProvider, MediaStorageProvider, ProofStorageProvider, SchedulingStorageProvider, ShareStorageProvider, TokenStorageProvider } from "./types";
 import { FileLiveSessionStorageProvider } from "./file-live-session-provider";
 import { TursoLiveSessionStorageProvider } from "./turso-live-session-provider";
 import { FileCallRequestStorageProvider } from "./file-call-request-provider";
@@ -17,6 +17,8 @@ import { TursoTokenStorageProvider } from "./turso-token-provider";
 import { TursoBandActivityProvider } from "./turso-band-provider";
 import { FileSchedulingStorageProvider } from "./file-scheduling-provider";
 import { TursoSchedulingStorageProvider } from "./turso-scheduling-provider";
+import { FileGovernanceStorageProvider } from "./file-governance-provider";
+import { TursoGovernanceStorageProvider } from "./turso-governance-provider";
 import { GroveProofStorageProvider } from "./grove-provider";
 import { B2MediaStorageProvider, isB2Configured } from "./b2-provider";
 
@@ -31,6 +33,7 @@ let liveSessionProvider: LiveSessionStorageProvider | null = null;
 let callRequestProvider: CallRequestStorageProvider | null = null;
 let handoffProvider: HandoffStorageProvider | null = null;
 let schedulingProvider: SchedulingStorageProvider | null = null;
+let governanceProvider: GovernanceStorageProvider | null = null;
 
 export type {
   AccountStorageProvider,
@@ -43,6 +46,13 @@ export type {
   CallRequestStorageProvider,
   CreditAccountSummary,
   CreditTransactionRecord,
+  GovernanceApproval,
+  ApprovalStatus,
+  GovernanceDecision,
+  GovernanceRule,
+  GovernanceStorageProvider,
+  GovernanceSubject,
+  SubjectClass,
   HandoffRecord,
   HandoffStorageProvider,
   LiveSessionMetrics,
@@ -201,6 +211,20 @@ export function getSchedulingStorageProvider(): SchedulingStorageProvider {
   return schedulingProvider;
 }
 
+export function getGovernanceStorageProvider(): GovernanceStorageProvider {
+  if (governanceProvider) return governanceProvider;
+
+  if (process.env.TURSO_DATABASE_URL) {
+    governanceProvider = new TursoGovernanceStorageProvider();
+    console.log("[storage] Using Turso governance storage");
+    return governanceProvider;
+  }
+
+  governanceProvider = new FileGovernanceStorageProvider();
+  console.log("[storage] Using file governance storage");
+  return governanceProvider;
+}
+
 export function getMediaStorageProvider(): MediaStorageProvider | null {
   if (mediaProvider) return mediaProvider;
 
@@ -225,4 +249,5 @@ export function resetStorageProvidersForTests(): void {
   callRequestProvider = null;
   handoffProvider = null;
   schedulingProvider = null;
+  governanceProvider = null;
 }

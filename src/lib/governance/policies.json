@@ -1,0 +1,120 @@
+{
+  "//": [
+    "Seed rules for the governance store — read once when the store has no rules; after that the rows in storage are the policy (edit them, not this file).",
+    "Deny is the only access effect in use: a tool that is not offered cannot be called, and the model never has to be told not to.",
+    "pre.agent-render-needs-approval is the hybrid-mode default from STRATEGY Phase 4: an autonomous render asks a human first. To run fully autonomous, disable this rule in the store (or set NUNCIO_GOVERNANCE=off to bypass the whole plane in an emergency).",
+    "post rules key on the caller's class the way the demo keys on clearance: anonymous callers get contact redaction because whether scraped PII should flow out IS a question about who is asking; the injection sweep applies to everyone because whether text is addressed to the model is not a question about anyone's authority.",
+    "Every seeded rule has a case it must fire on in src/lib/governance/*.test.ts — a rule that matches nothing is indistinguishable from a rule that permits."
+  ],
+  "rules": [
+    {
+      "id": "access.anonymous-no-agent-surface",
+      "description": "Anonymous callers never see or call the agent surface. agent-auth already rejects them at the route; this keeps the tool out of any tool listing an anonymous caller is shown and audits attempts.",
+      "hook": "access",
+      "match": { "tool": "agent.*" },
+      "subjectClasses": ["anonymous"],
+      "effect": "deny",
+      "reason": "This surface requires an agent credential.",
+      "priority": 10,
+      "enabled": true
+    },
+    {
+      "id": "access.anonymous-free-mcp-only",
+      "description": "Anonymous MCP callers are offered the free wedge only. Forward-looking: any future mcp.* tool other than research_and_draft is hidden from anonymous subjects until a rule says otherwise.",
+      "hook": "access",
+      "match": { "tool": "mcp.*" },
+      "subjectClasses": ["anonymous"],
+      "effect": "deny",
+      "reason": "Anonymous callers may use the free research_and_draft tool only.",
+      "priority": 20,
+      "enabled": true,
+      "conditions": [{ "input": "tool", "operator": "neq", "value": "mcp.research_and_draft" }]
+    },
+    {
+      "id": "pre.blocked-prospect-domains",
+      "description": "Do not research prospects on denylisted domains (NUNCIO_BLOCKED_DOMAINS, comma-separated hosts) — e.g. our own properties or regulated verticals. Empty list = the rule matches nothing.",
+      "hook": "pre",
+      "match": { "tool": "mcp.research_and_draft" },
+      "effect": "deny",
+      "reason": "DENIED: this prospect URL is on a domain nuncio does not research. Do not retry.",
+      "priority": 100,
+      "enabled": true,
+      "conditions": [{ "input": "host", "operator": "in_env", "value": "NUNCIO_BLOCKED_DOMAINS" }]
+    },
+    {
+      "id": "pre.blocked-prospect-domains-agent",
+      "description": "Same denylist for the autonomous agent's two entry points.",
+      "hook": "pre",
+      "match": { "tool": "agent.*" },
+      "effect": "deny",
+      "reason": "DENIED: this prospect URL is on a domain nuncio does not research. Do not retry.",
+      "priority": 100,
+      "enabled": true,
+      "conditions": [{ "input": "host", "operator": "in_env", "value": "NUNCIO_BLOCKED_DOMAINS" }]
+    },
+    {
+      "id": "pre.agent-render-needs-approval",
+      "description": "Hybrid mode is the default: the autonomous agent's render step asks a human before spending render credits. The denial is a routing slip — it names the approval endpoint and the retry header; the model/prompt is never involved.",
+      "hook": "pre",
+      "match": { "tool": "agent.render" },
+      "subjectClasses": ["agent"],
+      "effect": "require_approval",
+      "reason": "APPROVAL REQUIRED: autonomous render is gated. POST /api/agent/approvals with this run's context, wait for a grant, then retry with the x-nuncio-approval-grant header.",
+      "priority": 50,
+      "enabled": true,
+      "conditions": [{ "input": "autoRender", "operator": "eq", "value": true }]
+    },
+    {
+      "id": "pre.agent-checkout-needs-approval",
+      "description": "Money movement is a human call: the agent may propose a checkout, a person approves sending the payment link. Same hybrid-mode default as renders — disable via scripts/governance.ts to go fully autonomous.",
+      "hook": "pre",
+      "match": { "tool": "agent.earn-checkout" },
+      "subjectClasses": ["agent"],
+      "effect": "require_approval",
+      "reason": "APPROVAL REQUIRED: payment links are human-approved. POST /api/agent/approvals, wait for a grant, then retry with the x-nuncio-approval-grant header.",
+      "priority": 50,
+      "enabled": true
+    },
+    {
+      "id": "post.prospect-injection-sweep",
+      "description": "Prospect-controlled text is untrusted input: strip text addressed to the model before it reaches synthesis or comes back out. Applies to every caller — whether text is trying to give the model orders is not a question about authority.",
+      "hook": "post",
+      "match": { "tool": "pipeline.research" },
+      "effect": "redact",
+      "redact": {
+        "patterns": [
+          "injection.instruction-override",
+          "injection.addressed-to-model",
+          "injection.tool-call-directive",
+          "injection.concealment",
+          "injection.conversation-delimiter",
+          "injection.role-play"
+        ]
+      },
+      "priority": 10,
+      "enabled": true
+    },
+    {
+      "id": "post.anonymous-contact-redaction",
+      "description": "Free-tier output must not launder scraped contact PII to anonymous callers. Authenticated members and the agent surface see the record whole.",
+      "hook": "post",
+      "match": { "tool": "mcp.research_and_draft" },
+      "subjectClasses": ["anonymous"],
+      "effect": "redact",
+      "redact": { "patterns": ["contact.email", "contact.phone"] },
+      "priority": 10,
+      "enabled": true
+    },
+    {
+      "id": "post.anonymous-contact-redaction-lite",
+      "description": "Same contact-PII boundary for the unauthenticated lite funnel endpoint — an anonymous caller gets the draft and the talking points, not the scraped mailbox.",
+      "hook": "post",
+      "match": { "tool": "agent.lite" },
+      "subjectClasses": ["anonymous"],
+      "effect": "redact",
+      "redact": { "patterns": ["contact.email", "contact.phone"] },
+      "priority": 10,
+      "enabled": true
+    }
+  ]
+}

@@ -66,6 +66,14 @@ vi.mock("@/lib/storage", () => ({
 
 vi.mock("@/lib/llm", () => llm);
 
+// Governance control plane: allow by default so route tests exercise their
+// own logic; the governance layer itself is covered in lib/governance tests.
+vi.mock("@/lib/governance/service", () => ({
+  checkPre: vi.fn(async () => ({ decision: "allow" })),
+  consumeApprovalGrant: vi.fn(async () => ({ ok: true })),
+  requestApproval: vi.fn(),
+}));
+
 vi.mock("@/lib/storage/media-store", () => ({
   signRecordAssets: vi.fn(async (record: unknown) => record),
 }));
