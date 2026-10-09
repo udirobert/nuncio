@@ -42,6 +42,28 @@ Poll `GET $BASE/api/agent/prospect-queue?id=<queueId>` (bearer header) every
 ~20s. Video renders take 3–8 minutes — tell the owner it's cooking and check
 back, don't block the conversation.
 
+## Governed calls (approvals)
+
+The backend runs a policy layer — a render is consequential and may require
+human approval. The POST can come back:
+
+- **HTTP 202 `status: "pending_approval"`** — the action is queued for the
+  owner's sign-off; nothing runs yet. Tell the owner it's waiting on their
+  approval in the nuncio dashboard ("Needs your attention"), then poll
+  `GET $BASE/api/agent/approvals?id=<approvalId>` (bearer header) every ~30s.
+  - `status: "approved"` → the owner copies the one-time grant token shown on
+    the approval card and pastes it to you. Retry the SAME request body with
+    header `x-nuncio-approval-grant: <token>` — the grant is single-use and
+    bound to that exact call; a changed body needs a fresh approval.
+  - `status: "denied"`/`"expired"` → stop. Report the denial; never retry a
+    denied action on your own initiative.
+  - If this install exposes a reachable HTTPS endpoint, send
+    `x-nuncio-approval-callback: <url>` on the original request instead — the
+    grant is POSTed to it automatically on approval and you can retry without
+    the owner copy-pasting.
+- **HTTP 403 with a policy reason** — denied outright. Report the reason
+  verbatim and stop; do not retry or work around it.
+
 ## Result
 
 - `result.shareId` → share page `https://nuncio.persidian.com/v/<shareId>`.

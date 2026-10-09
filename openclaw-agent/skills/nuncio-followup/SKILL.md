@@ -59,6 +59,13 @@ number, email, private thread ID, credentials, or unapproved commitments.
 Optionally supply an owned sourceShareId to reuse its public profile and
 recorded fallback. Default invitation life is 24 hours.
 
+The handoffs endpoint is governed: it can return HTTP 202
+`status: "pending_approval"` (a human must approve in the nuncio dashboard —
+poll `GET /api/agent/approvals?id=<approvalId>` and, once approved, retry the
+same body with the `x-nuncio-approval-grant` token the owner copies from the
+card) or HTTP 403 with a policy reason (denied — report verbatim, do not
+retry). The full procedure is documented in the nuncio-render skill.
+
 Use only the returned inviteUrl; never fabricate one. Treat that URL as a
 private bearer invitation: whoever receives it can open it, and forwarding
 does not verify recipient identity. Do not print backend credentials or log

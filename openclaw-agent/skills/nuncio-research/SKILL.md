@@ -41,6 +41,11 @@ Returns `{"queueId":"..."}`. Poll until `status` is `completed` or `failed`
 If `researchQuality.confidence` is `low`, tell the owner the data was thin —
 never pretend otherwise.
 
+The backend runs a policy layer. A 403 with a reason is an outright denial —
+report it verbatim and stop, do not retry. A 202 `pending_approval` means a
+human must approve first — see the governed-calls procedure in the
+nuncio-render skill.
+
 ## Path 2 — public lite endpoint (no token)
 
 Same JSON body (autoRender ignored), synchronous, ~1–2 min:
