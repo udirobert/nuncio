@@ -9,7 +9,7 @@ Build a creative monopoly in **conversational SDR** — honest presence, not dis
 
 Current phase: STRATEGY Phase 1 ✅ (defaults flipped, instrumentation live, predictions derived) → Phase 2 — ten founders hand-served; playbook capture via voice overlay. `SenderPlaybook`, `deliveryMode`, and the LiveLink POC are built; the dual-mode architecture (Band studio + Hermes autonomous) is in place.
 
-**OpenClaw 2.0 first-hire hackathon — submitted and verified.** `nuncio` is live on the Agent Index (verified, 1-click deploy, finished listing) and reachable at +1 (650) 315-6335. Agent variant lives in `openclaw-agent/`; public backend is `POST /api/agent/lite`; pinned image `nuncio-openclaw:v4@sha256:eeb054b15b2a...` (self-hosted `ln_p2` on the dedicated OpenClaw host — see `docs/DEPLOY-NOTES.md` for host/build/push/rollback runbook). Working doc: `docs/OPENCLAW-HACKATHON.md`.
+**OpenClaw 2.0 first-hire hackathon — submitted and verified.** `nuncio` is live on the Agent Index (verified, 1-click deploy, finished listing) and reachable at +1 (650) 315-6335. Agent variant lives in `openclaw-agent/`; public backend is `POST /api/agent/lite`; pinned image `nuncio-openclaw:v5@sha256:f3089bfd...` (self-hosted `ln_p2` on the dedicated OpenClaw host — see `docs/DEPLOY-NOTES.md` for host/build/push/rollback runbook). Working doc: `docs/OPENCLAW-HACKATHON.md`.
 
 ## Core Principles
 - **ENHANCEMENT FIRST**: Always prioritize enhancing existing components over creating new ones
