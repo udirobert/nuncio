@@ -20,6 +20,7 @@ import policies from "./policies.json";
 import { evaluateAccess, evaluatePost, evaluatePre } from "./engine";
 import { sanitizeValue } from "./sanitize";
 import { getClientId } from "@/lib/rate-limit";
+import { captureServerEvent } from "@/lib/analytics-server";
 import { readAccountSession } from "@/lib/auth/session";
 import { getGovernanceStorageProvider } from "@/lib/storage";
 import type {
@@ -95,6 +96,22 @@ export function invalidateRulesCache(): void {
 // ── Audit ─────────────────────────────────────────────────────────────
 
 async function audit(entry: Omit<GovernanceDecision, "id" | "at">): Promise<void> {
+  // Non-allow decisions are a security signal — deny spikes, redact storms
+  // and rejected grants belong where the operator already looks. Labels
+  // only, same usage-only rule as every other server event.
+  if (entry.decision !== "allow") {
+    captureServerEvent({
+      distinctId: entry.workspaceId ? `ws-${entry.workspaceId}` : `gov-${entry.subjectClass}`,
+      event: "governance_decision",
+      properties: {
+        hook: entry.hook,
+        tool: entry.tool,
+        decision: entry.decision,
+        subjectClass: entry.subjectClass,
+        ruleId: entry.ruleId,
+      },
+    });
+  }
   try {
     await getGovernanceStorageProvider().appendDecision({
       ...entry,
@@ -257,6 +274,19 @@ function safeCallbackUrl(raw: string | undefined): string | undefined {
   }
 }
 
+const MAX_PENDING_APPROVALS = Number(process.env.NUNCIO_MAX_PENDING_APPROVALS || 20);
+
+export type RequestApprovalResult =
+  | { ok: true; approval: GovernanceApproval; deduplicated: boolean }
+  | { ok: false; error: string; status: number };
+
+/**
+ * Ask for a human decision. Idempotent on the call itself: an identical
+ * (workspace, tool, payloadHash) already pending returns the existing
+ * approval — an agent retrying a gated call must not mint a new inbox row
+ * each time. The pending queue is bounded per workspace: an approval inbox
+ * that can be flooded to uselessness is not a control.
+ */
 export async function requestApproval(input: {
   subject: GovernanceSubject;
   tool: string;
@@ -264,23 +294,57 @@ export async function requestApproval(input: {
   summary: string;
   estimatedCredits?: number;
   callbackUrl?: string;
-}): Promise<GovernanceApproval> {
+}): Promise<RequestApprovalResult> {
   const now = new Date();
+  const workspaceId = input.subject.workspaceId || "agent";
+  const payloadHash = hashPayload(input.tool, input.payload);
+  const provider = getGovernanceStorageProvider();
+  const pending = await provider.listApprovals({
+    workspaceId,
+    status: "pending",
+    limit: MAX_PENDING_APPROVALS + 1,
+  });
+  const existing = pending.find(
+    (a) =>
+      a.tool === input.tool &&
+      a.payloadHash === payloadHash &&
+      new Date(a.expiresAt).getTime() > now.getTime(),
+  );
+  if (existing) {
+    return { ok: true, approval: existing as GovernanceApproval, deduplicated: true };
+  }
+  if (pending.length >= MAX_PENDING_APPROVALS) {
+    await audit({
+      hook: "approval",
+      tool: input.tool,
+      subjectClass: input.subject.class,
+      workspaceId,
+      decision: "deny",
+      reason: "pending-approval capacity reached",
+      latencyMs: 0,
+    });
+    return {
+      ok: false,
+      error: "approval capacity reached — decide or let pending requests expire first",
+      status: 429,
+    };
+  }
+
   const callbackUrl = safeCallbackUrl(input.callbackUrl);
   const approval: GovernanceApproval = {
     id: crypto.randomUUID(),
-    workspaceId: input.subject.workspaceId || "agent",
+    workspaceId,
     tool: input.tool,
     requesterClass: input.subject.class,
     summary: input.summary,
     estimatedCredits: input.estimatedCredits,
-    payloadHash: hashPayload(input.tool, input.payload),
+    payloadHash,
     status: "pending",
     createdAt: now.toISOString(),
     expiresAt: new Date(now.getTime() + APPROVAL_TTL_SECONDS * 1000).toISOString(),
     ...(callbackUrl ? { callbackUrl } : {}),
   };
-  await getGovernanceStorageProvider().createApproval(approval);
+  await provider.createApproval(approval);
   await audit({
     hook: "approval",
     tool: input.tool,
@@ -290,7 +354,7 @@ export async function requestApproval(input: {
     approvalId: approval.id,
     latencyMs: 0,
   });
-  return approval;
+  return { ok: true, approval, deduplicated: false };
 }
 
 export type DecideResult =

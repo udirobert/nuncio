@@ -146,17 +146,25 @@ export async function POST(request: NextRequest) {
       );
     }
     if (handoffPre.decision === "require_approval") {
-      const approval = await requestApproval({
+      const req = await requestApproval({
         subject: handoffSubject,
         tool: "agent.handoffs",
         payload: handoffPayload,
         summary: `Handoff invitation for ${recipientName}`,
         callbackUrl: request.headers.get("x-nuncio-approval-callback") ?? undefined,
       });
+      if (!req.ok) {
+        return NextResponse.json(
+          { error: req.error },
+          { status: req.status, headers: NO_STORE },
+        );
+      }
+      const approval = req.approval;
       return NextResponse.json(
         {
           status: "pending_approval",
           approvalId: approval.id,
+          deduplicated: req.deduplicated,
           reason: handoffPre.reason,
           retry:
             "Once approved, POST the same body again with header x-nuncio-approval-grant: <token>",

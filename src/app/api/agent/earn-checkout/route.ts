@@ -91,17 +91,22 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: pre.reason || "Denied by policy" }, { status: 403 });
       }
       if (pre.decision === "require_approval") {
-        const approval = await requestApproval({
+        const req = await requestApproval({
           subject,
           tool: "agent.earn-checkout",
           payload: checkoutPayload,
           summary: `Checkout ${meetingType || "meeting"} for ${prospectEmail} — $${amount}`,
           callbackUrl: request.headers.get("x-nuncio-approval-callback") ?? undefined,
         });
+        if (!req.ok) {
+          return NextResponse.json({ error: req.error }, { status: req.status });
+        }
+        const approval = req.approval;
         return NextResponse.json(
           {
             status: "pending_approval",
             approvalId: approval.id,
+            deduplicated: req.deduplicated,
             reason: pre.reason,
             retry:
               "Once approved, POST the same body again with header x-nuncio-approval-grant: <token>",

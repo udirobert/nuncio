@@ -262,12 +262,15 @@ describe("governance service over the file provider", () => {
     const pre = await svc.checkPre(agent, "agent.render", { autoRender: true });
     expect(pre.decision).toBe("require_approval");
 
-    const approval = await svc.requestApproval({
+    const req = await svc.requestApproval({
       subject: agent,
       tool: "agent.render",
       payload,
       summary: "Auto-render for prospect",
     });
+    expect(req.ok).toBe(true);
+    if (!req.ok) return;
+    const approval = req.approval;
     expect(approval.status).toBe("pending");
 
     // No token, no decision.
@@ -309,6 +312,52 @@ describe("governance service over the file provider", () => {
     // Replay is refused.
     const replay = await svc.consumeApprovalGrant(decided.grantToken!, "agent.render", payload);
     expect(replay.ok).toBe(false);
+  });
+
+  it("deduplicates an identical pending request instead of flooding the inbox", async () => {
+    const svc = await freshService();
+    const payload = { url: "https://linkedin.com/in/prospect-1" };
+    const first = await svc.requestApproval({
+      subject: agent,
+      tool: "agent.render",
+      payload,
+      summary: "Auto-render for prospect",
+    });
+    const second = await svc.requestApproval({
+      subject: agent,
+      tool: "agent.render",
+      payload: { url: "https://linkedin.com/in/prospect-1" }, // same call, fresh object
+      summary: "Auto-render for prospect",
+    });
+    expect(first.ok && second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+    expect(second.deduplicated).toBe(true);
+    expect(second.approval.id).toBe(first.approval.id);
+    const provider = (await import("@/lib/storage")).getGovernanceStorageProvider();
+    expect(
+      (await provider.listApprovals({ workspaceId: "agent", status: "pending" })).length,
+    ).toBe(1);
+  });
+
+  it("caps the pending queue per workspace", async () => {
+    vi.stubEnv("NUNCIO_MAX_PENDING_APPROVALS", "3");
+    const svc = await freshService();
+    for (let i = 0; i < 3; i++) {
+      await svc.requestApproval({
+        subject: agent,
+        tool: "agent.render",
+        payload: { url: `https://linkedin.com/in/p-${i}` },
+        summary: `Render ${i}`,
+      });
+    }
+    const flooded = await svc.requestApproval({
+      subject: agent,
+      tool: "agent.render",
+      payload: { url: "https://linkedin.com/in/one-too-many" },
+      summary: "Render overflow",
+    });
+    expect(flooded.ok).toBe(false);
+    expect(!flooded.ok && flooded.status).toBe(429);
   });
 
   it("a denial can never be softened into an approval request", async () => {

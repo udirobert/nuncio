@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
           );
         }
         if (renderPre.decision === "require_approval") {
-          const approval = await requestApproval({
+          const req = await requestApproval({
             subject,
             tool: "agent.render",
             payload: renderPayload,
@@ -137,10 +137,15 @@ export async function POST(request: NextRequest) {
             estimatedCredits: estimateCreditCost("video.render"),
             callbackUrl: request.headers.get("x-nuncio-approval-callback") ?? undefined,
           });
+          if (!req.ok) {
+            return NextResponse.json({ error: req.error }, { status: req.status });
+          }
+          const approval = req.approval;
           return NextResponse.json(
             {
               status: "pending_approval",
               approvalId: approval.id,
+              deduplicated: req.deduplicated,
               reason: renderPre.reason,
               retry:
                 "Once approved, POST the same body again with header x-nuncio-approval-grant: <token>",
