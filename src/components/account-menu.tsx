@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
+import posthog from "posthog-js";
 
 interface SessionData {
   authenticated: boolean;
@@ -37,6 +38,9 @@ export function AccountMenu() {
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
+    // The dashboard identifies this browser; clear it so the next person on this
+    // device doesn't inherit the previous account's PostHog history.
+    posthog.reset();
     setSession({ authenticated: false });
     setOpen(false);
     router.refresh();

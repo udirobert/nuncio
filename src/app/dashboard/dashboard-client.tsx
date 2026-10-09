@@ -15,6 +15,8 @@ import { SetupPanel } from "./components/setup-panel";
 import { OnboardingModal } from "@/components/onboarding-modal";
 import Link from "next/link";
 import { LottieIcon } from "@/components/lottie-icon";
+import posthog from "posthog-js";
+import { clearViralRef, readViralRef } from "@/lib/viral-ref-client";
 
 interface SessionData {
   authenticated: boolean;
@@ -22,6 +24,26 @@ interface SessionData {
   plan?: string;
   balance?: number;
   workspaceId?: string;
+}
+
+/** Viral-loop attribution: merge anon PostHog identity and hand the stored ?ref= to the server once. */
+function attributeViralRef(email?: string) {
+  if (!email) return;
+  posthog.identify(email);
+  const ref = readViralRef();
+  if (!ref) return;
+  fetch("/api/account/attribution", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ref }),
+  })
+    .then((r) => {
+      // Any handled response is final (attributed, already attributed, or
+      // refused) — retrying can't change it. Keep the ref only for a session
+      // glitch, so a stale cookie doesn't silently drop attribution forever.
+      if (r.status !== 401) clearViralRef();
+    })
+    .catch(() => {});
 }
 
 export default function DashboardClient() {
@@ -41,6 +63,7 @@ export default function DashboardClient() {
         }
         setSession(data);
         setLoading(false);
+        attributeViralRef(data.email);
       })
       .catch(() => {
         router.replace(`/login?next=${encodeURIComponent(view === "setup" ? "/dashboard?view=setup" : "/dashboard")}`);

@@ -119,6 +119,9 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 The video is the hook. The long-term goal is a live, conversational AI avatar that continues the conversation on the sender's behalf.
 
+## Virality (Nikita Bier playbook)
+Recipient→sender signup (`?ref=` links) is the loop — run the invite-flow teardown + K-factor worksheet on it, then a 48-hour test on share-CTA copy. Ladder check: core flow proven; find the first unproven rung (spreads → hops → pays) and stop work above it.
+
 ---
 
 ## Key features

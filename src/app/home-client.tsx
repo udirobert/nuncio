@@ -13,6 +13,7 @@ import { VideoProof } from "@/components/landing/video-proof";
 import { RelationshipJourney } from "@/components/landing/relationship-journey";
 import { SHOWCASE_RECIPIENTS, splitShowcase } from "@/lib/showcase";
 import { trackViralLanding } from "@/lib/analytics";
+import { rememberViralRef } from "@/lib/viral-ref-client";
 
 const RECONNECT_FLOW: { id: string; label: string; desc: string }[] = [
   { id: "friend", label: "Pick the friend", desc: "Start with someone you actually want to hear from again." },
@@ -40,7 +41,10 @@ export default function HomeClient() {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get("ref");
     const modeParam = params.get("mode") === "reconnect" ? "reconnect" : "outreach";
-    if (ref) trackViralLanding({ ref, mode: modeParam });
+    if (ref) {
+      trackViralLanding({ ref, mode: modeParam });
+      rememberViralRef(ref);
+    }
     // Sync external URL state into React state for the landing-page experiment.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (params.get("mode") === "reconnect") setMode("reconnect");

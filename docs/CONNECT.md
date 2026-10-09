@@ -50,10 +50,38 @@ Render and live avatar / livelink require an **existing nuncio account** or the 
 - Product: https://nuncio.persidian.com  
 - Plans (informational): https://nuncio.persidian.com/pricing  
 
+## Privacy + support surfaces
+
+`GET /api/mcp` advertises `privacyPolicyUrl` and `supportUrl` (derived from the
+request origin, so they follow the deployed domain). Both pages exist:
+`/privacy` (what is stored, what is deliberately not, third parties, salted
+analytics ids, referral attribution, no in-plugin checkout, deletion) and
+`/support` (address from `NUNCIO_SUPPORT_EMAIL`; placeholder text until that env
+var is set). Both are linked from the site footer.
+
+## Telemetry
+
+`initialize` / `tools/list` emit `mcp_connect` and each accepted call emits
+`mcp_tool_call` (`source` = `rest` or `jsonrpc` — the JSON-RPC stub proxies to
+the REST wedge, which is the single instrumentation point). Capture is opt-in on
+`NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`; distinct id is a salted SHA-256 of the
+client id. Props are usage-only: never the prospect URL, sender brief, or
+drafted text. See `docs/CHATGPT_PLUGIN_PLAYBOOK.md` → Scoreboard mapping.
+
 ## Rate limits
 
 `mcpResearchDraft`: 20 requests / IP / hour (same order as `/api/agent/lite`).
 
 ## ChatGPT directory checklist
 
-See [CHATGPT_PLUGIN_PLAYBOOK.md](./CHATGPT_PLUGIN_PLAYBOOK.md). Listing needs privacy policy, support contact, example prompts ([STARTER_PROMPTS.md](./STARTER_PROMPTS.md)), and intent QA ([EVAL.md](./EVAL.md)).
+See [CHATGPT_PLUGIN_PLAYBOOK.md](./CHATGPT_PLUGIN_PLAYBOOK.md). Privacy policy
+and support contact are shipped; example prompts live in
+[STARTER_PROMPTS.md](./STARTER_PROMPTS.md); intent QA is [EVAL.md](./EVAL.md)
+(not yet run — user-owned).
+
+**Open before submission:** `/pricing` currently renders live Stripe checkout
+buttons, while the guidelines say the plugin should lead to an *informational*
+plans surface (with the account as the paid path). Either point `PLANS_URL` at a
+non-checkout page (`src/app/api/mcp/research-and-draft/route.ts`, hardcoded
+alongside `PRODUCT_URL`) or accept the current page deliberately — product
+decision, see `docs/CHATGPT_PLUGIN_PLAYBOOK.md`.

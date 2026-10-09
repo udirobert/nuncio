@@ -241,6 +241,41 @@ The Setup guidance (placeholders, `Try an example`, live preview, `Hear your twi
 5. Lobby + debrief: on `/live/[id]`, `Before you join` offers Check mic (ready/blocked/idle states); Join after a passed check skips the second probe; after a deliberate end, `What they asked about` shows metric labels only; greeting uses the share-record name or nothing — never a researched name.
 6. Playbook deep-links: `/playbook#<entry>` expands the entry and smooth-scrolls with header offset (instant under reduced motion).
 
+## Plugin telemetry + viral-loop attribution checklist
+
+Implemented 2026-10-09. Automated coverage: `src/lib/viral-ref.test.ts` (ref
+grammar: accepts app-emitted refs, rejects junk/oversized/non-strings) plus the
+existing `pnpm test` suite; `pnpm typecheck` and ESLint clean on touched files.
+Locally execution-verified against a throwaway capture sink
+(`NUNCIO_POSTHOG_API_HOST=http://localhost:<sink>`) on a file-provider dev
+server: `mcp_connect` ×2 for `initialize` + `tools/list`; exactly one
+`mcp_tool_call` per call with `source` distinguishing `jsonrpc` from `rest`;
+`signed_up` on the `POST /api/account/session` path; `referred_signup` +
+`referredBy` persisted; 400 (bad ref) and 401 (no session) emit nothing; every
+event's props were usage-only.
+
+Still user-owned, because they need prod or a real ChatGPT/PostHog account:
+
+1. Set `NUNCIO_ANALYTICS_SALT` and `NUNCIO_SUPPORT_EMAIL` in Coolify (see
+   `docs/DEPLOY.md`). Without the salt, `mcpDistinctId` falls back to a fixed
+   enumerable literal — analytics-only, but don't ship prod that way.
+2. PostHog Debug view: confirm the three plugin-scoreboard insights (connects,
+   tool calls/week with `demo = false`, returning distinct ids) and the
+   viral-loop funnel in `docs/VIRAL-LOOP.md` fill in.
+3. Identity hygiene: sign in on a shared browser → dashboard identifies the
+   distinct id; sign out → `posthog.reset()`, and the next account starts a
+   fresh history rather than inheriting the previous one.
+4. Real funnel: open a `/v/[id]` page as a fresh visitor, click "Make yours →",
+   sign up with a new email, land on `/dashboard` — expect `referredBy` on the
+   workspace and one `referred_signup`. A second invite visited afterwards must
+   not change it.
+5. Run the 15-prompt ChatGPT intent eval (`docs/EVAL.md`), scoring selection via
+   `mcp_tool_call` on the test account's distinct id; negatives 11–15 must
+   produce zero events.
+6. Confirm `/privacy` and `/support` are reachable on the deployed origin and
+   that `GET /api/mcp` shows both URLs pointing at the public domain, not
+   localhost.
+
 ## Conversational escalation + scheduling checklist
 
 The escalation hint, desktop alerts, embedded scheduling, and Cal.com webhook lifecycle are covered by automated tests and mocked browser QA in this pass. Automated coverage: `src/lib/escalation.test.ts`, `src/lib/live-transcripts.test.ts`, `src/lib/scheduling.test.ts`, `src/lib/scheduling-server.test.ts`, `src/lib/calcom-webhook.test.ts`, `src/lib/call-request-notifications.test.ts`, `src/lib/live-avatar-providers.test.ts`, `src/lib/storage/file-scheduling-provider.test.ts`, `src/lib/storage/turso-scheduling-provider.test.ts`, `src/app/api/scheduling/**`. The delight batch on top (lobby skip-probe, debrief snapshots, recipient-name guardrails, `Preparing…` busy flag) is typecheck + lint only. Not verified: live avatar sessions, real Cal.com bookings/webhook delivery, and the two-person human call.

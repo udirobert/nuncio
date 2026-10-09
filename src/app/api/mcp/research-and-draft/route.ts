@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { captureServerEvent, mcpDistinctId } from "@/lib/analytics-server";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 import { TinyFishApiError } from "@/lib/tinyfish";
 import { chatCompletion } from "@/lib/llm";
@@ -131,6 +132,16 @@ export async function POST(request: NextRequest) {
       typeof body.channel === "string" && body.channel in CHANNEL_GUIDELINES
         ? body.channel
         : "linkedin";
+    captureServerEvent({
+      distinctId: mcpDistinctId(request),
+      event: "mcp_tool_call",
+      properties: {
+        tool: "research_and_draft",
+        channel,
+        demo: true,
+        source: request.headers.get("x-nuncio-mcp-bridge") === "jsonrpc" ? "jsonrpc" : "rest",
+      },
+    });
     return NextResponse.json({ ...DEMO_RESULT, channel });
   }
 
@@ -153,6 +164,19 @@ export async function POST(request: NextRequest) {
   const senderName = cleanOptionalString(body.senderName);
   const channelRaw = cleanOptionalString(body.channel)?.toLowerCase() || "email";
   const channel = channelRaw in CHANNEL_GUIDELINES ? channelRaw : "email";
+
+  // Usage scoreboard: one event per accepted call. The JSON-RPC stub proxies
+  // through this route, so instrumenting here counts REST + MCP calls once.
+  captureServerEvent({
+    distinctId: mcpDistinctId(request),
+    event: "mcp_tool_call",
+    properties: {
+      tool: "research_and_draft",
+      channel,
+      demo: false,
+      source: request.headers.get("x-nuncio-mcp-bridge") === "jsonrpc" ? "jsonrpc" : "rest",
+    },
+  });
 
   const input: PipelineInput = {
     url,

@@ -74,6 +74,8 @@ export interface WorkspaceAccount {
   liveVoiceId?: string;
   /** Explicit expiring sender availability for human call requests (ISO). Never inferred. */
   callAvailabilityUntil?: string;
+  /** Viral-loop attribution: ?ref= invite that led to this signup (first touch, immutable once set). */
+  referredBy?: string;
   createdAt: string;
   updatedAt: string;
 }

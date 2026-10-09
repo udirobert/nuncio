@@ -89,6 +89,24 @@ Consider adding basic health monitoring:
 - For production uptime, add an external health check against `https://your-domain.com/`
   (returns 200) and `https://your-domain.com/api/enrich` with an invalid payload (returns 400).
 
+### Analytics + plugin listing env (set these in Coolify)
+
+Server-side events (`mcp_connect`, `mcp_tool_call`, `signed_up`, `referred_signup`) are
+captured only when `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` is present; they are usage-only and
+never carry prospect URLs, briefs, or drafted text.
+
+```env
+# Salt for hashing client IPs into analytics distinct ids. Unset falls back to a fixed
+# literal, which makes the ids enumerable — set a private value in production.
+NUNCIO_ANALYTICS_SALT=<random-secret>
+# Contact address rendered by /support. Required by the ChatGPT directory; the page
+# shows support@example.com until a real address is set.
+NUNCIO_SUPPORT_EMAIL=support@your-domain
+```
+
+`/privacy` and `/support` are linked from `/api/mcp` and the site footer — both are hard
+requirements for the directory submission (see `docs/CHATGPT_PLUGIN_PLAYBOOK.md`).
+
 ---
 
 ## Option A: Vultr + Coolify (recommended)

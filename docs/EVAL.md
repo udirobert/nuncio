@@ -38,3 +38,14 @@ Score each prompt: **selected?** (plugin surfaced) · **arg accuracy** · **comp
 - Demo path (`demo: true`) completes without credentials  
 
 Record runs in the team notebook; double down on the query shapes that get mid-conversation recommendations.
+
+## Scoring with our own telemetry
+
+Every accepted tool call lands in PostHog as `mcp_tool_call` (stable distinct
+id per client, props `channel` / `demo` / `source`; connects as `mcp_connect`).
+On eval day, filter Events on your ChatGPT account's distinct id:
+
+- **selected?** = event present for that prompt's call
+- **arg accuracy** = `channel` matches the asked channel; demo runs carry `demo: true`
+- **negative set pass** = prompts 11–15 produce **zero** `mcp_tool_call` events
+- rate-limit 429s mean the model retried or you exceeded 20 req/h — rerun later, don't count as selected

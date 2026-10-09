@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { captureServerEvent, mcpDistinctId } from "@/lib/analytics-server";
 
 export const runtime = "nodejs";
 
@@ -12,7 +13,6 @@ export const runtime = "nodejs";
  * What remains for production ChatGPT directory listing:
  * - Official MCP Streamable HTTP transport (sessions, SSE notifications)
  * - OAuth / demo account for review
- * - Privacy policy URL + support contact on the listing
  */
 
 const TOOLS_PATH = "/api/mcp/tools";
@@ -34,11 +34,13 @@ export async function GET(request: NextRequest) {
     note: "Thin adapter. Use GET /api/mcp/tools for discovery and POST /api/mcp/research-and-draft for the free wedge. Full streamable HTTP MCP (SSE sessions) is listed under Remaining.",
     toolsUrl: `${origin}${TOOLS_PATH}`,
     freeToolUrl: `${origin}${RESEARCH_PATH}`,
+    privacyPolicyUrl: `${origin}/privacy`,
+    supportUrl: `${origin}/support`,
     methods: ["tools/list", "tools/call"],
     remaining: [
       "MCP Streamable HTTP transport with SSE session lifecycle",
       "OAuth for account-linked paid entitlements (render/livelink)",
-      "Directory listing: privacy policy, support email, example prompts",
+      "Directory listing: example prompts + intent QA (see docs/EVAL.md)",
     ],
   });
 }
@@ -56,6 +58,7 @@ export async function POST(request: NextRequest) {
   }
 
   const id = rpc.id ?? null;
+  const distinctId = mcpDistinctId(request);
 
   if (rpc.method === "tools/list" || rpc.method === "tools/listChanged") {
     const res = await fetch(`${origin}${TOOLS_PATH}`, {
@@ -63,6 +66,13 @@ export async function POST(request: NextRequest) {
       cache: "no-store",
     });
     const payload = await res.json();
+    if (res.ok) {
+      captureServerEvent({
+        distinctId,
+        event: "mcp_connect",
+        properties: { method: "tools_list" },
+      });
+    }
     return NextResponse.json({
       jsonrpc: "2.0",
       id,
@@ -110,6 +120,9 @@ export async function POST(request: NextRequest) {
         // Preserve client identity for rate limits when possible
         "x-forwarded-for": request.headers.get("x-forwarded-for") || "",
         "user-agent": request.headers.get("user-agent") || "nuncio-mcp-stub",
+        // Lets the REST wedge count this as a JSON-RPC tool call (single
+        // instrumentation point — no double counting per tools/call).
+        "x-nuncio-mcp-bridge": "jsonrpc",
       },
       body: JSON.stringify(args),
       cache: "no-store",
@@ -136,6 +149,11 @@ export async function POST(request: NextRequest) {
   }
 
   if (rpc.method === "initialize") {
+    captureServerEvent({
+      distinctId,
+      event: "mcp_connect",
+      properties: { method: "initialize" },
+    });
     return NextResponse.json({
       jsonrpc: "2.0",
       id,

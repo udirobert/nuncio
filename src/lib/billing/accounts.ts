@@ -1,6 +1,7 @@
 import { getAccountStorageProvider } from "@/lib/storage";
 import type { AccountUser, WorkspaceAccount } from "@/lib/storage";
 import { grantCredits } from "@/lib/billing/credits";
+import { captureServerEvent } from "@/lib/analytics-server";
 
 const PLAN_CREDITS: Record<string, number> = {
   "pro-monthly": 200,
@@ -22,8 +23,9 @@ export async function upsertBillingAccount(input: {
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   planType?: string;
-}): Promise<{ user: AccountUser; workspace: WorkspaceAccount }> {
+}): Promise<{ user: AccountUser; workspace: WorkspaceAccount; isNew: boolean }> {
   const provider = getAccountStorageProvider();
+  const isNew = (await provider.getUserByEmail(input.email)) === null;
   const user = await provider.upsertUserByEmail(input.email, {
     stripeCustomerId: input.stripeCustomerId,
   });
@@ -35,7 +37,22 @@ export async function upsertBillingAccount(input: {
     plan: normalizePlan(input.planType),
   });
 
-  return { user, workspace };
+  if (isNew) {
+    // Single capture point for signup completion: every account-creating surface
+    // (magic-link verify, studio email gate, Stripe webhook) counts exactly once.
+    // Anonymous trial workspaces bypass this function and are never counted.
+    captureServerEvent({
+      distinctId: user.email,
+      event: "signed_up",
+      properties: {
+        plan: normalizePlan(input.planType),
+        user_id: user.id,
+        workspace_id: workspace.id,
+      },
+    });
+  }
+
+  return { user, workspace, isNew };
 }
 
 export async function ensureTrialCredits(input: {

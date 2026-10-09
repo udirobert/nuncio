@@ -60,12 +60,24 @@ export default function RootLayout({
             {children}
           </MotionProvider>
         </PostHogProvider>
-        <footer className="mt-auto px-6 py-6 text-center">
+        <footer className="mt-auto px-6 py-6 text-center space-x-4">
           <a
             href="/studio"
             className="text-label-base text-ink-faint hover:text-accent transition-colors"
           >
             nuncio
+          </a>
+          <a
+            href="/privacy"
+            className="text-label-base text-ink-faint hover:text-accent transition-colors"
+          >
+            Privacy
+          </a>
+          <a
+            href="/support"
+            className="text-label-base text-ink-faint hover:text-accent transition-colors"
+          >
+            Support
           </a>
         </footer>
       </body>

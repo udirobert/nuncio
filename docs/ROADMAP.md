@@ -170,7 +170,7 @@ Sequencing and gates come from `docs/STRATEGY.md` phases. Engineering items:
 9. **Pre-send review** — research, hook, script, and visual plan reviewable before credits are spent
 
 ### STRATEGY Phase 3 — positioning rewrite (parallel)
-10. ~~**Share-page viral loop**~~ ✅ — `/v/[id]` CTA rewritten as recipient→sender signup loop with `?ref=share-{id}` tracking; live-page footer carries `?ref=live-{id}`; landing captures `ref` via `trackViralLanding`
+10. ~~**Share-page viral loop**~~ ✅ — `/v/[id]` CTA rewritten as recipient→sender signup loop (`?ref=share-{id}-cta{a|b}`, header carries the same variant); live-page footer carries `?ref=live-{id}`; landing captures `ref` via `trackViralLanding` **and now persists it**: localStorage first-touch (30-day) → `/api/account/attribution` → `WorkspaceAccount.referredBy`, with `signed_up` / `referred_signup` events. Referrals-converted is measurable at last; teardown + K-factor worksheet in `docs/VIRAL-LOOP.md`.
 11. ~~**Honest-twin framing**~~ ✅ — "AI-powered · personalised video" killed across studio badge, landing, metadata, share/live pages; disclosure worn as a badge ("disclosed, never disguised"). Remaining: trust signals (sender photo, verified badge)
 12. ~~**Value-metric experiment**~~ ✅ (copy anchor) — pricing anchored to meetings booked / twin first touches; "we never charge for more sends". Remaining: report meetings booked per workspace once booking data accumulates
 
@@ -204,6 +204,23 @@ Sequencing and gates come from `docs/STRATEGY.md` phases. Engineering items:
 - **In-memory magic link tokens:** Single-instance limitation
 
 ---
+
+## ChatGPT / MCP distribution wedge
+
+`research_and_draft` is live (`/api/mcp` JSON-RPC stub + REST wedge, annotations
+set), `/privacy` + `/support` are published and advertised by the descriptor, and
+the usage-only scoreboard is instrumented (`mcp_connect`, `mcp_tool_call`,
+mapping in `docs/CHATGPT_PLUGIN_PLAYBOOK.md`). Before submission:
+
+1. Set `NUNCIO_SUPPORT_EMAIL` and `NUNCIO_ANALYTICS_SALT` in production
+   (`docs/DEPLOY.md`).
+2. Run the 15-prompt intent QA in `docs/EVAL.md`, scoring selection off our own
+   telemetry.
+3. Decide the plans-surface question: `plansUrl` currently points at `/pricing`,
+   which carries live checkout buttons (flagged in `docs/CONNECT.md`).
+4. Build the three PostHog insights (connects / calls per week / returning ids)
+   and watch which queries get recommended mid-conversation, then narrow tools
+   for that slot.
 
 ## Still to do
 

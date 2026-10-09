@@ -31,6 +31,17 @@ import {
  * scales up from a card into full view on load.
  */
 
+/**
+ * 48-hour share-CTA copy test: deterministic split on the share id, so one
+ * share always shows one variant. The variant travels in the ref suffix
+ * (`-ctaa` / `-ctab`) — PostHog breakdown by suffix, no new events.
+ */
+function ctaVariant(shareId: string): "a" | "b" {
+  let h = 0;
+  for (let i = 0; i < shareId.length; i++) h = (h * 31 + shareId.charCodeAt(i)) >>> 0;
+  return h % 2 === 0 ? "a" : "b";
+}
+
 export default function VideoLandingPage({
   params,
 }: {
@@ -174,6 +185,10 @@ export default function VideoLandingPage({
   // Booking CTA is the control arm for prediction P-c — https links only.
   const bookingUrl = videoData.bookingUrl?.startsWith("https://") ? videoData.bookingUrl : null;
 
+  // 48h copy test applies to the outreach CTA only; reconnect copy is its own experiment.
+  const outreachCtaVariant = ctaVariant(videoData.id);
+  const outreachRef = `share-${videoData.id}-cta${outreachCtaVariant}`;
+
   return (
     <div className="min-h-screen bg-cream flex flex-col">
       {/* Minimal header */}
@@ -186,11 +201,11 @@ export default function VideoLandingPage({
         </Link>
         {hasVideo && (
           <Link
-            href={`/?ref=share-${videoData.id}-header`}
+            href={`/?ref=share-${videoData.id}-header-cta${outreachCtaVariant}`}
             onClick={() =>
               trackViralCtaClicked({
                 shareId: videoData.id,
-                ref: `share-${videoData.id}-header`,
+                ref: `share-${videoData.id}-header-cta${outreachCtaVariant}`,
                 surface: "header",
               })
             }
@@ -529,19 +544,23 @@ export default function VideoLandingPage({
                 <p className="text-sm text-ink-light max-w-[320px]">
                   {videoData.mode === "reconnect"
                     ? `${senderName ? `${senderName} turned one real memory into this with a little AI help — you can make one back in 90 seconds.` : "This was made from one real memory, with a little AI help — you can make one back in 90 seconds."}`
-                    : "This researched you, wrote what you just watched, and can answer questions live."}
+                    : outreachCtaVariant === "b"
+                      ? "Your name landed in the wrong inbox — so a twin researched you, wrote what you just watched, and can answer questions live."
+                      : "This researched you, wrote what you just watched, and can answer questions live."}
                 </p>
                 <p className="text-xs text-ink-faint max-w-[320px]">
                   {videoData.mode === "reconnect"
                     ? "First reconnection card is free · No account needed · You review every word."
-                    : `It&apos;s ${senderName ? `${senderName}'s` : "an"} AI twin — disclosed up front, built on their playbook.`}
+                    : outreachCtaVariant === "b"
+                      ? "It's disclosed AI, guided by their playbook — not a disguised blast. Free · 90 seconds."
+                      : `It&apos;s ${senderName ? `${senderName}'s` : "an"} AI twin — disclosed up front, built on their playbook.`}
                 </p>
                 <Link
-                  href={videoData.mode === "reconnect" ? `/?ref=share-${videoData.id}&mode=reconnect` : `/?ref=share-${videoData.id}`}
+                  href={videoData.mode === "reconnect" ? `/?ref=share-${videoData.id}&mode=reconnect` : `/?ref=${outreachRef}`}
                   onClick={() =>
                     trackViralCtaClicked({
                       shareId: videoData.id,
-                      ref: `share-${videoData.id}`,
+                      ref: videoData.mode === "reconnect" ? `share-${videoData.id}` : outreachRef,
                       surface: "share_page",
                     })
                   }
