@@ -45,7 +45,7 @@ export function Header({ stage, isDemo, activeWorkspaceView }: HeaderProps) {
   const NAV_LINKS: { label: string; href: string; view?: "conversations" | "setup"; subtitle?: string; memberOnly?: boolean }[] = [
     { label: "Conversations", href: "/dashboard", view: "conversations" as const, memberOnly: true },
     { label: "Setup", href: "/dashboard?view=setup", view: "setup" as const, memberOnly: true },
-    { label: "Create a first touch", href: "/studio" },
+    { label: "New first touch", href: "/studio" },
     { label: "Examples", href: "/playbook" },
     { label: "Pricing", href: "/pricing" },
   ];

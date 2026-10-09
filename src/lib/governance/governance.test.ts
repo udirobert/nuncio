@@ -12,6 +12,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/email", () => ({ sendApprovalRequestEmail: vi.fn() }));
+
 import policies from "./policies.json";
 import { evaluateAccess, evaluatePost, evaluatePre } from "./engine";
 import { sanitizeField, sanitizeValue } from "./sanitize";
@@ -358,6 +360,57 @@ describe("governance service over the file provider", () => {
     });
     expect(flooded.ok).toBe(false);
     expect(!flooded.ok && flooded.status).toBe(429);
+  });
+
+  it("emails the owner when the queue first fills — once, not per item", async () => {
+    const svc = await freshService();
+    const sendApprovalRequestEmail = vi.mocked(
+      (await import("@/lib/email")).sendApprovalRequestEmail,
+    );
+    sendApprovalRequestEmail.mockClear();
+    const account = (await import("@/lib/storage")).getAccountStorageProvider();
+    const user = await account.upsertUserByEmail("owner@acme.com");
+    const ws = await account.upsertWorkspaceForUser(user);
+    const subj: GovernanceSubject = { class: "agent", workspaceId: ws.id };
+
+    const first = await svc.requestApproval({
+      subject: subj,
+      tool: "agent.render",
+      payload: { url: "https://linkedin.com/in/p-1" },
+      summary: "Render one",
+    });
+    expect(first.ok).toBe(true);
+    expect(sendApprovalRequestEmail).toHaveBeenCalledTimes(1);
+    expect(sendApprovalRequestEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "owner@acme.com", tool: "agent.render" }),
+    );
+
+    // A second distinct request while the queue is non-empty does not re-email.
+    await svc.requestApproval({
+      subject: subj,
+      tool: "agent.render",
+      payload: { url: "https://linkedin.com/in/p-2" },
+      summary: "Render two",
+    });
+    expect(sendApprovalRequestEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it("never emails anonymous trial workspaces", async () => {
+    const svc = await freshService();
+    const sendApprovalRequestEmail = vi.mocked(
+      (await import("@/lib/email")).sendApprovalRequestEmail,
+    );
+    sendApprovalRequestEmail.mockClear();
+    const account = (await import("@/lib/storage")).getAccountStorageProvider();
+    const user = await account.upsertUserByEmail("anon-abc@anonymous.local");
+    const ws = await account.upsertWorkspaceForUser(user);
+    await svc.requestApproval({
+      subject: { class: "agent", workspaceId: ws.id },
+      tool: "agent.render",
+      payload: { url: "https://linkedin.com/in/p-1" },
+      summary: "Render",
+    });
+    expect(sendApprovalRequestEmail).not.toHaveBeenCalled();
   });
 
   it("a denial can never be softened into an approval request", async () => {

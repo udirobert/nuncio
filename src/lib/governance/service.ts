@@ -22,7 +22,9 @@ import { sanitizeValue } from "./sanitize";
 import { getClientId } from "@/lib/rate-limit";
 import { captureServerEvent } from "@/lib/analytics-server";
 import { readAccountSession } from "@/lib/auth/session";
-import { getGovernanceStorageProvider } from "@/lib/storage";
+import { getAccountStorageProvider, getGovernanceStorageProvider } from "@/lib/storage";
+import { sendApprovalRequestEmail } from "@/lib/email";
+import { absoluteUrl } from "@/lib/url";
 import type {
   AccessDecision,
   GovernanceApproval,
@@ -354,7 +356,41 @@ export async function requestApproval(input: {
     approvalId: approval.id,
     latencyMs: 0,
   });
+  // Notify only when the queue was empty — the first pending item wakes the
+  // operator; anything that piles up behind it is already covered by that
+  // "you have work waiting" signal, so a busy queue can never become an
+  // email flood.
+  if (pending.length === 0) {
+    await notifyApprovalRequested(approval);
+  }
   return { ok: true, approval, deduplicated: false };
+}
+
+/**
+ * Email the workspace owner that a request needs a human decision. Never
+ * throws and never blocks the response path beyond the owner lookup —
+ * notification failure must not turn into approval-request failure.
+ */
+async function notifyApprovalRequested(approval: GovernanceApproval): Promise<void> {
+  try {
+    const provider = getAccountStorageProvider();
+    const workspace = await provider.getWorkspace(approval.workspaceId);
+    if (!workspace?.ownerUserId) return;
+    const owner = await provider.getUserById(workspace.ownerUserId);
+    const email = owner?.email;
+    // Anonymous trial workspaces have machine-local placeholder users.
+    if (!email || email.endsWith("@anonymous.local")) return;
+    sendApprovalRequestEmail({
+      email,
+      summary: approval.summary,
+      tool: approval.tool,
+      estimatedCredits: approval.estimatedCredits,
+      expiresAt: approval.expiresAt,
+      dashboardUrl: absoluteUrl("/dashboard"),
+    });
+  } catch (error) {
+    console.error("[governance] approval notification failed:", error);
+  }
 }
 
 export type DecideResult =

@@ -53,6 +53,11 @@ export class FileAccountStorageProvider implements AccountStorageProvider {
     return this.data.users.find((u) => u.email === normalizedEmail) || null;
   }
 
+  async getUserById(id: string): Promise<AccountUser | null> {
+    await this.load();
+    return this.data.users.find((u) => u.id === id) || null;
+  }
+
   async getUserByStripeCustomerId(customerId: string): Promise<AccountUser | null> {
     await this.load();
     return this.data.users.find((u) => u.stripeCustomerId === customerId) || null;

@@ -38,14 +38,31 @@ const NOTABLE = new Set([
   "grant_rejected",
 ]);
 const EVENT_LABEL: Record<string, string> = {
-  deny: "denied",
-  redact: "redacted",
-  require_approval: "needs approval",
-  approval_requested: "approval requested",
-  approval_decided: "decided",
-  grant_delivered: "grant delivered",
-  grant_consumed: "grant used",
-  grant_rejected: "grant rejected",
+  deny: "Blocked",
+  redact: "Cleaned output",
+  require_approval: "Asked for approval",
+  approval_requested: "Requested approval",
+  approval_decided: "Decided",
+  grant_delivered: "Sent grant to agent",
+  grant_consumed: "Agent used approval",
+  grant_rejected: "Rejected a bad grant",
+};
+const TOOL_LABEL: Record<string, string> = {
+  "agent.render": "render",
+  "agent.earn-checkout": "checkout",
+  "agent.handoffs": "handoff",
+  "agent.prospect-queue": "prospect queue",
+  "agent.call-requests": "call request",
+  "agent.reply-webhook": "reply webhook",
+  "agent.lite": "agent call",
+  "pipeline.research": "research",
+  "live.prompt-context": "prompt context",
+  "mcp.research_and_draft": "research + draft",
+};
+const WHO_LABEL: Record<string, string> = {
+  member: "owner",
+  agent: "agent",
+  anonymous: "visitor",
 };
 
 /**
@@ -210,7 +227,7 @@ export function ApprovalsCard() {
               <div className="min-w-0">
                 <p className="text-body-sm font-medium text-ink">{a.summary}</p>
                 <p className="text-body-xs text-ink-faint mt-0.5">
-                  {a.tool}
+                  {TOOL_LABEL[a.tool] ?? a.tool}
                   {typeof a.estimatedCredits === "number" ? ` · ~${a.estimatedCredits} credits` : ""}
                   {" · expires "}
                   {new Date(a.expiresAt).toLocaleTimeString()}
@@ -245,12 +262,12 @@ export function ApprovalsCard() {
           <p className="text-label-xs uppercase tracking-widest text-ink-faint mb-2">Recent governance events</p>
           <ul className="space-y-1">
             {events.map((e) => (
-              <li key={e.id} className="flex items-baseline justify-between gap-3 text-body-xs">
+              <li key={e.id} className="flex items-baseline justify-between gap-3 text-body-xs" title={e.reason}>
                 <span className="text-ink-muted truncate">
                   <span className={e.decision === "deny" || e.decision === "grant_rejected" ? "text-warm font-medium" : "text-ink"}>
                     {EVENT_LABEL[e.decision] ?? e.decision}
                   </span>
-                  {" · "}{e.tool} · {e.subjectClass}
+                  {" · "}{TOOL_LABEL[e.tool] ?? e.tool} · {WHO_LABEL[e.subjectClass] ?? e.subjectClass}
                 </span>
                 <span className="shrink-0 text-ink-faint tabular-nums">
                   {new Date(e.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}

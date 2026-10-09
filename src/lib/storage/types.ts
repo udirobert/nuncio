@@ -326,6 +326,7 @@ export interface AccountStorageProvider {
   readonly name: string;
   upsertUserByEmail(email: string, updates?: Partial<AccountUser>): Promise<AccountUser>;
   getUserByEmail(email: string): Promise<AccountUser | null>;
+  getUserById(id: string): Promise<AccountUser | null>;
   getUserByStripeCustomerId(customerId: string): Promise<AccountUser | null>;
   updateUser(id: string, updates: Partial<AccountUser>): Promise<AccountUser | null>;
   upsertWorkspaceForUser(user: AccountUser, updates?: Partial<WorkspaceAccount>): Promise<WorkspaceAccount>;

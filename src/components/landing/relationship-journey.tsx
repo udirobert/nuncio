@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 
 type Stage = 1 | 2 | 3 | 4;
@@ -64,8 +65,14 @@ export function RelationshipJourney() {
         <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
           Illustrative journey · not a live session
         </p>
-        <p className="text-label-base text-ink-faint">Alex (sender) → Maya (prospect)</p>
+        <Link
+          href="/v/cf2ce2ee-c6d"
+          className="text-label-base font-medium text-accent hover:text-accent/80 transition-colors"
+        >
+          Watch a real first touch →
+        </Link>
       </div>
+      <p className="text-label-base text-ink-faint">Alex (sender) → Maya (prospect)</p>
 
       <div className="flex items-center gap-0" role="group" aria-label="Journey stages">
         {STAGES.map((s, i) => (

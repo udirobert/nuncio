@@ -257,7 +257,7 @@ export default function HomeClient() {
                       href="/studio"
                       className="inline-block text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
                     >
-                      Create a first touch →
+                      New first touch →
                     </Link>
                   </motion.div>
                 </div>

@@ -25,20 +25,28 @@ of operating it. Implementation detail lives in `AGENTS.md`.
   `allow` traffic is filtered out; silence means everything is within
   policy.
 
+## Email notification
+
+When the pending queue goes from empty to non-empty, the workspace owner
+gets a Resend email ("Your agent needs a decision") with a dashboard link.
+It fires once per fill — items piling up behind the first don't re-send —
+so a busy queue can never become an inbox flood. Deduped retries never
+trigger it; anonymous trial workspaces (machine-local placeholder users)
+are skipped. No `RESEND_API_KEY` → logged and skipped silently.
+
 ## What the event labels mean
 
 | Label | Meaning |
 |-------|---------|
-| `denied` | A rule refused the call outright (e.g. denylisted domain, agent-only surface). |
-| `redacted` | Post-hook removed content from output — injected directives or contact PII. |
-| `needs approval` | Policy required a human for this call. |
-| `approval requested` | The agent filed the request you're deciding. |
-| `decided` | You (or the ops token) approved or denied it. |
-| `grant delivered` | The grant was POSTed to the agent's callback. |
-| `grant used` | The agent consumed its single-use grant on the retried call. |
-| `grant rejected` | A grant was presented that was wrong, reused, expired, or didn't match the call. Watch for bursts. |
+| `Blocked` | A rule refused the call outright (e.g. denylisted domain, agent-only surface). |
+| `Cleaned output` | Post-hook removed content from output — injected directives or contact PII. |
+| `Asked for approval` / `Requested approval` | Policy required a human for this call; the agent filed it. |
+| `Decided` | You (or the ops token) approved or denied it. |
+| `Sent grant to agent` | The grant was POSTed to the agent's callback. |
+| `Agent used approval` | The agent consumed its single-use grant on the retried call. |
+| `Rejected a bad grant` | A grant was presented that was wrong, reused, expired, or didn't match the call. Watch for bursts. |
 
-A `grant rejected` streak or a `denied` spike is the anomaly worth
+A `Rejected a bad grant` streak or a `Blocked` spike is the anomaly worth
 investigating — both land in PostHog as `governance_decision` too.
 
 ## The CLI

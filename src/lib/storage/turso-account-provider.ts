@@ -61,6 +61,15 @@ export class TursoAccountStorageProvider implements AccountStorageProvider {
     return parseRow<AccountUser>(result.rows[0]?.record_json);
   }
 
+  async getUserById(id: string): Promise<AccountUser | null> {
+    await this.ensureSchema();
+    const result = await this.client.execute({
+      sql: `SELECT record_json FROM users WHERE id = ? LIMIT 1`,
+      args: [id],
+    });
+    return parseRow<AccountUser>(result.rows[0]?.record_json);
+  }
+
   async getUserByStripeCustomerId(customerId: string): Promise<AccountUser | null> {
     await this.ensureSchema();
     const result = await this.client.execute({

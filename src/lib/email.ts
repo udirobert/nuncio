@@ -73,6 +73,64 @@ export function sendMagicLinkEmail(email: string, link: string): void {
   });
 }
 
+export interface ApprovalRequestEmailParams {
+  email: string;
+  summary: string;
+  tool: string;
+  estimatedCredits?: number;
+  expiresAt: string;
+  dashboardUrl: string;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+const TOOL_LABELS: Record<string, string> = {
+  "agent.render": "Render a first-touch video",
+  "agent.earn-checkout": "Create a payment checkout",
+  "agent.handoffs": "Send a live-call invitation",
+  "agent.prospect-queue": "Queue a prospect",
+  "agent.call-requests": "Act on a call request",
+};
+
+export function sendApprovalRequestEmail(params: ApprovalRequestEmailParams): void {
+  const client = getClient();
+  if (!client) {
+    console.log(`[email] No RESEND_API_KEY. Approval request email for ${params.email} skipped (tool=${params.tool})`);
+    return;
+  }
+  const action = TOOL_LABELS[params.tool] || params.tool;
+  const expiresIn = Math.max(
+    1,
+    Math.round((new Date(params.expiresAt).getTime() - Date.now()) / 60000),
+  );
+  client.emails.send({
+    from: FROM,
+    to: params.email,
+    subject: `Your agent needs a decision: ${action}`,
+    html: wrap(`
+      <p class="body-text">Your autonomous agent asked to <strong>${action}</strong> and your policy requires a human decision first.</p>
+      <div class="status-badge" style="background:#f5f5f5;border:1px solid #eee">
+        <p class="body-text" style="margin:0">${escapeHtml(params.summary)}</p>
+        ${params.estimatedCredits ? `<p class="subtle" style="margin:8px 0 0">Estimated cost: ${params.estimatedCredits} credits</p>` : ""}
+      </div>
+      <a href="${params.dashboardUrl}" class="btn">Review in dashboard</a>
+      <p class="subtle">The request expires in about ${expiresIn} minutes. If it expires or you deny it, the agent cannot proceed.</p>
+    `),
+  }).then((result) => {
+    if (result.error) {
+      console.error(`[email] Resend error for approval request to ${params.email}:`, result.error);
+    }
+  }).catch((err) => {
+    console.error(`[email] Failed to send approval request to ${params.email}:`, err);
+  });
+}
+
 export interface BatchCompleteEmailParams {
   email: string;
   campaignName: string;

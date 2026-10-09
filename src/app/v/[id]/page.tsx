@@ -149,12 +149,20 @@ export default function VideoLandingPage({
           <p className="text-sm text-ink-muted leading-relaxed">
             This link is no longer active — the sender&apos;s copy may have expired or been replaced.
           </p>
-          <Link
-            href="/"
-            className="btn-press inline-flex rounded-xl bg-ink text-cream px-5 py-3 text-sm font-medium"
-          >
-            Make your own →
-          </Link>
+          <div className="flex items-center justify-center gap-4 pt-1">
+            <Link
+              href="/"
+              className="btn-press inline-flex rounded-xl bg-ink text-cream px-5 py-3 text-sm font-medium"
+            >
+              Make your own →
+            </Link>
+            <Link
+              href="/v/cf2ce2ee-c6d"
+              className="text-sm font-medium text-ink-muted hover:text-accent transition-colors"
+            >
+              See an example
+            </Link>
+          </div>
         </div>
       </div>
     );
