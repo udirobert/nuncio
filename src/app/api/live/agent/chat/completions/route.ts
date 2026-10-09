@@ -8,7 +8,7 @@ import {
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isLiveLinkAllowed } from "@/lib/live-link";
 import { getActiveHandoffForShare, validateHandoffBookingUrl } from "@/lib/live-handoff";
-import { buildLiveSystemPrompt } from "@/lib/live-prompt";
+import { buildLiveSystemPrompt, sanitizeLivePromptContext } from "@/lib/live-prompt";
 import { chatCompletion } from "@/lib/llm";
 
 const NO_STORE = { "Cache-Control": "no-store" };
@@ -119,6 +119,11 @@ export async function POST(request: NextRequest) {
   const workspace = share.workspaceId
     ? await getAccountStorageProvider().getWorkspace(share.workspaceId)
     : null;
+  const governed = await sanitizeLivePromptContext({
+    workspaceId: share.workspaceId,
+    workspace,
+    context: handoff?.context,
+  });
   const prompt = buildLiveSystemPrompt(
     {
       recipientName: share.recipientName,
@@ -126,8 +131,8 @@ export async function POST(request: NextRequest) {
       profile: share.profile,
       language: share.language,
     },
-    workspace,
-    handoff?.context,
+    governed.workspace,
+    governed.context,
     { schedulingAvailable: Boolean(validateHandoffBookingUrl(share.bookingUrl)) },
   );
 

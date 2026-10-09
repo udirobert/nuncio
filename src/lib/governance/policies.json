@@ -106,6 +106,27 @@
       "enabled": true
     },
     {
+      "id": "post.live-context-injection-sweep",
+      "description": "The live twin's prompt assembles owner playbook fields and agent-written handoff context — the latter carries prospect-adjacent text. Sweep both for injection directives before they become system-prompt content.",
+      "hook": "post",
+      "match": {
+        "tool": "live.prompt-context"
+      },
+      "effect": "redact",
+      "redact": {
+        "patterns": [
+          "injection.instruction-override",
+          "injection.addressed-to-model",
+          "injection.tool-call-directive",
+          "injection.concealment",
+          "injection.conversation-delimiter",
+          "injection.role-play"
+        ]
+      },
+      "priority": 10,
+      "enabled": true
+    },
+    {
       "id": "post.anonymous-contact-redaction-lite",
       "description": "Same contact-PII boundary for the unauthenticated lite funnel endpoint — an anonymous caller gets the draft and the talking points, not the scraped mailbox.",
       "hook": "post",

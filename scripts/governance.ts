@@ -4,12 +4,22 @@
  *   npx tsx scripts/governance.ts list              all rules (store is the policy)
  *   npx tsx scripts/governance.ts enable  <ruleId>  turn a rule on
  *   npx tsx scripts/governance.ts disable <ruleId>  turn a rule off
+ *   npx tsx scripts/governance.ts add <file|->      add or replace a rule from JSON (- = stdin)
+ *   npx tsx scripts/governance.ts remove <ruleId>   delete a rule from the store
+ *   npx tsx scripts/governance.ts eval <tool>       dry-run a call against stored rules
+ *        [--subject anonymous|member|agent] [--input '{"autoRender":true}']
  *   npx tsx scripts/governance.ts sync              add seed rules missing from the store
  *   npx tsx scripts/governance.ts reset             overwrite the store with policies.json
  *
  * Examples:
  *   npx tsx scripts/governance.ts disable pre.agent-render-needs-approval
  *     → fully autonomous renders (hybrid mode off)
+ *   npx tsx scripts/governance.ts add ./credit-cap.json
+ *     → e.g. { "id": "pre.credit-cap", "hook": "pre", "match": {"tool":"agent.*"},
+ *              "conditions": [{"input":"estimatedCredits","operator":"exceeds","value":50}],
+ *              "effect": "require_approval", "priority": 50, "enabled": true }
+ *   npx tsx scripts/governance.ts eval agent.render --subject agent
+ *     → prints the decision the live hook would return, without touching the store
  *   npx tsx scripts/governance.ts sync
  *     → pick up new seed rules after an upgrade without losing local edits
  *
@@ -20,6 +30,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import type { GovernanceRule, SubjectClass } from "../src/lib/governance/types";
 
 // Minimal .env loading — enough for the storage factory's env vars.
 for (const name of [".env.local", ".env"]) {
@@ -68,6 +79,80 @@ async function main() {
       break;
     }
 
+    case "add": {
+      if (!arg) throw new Error("add requires a JSON file path (or - for stdin)");
+      const raw =
+        arg === "-"
+          ? await new Promise<string>((resolve) => {
+              let buf = "";
+              process.stdin.on("data", (c) => (buf += c));
+              process.stdin.on("end", () => resolve(buf));
+            })
+          : readFileSync(path.resolve(arg), "utf8");
+      const rule = JSON.parse(raw) as GovernanceRule;
+      // Shape check — a malformed rule in the store makes every eval worse.
+      const errs: string[] = [];
+      if (!rule.id || typeof rule.id !== "string") errs.push("id (string)");
+      if (!["access", "pre", "post"].includes(rule.hook)) errs.push("hook access|pre|post");
+      if (!rule.match?.tool) errs.push("match.tool");
+      if (!["allow", "deny", "redact", "require_approval"].includes(rule.effect)) {
+        errs.push("effect allow|deny|redact|require_approval");
+      }
+      if (rule.hook === "post" && rule.effect === "redact" && !rule.redact?.patterns?.length) {
+        errs.push("redact.patterns (non-empty) for post/redact rules");
+      }
+      if (typeof rule.priority !== "number") errs.push("priority (number)");
+      if (errs.length) throw new Error(`rule is missing/invalid: ${errs.join(", ")}`);
+      rule.enabled = rule.enabled !== false;
+      const replaced = rules.some((r) => r.id === rule.id);
+      await provider.putRules([...rules.filter((r) => r.id !== rule.id), rule]);
+      console.log(`${replaced ? "Replaced" : "Added"} ${rule.id}`);
+      print([rule]);
+      break;
+    }
+
+    case "eval": {
+      if (!arg) throw new Error("eval requires a tool name, e.g. agent.render");
+      const flag = (name: string) => {
+        const i = process.argv.indexOf(name);
+        return i >= 0 ? process.argv[i + 1] : undefined;
+      };
+      const subjectClass = (flag("--subject") || "anonymous") as SubjectClass;
+      const subject = {
+        class: subjectClass,
+        workspaceId: subjectClass === "anonymous" ? undefined : "eval",
+        clientId: subjectClass === "anonymous" ? "eval" : undefined,
+      };
+      const inputs = flag("--input") ? JSON.parse(flag("--input")!) : {};
+      if (rules.length === 0) {
+        console.log("Store is empty — in the app it would seed from policies.json on first governed call.");
+      }
+      const { evaluateAccess, evaluatePre, evaluatePost } = await import(
+        "../src/lib/governance/engine"
+      );
+      const access = evaluateAccess(rules, subject, arg);
+      console.log(`access → ${access.decision}${access.ruleId ? ` (${access.ruleId})` : ""}${access.reason ? `: ${access.reason}` : ""}`);
+      if (access.decision === "allow") {
+        const pre = evaluatePre(rules, subject, arg, inputs);
+        console.log(`pre    → ${pre.decision}${pre.ruleId ? ` (${pre.ruleId})` : ""}${pre.reason ? `: ${pre.reason}` : ""}`);
+        const post = evaluatePost(rules, subject, arg, inputs);
+        console.log(
+          post.patternIds.length
+            ? `post   → redact [${post.patternIds.join(", ")}]`
+            : "post   → allow",
+        );
+      }
+      break;
+    }
+
+    case "remove": {
+      if (!arg) throw new Error("remove requires a rule id");
+      if (!rules.some((r) => r.id === arg)) throw new Error(`rule not found: ${arg} (run 'list')`);
+      await provider.putRules(rules.filter((r) => r.id !== arg));
+      console.log(`Removed ${arg}`);
+      break;
+    }
+
     case "sync": {
       const existing = new Set(rules.map((r) => r.id));
       const missing = (policies.rules as typeof rules).filter((r) => !existing.has(r.id));
@@ -88,7 +173,7 @@ async function main() {
     }
 
     default:
-      console.log(__filename.split("/").pop() + " list|enable <id>|disable <id>|sync|reset");
+      console.log(__filename.split("/").pop() + " list|enable <id>|disable <id>|add <file|->|remove <id>|eval <tool> [--subject X] [--input JSON]|sync|reset");
       process.exitCode = command ? 1 : 0;
   }
 }

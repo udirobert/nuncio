@@ -8,7 +8,7 @@ import type { LiveSessionRecord, WorkspaceAccount } from "@/lib/storage/types";
 import { isLiveLinkAllowed, LIVE_SESSION_MAX_CREDITS, LIVE_SESSION_MAX_DURATION_MS } from "@/lib/live-link";
 import { authorizeHandoffShare, getActiveHandoffForShare, validateHandoffBookingUrl } from "@/lib/live-handoff";
 import { createLiveSessionRecord, hashLiveSessionToken, reconcileLiveSession } from "@/lib/live-session";
-import { buildLiveSystemPrompt } from "@/lib/live-prompt";
+import { buildLiveSystemPrompt, sanitizeLivePromptContext } from "@/lib/live-prompt";
 import {
   resolvePrimaryProvider,
   resolveStartAttempts,
@@ -131,6 +131,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const governed = await sanitizeLivePromptContext({
+      workspaceId: share.workspaceId,
+      workspace,
+      context: handoff?.context,
+    });
     const systemPrompt = buildLiveSystemPrompt(
       {
         recipientName: share.recipientName,
@@ -138,8 +143,8 @@ export async function POST(request: NextRequest) {
         profile: share.profile,
         language: share.language,
       },
-      workspace,
-      handoff?.context,
+      governed.workspace,
+      governed.context,
       { schedulingAvailable: Boolean(validateHandoffBookingUrl(share.bookingUrl)) },
     );
 

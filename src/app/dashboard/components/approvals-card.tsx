@@ -15,7 +15,38 @@ interface ApprovalItem {
   callbackUrl?: string;
 }
 
+interface AuditItem {
+  id: string;
+  at: string;
+  hook: string;
+  tool: string;
+  subjectClass: string;
+  decision: string;
+  reason?: string;
+}
+
 const POLL_MS = 15_000;
+// "allow" is traffic noise; the trail is interesting when it says something.
+const NOTABLE = new Set([
+  "deny",
+  "redact",
+  "require_approval",
+  "approval_requested",
+  "approval_decided",
+  "grant_delivered",
+  "grant_consumed",
+  "grant_rejected",
+]);
+const EVENT_LABEL: Record<string, string> = {
+  deny: "denied",
+  redact: "redacted",
+  require_approval: "needs approval",
+  approval_requested: "approval requested",
+  approval_decided: "decided",
+  grant_delivered: "grant delivered",
+  grant_consumed: "grant used",
+  grant_rejected: "grant rejected",
+};
 
 /**
  * Governance approvals inbox — the "deal desk" surface for the autonomous
@@ -27,6 +58,7 @@ const POLL_MS = 15_000;
  */
 export function ApprovalsCard() {
   const [items, setItems] = useState<ApprovalItem[]>([]);
+  const [events, setEvents] = useState<AuditItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,13 +72,20 @@ export function ApprovalsCard() {
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const res = await fetch("/api/agent/approvals?status=pending", { signal: controller.signal });
+      const [res, auditRes] = await Promise.all([
+        fetch("/api/agent/approvals?status=pending", { signal: controller.signal }),
+        fetch("/api/agent/audit?limit=40", { signal: controller.signal }),
+      ]);
       if (!res.ok || !mountedRef.current) return;
       const data = (await res.json()) as { approvals?: ApprovalItem[] };
       const now = Date.now();
       setItems(
         (data.approvals || []).filter((a) => new Date(a.expiresAt).getTime() > now),
       );
+      if (auditRes.ok) {
+        const audit = (await auditRes.json()) as { decisions?: AuditItem[] };
+        setEvents((audit.decisions || []).filter((d) => NOTABLE.has(d.decision)).slice(0, 6));
+      }
       setLoaded(true);
     } catch {
       // transient — next poll retries
@@ -106,7 +145,7 @@ export function ApprovalsCard() {
     }
   }, [grant]);
 
-  if (!loaded || (items.length === 0 && !grant)) return null;
+  if (!loaded || (items.length === 0 && events.length === 0 && !grant)) return null;
 
   return (
     <div className="rounded-2xl border border-warm/40 bg-warm-soft/40 p-5 space-y-4">
@@ -160,6 +199,10 @@ export function ApprovalsCard() {
 
       {error && <p className="text-body-xs text-warm">{error}</p>}
 
+      {items.length === 0 && !grant && (
+        <p className="text-body-xs text-ink-faint">No pending approvals — the autonomous agent is within policy.</p>
+      )}
+
       <ul className="space-y-3">
         {items.map((a) => (
           <li key={a.id} className="rounded-xl border border-ink/10 bg-white px-4 py-3">
@@ -196,6 +239,27 @@ export function ApprovalsCard() {
           </li>
         ))}
       </ul>
+
+      {events.length > 0 && (
+        <div className="pt-1 border-t border-warm/20">
+          <p className="text-label-xs uppercase tracking-widest text-ink-faint mb-2">Recent governance events</p>
+          <ul className="space-y-1">
+            {events.map((e) => (
+              <li key={e.id} className="flex items-baseline justify-between gap-3 text-body-xs">
+                <span className="text-ink-muted truncate">
+                  <span className={e.decision === "deny" || e.decision === "grant_rejected" ? "text-warm font-medium" : "text-ink"}>
+                    {EVENT_LABEL[e.decision] ?? e.decision}
+                  </span>
+                  {" · "}{e.tool} · {e.subjectClass}
+                </span>
+                <span className="shrink-0 text-ink-faint tabular-nums">
+                  {new Date(e.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

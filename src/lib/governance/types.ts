@@ -76,6 +76,7 @@ export type GovernedTool =
   | "agent.call-requests"
   | "agent.reply-webhook"
   | "pipeline.research" // virtual: prospect-controlled text entering the model
+  | "live.prompt-context" // virtual: playbook + handoff context entering the twin's prompt
   | (string & {});
 
 export type PreDecisionKind = "allow" | "deny" | "require_approval";

@@ -1,6 +1,81 @@
 import type { Profile } from "@/lib/claude";
 import type { WorkspaceAccount } from "@/lib/storage/types";
 import { resolveSchedulingProvider } from "@/lib/scheduling";
+import { applyPost, governanceEnabled } from "@/lib/governance/service";
+
+export interface LiveHandoffContext {
+  summary: string;
+  interests: string[];
+  unansweredQuestions: string[];
+}
+
+/**
+ * Governed retrieval for the live twin: the system prompt assembles two
+ * untrusted-in-practice inputs — the owner's playbook fields (owner-typed or
+ * agent-written) and the handoff context (an agent summary of prior chat,
+ * prospect-adjacent). Both pass through the post-hook injection sweep before
+ * they become system-prompt content.
+ *
+ * Fail closed: if evaluation itself fails, the prompt is built from trusted
+ * defaults rather than from unsanitized context.
+ */
+export async function sanitizeLivePromptContext(input: {
+  workspaceId?: string;
+  workspace?: WorkspaceAccount | null;
+  context?: LiveHandoffContext;
+}): Promise<{ workspace: WorkspaceAccount | null; context?: LiveHandoffContext }> {
+  const strip = (w: WorkspaceAccount | null | undefined): WorkspaceAccount | null =>
+    w
+      ? {
+          ...w,
+          playbookWants: undefined,
+          playbookOffer: undefined,
+          playbookWiggleRoom: undefined,
+          playbookConstraints: undefined,
+        }
+      : null;
+
+  if (!governanceEnabled()) {
+    return { workspace: input.workspace ?? null, context: input.context };
+  }
+  try {
+    const swept = await applyPost(
+      { class: "member", workspaceId: input.workspaceId },
+      "live.prompt-context",
+      {
+        playbook: {
+          wants: input.workspace?.playbookWants ?? null,
+          offer: input.workspace?.playbookOffer ?? null,
+          wiggleRoom: input.workspace?.playbookWiggleRoom ?? null,
+          constraints: input.workspace?.playbookConstraints ?? null,
+        },
+        context: input.context ?? null,
+      },
+    );
+    const value = swept.value as {
+      playbook: {
+        wants?: string | null;
+        offer?: string | null;
+        wiggleRoom?: string | null;
+        constraints?: string | null;
+      };
+      context: LiveHandoffContext | null;
+    };
+    const workspace = input.workspace
+      ? {
+          ...input.workspace,
+          playbookWants: value.playbook.wants ?? undefined,
+          playbookOffer: value.playbook.offer ?? undefined,
+          playbookWiggleRoom: value.playbook.wiggleRoom ?? undefined,
+          playbookConstraints: value.playbook.constraints ?? undefined,
+        }
+      : null;
+    return { workspace, context: value.context ?? undefined };
+  } catch (error) {
+    console.error("[governance] live prompt-context sweep failed closed:", error);
+    return { workspace: strip(input.workspace), context: undefined };
+  }
+}
 
 function isHttpsUrl(raw: string | null | undefined): boolean {
   return Boolean(resolveSchedulingProvider(raw));
@@ -11,11 +86,7 @@ export function buildLiveSystemPrompt(share: {
   senderName?: string;
   profile?: Profile;
   language?: string;
-}, workspace?: WorkspaceAccount | null, context?: {
-  summary: string;
-  interests: string[];
-  unansweredQuestions: string[];
-}, actions?: { schedulingAvailable: boolean }): string {
+}, workspace?: WorkspaceAccount | null, context?: LiveHandoffContext, actions?: { schedulingAvailable: boolean }): string {
   const profile = share.profile;
   // Recipient name comes from the share record only — never inferred from
   // the researched profile. When absent, callers get a generic greeting.
