@@ -38,6 +38,7 @@ import {
 } from "@/lib/pipeline/steps";
 import { chooseArchetype } from "@/lib/hooks/select";
 import { getShareStorageProvider } from "@/lib/storage";
+import { mark, traced } from "@/lib/neatlogs";
 
 // ── In-memory queue (same pattern as batch processor) ─────────────────
 
@@ -80,6 +81,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
+  return traced(
+    { name: "hermes.enqueue", kind: "WORKFLOW", endUserId: auth.workspaceId },
+    async (span) => {
   try {
     const body = await request.json();
     const { url } = body;
@@ -95,8 +99,12 @@ export async function POST(request: NextRequest) {
     } catch {
       return NextResponse.json({ error: "url must be a valid URL" }, { status: 400 });
     }
+    span.setAttribute("nuncio.prospect.host", host);
     const queuePre = await checkPre(subject, "agent.prospect-queue", { host });
+    span.setAttribute("nuncio.governance.queue_decision", queuePre.decision);
     if (queuePre.decision === "deny") {
+      span.setAttribute("nuncio.outcome", "denied");
+      await mark("nuncio.governance.denied");
       return NextResponse.json({ error: queuePre.reason || "Denied by policy" }, { status: 403 });
     }
 
@@ -120,7 +128,10 @@ export async function POST(request: NextRequest) {
         }
       } else {
         const renderPre = await checkPre(subject, "agent.render", { autoRender: true });
+        span.setAttribute("nuncio.governance.render_decision", renderPre.decision);
         if (renderPre.decision === "deny") {
+          span.setAttribute("nuncio.outcome", "denied");
+          await mark("nuncio.governance.denied");
           return NextResponse.json(
             { error: renderPre.reason || "Denied by policy" },
             { status: 403 },
@@ -141,6 +152,9 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: req.error }, { status: req.status });
           }
           const approval = req.approval;
+          span.setAttribute("nuncio.outcome", "pending_approval");
+          span.setAttribute("nuncio.approval.id", approval.id);
+          await mark("nuncio.governance.pending_approval");
           return NextResponse.json(
             {
               status: "pending_approval",
@@ -195,6 +209,8 @@ export async function POST(request: NextRequest) {
       console.error(`[agent-queue] ${id} unhandled:`, err);
     });
 
+    span.setAttribute("nuncio.outcome", "queued");
+    span.setAttribute("nuncio.queue.id", id);
     return NextResponse.json({ queueId: id, status: "queued" });
   } catch {
     return NextResponse.json(
@@ -202,6 +218,7 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
+  });
 }
 
 // ── GET: Poll status ──────────────────────────────────────────────────
@@ -244,6 +261,19 @@ async function processQueueEntry(
   const entry = queue.get(id);
   if (!entry) return;
 
+  await traced(
+    {
+      name: "hermes.prospect_run",
+      kind: "WORKFLOW",
+      sessionId: id,
+      endUserId: subject.workspaceId,
+      input: { url: input.url, autoRender: input.autoRender, researchTier: input.researchTier },
+    },
+    async (span) => {
+  span.setAttribute("nuncio.queue.id", id);
+  span.setAttribute("nuncio.channel", "hermes");
+  span.setAttribute("nuncio.prospect.host", (() => { try { return new URL(input.url).hostname; } catch { return "invalid"; } })());
+
   entry.status = "processing";
   entry.startedAt = new Date().toISOString();
 
@@ -267,6 +297,7 @@ async function processQueueEntry(
     // Steps 1+2: Research & Synthesize
     const research = await researchAndSynthesize(input);
     const { profile, recentActivity, companyContext, researchQuality } = research;
+    span.setAttribute("nuncio.research.confidence", researchQuality?.confidence || "unknown");
 
     // Step 3: Generate Script
     const { scriptResult } = await generateOutreachScript(
@@ -277,7 +308,7 @@ async function processQueueEntry(
     );
 
     // Step 4: Review (advisory in agent mode — doesn't gate rendering)
-    reviewScript(scriptResult, profile);
+    await reviewScript(scriptResult, profile);
 
     // Step 5: Render (if autoRender enabled)
     // For the autonomous agent, render regardless of review issues —
@@ -289,6 +320,10 @@ async function processQueueEntry(
     let videoId: string | undefined;
     let mediaAssets: import("@/lib/pipeline/steps").MediaAssets | undefined;
     const lowConfidence = researchQuality?.confidence === "low";
+    if (input.autoRender && lowConfidence) {
+      span.setAttribute("nuncio.auto_render.blocked_low_confidence", true);
+      await mark("nuncio.guardrail.low_confidence.blocked");
+    }
 
     // Pre-generate shareId so media assets can be grouped under it
     // before the ShareRecord is created.
@@ -317,6 +352,8 @@ async function processQueueEntry(
         );
         if (mediaAssets.videoUrl) videoUrl = mediaAssets.videoUrl;
       } catch (mediaError) {
+        span.setAttribute("nuncio.media.failed", true);
+        await mark("nuncio.media.failed", "TOOL");
         console.warn("[agent-queue] Media asset generation failed:", mediaError);
       }
     }
@@ -335,6 +372,10 @@ async function processQueueEntry(
     });
 
     await commitCreditReservation(reservation.id);
+
+    span.setAttribute("nuncio.outcome", videoUrl ? "completed_with_video" : "completed");
+    span.setAttribute("nuncio.share.id", share.id);
+    if (lowConfidence) span.setAttribute("nuncio.needs_review", true);
 
     entry.status = "completed";
     entry.completedAt = new Date().toISOString();
@@ -359,9 +400,12 @@ async function processQueueEntry(
     entry.status = "failed";
     entry.completedAt = new Date().toISOString();
     entry.error = error instanceof Error ? error.message : "Unknown error";
+    span.setAttribute("nuncio.outcome", "failed");
+    span.setAttribute("nuncio.error", entry.error);
 
     if (reservation) {
       await refundCreditReservation(reservation.id, entry.error).catch(() => {});
     }
   }
+  });
 }

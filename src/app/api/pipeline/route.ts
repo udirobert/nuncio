@@ -12,6 +12,7 @@ import {
 } from "@/lib/billing/credits";
 import { PipelineActivityEmitter } from "@/lib/pipeline/activity-emitter";
 import { formatProfileSummary } from "@/lib/pipeline/format";
+import { mark, traced, traceLog } from "@/lib/neatlogs";
 import { subjectForRequest } from "@/lib/governance/service";
 import { getBandActivityProvider } from "@/lib/storage";
 import { isLiveLinkAllowed } from "@/lib/live-link";
@@ -116,9 +117,34 @@ export async function POST(request: NextRequest) {
         }
       };
 
+      // Parse the body before opening the workflow trace so the SSE session
+      // id can group this run (and any resumed run) into one trace session.
+      let body: Record<string, unknown>;
       try {
-        const body = await request.json();
-        const { url, sessionId, archetype } = body;
+        body = await request.json();
+      } catch {
+        send({ error: "Invalid request body" });
+        controller.close();
+        return;
+      }
+      const { url, sessionId, archetype } = body as { url?: string; sessionId?: string; archetype?: string };
+      const traceSessionId =
+        typeof sessionId === "string" && sessionId ? sessionId : crypto.randomUUID();
+
+      await traced(
+        {
+          name: "band.pipeline_run",
+          kind: "WORKFLOW",
+          sessionId: traceSessionId,
+          input: {
+            url: typeof url === "string" ? url : undefined,
+            deliveryMode: body.deliveryMode,
+            mode: body.mode,
+            autoRender: body.autoRender === true,
+          },
+        },
+        async (span) => {
+      try {
 
         // Live link is the default artifact for allowlisted senders; an
         // explicit "video" deliveryMode is always respected.
@@ -128,7 +154,12 @@ export async function POST(request: NextRequest) {
           workspaceId: accountSession?.workspaceId,
           senderEmail: accountSession?.email,
         });
-        const deliveryMode = body.deliveryMode ?? (liveLinkAllowed ? "livelink" : "video");
+        const deliveryMode =
+          (body.deliveryMode as "video" | "livelink" | undefined) ??
+          (liveLinkAllowed ? "livelink" : "video");
+        span.setAttribute("nuncio.delivery_mode", deliveryMode);
+        span.setAttribute("nuncio.channel", "band");
+        span.setAttribute("nuncio.workspace", accountSession?.workspaceId || "anonymous");
         if (deliveryMode === "livelink" && !liveLinkAllowed) {
           send({ error: "LiveLink is not enabled for this pilot" });
           controller.close();
@@ -200,7 +231,7 @@ export async function POST(request: NextRequest) {
           languageOverride,
           scriptVariants: body.scriptVariants === true,
           autoRender: body.autoRender === true,
-          customization: body.customization,
+          customization: body.customization as Record<string, unknown> | undefined,
           archetype,
           userTier: subject.anonymous ? "trial" : await resolveUserPlan(subject, request),
           mode: (body.mode === "reconnect" ? "reconnect" : "outreach") as "outreach" | "reconnect",
@@ -217,6 +248,7 @@ export async function POST(request: NextRequest) {
         let researchQuality: import("@/lib/pipeline/steps").ResearchQuality | undefined;
 
         if (resumedProfile) {
+          span.setAttribute("nuncio.resumed", true);
           profile = resumedProfile;
           emitter.message("researcher", formatProfileSummary(profile));
           emitter.stageComplete("researcher", "Resumed from checkpoint");
@@ -229,6 +261,7 @@ export async function POST(request: NextRequest) {
           recentActivityPosts = research.recentActivityPosts;
           companyContext = research.companyContext;
           researchQuality = research.researchQuality;
+          span.setAttribute("nuncio.research.confidence", researchQuality?.confidence || "unknown");
 
           // Surface research quality to the client so it can warn the user
           // before they spend a render credit on a low-confidence profile.
@@ -251,7 +284,7 @@ export async function POST(request: NextRequest) {
         );
 
         // ── Step 4: Review ──────────────────────────────────────────────
-        const { passed } = reviewScript(scriptResult, profile, emitter);
+        const { passed } = await reviewScript(scriptResult, profile, emitter);
 
         // Compute hook once — used by both the Genblaze media step and the response
         const hookChoice = chooseArchetype(profile, senderBrief, archetype as HookArchetypeId | undefined);
@@ -272,6 +305,11 @@ export async function POST(request: NextRequest) {
           researchQuality?.confidence === "low";
 
         if (autoRenderBlocked) {
+          span.setAttribute("nuncio.auto_render.blocked_low_confidence", true);
+          await mark("nuncio.guardrail.low_confidence.blocked");
+          traceLog("auto-render blocked: low research confidence — {summary}", {
+            summary: researchQuality!.summary,
+          });
           emitter.error("producer",
             `Auto-render skipped: low research confidence (${researchQuality!.summary}). ` +
             `Review the script and render manually.`);
@@ -320,9 +358,16 @@ export async function POST(request: NextRequest) {
               // Use the B2-durable video URL if persistence succeeded
               if (mediaAssets.videoUrl) videoUrl = mediaAssets.videoUrl;
             } catch (mediaError) {
+              span.setAttribute("nuncio.media.failed", true);
+              await mark("nuncio.media.failed", "TOOL");
               emitter.error("producer", `Media asset generation failed: ${mediaError instanceof Error ? mediaError.message : "unknown"}`);
             }
           } catch (renderError) {
+            // The run recovers to script-only — record the render failure as
+            // an attribute so detections see it even though the run succeeds.
+            span.setAttribute("nuncio.render.failed", true);
+            span.setAttribute("nuncio.render.error",
+              renderError instanceof Error ? renderError.message : "unknown");
             emitter.error("producer", `Render failed: ${renderError instanceof Error ? renderError.message : "unknown"}`);
           }
         }
@@ -354,6 +399,7 @@ export async function POST(request: NextRequest) {
         };
 
         if (videoUrl) {
+          span.setAttribute("nuncio.outcome", "video_ready");
           emitter.complete("producer", "Video ready", {
             script: scriptResult.script,
             profile,
@@ -381,6 +427,7 @@ export async function POST(request: NextRequest) {
             } : undefined,
           });
         } else {
+          span.setAttribute("nuncio.outcome", "script_ready");
           emitter.complete("producer", "Script ready for review", {
             script: scriptResult.script,
             profile,
@@ -396,6 +443,17 @@ export async function POST(request: NextRequest) {
         controller.close();
       } catch (error) {
         if (error instanceof InsufficientCreditsError) {
+          // The credit guard is a designed control, not a crash — record it as
+          // an attribute so a condition detection can count 402s per run.
+          span.setAttribute("nuncio.credit_guard.blocked", true);
+          await mark("nuncio.guardrail.credit_guard.blocked");
+          span.setAttribute("nuncio.credit_guard.required", error.required);
+          span.setAttribute("nuncio.credit_guard.available", error.available);
+          span.setAttribute("nuncio.outcome", "insufficient_credits");
+          traceLog("credit guard blocked run: required {required}, available {available}", {
+            required: error.required,
+            available: error.available,
+          });
           send({
             error: error.message,
             requiredCredits: error.required,
@@ -403,15 +461,20 @@ export async function POST(request: NextRequest) {
             insufficientCredits: true,
           });
         } else if (error instanceof Error && error.message.includes("Could not access profile")) {
+          span.setAttribute("nuncio.outcome", "research_failed");
           send({ error: error.message });
         } else if (error instanceof Error && error.message.includes("Could not identify a person")) {
+          span.setAttribute("nuncio.outcome", "research_failed");
           send({ error: error.message });
         } else {
+          span.setAttribute("nuncio.outcome", "error");
           console.error("[pipeline] Fatal:", error);
           send({ error: "Something went wrong during pipeline execution" });
         }
         controller.close();
       }
+        },
+      );
     },
   });
 

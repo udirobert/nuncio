@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   // Docker builds use "standalone" for a thin image; local dev/production.ts
   // needs programmatic next() which is incompatible with standalone output.
   output: process.env.NEXT_OUTPUT_STANDALONE === "1" ? "standalone" : undefined,
+  // neatlogs ships its own OTel-style internals; keep it external so Next
+  // doesn't try to bundle them into route handlers.
+  serverExternalPackages: ["neatlogs"],
 };
 
 export default withSentryConfig(nextConfig, {

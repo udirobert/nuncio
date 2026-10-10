@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateAgentRequest } from "@/lib/agent-auth";
 import { chatCompletion } from "@/lib/llm";
 import { getShareStorageProvider } from "@/lib/storage";
+import { mark, traced } from "@/lib/neatlogs";
 
 type ReplyIntent = "interested" | "not_now" | "unsubscribe" | "question" | "unknown";
 
@@ -63,9 +64,17 @@ export async function POST(request: NextRequest) {
     const replyBody = text || body.body;
     const replyId = crypto.randomUUID().slice(0, 12);
 
+    return traced({ name: "hermes.reply_classify", kind: "WORKFLOW" }, async (span) => {
+    span.setAttribute("nuncio.reply.from_domain", (() => {
+      const at = String(from).lastIndexOf("@");
+      return at >= 0 ? String(from).slice(at + 1) : "unknown";
+    })());
+    span.setAttribute("nuncio.reply.has_thread_ref", Boolean(inReplyTo));
+
     // Classify intent via LLM
     let intent: ReplyIntent = "unknown";
     let reason = "";
+    let usedHeuristic = false;
 
     try {
       const userMessage = `From: ${from}\nSubject: ${subject || "(no subject)"}\n\n${replyBody.slice(0, 2000)}`;
@@ -77,7 +86,9 @@ export async function POST(request: NextRequest) {
         reason = parsed.reason || "";
       }
     } catch {
-      // LLM classification failed — heuristic fallback
+      // LLM classification failed — heuristic fallback. The failed llm.* span
+      // sits next to this recovery path in the same trace.
+      usedHeuristic = true;
       const lower = replyBody.toLowerCase();
       if (lower.includes("unsubscribe") || lower.includes("stop emailing") || lower.includes("remove me")) {
         intent = "unsubscribe";
@@ -120,7 +131,14 @@ export async function POST(request: NextRequest) {
       unknown: "review_manually",
     }[intent];
 
+    span.setAttribute("nuncio.reply.intent", intent);
+    span.setAttribute("nuncio.reply.heuristic_fallback", usedHeuristic);
+    if (usedHeuristic) await mark("nuncio.reply.heuristic_fallback", "CHAIN");
+    if (shareId) span.setAttribute("nuncio.share.id", shareId);
+    span.setAttribute("nuncio.outcome", "classified");
+
     return NextResponse.json({ replyId, intent, reason, suggestedAction, shareId });
+    });
   } catch {
     return NextResponse.json(
       { error: "Invalid request body" },

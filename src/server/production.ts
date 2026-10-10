@@ -154,6 +154,23 @@ async function main() {
     console.log("[server] Band agents disabled — set BAND_ENABLED=true");
   }
 
+  // ── Neatlogs telemetry ───────────────────────────────────────────────
+  // Long-running process: spans export continuously in the background; on
+  // shutdown drain once so the last traces are not lost. No-op without
+  // NEATLOGS_API_KEY.
+  const flushTelemetry = async () => {
+    try {
+      const { shutdownTraces } = await import("../lib/neatlogs");
+      await shutdownTraces();
+    } catch { /* telemetry must never block shutdown */ }
+  };
+  process.once("SIGTERM", () => {
+    void flushTelemetry().finally(() => process.exit(0));
+  });
+  process.once("SIGINT", () => {
+    void flushTelemetry().finally(() => process.exit(0));
+  });
+
   // ── Listen ──────────────────────────────────────────────────────────
   server.listen(PORT, () => {
     console.log(`[server] Listening on port ${PORT}`);

@@ -19,6 +19,7 @@ import type { PipelineActivityEmitter } from "./activity-emitter";
 import { formatResearchSummary, formatProfileSummary, formatScriptDraft, formatReview } from "./format";
 import { applyPost } from "@/lib/governance/service";
 import type { GovernanceSubject } from "@/lib/governance/types";
+import { mark, traced } from "@/lib/neatlogs";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -149,7 +150,14 @@ export async function researchAndSynthesize(
   input: PipelineInput,
   emitter?: PipelineActivityEmitter,
 ): Promise<ResearchResult> {
+  return traced({ name: "pipeline.research", kind: "CHAIN" }, async (span) => {
   const { url, researchTier, deepResearchEnabled, senderBrief, senderName, senderProfile, outreachIntent, languageOverride } = input;
+
+  span.setAttribute("nuncio.research.tier", researchTier || "quick");
+  span.setAttribute("nuncio.research.deep_enabled", deepResearchEnabled === true);
+  span.setAttribute("nuncio.research.url_host", (() => { try { return new URL(url).hostname; } catch { return "invalid"; } })());
+  if (input.deliveryMode) span.setAttribute("nuncio.delivery_mode", input.deliveryMode);
+  if (input.mode) span.setAttribute("nuncio.mode", input.mode);
 
   emitter?.thought("researcher", `Researching ${url}...`);
 
@@ -161,14 +169,18 @@ export async function researchAndSynthesize(
   let usedSearchFallback = false;
 
   if (effectiveTier !== "quick" || deepResearchEnabled) {
-    const orchestrator = new ResearchOrchestrator({
-      qualityTier: effectiveTier,
-      userTier: input.userTier || "free",
-      enableDeepResearch: deepResearchEnabled,
-      senderBrief,
-    });
-
-    const researchResult = await orchestrator.research(url);
+    const researchResult = await traced(
+      { name: "research.orchestrator", kind: "TOOL" },
+      (s) => {
+        s.setAttribute("nuncio.research.quality_tier", effectiveTier);
+        return new ResearchOrchestrator({
+          qualityTier: effectiveTier,
+          userTier: input.userTier || "free",
+          enableDeepResearch: deepResearchEnabled,
+          senderBrief,
+        }).research(url);
+      },
+    );
     markdown = researchResult.sources
       .filter((s) => s.content)
       .map((s) => s.content || "")
@@ -181,7 +193,16 @@ export async function researchAndSynthesize(
     emitter?.message("researcher", `Enriched via ${researchResult.sources.length} source(s)`);
     emitter?.stageComplete("researcher", "Research complete");
   } else {
-    const enrichment = await enrich([url], { discoverRelated: true });
+    const enrichment = await traced(
+      { name: "tinyfish.enrich", kind: "TOOL" },
+      (s) =>
+        enrich([url], { discoverRelated: true }).then((r) => {
+          s.setAttribute("nuncio.tinyfish.results", r.length);
+          s.setAttribute("nuncio.tinyfish.succeeded", r.filter((x) => x.success).length);
+          s.setAttribute("nuncio.tinyfish.warning_count", r.filter((x) => x.warning).length);
+          return r;
+        }),
+    );
     markdown = enrichment.filter((r) => r.success).map((r) => r.markdown);
 
     // Collect warnings from degraded enrichment results (TinyFish API errors)
@@ -222,7 +243,15 @@ export async function researchAndSynthesize(
   let recentActivityWarning: string | undefined;
 
   if (researchTier === "quick" || !researchTier) {
-    const activity = await fetchRecentActivity(url);
+    const activity = await traced(
+      { name: "tinyfish.recent_activity", kind: "TOOL" },
+      async (s) => {
+        const result = await fetchRecentActivity(url);
+        s.setAttribute("nuncio.tinyfish.posts", result?.posts.length ?? 0);
+        if (result?.warning) s.setAttribute("nuncio.tinyfish.warning", result.warning);
+        return result;
+      },
+    );
     if (activity) {
       recentActivity = activity.markdown;
       recentActivityPosts = activity.posts.length > 0 ? activity.posts : undefined;
@@ -299,7 +328,10 @@ export async function researchAndSynthesize(
   let companyContext: string | undefined;
   if (researchTier === "quick" || !researchTier) {
     if (rawProfile.company && rawProfile.company !== "there") {
-      const ctx = await enrichCompany(rawProfile.company);
+      const ctx = await traced(
+        { name: "tinyfish.enrich_company", kind: "TOOL" },
+        () => enrichCompany(rawProfile.company!),
+      );
       if (ctx) companyContext = ctx;
     }
   }
@@ -336,6 +368,21 @@ export async function researchAndSynthesize(
       `Research degraded: ${warnings.join("; ")}`);
   }
 
+  // Attributes detections and the traces list can key on: confidence level,
+  // degraded-provider warnings, and the fallback path taken.
+  span.setAttribute("nuncio.research.confidence", researchQuality.confidence);
+  span.setAttribute("nuncio.research.source_count", researchQuality.sourceCount);
+  span.setAttribute("nuncio.research.recent_post_count", researchQuality.recentPostCount);
+  span.setAttribute("nuncio.research.used_search_fallback", researchQuality.usedSearchFallback);
+  span.setAttribute("nuncio.research.warning_count", warnings.length);
+  if (warnings.length > 0) {
+    span.setAttribute("nuncio.research.warnings", warnings.join("; "));
+    await mark("nuncio.provider.tinyfish.degraded", "TOOL");
+  }
+  if (sanitizedPatterns.length > 0) {
+    span.setAttribute("nuncio.research.sanitized_patterns", sanitizedPatterns.join(","));
+  }
+
   return {
     profile,
     markdown: cleanMarkdown,
@@ -345,6 +392,7 @@ export async function researchAndSynthesize(
     researchQuality,
     sanitizedPatterns,
   };
+  });
 }
 
 // ── Research quality assessment ──────────────────────────────────────
@@ -414,6 +462,10 @@ export async function generateOutreachScript(
   enrichment: { recentActivity?: string; companyContext?: string } = {},
   emitter?: PipelineActivityEmitter,
 ): Promise<ScriptOutput> {
+  return traced({ name: "pipeline.script", kind: "AGENT" }, async (span) => {
+  span.setAttribute("nuncio.script.variants", input.scriptVariants === true);
+  if (input.mode) span.setAttribute("nuncio.mode", input.mode);
+
   emitter?.thought("copywriter", "Drafting personalized outreach script...");
 
   const { senderName, outreachIntent, scriptVariants, personalMemory, mode } = input;
@@ -454,7 +506,9 @@ export async function generateOutreachScript(
     vibeId: scriptResult.vibeId,
   });
 
+  span.setAttribute("nuncio.script.vibe", scriptResult.vibeId);
   return { scriptResult, variantA, variantB };
+  });
 }
 
 // ── Step 4: Review ───────────────────────────────────────────────────
@@ -464,11 +518,12 @@ const FORBIDDEN_TERMS = [
   "act now", "limited time", "buy now", "click here",
 ];
 
-export function reviewScript(
+export async function reviewScript(
   scriptResult: ScriptResult,
   profile: Profile,
   emitter?: PipelineActivityEmitter,
-): ReviewResult {
+): Promise<ReviewResult> {
+  return traced({ name: "pipeline.review", kind: "GUARDRAIL" }, (span) => {
   emitter?.thought("reviewer", "Reviewing script for quality...");
 
   const wordCount = scriptResult.script.trim().split(/\s+/).filter(Boolean).length;
@@ -496,7 +551,17 @@ export function reviewScript(
   emitter?.message("reviewer", formatReview(issues, wordCount));
   emitter?.stageComplete("reviewer", issues.length === 0 ? "Script approved" : "Edits requested");
 
+  span.setAttribute("nuncio.review.passed", issues.length === 0);
+  span.setAttribute("nuncio.review.issue_count", issues.length);
+  span.setAttribute("nuncio.review.word_count", wordCount);
+  if (issues.length > 0) {
+    span.setAttribute(
+      "nuncio.review.issues",
+      issues.map((i) => `${i.category}: ${i.detail}`).join("; "),
+    );
+  }
   return { issues, wordCount, passed: issues.length === 0 };
+  });
 }
 
 // ── Step 5: Render Video ─────────────────────────────────────────────
@@ -507,27 +572,38 @@ export async function renderVideo(
   customization: Record<string, unknown> | undefined,
   emitter?: PipelineActivityEmitter,
 ): Promise<RenderResult> {
+  return traced({ name: "pipeline.render", kind: "TOOL" }, async (span) => {
   emitter?.thought("producer", "Starting video render...");
 
   const { createVideo } = await import("@/lib/heygen");
   const { pollVideoUntilReady } = await import("@/lib/pipeline/video-poller");
 
-  const renderResult = await createVideo(script, undefined, profile.name, customization);
+  const renderResult = await traced(
+    { name: "heygen.create_video", kind: "TOOL" },
+    () => createVideo(script, undefined, profile.name, customization),
+  );
   const videoId = renderResult.videoId;
+  span.setAttribute("nuncio.render.video_id", videoId);
 
   emitter?.thought("producer", `Render submitted: ${videoId}. Polling for completion...`);
 
-  const pollResult = await pollVideoUntilReady(videoId, {
-    onProgress: (attempt, max) => {
-      if (attempt % 6 === 1) {
-        emitter?.thought("producer", `Render in progress... (${attempt}/${max})`);
-      }
-    },
-  });
+  const pollResult = await traced(
+    { name: "heygen.poll_render", kind: "TOOL" },
+    (s) =>
+      pollVideoUntilReady(videoId, {
+        onProgress: (attempt, max) => {
+          s.setAttribute("nuncio.render.poll_attempts", attempt);
+          if (attempt % 6 === 1) {
+            emitter?.thought("producer", `Render in progress... (${attempt}/${max})`);
+          }
+        },
+      }),
+  );
 
   emitter?.stageComplete("producer", "Video rendered");
 
   return { videoUrl: pollResult.videoUrl, videoId: pollResult.videoId };
+  });
 }
 
 // ── Step 6: Generate Media Assets (Genblaze + B2) ────────────────────
@@ -583,6 +659,9 @@ export async function generateMediaAssets(
   soundscapePrompt: string,
   emitter?: PipelineActivityEmitter,
 ): Promise<MediaAssets> {
+  return traced({ name: "pipeline.media_assets", kind: "CHAIN" }, async (span) => {
+  span.setAttribute("nuncio.media.share_id", shareId);
+  span.setAttribute("nuncio.media.genblaze_configured", isGenblazeWorkerConfigured());
   const hashes: Record<string, string | undefined> = {};
   const genblazeProviders: string[] = [];
   let thumbnailUrl: string | undefined;
@@ -598,7 +677,14 @@ export async function generateMediaAssets(
   // the temporary URL if B2 is unconfigured.
   emitter?.thought("producer", "Persisting video to B2...");
   const persistedAssets: PersistResult[] = [];
-  const videoPersist = await persistVideo(videoUrl, shareId);
+  const videoPersist = await traced(
+    { name: "b2.persist_video", kind: "TOOL" },
+    (s) =>
+      persistVideo(videoUrl, shareId).then((r) => {
+        s.setAttribute("nuncio.b2.persisted", Boolean(r.result));
+        return r;
+      }),
+  );
   const durableVideoUrl = videoPersist.url;
   if (videoPersist.result) {
     hashes.video = videoPersist.result.sha256;
@@ -613,13 +699,20 @@ export async function generateMediaAssets(
     emitter?.thought("producer", "Generating media via Genblaze composite pipeline...");
 
     try {
-      const composite = await genblazeComposite(
-        script, // narration text
-        shareId,
-        {
-          soundscapePrompt: soundscapePrompt || "Ambient professional soundscape. Subtle, non-distracting.",
-          thumbnailModel: "seedream-5.0-lite",
-        },
+      const composite = await traced(
+        { name: "genblaze.composite", kind: "TOOL" },
+        (s) =>
+          genblazeComposite(
+            script, // narration text
+            shareId,
+            {
+              soundscapePrompt: soundscapePrompt || "Ambient professional soundscape. Subtle, non-distracting.",
+              thumbnailModel: "seedream-5.0-lite",
+            },
+          ).then((r) => {
+            s.setAttribute("nuncio.genblaze.asset_count", r?.assets.length ?? 0);
+            return r;
+          }),
       );
 
       if (composite) {
@@ -710,6 +803,12 @@ export async function generateMediaAssets(
     ? `Media assets generated via Genblaze + persisted to B2 (${persistedAssets.length} assets)`
     : `Video persisted to B2 (${persistedAssets.length} assets)`);
 
+  span.setAttribute("nuncio.media.used_genblaze", usedGenblaze);
+  span.setAttribute("nuncio.media.persisted_assets", persistedAssets.length);
+  if (genblazeProviders.length > 0) {
+    span.setAttribute("nuncio.media.providers", genblazeProviders.join(","));
+  }
+
   return {
     videoUrl: durableVideoUrl,
     thumbnailUrl,
@@ -723,4 +822,5 @@ export async function generateMediaAssets(
     genblazeProviders: genblazeProviders.length > 0 ? genblazeProviders : undefined,
     usedGenblaze,
   };
+  });
 }

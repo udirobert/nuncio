@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { captureServerEvent, mcpDistinctId } from "@/lib/analytics-server";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 import { applyPost, checkPre, subjectForRequest } from "@/lib/governance/service";
+import { traced } from "@/lib/neatlogs";
 import { TinyFishApiError } from "@/lib/tinyfish";
 import { chatCompletion } from "@/lib/llm";
 import {
@@ -203,6 +204,13 @@ export async function POST(request: NextRequest) {
   };
 
   try {
+    return await traced(
+      { name: "mcp.research_and_draft", kind: "WORKFLOW" },
+      async (span) => {
+    span.setAttribute("nuncio.channel", "mcp");
+    span.setAttribute("nuncio.mcp.channel", channel);
+    span.setAttribute("nuncio.prospect.host", parsed.hostname);
+
     const { profile, recentActivity, companyContext, researchQuality } =
       await researchAndSynthesize(input);
 
@@ -211,7 +219,10 @@ export async function POST(request: NextRequest) {
       companyContext,
     });
 
-    const review = reviewScript(scriptResult, profile);
+    const review = await reviewScript(scriptResult, profile);
+    span.setAttribute("nuncio.research.confidence", researchQuality?.confidence || "unknown");
+    span.setAttribute("nuncio.review.passed", review.passed);
+    span.setAttribute("nuncio.outcome", "drafted");
     const draft = await draftChannelMessage({
       channel,
       recipientName: profile.name || "there",
@@ -249,6 +260,8 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(governedBody);
+      },
+    );
   } catch (error) {
     if (error instanceof TinyFishApiError) {
       return NextResponse.json(

@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 import { applyPost, checkPre, subjectForRequest } from "@/lib/governance/service";
+import { traced } from "@/lib/neatlogs";
 import { TinyFishApiError } from "@/lib/tinyfish";
 import {
   buildOutreachIntent,
@@ -97,6 +98,12 @@ export async function POST(request: NextRequest) {
   };
 
   try {
+    return await traced(
+      { name: "agent.lite_run", kind: "WORKFLOW" },
+      async (span) => {
+    span.setAttribute("nuncio.prospect.host", parsed.hostname);
+    span.setAttribute("nuncio.channel", "agent-lite");
+
     const { profile, recentActivity, companyContext, researchQuality } =
       await researchAndSynthesize(input);
 
@@ -105,7 +112,11 @@ export async function POST(request: NextRequest) {
       companyContext,
     });
 
-    const review = reviewScript(scriptResult, profile);
+    const review = await reviewScript(scriptResult, profile);
+
+    span.setAttribute("nuncio.research.confidence", researchQuality?.confidence || "unknown");
+    span.setAttribute("nuncio.review.passed", review.passed);
+    span.setAttribute("nuncio.outcome", "drafted");
 
     // Post-hook: anonymous callers get contact identifiers stripped from the
     // response (post.anonymous-contact-redaction).
@@ -121,6 +132,8 @@ export async function POST(request: NextRequest) {
       },
     });
     return NextResponse.json(governedBody);
+      },
+    );
   } catch (error) {
     if (error instanceof TinyFishApiError) {
       return NextResponse.json(

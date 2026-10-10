@@ -27,6 +27,7 @@ import {
   consumeApprovalGrant,
   requestApproval,
 } from "@/lib/governance/service";
+import { mark, traced } from "@/lib/neatlogs";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -59,6 +60,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
+  return traced(
+    { name: "hermes.earn_checkout", kind: "WORKFLOW", endUserId: auth.workspaceId },
+    async (span) => {
   try {
     const body = await request.json();
     const { prospectEmail, meetingType, amount, prospectName, shareId } = body;
@@ -69,6 +73,9 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    span.setAttribute("nuncio.checkout.meeting_type", meetingType || "meeting");
+    span.setAttribute("nuncio.checkout.amount", Number(amount));
 
     // Governance pre-hook: minting a payment link is consequential —
     // policy can deny it or require a human approval. A grant token
@@ -87,7 +94,10 @@ export async function POST(request: NextRequest) {
       }
     } else {
       const pre = await checkPre(subject, "agent.earn-checkout", checkoutPayload);
+      span.setAttribute("nuncio.governance.checkout_decision", pre.decision);
       if (pre.decision === "deny") {
+        span.setAttribute("nuncio.outcome", "denied");
+        await mark("nuncio.governance.denied");
         return NextResponse.json({ error: pre.reason || "Denied by policy" }, { status: 403 });
       }
       if (pre.decision === "require_approval") {
@@ -102,6 +112,9 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: req.error }, { status: req.status });
         }
         const approval = req.approval;
+        span.setAttribute("nuncio.outcome", "pending_approval");
+        span.setAttribute("nuncio.approval.id", approval.id);
+        await mark("nuncio.governance.pending_approval");
         return NextResponse.json(
           {
             status: "pending_approval",
@@ -136,7 +149,11 @@ export async function POST(request: NextRequest) {
 
     // Reuse existing Stripe customer for this email so repeat prospects
     // have a unified payment history and we can look them up later.
-    const existingCustomerId = await findCustomerByEmail(stripe, prospectEmail);
+    const existingCustomerId = await traced(
+      { name: "stripe.find_customer", kind: "TOOL" },
+      () => findCustomerByEmail(stripe, prospectEmail),
+    );
+    span.setAttribute("nuncio.checkout.reused_customer", Boolean(existingCustomerId));
 
     // Idempotency: if the agent calls earn-checkout twice for the same
     // shareId + meetingType, Stripe returns the same session instead of
@@ -149,7 +166,10 @@ export async function POST(request: NextRequest) {
     // /checkout page via the client_secret + @stripe/stripe-js
     // initEmbeddedCheckout(). This bypasses the hosted checkout page
     // which requires Dashboard activation.
-    const session = await stripe.checkout.sessions.create(
+    const session = await traced(
+      { name: "stripe.create_checkout", kind: "TOOL" },
+      () =>
+    stripe.checkout.sessions.create(
       {
         mode: "payment",
         ui_mode: "embedded_page",
@@ -185,14 +205,19 @@ export async function POST(request: NextRequest) {
         },
       },
       ...(idempotencyKey ? [{ idempotencyKey }] : []),
+    ),
     );
 
     if (!session.client_secret) {
+      span.setAttribute("nuncio.outcome", "error");
       return NextResponse.json(
         { error: "Failed to create checkout session" },
         { status: 500 },
       );
     }
+
+    span.setAttribute("nuncio.checkout.session_id", session.id);
+    span.setAttribute("nuncio.outcome", "checkout_created");
 
     // checkoutUrl points to our embedded checkout page, passing the
     // session ID so the page can fetch the client_secret.
@@ -205,10 +230,13 @@ export async function POST(request: NextRequest) {
       customerId: existingCustomerId || (session.customer as string) || undefined,
     });
   } catch (error) {
+    span.setAttribute("nuncio.outcome", "error");
+    span.setAttribute("nuncio.error", error instanceof Error ? error.message : "Checkout failed");
     console.error("[agent-earn-checkout] Error:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Checkout failed" },
       { status: 500 },
     );
   }
+  });
 }

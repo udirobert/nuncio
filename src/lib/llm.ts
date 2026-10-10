@@ -10,6 +10,7 @@
  */
 
 import { fetchWithRetry } from "./retry";
+import { mark, traced } from "./neatlogs";
 
 type Provider = "anthropic" | "google" | "venice" | "featherless" | "tokenrouter";
 
@@ -181,9 +182,29 @@ export async function chatCompletion(
   }
 
   let lastError: Error | null = null;
-  for (const config of configs) {
+  for (let i = 0; i < configs.length; i++) {
+    const config = configs[i];
     try {
-      return await callProvider(config, systemPrompt, userMessage, maxTokens);
+      // One span per provider attempt — a failed span followed by a
+      // successful fallback span is the provider-failover story in a trace.
+      return await traced(
+        {
+          name: `llm.${config.provider}`,
+          kind: "LLM",
+          // Content goes in `input` — the sanctioned I/O channel covered by
+          // project PII redaction — not in custom attributes, which may not be.
+          input: { systemPrompt, userMessage },
+        },
+        async (span) => {
+          span.setAttribute("nuncio.llm.provider", config.provider);
+          span.setAttribute("nuncio.llm.model", config.model);
+          span.setAttribute("nuncio.llm.attempt", i + 1);
+          span.setAttribute("nuncio.llm.providers_total", configs.length);
+          const result = await callProvider(config, systemPrompt, userMessage, maxTokens);
+          if (i > 0) await mark("nuncio.llm.failover_recovered", "CHAIN");
+          return result;
+        },
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (options?.redactErrors) {

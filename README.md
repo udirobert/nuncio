@@ -204,6 +204,15 @@ Playbook: [docs/CHATGPT_PLUGIN_PLAYBOOK.md](./docs/CHATGPT_PLUGIN_PLAYBOOK.md) �
 
 ---
 
+## neatHack (Oct 10–12) — Neatlogs observability entry
+
+Neatlogs tracing is shipped, opt-in on `NEATLOGS_API_KEY` — see [docs/NEATHACK.md](./docs/NEATHACK.md) for the trace map, detections, and demo script.
+
+- Traced: Band pipeline (`band.pipeline_run` → research/script/review/render/media spans) + Hermes loop (`hermes.enqueue`, `hermes.prospect_run`, `hermes.reply_classify`, `hermes.earn_checkout`) + `agent.lite_run` and `mcp.research_and_draft`; per-provider `llm.*` spans inside the fallback chain
+- Wrapper: `src/lib/neatlogs.ts` (`traced()` no-ops without the key; errors are recorded then re-thrown)
+- Detections to set: render timeouts, TinyFish warnings, thin-profile auto-render blocks, credit-guard 402s, LLM failover, governance holds, PII
+- Submit: demo video on X (Mon Oct 12, 19:00–23:55 IST); metric is one honest recovered run — provider degraded → confidence gate → credit preserved → draft still delivered
+
 ## OpenClaw 2.0 — first-hire hackathon (SDR entry)
 
 AgentCribs "startup's first hire": nuncio as OpenClaw 2.0 multiplayer SDR. Submit by **Sep 29, 11:59pm PT** to the AI Worth Using Agent Index (MIT, usage reporting); leaderboard snapshot Sep 30.

@@ -38,6 +38,7 @@
     "livekit-server-sdk": "2.19.1",
     "lottie-react": "2.4.1",
     "motion": "12.38.0",
+    "neatlogs": "1.1.24",
     "next": "16.2.6",
     "posthog-js": "1.373.4",
     "react": "19.2.4",
