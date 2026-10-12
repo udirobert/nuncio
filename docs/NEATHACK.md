@@ -189,6 +189,12 @@ return the exact container values — and by confirming
   (verified 2026-10-12: present in `Application::environment_variables()` with
   `is_preview=false`, and every value decrypts back to the container's)
 - [x] Repo link + README section in place (committed)
-- [ ] Run the recovered-run demo against prod, confirm traces + detections land
-- [ ] Demo video (post on X, tagging @neatlogs @EntireHQ @arithecfo)
+- [x] Demo runs against prod landed (2026-10-13): three `agent.lite_run`
+  traces + one `hermes.earn_checkout` run that returned 202 pending_approval —
+  the "Governance hold" detection fired and is visible on trace
+  `4c215a10…32a9`; `agent.lite_run` traces show the full 8-span waterfall
+  (research → tinyfish → llm.featherless → script → review)
+- [x] Demo video cut — `~/Desktop/neathack-demo-final.mp4` (58s, real prod
+  traces + dashboard footage). Still to do: post on X, tagging
+  @neatlogs @EntireHQ @arithecfo
 - [ ] Fill in the submission form (does not count on its own)
