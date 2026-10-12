@@ -1,7 +1,10 @@
 # neatHack (Oct 10–12) — Neatlogs observability entry
 
-> Working doc for the neatlogs hackathon submission. Build window Oct 10–12;
-> demo video submitted on X Mon Oct 12, 19:00–23:55 IST; winners Oct 16.
+> Working doc for the neatlogs hackathon submission. Deadline extended to
+> **Oct 13, 07:00 IST** (Oct 12, 18:30 PDT); winners Oct 16. Both submission
+> steps are mandatory: quote-tweet the launch post tagging @neatlogs,
+> @EntireHQ and @arithecfo, **and** fill in the form — the form alone does not
+> count.
 
 **Entry:** nuncio instrumented with the Neatlogs TypeScript SDK — real traces
 from the two agent systems (Band studio pipeline + Hermes autonomous loop)
@@ -103,15 +106,44 @@ Same story in `hermes.reply_classify`: LLM failure →
 
 ## Verify
 
+**One command, run against production (read-only):**
+
+```bash
+ssh nuncio-vultr 'bash -s' < scripts/neathack-verify.sh
+```
+
+Exit 0 means the instrumentation is live and the readback path works. It
+checks four things: (1) the running commit, container env, and that every
+marker/root/child span name is compiled into `/app/.next/server`; (2)
+`doctor --local`; (3) `doctor --probe` — the *only* authenticated readback,
+and the only thing that proves traces finalize; (4) one real
+`POST /api/agent/lite` plus a scan of the container log for `[neatlogs]`
+init/export warnings. Override `NEATLOGS_EXPECT_FAILURES=''` to make it
+strict (nothing allowed to fail), `NEATLOGS_PROBE_URL` for the live run.
+
+Two things this script had to work around, both verified on the box:
+- BusyBox's `grep -ro -f` / `-e` silently drops matches inside the Alpine
+  container — a 30-pattern sweep reported 9/30 for span names that were all
+  present. It now runs one `grep -rlF` per name (excluding `.map`).
+- A login-walled prospect URL is **rejected** by `/api/agent/lite` (422
+  "could not access profile"), not degraded-and-drafted. The degraded path
+  only exists in the studio pipeline, so the smoke check uses an accessible
+  profile and asserts only that a real trace was produced.
+
+Manual equivalents:
 - `pnpm exec neatlogs doctor --local --json` — SDK pass (schema v2).
-- `pnpm exec neatlogs doctor --probe --json` — authenticated readback (needs key).
-  16/17 pass; `probe_input_output` fails because the project's server-side
-  PII redaction (Settings → PII Redaction) rewrites the probe's canned I/O —
-  expected while that policy is on, and we keep it on deliberately.
+- `pnpm exec neatlogs doctor --probe --json` — authenticated readback (needs
+  key). 16/17 pass; `probe_input_output` fails because the project's
+  server-side PII redaction (Settings → PII Redaction) rewrites the probe's
+  canned I/O — expected while that policy is on, and we keep it on
+  deliberately. Anything *else* failing is a real problem.
 - Local no-export check: `NEATLOGS_API_KEY=x NEATLOGS_DISABLE_EXPORT=true pnpm dev`.
-- Trace readback with just the project key (no OAuth):
-  `GET https://ingest.neatlogs.com/api/traces/v3?projectId=<id>` (list) and
-  `/api/traces/v3/<traceId>?projectId=<id>` (detail), header `x-api-key`.
+- Trace readback with just the project key: the documented
+  `GET /api/traces/v3?projectId=<id>` **list** endpoint does not exist
+  (404 `{"error":"Not found"}`); `/api/traces/v3/<traceId>` is a detail
+  route that rejected our project-key readback of a known-good trace ID on
+  2026-10-12 (`404 Trace not found`). Treat dashboard/CLI as the readback
+  paths and don't build on the v3 HTTP API without re-verifying it.
   Note: the v3 projection does NOT return custom `nuncio.*` span attributes —
   verified they're exported (raw span log), but the detection engine can't
   evaluate them either (see the IMPORTANT note above) — they're
@@ -123,26 +155,40 @@ Verified 2026-10-10: two real `agent.lite_run` traces landed (traceIds
 pipeline.review. First run shows the recovery story: login-wall fetch →
 search fallback → drafted anyway.
 
-Known caveat (2026-10-10): after ~15:10 UTC the Neatlogs backend stopped
-finalizing new traces — every subsequent run (incl. a trivial 1-span probe
-that finalized in seconds earlier) sits `pending` with 0 assembled spans.
-Spans are still accepted (trace rows appear); the backlog is server-side,
-not an export/config issue on our end. Detection hits and waterfall views
-are blocked until it drains. Runs 4–6 captured a real venice→fallback
-recovery and will show `llm.venice` ERROR + `nuncio.llm.failover_recovered`
-once finalized.
+RESOLVED (2026-10-12): the finalization backlog noted below has drained —
+`doctor --probe` reports `finalized=true`, `visible=true`, 4 spans, 1 root,
+0 duplicates, valid hierarchy. The 2026-10-10 caveat is kept for context:
+after ~15:10 UTC that day the Neatlogs backend stopped finalizing new
+traces (spans accepted, rows appeared, but 0 assembled spans) — that was
+server-side, never an export/config problem on our end.
 
-Production env (2026-10-10): `NEATLOGS_API_KEY`, `NEATLOGS_ENDPOINT`,
-`NEATLOGS_WORKFLOW_NAME=nuncio-outreach` added to `/tmp/nuncio-env.txt` on
-nuncio-vultr (with durable copy `~/nuncio-env.txt`) — next `deploy-vps.sh`
-deploy injects them. NOTE: also add the same three vars in the Coolify
-dashboard (app env vars) — the env file only covers script deploys; a
-Coolify-triggered redeploy injects from its own DB.
+Production env: `NEATLOGS_API_KEY`, `NEATLOGS_ENDPOINT`,
+`NEATLOGS_WORKFLOW_NAME=nuncio-outreach` live in `/tmp/nuncio-env.txt` on
+nuncio-vultr (with durable copy `~/nuncio-env.txt`) — `deploy-vps.sh`
+injects them.
+
+Coolify parity (2026-10-12): the same three vars are now in Coolify's own
+store for app `iv3o80fe9jgfa30t88kud4wp` (env-var ids 189/191/193, plus the
+auto-mirrored preview twins 190/192/194). Before this, the env file was the
+*only* place they existed — a Coolify-triggered redeploy would have booted a
+container with tracing silently off. Written through Coolify's own
+`App\Models\EnvironmentVariable` model rather than SQL, because `value` is
+encrypted by the model's attribute setter and a raw insert would store a
+garbled `.env`. Verified by decrypting back through the model — all six rows
+return the exact container values — and by confirming
+`Application::environment_variables()` now lists all three.
 
 ## Submission checklist
 
-- [x] `NEATLOGS_API_KEY` (+endpoint, workflow name) staged in prod deploy env;
-  verify first prod trace after next deploy (`doctor --probe` optional)
+- [x] `NEATLOGS_API_KEY` (+endpoint, workflow name) staged in prod deploy env
+  *and present in the running container* (verified 2026-10-12)
+- [x] Prod runs the instrumentation commit (`21d9ba4`), all 30 span names in
+  the build, `doctor --probe` finalizes — `scripts/neathack-verify.sh` exits 0
+- [x] The same three vars are in **Coolify's store** too, so a
+  Coolify-triggered redeploy injects them instead of booting untraced
+  (verified 2026-10-12: present in `Application::environment_variables()` with
+  `is_preview=false`, and every value decrypts back to the container's)
+- [x] Repo link + README section in place (committed)
 - [ ] Run the recovered-run demo against prod, confirm traces + detections land
-- [ ] Demo video (per neatHack format, post on X between 19:00–23:55 IST Oct 12)
-- [ ] Repo link + README section already in place
+- [ ] Demo video (post on X, tagging @neatlogs @EntireHQ @arithecfo)
+- [ ] Fill in the submission form (does not count on its own)
