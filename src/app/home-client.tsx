@@ -52,7 +52,7 @@ export default function HomeClient() {
 
   return (
     <>
-      <Header />
+      <Header minimal={mode === "reconnect"} />
 
       <AnimatePresence mode="wait">
         <motion.div

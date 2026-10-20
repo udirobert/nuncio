@@ -28,7 +28,8 @@ Current phase: STRATEGY Phase 1 ✅ (defaults flipped, instrumentation live, pre
 - Speech Engine: `SPEECH_ENGINE_ID` env var activates the voice agent; `VOICE_PUBLIC_URL` sets the wsUrl; both packages: `@elevenlabs/elevenlabs-js` (server) and `@elevenlabs/client` (browser `Conversation.startSession`)
 - `fetchRecentActivity()` uses TinyFish Search API for Twitter/X and LinkedIn recent posts
 - Production server at `src/server/production.ts` — runs Next.js + Speech Engine WebSocket on the same HTTP server; started via `tsx src/server/production.ts` (the `start` script)
-- Ensure correct `gh` auth profile before push; deploy via SSH to the production server using `scripts/deploy-vps.sh` (see `docs/DEPLOY.md`)
+- Ensure correct `gh` auth profile before push (`gh auth switch --user udirobert` — the repo is `udirobert/nuncio`; the active account is what the `gh auth git-credential` helper hands to git). Deploy via `scripts/deploy-nuncio.sh` → `scripts/deploy-coolify.sh` (the live path — see `docs/DEPLOY.md`); `scripts/deploy-vps.sh` is the older variant, kept for reference
+- **Local development must not share the production database** (`NUNCIO_STORAGE=file` in `.env.local` forces the file providers even when `TURSO_DATABASE_URL` is set). A local smoke test otherwise writes real prospect data into the live database, and a local share shows up in the public gallery. Config parity was the goal; sharing the *database* is not
 - Sentry DSN set on Coolify via env vars; `SENTRY_DSN` activates `@sentry/nextjs` v10
 - `WorkspaceAccount` extended with `lastSenderBrief` and `lastSenderName`
 - Cinematic entrance generated in build pipeline as `data:audio/mpeg;base64` URL alongside soundscape; played on user click in `/v/[id]` before video starts

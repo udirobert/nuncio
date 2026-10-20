@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import Link from "next/link";
 import { Header } from "@/components/header";
 import { LottieIcon } from "@/components/lottie-icon";
+import { APP_ROUTES } from "@/lib/navigation";
 
 interface BatchJob {
   id: string;
@@ -53,7 +55,9 @@ function parseCSV(text: string): Array<{ url: string; name?: string }> {
 }
 
 export default function BatchPage() {
+  const router = useRouter();
   const [batches, setBatches] = useState<Batch[]>([]);
+  const [authChecked, setAuthChecked] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [urls, setUrls] = useState("");
@@ -79,22 +83,47 @@ export default function BatchPage() {
   const loadBatches = useCallback(async () => {
     try {
       const res = await fetch("/api/batch");
+      if (res.status === 401) {
+        router.replace(`/login?next=${encodeURIComponent(APP_ROUTES.batch)}`);
+        return;
+      }
       if (res.ok) setBatches(await res.json());
     } catch {
       // ignore
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
+    let cancelled = false;
+    // Batches are a member surface: the API requires a session, so an
+    // anonymous visitor is sent to sign in rather than shown an empty page.
+    fetch("/api/account/session")
+      .then((r) => r.json())
+      .then((session) => {
+        if (cancelled) return;
+        if (!session?.authenticated) {
+          router.replace(`/login?next=${encodeURIComponent(APP_ROUTES.batch)}`);
+          return;
+        }
+        setAuthChecked(true);
+      })
+      .catch(() => {
+        if (!cancelled) router.replace(`/login?next=${encodeURIComponent(APP_ROUTES.batch)}`);
+      });
+    localStorage.removeItem("nuncio_profile_name");
+    localStorage.removeItem("nuncio_profile_company");
+    return () => { cancelled = true; };
+  }, [router]);
+
+  useEffect(() => {
+    if (!authChecked) return;
     let cancelled = false;
     fetch("/api/batch")
       .then((r) => r.json())
       .then((data) => { if (!cancelled) setBatches(data); })
       .catch(() => {});
-    localStorage.removeItem("nuncio_profile_name");
-    localStorage.removeItem("nuncio_profile_company");
     return () => { cancelled = true; };
-  }, []);
+  }, [authChecked]);
 
   useEffect(() => {
     const hasRunning = batches.some((b) => b.status === "running" || b.status === "queued");

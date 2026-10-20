@@ -402,7 +402,7 @@ export function CallRequestsCard() {
     <div className="rounded-2xl border border-cream-dark bg-white/70 p-5 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-lg text-ink">Call requests</h2>
-        {availabilityLoaded && (
+        {availabilityLoaded && callsEnabled && (
           <button
             onClick={toggleAvailability}
             disabled={availabilityBusy || !callsEnabled}
@@ -417,10 +417,20 @@ export function CallRequestsCard() {
         )}
       </div>
       {availabilityLoaded && !callsEnabled && (
-        <p className="text-body-xs text-ink-faint">
-          Live calls need a LiveKit backend and an allowlisted workspace — call setup isn&apos;t active yet.
+        /* Live calls are not enabled for this workspace. Showing the full
+           request UI would promise an action the sender cannot take, so this
+           collapses to one line and a way to turn the capability on. */
+        <p className="text-body-xs text-ink-muted leading-relaxed">
+          Prospects can ask to speak with you live. That is switched on in your
+          representative setup —{" "}
+          <a href="/setup" className="underline text-accent hover:text-accent/80 transition-colors">
+            open your setup
+          </a>
+          .
         </p>
       )}
+      {availabilityLoaded && callsEnabled && (
+        <>
       {pollError && (
         <p className="text-body-xs text-warm" role="status" aria-live="polite">Inbox refresh failed — retrying automatically.</p>
       )}
@@ -449,8 +459,7 @@ export function CallRequestsCard() {
       )}
       {playbookConfigured === false && (
         <p className="text-body-xs text-warm leading-relaxed">
-          Your sender playbook isn&apos;t configured — your AI representative answers from general
-          guidance only.{" "}
+          Your representative has no playbook yet — it answers from general guidance only.{" "}
           <a href="/setup" className="underline text-accent hover:text-accent/80 transition-colors">
             Set up your representative
           </a>
@@ -573,6 +582,8 @@ export function CallRequestsCard() {
             </li>
           ))}
         </ul>
+      )}
+        </>
       )}
 
     </div>

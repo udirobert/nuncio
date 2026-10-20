@@ -16,6 +16,7 @@ import {
   type ProviderStartHandle,
 } from "@/lib/live-avatar-providers";
 import { browserMutationAllowed } from "@/lib/call-request";
+import { captureFunnelEvent } from "@/lib/funnel";
 
 export async function POST(request: NextRequest) {
   let sessionRecord: Awaited<ReturnType<typeof createLiveSessionRecord>> | undefined;
@@ -130,6 +131,14 @@ export async function POST(request: NextRequest) {
         { status: 409 },
       );
     }
+
+    // Funnel step 3: the prospect is talking to the representative.
+    captureFunnelEvent({
+      workspaceId: share.workspaceId,
+      shareId: share.id,
+      event: "first_touch_talked",
+      properties: { transport: attempts[0].adapter.transport, delivery_mode: share.deliveryMode },
+    });
 
     const governed = await sanitizeLivePromptContext({
       workspaceId: share.workspaceId,

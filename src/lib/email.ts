@@ -181,3 +181,54 @@ export async function sendBatchCompleteEmail(params: BatchCompleteEmailParams): 
 
   console.log(`[email] Batch complete email sent to ${params.email}`);
 }
+
+export interface LiveInviteEmailParams {
+  to: string;
+  senderName: string;
+  /** Absolute URL of the live link. */
+  liveUrl: string;
+  /** The sender's own one-liner about what the representative can answer. */
+  canAnswer?: string;
+  /** The sender's booking link, if configured. */
+  bookingUrl?: string;
+}
+
+/**
+ * Reply-to-live invitation.
+ *
+ * The prospect replied to the sender's first touch. This email upgrades that
+ * thread into a live conversation: the same link now leads to the sender's
+ * disclosed AI representative, who can answer from the playbook while the
+ * sender stays in control.
+ */
+export async function sendLiveInviteEmail(params: LiveInviteEmailParams): Promise<void> {
+  const client = getClient();
+  if (!client) {
+    console.log(`[email] No RESEND_API_KEY. Live invite for ${params.to} skipped: ${params.liveUrl}`);
+    return;
+  }
+
+  const who = params.senderName.trim() || "the sender";
+  const subject = `${who} — your AI representative can answer now`;
+
+  await client.emails.send({
+    from: FROM,
+    to: params.to,
+    subject,
+    html: wrap(`
+      <p class="body-text">
+        Thanks for replying. <strong>${escapeHtml(who)}&rsquo;s AI representative</strong> can
+        answer your questions now — it is disclosed as an AI, and it answers only from
+        ${escapeHtml(who)}&rsquo;s own notes.
+      </p>
+      ${params.canAnswer ? `<p class="body-text">${escapeHtml(params.canAnswer)}</p>` : ""}
+      <a href="${params.liveUrl}" class="btn">Open the conversation</a>
+      ${params.bookingUrl ? `<p class="subtle">Or pick a time directly: <a href="${params.bookingUrl}" style="color:#4a3aff">book a slot</a>.</p>` : ""}
+      <p class="subtle">
+        Prefer a human? Say so in the conversation and ${escapeHtml(who)} can step in.
+      </p>
+    `),
+  });
+
+  console.log(`[email] Live invite sent to ${params.to}: ${params.liveUrl}`);
+}

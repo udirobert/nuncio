@@ -1508,7 +1508,10 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
 
   return (
     <>
-      <Header stage={stage === "ready" ? "review" : (stage === "building" || stage === "enriching" || stage === "collaborating" || stage === "generating") ? "progress" : stage === "review" ? "review" : "input"} />
+      <Header
+        minimal={mode === "reconnect"}
+        stage={stage === "ready" ? "review" : (stage === "building" || stage === "enriching" || stage === "collaborating" || stage === "generating") ? "progress" : stage === "review" ? "review" : "input"}
+      />
 
       <main className="flex-1 w-full">
         {/* Post-checkout success toast */}
@@ -1555,15 +1558,27 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
               <section className="relative px-6 pt-24 pb-16">
                 <div className="max-w-lg mx-auto space-y-8">
                   <nav aria-label="Progress" className="flex items-center justify-center gap-1.5 text-label-sm">
-                    <Link href="/setup" className="text-ink-faint hover:text-ink transition-colors font-medium">
-                      1 Set up your representative
-                    </Link>
-                    <span className="text-ink-faint" aria-hidden>→</span>
-                    <span className="text-accent font-medium" aria-current="step">2 Create a first touch</span>
-                    <span className="text-ink-faint" aria-hidden>→</span>
-                    <Link href="/dashboard" className="text-ink-faint hover:text-ink transition-colors font-medium">
-                      3 They choose to continue
-                    </Link>
+                    {mode === "reconnect" ? (
+                      <>
+                        <span className="text-ink-faint">Their profile</span>
+                        <span className="text-ink-faint" aria-hidden>→</span>
+                        <span className="text-accent font-medium" aria-current="step">Your memory</span>
+                        <span className="text-ink-faint" aria-hidden>→</span>
+                        <span className="text-ink-faint">A card they can keep</span>
+                      </>
+                    ) : (
+                      <>
+                        <Link href="/setup" className="text-ink-faint hover:text-ink transition-colors font-medium">
+                          1 Set up your representative
+                        </Link>
+                        <span className="text-ink-faint" aria-hidden>→</span>
+                        <span className="text-accent font-medium" aria-current="step">2 Create a first touch</span>
+                        <span className="text-ink-faint" aria-hidden>→</span>
+                        <Link href="/dashboard" className="text-ink-faint hover:text-ink transition-colors font-medium">
+                          3 They choose to continue
+                        </Link>
+                      </>
+                    )}
                   </nav>
                   <div className="space-y-7 text-center">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/15">
@@ -2019,12 +2034,14 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                     ))}
                   </div>
                   <div className="text-center">
-                    <Link
-                      href="/batch"
-                      className="text-label-base text-accent hover:text-accent/80 transition-colors inline-block"
-                    >
-                      Need to reach multiple people? Try Batch →
-                    </Link>
+{mode !== "reconnect" && (
+                      <Link
+                        href="/batch"
+                        className="text-label-base text-accent hover:text-accent/80 transition-colors inline-block"
+                      >
+                        Need to reach multiple people? Try Batch →
+                      </Link>
+                    )}
                   </div>
                 </div>
                 </div>
@@ -2901,22 +2918,24 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
 
                     <div className="flex-1" />
 
-                    <a
-                      href="/batch"
-                      onClick={() => {
-                        localStorage.setItem("nuncio_sender_brief", senderBrief || "");
-                        if (reviewProfile) {
-                          localStorage.setItem("nuncio_profile_name", reviewProfile.name || "");
-                          localStorage.setItem("nuncio_profile_company", reviewProfile.company || "");
-                        }
-                      }}
-                      className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-accent/20 bg-accent-soft/50 px-3 py-2.5 text-body-xs font-medium text-accent hover:bg-accent/10 transition-colors"
-                    >
-                      <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M2 4h12v10H2zM2 4l6 5 6-5M5 2h6" />
-                      </svg>
-                      Send to all
-                    </a>
+                    {mode !== "reconnect" && (
+                      <a
+                        href="/batch"
+                        onClick={() => {
+                          localStorage.setItem("nuncio_sender_brief", senderBrief || "");
+                          if (reviewProfile) {
+                            localStorage.setItem("nuncio_profile_name", reviewProfile.name || "");
+                            localStorage.setItem("nuncio_profile_company", reviewProfile.company || "");
+                          }
+                        }}
+                        className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-accent/20 bg-accent-soft/50 px-3 py-2.5 text-body-xs font-medium text-accent hover:bg-accent/10 transition-colors"
+                      >
+                        <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M2 4h12v10H2zM2 4l6 5 6-5M5 2h6" />
+                        </svg>
+                        Send to all
+                      </a>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -3048,16 +3067,18 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                       </svg>
                       View dashboard
                     </a>
-                    <a
-                      href="/batch"
-                      className="btn-press flex-1 rounded-xl border border-cream-dark py-3 text-body-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M5 8h6M8 5v6" />
-                        <circle cx="8" cy="8" r="6" />
-                      </svg>
-                      Batch create
-                    </a>
+                    {mode !== "reconnect" && (
+                      <a
+                        href="/batch"
+                        className="btn-press flex-1 rounded-xl border border-cream-dark py-3 text-body-sm font-medium text-ink hover:bg-cream-dark/50 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M5 8h6M8 5v6" />
+                          <circle cx="8" cy="8" r="6" />
+                        </svg>
+                        Batch create
+                      </a>
+                    )}
                   </div>
                 </div>
               )}

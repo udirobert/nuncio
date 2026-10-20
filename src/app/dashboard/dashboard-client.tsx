@@ -221,6 +221,7 @@ export default function DashboardClient() {
                   <UsageSummary videoCount={inbox?.videoCount ?? 0} batches={batches} />
                   <ScoreboardCard
                     sessions={inbox?.sessions ?? []}
+                    bookings={inbox?.bookings ?? []}
                     loading={inbox === null && inboxError === null}
                     error={inboxError}
                   />

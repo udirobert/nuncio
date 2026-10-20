@@ -3,6 +3,7 @@ import { getShareRecord, updateShareRecord } from "@/lib/share-store";
 import { readAccountSession } from "@/lib/auth/session";
 import { getActiveHandoffForShare } from "@/lib/live-handoff";
 import { RATE_LIMITS, checkRateLimit, getClientId } from "@/lib/rate-limit";
+import { captureFunnelEvent } from "@/lib/funnel";
 
 /**
  * View beacon — records that a recipient opened a link.
@@ -47,6 +48,16 @@ export async function POST(
     firstViewedAt: record.firstViewedAt ?? new Date().toISOString(),
     viewCount: (record.viewCount ?? 0) + 1,
   });
+
+  // Funnel step 2: the first time a prospect opens the link.
+  if (updated && !record.firstViewedAt) {
+    captureFunnelEvent({
+      workspaceId: record.workspaceId,
+      shareId: record.id,
+      event: "first_touch_opened",
+      properties: { delivery_mode: record.deliveryMode },
+    });
+  }
 
   return NextResponse.json({ ok: true, counted: Boolean(updated) });
 }

@@ -10,6 +10,7 @@ import {
   parseCalcomWebhook,
   verifyCalcomSignature,
 } from "@/lib/calcom-webhook";
+import { captureFunnelEvent } from "@/lib/funnel";
 
 const NO_STORE = { "Cache-Control": "no-store" };
 
@@ -82,7 +83,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true }, { headers: NO_STORE });
     }
 
-    await storage.applyProviderEvent(contextId, parsed.event);
+    const updated = await storage.applyProviderEvent(contextId, parsed.event);
+
+    // Funnel step 4: the prospect booked a time.
+    if (updated && (updated.status === "confirmed" || updated.status === "requested")) {
+      captureFunnelEvent({
+        workspaceId: record.workspaceId,
+        shareId: record.shareId,
+        event: "first_touch_booked",
+        properties: { source: "calcom", delivery_mode: share.deliveryMode },
+      });
+    }
   } catch {
     return NextResponse.json({ error: "Storage failure" }, { status: 500, headers: NO_STORE });
   }

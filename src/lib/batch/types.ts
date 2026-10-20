@@ -15,6 +15,8 @@ export interface Batch {
   senderBrief: string;
   senderName?: string;
   creatorEmail?: string;
+  /** Workspace that owns this batch. Absent on batches created before scoping. */
+  workspaceId?: string;
   webhookUrl?: string;
   jobs: BatchJob[];
   status: "queued" | "running" | "completed" | "failed";
@@ -30,5 +32,6 @@ export interface CreateBatchInput {
   senderBrief: string;
   senderName?: string;
   creatorEmail?: string;
+  workspaceId?: string;
   webhookUrl?: string;
 }

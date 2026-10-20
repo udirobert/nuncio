@@ -5,14 +5,16 @@ import { motion } from "motion/react";
 import { LottieIcon } from "@/components/lottie-icon";
 import { SessionDebriefCard } from "@/components/session-debrief-card";
 import { TeachingLadder } from "./teaching-ladder";
-import type { InboxSession } from "@/lib/inbox";
+import type { InboxBooking, InboxSession } from "@/lib/inbox";
 
 export function ScoreboardCard({
   sessions,
+  bookings,
   loading,
   error,
 }: {
   sessions: InboxSession[];
+  bookings: InboxBooking[];
   loading: boolean;
   error: string | null;
 }) {
@@ -20,7 +22,7 @@ export function ScoreboardCard({
     const total = sessions.length;
     const started = sessions.filter((s) => s.metrics?.firstUserTurnAt).length;
     const ended = sessions.filter((s) => s.status === "ended").length;
-    const bookings = sessions.filter((s) => s.metrics?.bookingClicked).length;
+    const bookingClicks = sessions.filter((s) => s.metrics?.bookingClicked).length;
     const withBookingUrl = sessions.filter((s) => s.metrics?.bookingUrlPresent).length;
     const userTurns = sessions.map((s) => s.metrics?.userTurns || 0);
     const agentTurns = sessions.map((s) => s.metrics?.agentTurns || 0);
@@ -56,8 +58,12 @@ export function ScoreboardCard({
       total,
       started,
       ended,
-      bookings,
-      bookingRate: withBookingUrl > 0 ? Math.round((bookings / withBookingUrl) * 100) : 0,
+      bookingClicks,
+      // Provider-confirmed meetings — the number a founder actually cares
+      // about. "Booking clicks" below is the weaker signal: a click, not a
+      // meeting.
+      meetingsBooked: bookings.filter((b) => b.status === "confirmed" || b.status === "requested").length,
+      bookingRate: withBookingUrl > 0 ? Math.round((bookingClicks / withBookingUrl) * 100) : 0,
       startRate: total > 0 ? Math.round((started / total) * 100) : 0,
       medianUserTurns: median(userTurns),
       medianAgentTurns: median(agentTurns),
@@ -66,7 +72,7 @@ export function ScoreboardCard({
       maxTopic,
       latestDebrief,
     };
-  }, [sessions]);
+  }, [sessions, bookings]);
 
   if (loading) {
     return (
@@ -119,12 +125,13 @@ export function ScoreboardCard({
         <Stat value={stats.total} label="Total" />
         <Stat value={`${stats.startRate}%`} label="Spoke to AI" />
         <Stat value={stats.ended} label="Ended" />
-        <Stat value={stats.bookings} label="Booking clicks" />
+        <Stat value={stats.meetingsBooked} label="Meetings booked" />
         <Stat value={`${stats.medianUserTurns}`} label="Median turns" />
         <Stat value={formatDuration(stats.medianDuration)} label="Median time" />
       </div>
       <p className="text-label-xs text-ink-faint">
-        Recent ended/expired/failed sessions; not page-load conversion. Booking clicks are not confirmed meetings.
+        Recent ended/expired/failed sessions; not page-load conversion. &ldquo;Meetings booked&rdquo;
+        counts provider-confirmed bookings; booking clicks are not confirmed meetings.
       </p>
 
       {stats.topicList.length > 0 && (

@@ -6,6 +6,7 @@ import { readAccountSession } from "@/lib/auth/session";
 import { isLiveLinkAllowed } from "@/lib/live-link";
 import { getAccountStorageProvider } from "@/lib/storage";
 import { normalizeCanAnswer, normalizeImageUrl } from "@/lib/sender-proof";
+import { captureFunnelEvent } from "@/lib/funnel";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -111,6 +112,13 @@ export async function POST(request: NextRequest) {
   });
 
   const sharePath = mode === "livelink" ? `/live/${record.id}` : `/v/${record.id}`;
+  // Funnel step 1: the first touch exists.
+  captureFunnelEvent({
+    workspaceId: record.workspaceId,
+    shareId: record.id,
+    event: "first_touch_sent",
+    properties: { delivery_mode: mode, mode: record.mode },
+  });
   // Keep the internal sender identity out of the public creation response.
   const publicRecord = { ...record };
   delete publicRecord.senderEmail;

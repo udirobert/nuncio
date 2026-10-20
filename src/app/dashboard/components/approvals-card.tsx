@@ -48,21 +48,21 @@ const EVENT_LABEL: Record<string, string> = {
   grant_rejected: "Rejected a bad grant",
 };
 const TOOL_LABEL: Record<string, string> = {
-  "agent.render": "render",
-  "agent.earn-checkout": "checkout",
-  "agent.handoffs": "handoff",
-  "agent.prospect-queue": "prospect queue",
-  "agent.call-requests": "call request",
-  "agent.reply-webhook": "reply webhook",
-  "agent.lite": "agent call",
-  "pipeline.research": "research",
-  "live.prompt-context": "prompt context",
-  "mcp.research_and_draft": "research + draft",
+  "agent.render": "recording a video",
+  "agent.earn-checkout": "taking payment",
+  "agent.handoffs": "sharing a link",
+  "agent.prospect-queue": "finding prospects",
+  "agent.call-requests": "requesting a call",
+  "agent.reply-webhook": "handling a reply",
+  "agent.lite": "an agent call",
+  "pipeline.research": "researching a prospect",
+  "live.prompt-context": "reading your playbook",
+  "mcp.research_and_draft": "researching and drafting",
 };
 const WHO_LABEL: Record<string, string> = {
-  member: "owner",
-  agent: "agent",
-  anonymous: "visitor",
+  member: "you",
+  agent: "the agent",
+  anonymous: "a visitor",
 };
 
 /**
@@ -167,7 +167,10 @@ export function ApprovalsCard() {
   return (
     <div className="rounded-2xl border border-warm/40 bg-warm-soft/40 p-5 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-lg text-ink">Agent approvals</h2>
+        <h2 className="font-display text-lg text-ink">Automated outreach approvals</h2>
+        <p className="text-body-xs text-ink-muted">
+          When the agent wants to do something on your behalf, it asks you first.
+        </p>
         {items.length > 0 && (
           <span className="rounded-full bg-warm/15 px-2.5 py-0.5 text-body-xs font-medium text-warm">
             {items.length} pending
@@ -259,7 +262,7 @@ export function ApprovalsCard() {
 
       {events.length > 0 && (
         <div className="pt-1 border-t border-warm/20">
-          <p className="text-label-xs uppercase tracking-widest text-ink-faint mb-2">Recent governance events</p>
+          <p className="text-label-xs uppercase tracking-widest text-ink-faint mb-2">Recent agent activity</p>
           <ul className="space-y-1">
             {events.map((e) => (
               <li key={e.id} className="flex items-baseline justify-between gap-3 text-body-xs" title={e.reason}>

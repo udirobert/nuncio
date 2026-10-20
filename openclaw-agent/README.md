@@ -49,6 +49,12 @@ owner-authorized live invitations:
   dashboard URL); pull only, no push.
 - `DELETE /api/agent/handoffs/<id>` — revoke on explicit owner request; blocks
   future entry, does not end connected calls.
+- `POST /api/agent/live-invite` — reply-to-live escalation. Upgrades a first
+  touch to a live link (the recorded video stays as the fallback artifact) and
+  emails the prospect the front door: the sender's disclosed AI
+  representative, answering from the playbook. Fails closed when the
+  workspace has no live representative or LiveLink is off. Governed as
+  `agent.live-invite` — it may require a human approval.
 
 All calls are authorized-owner-turn only — see `skills/nuncio-followup/SKILL.md`
 → "Text-to-live handoff" for the exact procedure and honest-copy rules.

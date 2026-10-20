@@ -94,3 +94,37 @@ Never force the prospect through the twin to reach the human. Booking clicks
 are not confirmed meetings. If backend configuration is missing or the pilot
 is unavailable, explain that to the owner and use the existing approved
 booking/escalation path instead of promising the integration works.
+
+## Reply-to-live escalation
+
+An "interested" reply can be escalated into a live conversation on the same
+link. The app owns the escalation; the agent owns the email that triggers it.
+
+When a reply is classified `interested` **and** the reply is tied to a first
+touch (`shareId` present in the reply record), the app's reply webhook returns
+an `escalation` block naming the call to make:
+
+```
+POST {NUNCIO_API_URL}/api/agent/live-invite
+Authorization: Bearer {NUNCIO_AGENT_TOKEN}
+Content-Type: application/json
+
+{ "shareId": "<share id>", "prospectEmail": "<the address that replied>" }
+```
+
+What it does: upgrades that first touch to a live link (the recorded video
+stays as the fallback artifact) and emails the prospect the front door — the
+sender's disclosed AI representative, answering from the playbook, with the
+human one step away. It returns `{ shareId, liveUrl, emailed }`.
+
+Rules:
+- Only escalate on `interested`. Never on `question`, `not_now`,
+  `unsubscribe` or `hostile`.
+- The endpoint fails closed (404/409) when the workspace has no live
+  representative or LiveLink is off. Treat that as "answer by email instead",
+  never as an error to retry in a loop.
+- It is governed: `agent.live-invite` may require a human approval. If the
+  response carries `approvalRequired`, ask the owner in their trusted
+  channel — never in the prospect thread.
+- Tell the prospect what is happening in one line. Disclose that they are
+  talking to an AI representative.

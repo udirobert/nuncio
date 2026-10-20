@@ -31,6 +31,9 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Build
+        run: pnpm build
+
   worker-syntax:
     name: Genblaze worker syntax check
     runs-on: ubuntu-latest

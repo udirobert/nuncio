@@ -1,10 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createBatch, listBatches, getBatch } from "@/lib/batch/queue";
+import {
+  createBatch,
+  getBatchForWorkspace,
+  listBatchesForWorkspace,
+  publicBatchView,
+} from "@/lib/batch/queue";
 import { processBatch } from "@/lib/batch/processor";
 import { readAccountSession } from "@/lib/auth/session";
 
-export async function GET() {
-  return NextResponse.json(await listBatches());
+const NO_STORE = { "Cache-Control": "no-store", Vary: "Cookie" } as const;
+
+/**
+ * Batch campaigns.
+ *
+ * A batch holds a prospect list, the sender's brief, the creator's email and
+ * a webhook URL. None of that is readable by another account, so every route
+ * here requires a session and is scoped to the caller's workspace.
+ */
+export async function GET(request: NextRequest) {
+  const session = readAccountSession(request);
+  if (!session) {
+    return NextResponse.json({ error: "Sign in required" }, { status: 401, headers: NO_STORE });
+  }
+  const batches = await listBatchesForWorkspace(session.workspaceId, session.email);
+  return NextResponse.json(batches.map(publicBatchView), { headers: NO_STORE });
 }
 
 export async function POST(request: NextRequest) {
@@ -25,15 +44,25 @@ export async function POST(request: NextRequest) {
   }
 
   const session = readAccountSession(request);
-  const creatorEmail = session?.email;
+  if (!session) {
+    return NextResponse.json({ error: "Sign in required" }, { status: 401, headers: NO_STORE });
+  }
 
-  const batch = await createBatch({ name, urls, senderBrief, senderName, creatorEmail, webhookUrl });
+  const batch = await createBatch({
+    name,
+    urls,
+    senderBrief,
+    senderName,
+    creatorEmail: session.email,
+    workspaceId: session.workspaceId,
+    webhookUrl,
+  });
 
   processBatch(batch.id, request).catch((err) => {
     console.error(`[batch] Processing failed for ${batch.id}:`, err);
   });
 
-  return NextResponse.json(batch, { status: 201 });
+  return NextResponse.json(publicBatchView(batch), { status: 201 });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -42,14 +71,19 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
-  const batch = await getBatch(id);
+  const session = readAccountSession(request);
+  if (!session) {
+    return NextResponse.json({ error: "Sign in required" }, { status: 401, headers: NO_STORE });
+  }
+
+  const batch = await getBatchForWorkspace(id, session.workspaceId, session.email);
   if (!batch) {
     return NextResponse.json({ error: "Batch not found" }, { status: 404 });
   }
 
   processBatch(id, request).catch((err) => {
-    console.error(`[batch] Re-processing failed for ${id}:`, err);
+    console.error(`[batch] Processing failed for ${id}:`, err);
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json(publicBatchView(batch));
 }

@@ -202,6 +202,25 @@ Translate the timings into UX copy. For example:
 - script generation 10–25s: show agent trace placeholders and source chips
 - video generation 60–180s: offer a completed artifact fallback during live demos
 
+## How to read the manual checklists below
+
+These lists have grown organically and nobody has drained them. That is a
+compounding risk, not a documentation problem, so the policy from now on is:
+
+1. **The three checks that gate revenue live in `docs/E2E-VERIFICATION.md`**
+   and nowhere else: a stranger opens a link and gets answered, a stranger
+   books a time, a stranger asks for the human and you accept. They need a
+   second human and a real browser (a headless browser cannot pass the mic
+   gate). Run those before changing anything else about the live path.
+2. **Anything automatable is a test, not a checklist.** If a line below can
+   be written as a unit or route test, it should be — and the test file is
+   named next to the line. The view beacon, the relationship states,
+   reply-to-live and the batch authorization have already been moved this
+   way.
+3. **Everything else is a known gap, not a to-do.** It is written down so it
+   is not forgotten, not so it can be checked off. Do not spend a sprint
+   walking these lists; spend it on the three checks in point 1.
+
 ## LiveLink call-bridge manual checklist (user-owned verification)
 
 The latest concurrency/lifecycle hardening pass was implemented without automated verification — the user owns testing. Nothing below has been run in this pass.
@@ -233,6 +252,12 @@ The frontend redesign (homepage journey illustration, `/setup`, recipient front-
 ## Sender proof, relationships and the studio path (user-owned)
 
 The trust-proof fields, the inbox relationship states, the view beacon and the studio's one-path input stage were implemented with typecheck, unit tests and a local browser pass — the user owns production verification. Nothing below has been run against production.
+
+Automated already (do not re-check by hand):
+- View beacon (anonymous view counts, the sender's own view does not) — `src/app/api/share/[id]/view/route.test.ts`.
+- Relationship state derivation — `src/lib/inbox.test.ts`.
+- Reply-to-live escalation — `src/app/api/agent/live-invite/route.test.ts`.
+- Batch authorization (no session, no other workspace, no cross-account read or delete) — `src/app/api/batch/route.test.ts`.
 
 1. Trust proof: set a photo, a company logo and a can-answer line in `/setup` → "2 · Trust proof"; create a first touch; open the share link and confirm the photo and logo appear in the trust badge and the can-answer line appears under it.
 2. Trust proof validation: an `http://` image URL is rejected with a visible message and is not saved; a `https://` one saves and renders.

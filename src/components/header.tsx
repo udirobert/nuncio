@@ -11,6 +11,13 @@ import { APP_ROUTES, MEMBER_NAV, PUBLIC_NAV, SECONDARY_NAV, type NavItem } from 
 interface HeaderProps {
   stage?: PipelineState["stage"];
   isDemo?: boolean;
+  /**
+   * A consumer surface (the reconnect wedge) shows the brand and a way back,
+   * but none of the workspace navigation — Inbox / Your representative /
+   * Create are sales concepts and mixing them into a personal card is the
+   * "which product is this?" problem the wedge created for itself.
+   */
+  minimal?: boolean;
 }
 
 const STAGE_LABELS: Record<PipelineState["stage"], string> = {
@@ -23,7 +30,7 @@ const STAGE_LABELS: Record<PipelineState["stage"], string> = {
   error: "",
 };
 
-export function Header({ stage, isDemo }: HeaderProps) {
+export function Header({ stage, isDemo, minimal = false }: HeaderProps) {
   const pathname = usePathname();
   const showStage = stage && stage !== "input" && stage !== "error";
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
@@ -46,6 +53,25 @@ export function Header({ stage, isDemo }: HeaderProps) {
   // things they can actually open — member surfaces dead-end at the login wall.
   const primaryNav: NavItem[] = authenticated ? MEMBER_NAV : PUBLIC_NAV;
   const isActive = (href: string) => pathname === href;
+
+  if (minimal) {
+    return (
+      <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between bg-cream/80 backdrop-blur-md border-b border-cream-dark/60 pointer-events-auto">
+        <Link
+          href="/"
+          className="font-display text-xl font-medium tracking-tight text-ink hover:text-ink-light transition-colors"
+        >
+          nuncio
+        </Link>
+        <Link
+          href={APP_ROUTES.inbox}
+          className="text-label-base uppercase tracking-widest font-medium text-ink-muted hover:text-ink transition-colors"
+        >
+          For sales teams →
+        </Link>
+      </header>
+    );
+  }
 
   const navLinkClass = (active: boolean) =>
     `text-label-base uppercase tracking-widest font-medium transition-colors ${

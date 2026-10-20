@@ -22,6 +22,23 @@ import { TursoGovernanceStorageProvider } from "./turso-governance-provider";
 import { GroveProofStorageProvider } from "./grove-provider";
 import { B2MediaStorageProvider, isB2Configured } from "./b2-provider";
 
+/**
+ * Which storage backend to use.
+ *
+ * `NUNCIO_STORAGE=file` forces the file providers even when
+ * TURSO_DATABASE_URL is set. Local development MUST set it: sharing the
+ * production database means a local smoke test writes real prospect data
+ * into the live database (and a local batch shows up in the public
+ * gallery). Config parity was the goal — sharing the *database* is a
+ * different decision.
+ */
+function shouldUseTurso(): boolean {
+  const override = process.env.NUNCIO_STORAGE?.trim().toLowerCase();
+  if (override === "file") return false;
+  if (override === "turso") return true;
+  return Boolean(process.env.TURSO_DATABASE_URL);
+}
+
 let shareProvider: ShareStorageProvider | null = null;
 let proofProvider: ProofStorageProvider | null = null;
 let accountProvider: AccountStorageProvider | null = null;
@@ -76,7 +93,7 @@ export type {
 export function getShareStorageProvider(): ShareStorageProvider {
   if (shareProvider) return shareProvider;
 
-  if (process.env.TURSO_DATABASE_URL) {
+  if (shouldUseTurso()) {
     shareProvider = new TursoShareStorageProvider();
     console.log("[storage] Using Turso share storage");
     return shareProvider;
@@ -102,7 +119,7 @@ export function getProofStorageProvider(): ProofStorageProvider | null {
 export function getAccountStorageProvider(): AccountStorageProvider {
   if (accountProvider) return accountProvider;
 
-  if (process.env.TURSO_DATABASE_URL) {
+  if (shouldUseTurso()) {
     accountProvider = new TursoAccountStorageProvider();
     console.log("[storage] Using Turso account storage");
     return accountProvider;
@@ -116,7 +133,7 @@ export function getAccountStorageProvider(): AccountStorageProvider {
 export function getTokenStorageProvider(): TokenStorageProvider {
   if (tokenProvider) return tokenProvider;
 
-  if (process.env.TURSO_DATABASE_URL) {
+  if (shouldUseTurso()) {
     tokenProvider = new TursoTokenStorageProvider();
     console.log("[storage] Using Turso token storage");
     return tokenProvider;
@@ -130,7 +147,7 @@ export function getTokenStorageProvider(): TokenStorageProvider {
 export function getBatchStorageProvider(): BatchStorageProvider {
   if (batchProvider) return batchProvider;
 
-  if (process.env.TURSO_DATABASE_URL) {
+  if (shouldUseTurso()) {
     batchProvider = new TursoBatchStorageProvider();
     console.log("[storage] Using Turso batch storage");
     return batchProvider;
@@ -144,7 +161,7 @@ export function getBatchStorageProvider(): BatchStorageProvider {
 export function getBandActivityProvider(): BandActivityStorageProvider {
   if (bandActivityProvider) return bandActivityProvider;
 
-  if (process.env.TURSO_DATABASE_URL) {
+  if (shouldUseTurso()) {
     bandActivityProvider = new TursoBandActivityProvider();
     console.log("[storage] Using Turso band activity storage");
     return bandActivityProvider;
@@ -158,7 +175,7 @@ export function getBandActivityProvider(): BandActivityStorageProvider {
 export function getLiveSessionStorageProvider(): LiveSessionStorageProvider {
   if (liveSessionProvider) return liveSessionProvider;
 
-  if (process.env.TURSO_DATABASE_URL) {
+  if (shouldUseTurso()) {
     liveSessionProvider = new TursoLiveSessionStorageProvider();
     console.log("[storage] Using Turso live session storage");
     return liveSessionProvider;
@@ -172,7 +189,7 @@ export function getLiveSessionStorageProvider(): LiveSessionStorageProvider {
 export function getCallRequestStorageProvider(): CallRequestStorageProvider {
   if (callRequestProvider) return callRequestProvider;
 
-  if (process.env.TURSO_DATABASE_URL) {
+  if (shouldUseTurso()) {
     callRequestProvider = new TursoCallRequestStorageProvider();
     console.log("[storage] Using Turso call request storage");
     return callRequestProvider;
@@ -186,7 +203,7 @@ export function getCallRequestStorageProvider(): CallRequestStorageProvider {
 export function getHandoffStorageProvider(): HandoffStorageProvider {
   if (handoffProvider) return handoffProvider;
 
-  if (process.env.TURSO_DATABASE_URL) {
+  if (shouldUseTurso()) {
     handoffProvider = new TursoHandoffStorageProvider();
     console.log("[storage] Using Turso handoff storage");
     return handoffProvider;
@@ -200,7 +217,7 @@ export function getHandoffStorageProvider(): HandoffStorageProvider {
 export function getSchedulingStorageProvider(): SchedulingStorageProvider {
   if (schedulingProvider) return schedulingProvider;
 
-  if (process.env.TURSO_DATABASE_URL) {
+  if (shouldUseTurso()) {
     schedulingProvider = new TursoSchedulingStorageProvider();
     console.log("[storage] Using Turso scheduling storage");
     return schedulingProvider;
@@ -214,7 +231,7 @@ export function getSchedulingStorageProvider(): SchedulingStorageProvider {
 export function getGovernanceStorageProvider(): GovernanceStorageProvider {
   if (governanceProvider) return governanceProvider;
 
-  if (process.env.TURSO_DATABASE_URL) {
+  if (shouldUseTurso()) {
     governanceProvider = new TursoGovernanceStorageProvider();
     console.log("[storage] Using Turso governance storage");
     return governanceProvider;

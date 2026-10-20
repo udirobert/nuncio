@@ -533,10 +533,11 @@ Respond ONLY with raw JSON. No markdown code blocks.`;
     console.warn("[script] Script variants generation failed:", error);
   }
 
-  const baseScript = fallbackScript(profile, senderBrief);
+  // Two genuinely different approaches, not one script with a different
+  // greeting: A observes something specific, B leads with a direct ask.
   return {
-    variantA: { script: baseScript, vibeId: "tech-office", vibeReasoning: "Heuristic fallback." },
-    variantB: { script: baseScript.replace("Hey", "Hi there"), vibeId: "tech-office", vibeReasoning: "Heuristic fallback." },
+    variantA: { script: fallbackScript(profile, senderBrief), vibeId: "tech-office", vibeReasoning: "Heuristic fallback — specific observation." },
+    variantB: { script: fallbackScriptVariantB(profile, senderBrief), vibeId: "tech-office", vibeReasoning: "Heuristic fallback — direct ask." },
   };
 }
 
@@ -570,14 +571,48 @@ function parseScriptVariantsJson(text: string): ScriptVariants | null {
   return null;
 }
 
+/**
+ * Heuristic script, used when every LLM provider fails.
+ *
+ * The point of this path is that a sender still gets something they can
+ * approve: a real hook from the profile, their own brief, and a clear ask —
+ * never a data dump and never a template that pretends to be personal. It
+ * produces two genuinely different approaches (a specific observation and a
+ * direct ask) so the sender has a choice rather than one dead option.
+ */
 function fallbackScript(profile: Profile, senderBrief?: string): string {
   const hooks = profile.personalization_hooks.filter(Boolean).slice(0, 2);
+  const notable = profile.notable_work.filter(Boolean).slice(0, 2);
+  const interests = profile.interests.filter(Boolean).slice(0, 2);
   const hookSentence = hooks.length
-    ? `I noticed ${hooks.join(" and ").replace(/\.$/, "")}, which stood out as especially relevant.`
-    : `I came across your work and wanted to reach out with a specific note.`;
+    ? `I noticed ${hooks.join(" and ").replace(/\.$/, "")}, which is why I thought of you.`
+    : notable.length
+      ? `I've been following your work on ${notable.join(" and ").replace(/\.$/, "")}.`
+      : interests.length
+        ? `I've been following your work on ${interests.join(" and ").replace(/\.$/, "")}.`
+        : "I came across your work and wanted to reach out with a specific note.";
   const briefSentence = senderBrief
-    ? `I am reaching out because ${senderBrief.replace(/\.$/, "")}.`
-    : `I am reaching out because I think there may be a useful conversation here.`;
+    ? `I'm reaching out because ${senderBrief.replace(/\.$/, "")}.`
+    : "I'm reaching out because I think there may be a useful conversation here.";
 
-  return `Hey ${profile.name} — ${hookSentence} ${briefSentence} I would love to share what I am building and get your perspective. If you are open to it, would you be willing to take a quick look or find 15 minutes next week?`;
+  return `Hey ${profile.name} — ${hookSentence} ${briefSentence} I'd love to share what I'm building and get your perspective on it. If you're open to it, would you be willing to take a quick look, or find 15 minutes next week?`;
+}
+
+/**
+ * A second, deliberately different approach: direct rather than observational.
+ * Used as variant B when the LLM chain is unavailable.
+ */
+function fallbackScriptVariantB(profile: Profile, senderBrief?: string): string {
+  const interests = profile.interests.filter(Boolean).slice(0, 2);
+  const role = profile.current_role || profile.company;
+  const briefSentence = senderBrief
+    ? `I'm reaching out because ${senderBrief.replace(/\.$/, "")}.`
+    : "I'm reaching out because I think there may be a useful conversation here.";
+  const roleLine = role
+    ? `Given your work${interests.length ? ` on ${interests.join(" and ").replace(/\.$/, "")}` : ""}, this seemed like a good moment to reach out.`
+    : interests.length
+      ? `Given your interest in ${interests.join(" and ").replace(/\.$/, "")}, this seemed like a good moment to reach out.`
+      : "This seemed like a good moment to reach out.";
+
+  return `Hi ${profile.name} — ${roleLine} ${briefSentence} I'd love fifteen minutes to explain what I'm building and hear what you'd change about it. Would either day next week work for you?`;
 }

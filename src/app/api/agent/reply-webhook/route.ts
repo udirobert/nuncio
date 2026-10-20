@@ -131,13 +131,25 @@ export async function POST(request: NextRequest) {
       unknown: "review_manually",
     }[intent];
 
+    // Reply-to-live: an interested reply can be escalated into a live
+    // conversation on the same link. The agent owns the email side, so the
+    // app only has to say how — and only when the reply is tied to a share.
+    const escalation = intent === "interested" && shareId
+      ? {
+          tool: "agent.live-invite",
+          endpoint: "/api/agent/live-invite",
+          body: { shareId, prospectEmail: from },
+          note: "Upgrades the first touch to a live link and emails the prospect the front door.",
+        }
+      : null;
+
     span.setAttribute("nuncio.reply.intent", intent);
     span.setAttribute("nuncio.reply.heuristic_fallback", usedHeuristic);
     if (usedHeuristic) await mark("nuncio.reply.heuristic_fallback", "CHAIN");
     if (shareId) span.setAttribute("nuncio.share.id", shareId);
     span.setAttribute("nuncio.outcome", "classified");
 
-    return NextResponse.json({ replyId, intent, reason, suggestedAction, shareId });
+    return NextResponse.json({ replyId, intent, reason, suggestedAction, shareId, escalation });
     });
   } catch {
     return NextResponse.json(

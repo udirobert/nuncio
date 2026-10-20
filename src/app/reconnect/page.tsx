@@ -23,7 +23,7 @@ export default function ReconnectPage() {
 
   return (
     <main className="min-h-screen bg-cream">
-      <Header />
+      <Header minimal />
       <div className="pt-24 pb-12">
         <UrlForm onSubmit={handleSubmit} />
       </div>

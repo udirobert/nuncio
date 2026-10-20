@@ -25,6 +25,7 @@ export async function createBatch(input: CreateBatchInput): Promise<Batch> {
     senderBrief: input.senderBrief,
     senderName: input.senderName,
     creatorEmail: input.creatorEmail,
+    workspaceId: input.workspaceId,
     webhookUrl: input.webhookUrl,
     status: "queued",
     createdAt: now,
@@ -52,6 +53,66 @@ export async function getBatch(id: string): Promise<Batch | undefined> {
 export async function listBatches(): Promise<Batch[]> {
   const provider = getBatchStorageProvider();
   return provider.list();
+}
+
+/**
+ * Does this batch belong to the caller?
+ *
+ * A batch holds a prospect list, the sender's brief, the creator's email and
+ * a webhook URL — none of which may be readable by another account. Batches
+ * created before workspace scoping carry no `workspaceId`, so they fall back
+ * to the creator's email.
+ */
+export function batchBelongsToWorkspace(
+  batch: Batch | null | undefined,
+  workspaceId: string,
+  email?: string,
+): boolean {
+  if (!batch) return false;
+  if (batch.workspaceId) return batch.workspaceId === workspaceId;
+  if (batch.creatorEmail && email) {
+    return batch.creatorEmail.toLowerCase() === email.toLowerCase();
+  }
+  return false;
+}
+
+/** Every batch the workspace owns. */
+export async function listBatchesForWorkspace(
+  workspaceId: string,
+  email?: string,
+): Promise<Batch[]> {
+  const all = await listBatches();
+  return all.filter((batch) => batchBelongsToWorkspace(batch, workspaceId, email));
+}
+
+/** A batch only if the workspace owns it. */
+export async function getBatchForWorkspace(
+  id: string,
+  workspaceId: string,
+  email?: string,
+): Promise<Batch | undefined> {
+  const batch = await getBatch(id);
+  return batchBelongsToWorkspace(batch, workspaceId, email) ? batch : undefined;
+}
+
+/** Delete a batch only if the workspace owns it. Returns false otherwise. */
+export async function deleteBatchForWorkspace(
+  id: string,
+  workspaceId: string,
+  email?: string,
+): Promise<boolean> {
+  const batch = await getBatchForWorkspace(id, workspaceId, email);
+  if (!batch) return false;
+  await deleteBatch(id);
+  return true;
+}
+
+/** Strip the fields the owner never needs back (email, webhook URL). */
+export function publicBatchView(batch: Batch): Omit<Batch, "creatorEmail" | "webhookUrl"> {
+  const view = { ...batch } as Partial<Batch>;
+  delete view.creatorEmail;
+  delete view.webhookUrl;
+  return view as Omit<Batch, "creatorEmail" | "webhookUrl">;
 }
 
 export async function updateJob(
