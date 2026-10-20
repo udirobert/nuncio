@@ -12,6 +12,7 @@ import { ShowcaseStrip } from "@/components/landing/showcase-strip";
 import { VideoProof } from "@/components/landing/video-proof";
 import { RepresentativeExample } from "@/components/representative-example";
 import { RelationshipJourney } from "@/components/landing/relationship-journey";
+import { RepresentativeScene } from "@/components/landing/representative-scene";
 import { SHOWCASE_RECIPIENTS, splitShowcase } from "@/lib/showcase";
 import { trackViralLanding } from "@/lib/analytics";
 import { rememberViralRef } from "@/lib/viral-ref-client";
@@ -268,11 +269,29 @@ export default function HomeClient() {
                   transition={reducedMotion ? { duration: 0 } : { delay: 0.25, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                   className="lg:col-span-7"
                 >
-                  <RelationshipJourney />
+                  <RepresentativeScene />
                 </motion.div>
               </div>
             </section>
           )}
+
+          {/* The flow, explained — it was the hero's right column, but a
+              wireframe is not a hero. The product moment goes first; the
+              diagram of the flow follows it. */}
+          <section id="how-it-flows" className="px-6 py-10" data-reveal="fade-up">
+            <div className="max-w-[1200px] mx-auto">
+              <div className="mb-4 max-w-[620px]">
+                <h2 className="font-display text-2xl md:text-3xl tracking-tight mb-2">
+                  What happens after you send it
+                </h2>
+                <p className="text-body-sm text-ink-muted leading-relaxed">
+                  The recipient chooses. Your representative answers, and you step in when it
+                  matters — or never, if it doesn&rsquo;t.
+                </p>
+              </div>
+              <RelationshipJourney />
+            </div>
+          </section>
 
           <section className="px-6 py-8 max-w-[540px] mx-auto" data-reveal-group>
             <div className="flex flex-wrap items-center justify-center gap-6">
@@ -310,7 +329,8 @@ export default function HomeClient() {
 
           {/* What the conversation actually looks like — the thing the
               product sells, shown before anyone signs up. */}
-          <section className="px-6 py-10 max-w-[720px] mx-auto" data-reveal="fade-up">
+          <section className="px-6 py-10" data-reveal="fade-up">
+            <div className="max-w-[720px] mx-auto">
             <div className="mb-4 text-center">
               <h2 className="font-display text-2xl md:text-3xl tracking-tight mb-2">
                 What the conversation looks like
@@ -325,6 +345,7 @@ export default function HomeClient() {
               senderName="Alex Rivera"
               imageUrl="/representative.webp"
             />
+            </div>
           </section>
 
           <VideoProof />
