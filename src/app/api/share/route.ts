@@ -5,6 +5,7 @@ import type { Profile } from "@/lib/claude";
 import { readAccountSession } from "@/lib/auth/session";
 import { isLiveLinkAllowed } from "@/lib/live-link";
 import { getAccountStorageProvider } from "@/lib/storage";
+import { normalizeCanAnswer, normalizeImageUrl } from "@/lib/sender-proof";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -68,14 +69,22 @@ export async function POST(request: NextRequest) {
 
   // Snapshot the sender's booking link and Anam assets onto the artifact so the live/share
   // pages can offer "Book time with {sender}" and the live session can load the right twin.
+  // The sender's photo, logo and "what can it answer" line are snapshotted too: a
+  // prospect must see the same proof they were shown when the link was created.
   let bookingUrl: string | undefined;
   let anamAvatarId: string | undefined = bodyAnamAvatarId;
   let anamVoiceId: string | undefined = bodyAnamVoiceId;
+  let senderPhotoUrl: string | undefined;
+  let senderCompanyLogoUrl: string | undefined;
+  let senderCanAnswer: string | undefined;
   if (session?.workspaceId) {
     const workspace = await getAccountStorageProvider().getWorkspace(session.workspaceId);
     bookingUrl = workspace?.bookingUrl?.trim() || undefined;
     anamAvatarId = anamAvatarId || workspace?.anamAvatarId;
     anamVoiceId = anamVoiceId || workspace?.anamVoiceId;
+    senderPhotoUrl = normalizeImageUrl(workspace?.senderPhotoUrl);
+    senderCompanyLogoUrl = normalizeImageUrl(workspace?.senderCompanyLogoUrl);
+    senderCanAnswer = normalizeCanAnswer(workspace?.senderCanAnswer);
   }
 
   const record = await createShareRecord({
@@ -93,6 +102,9 @@ export async function POST(request: NextRequest) {
     workspaceId: session?.workspaceId,
     deliveryMode: mode,
     bookingUrl,
+    senderPhotoUrl,
+    senderCompanyLogoUrl,
+    senderCanAnswer,
     mode: campaignMode === "reconnect" ? "reconnect" : "outreach",
     anamAvatarId,
     anamVoiceId,

@@ -1,79 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import { TeachingLadder } from "./teaching-ladder";
+import type { InboxBooking } from "@/lib/inbox";
 
-interface BookingRow {
-  id: string;
-  status: "started" | "requested" | "confirmed" | "cancelled";
-  createdAt: string;
-  startsAt: string | null;
-  endsAt: string | null;
-  recipient: string | null;
-  reviewedBrief: {
-    goal: string;
-    discussed: string;
-    openQuestions: string;
-    reason: string;
-    source: "recipient_reviewed";
-    sharedAt: string;
-  } | null;
-}
-
-const STATUS_LABEL: Record<BookingRow["status"], string> = {
+const STATUS_LABEL: Record<InboxBooking["status"], string> = {
   confirmed: "Provider-confirmed",
   requested: "Requested",
   cancelled: "Cancelled",
   started: "Opened",
 };
 
-const POLL_MS = 15_000;
-
-export function ScheduledConversations() {
-  const [rows, setRows] = useState<BookingRow[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState(false);
-  const mountedRef = useRef(true);
-  const inFlightRef = useRef<AbortController | null>(null);
-
-  const load = useCallback(async () => {
-    if (inFlightRef.current) return;
-    const controller = new AbortController();
-    inFlightRef.current = controller;
-    try {
-      const res = await fetch("/api/scheduling/bookings", { signal: controller.signal });
-      if (!res.ok) throw new Error("load failed");
-      const data = (await res.json()) as { bookings?: BookingRow[] };
-      if (!mountedRef.current) return;
-      setRows(data.bookings || []);
-      setLoaded(true);
-      setError(false);
-    } catch {
-      if (mountedRef.current && !controller.signal.aborted) setError(true);
-    } finally {
-      if (inFlightRef.current === controller) inFlightRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    queueMicrotask(() => void load());
-    const timer = setInterval(load, POLL_MS);
-    const onFocus = () => {
-      if (document.visibilityState !== "hidden") void load();
-    };
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onFocus);
-    return () => {
-      mountedRef.current = false;
-      clearInterval(timer);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onFocus);
-      inFlightRef.current?.abort();
-      inFlightRef.current = null;
-    };
-  }, [load]);
-
+export function ScheduledConversations({
+  bookings,
+  loaded,
+  error,
+  onRetry,
+}: {
+  bookings: InboxBooking[];
+  loaded: boolean;
+  error: boolean;
+  onRetry: () => void;
+}) {
+  const rows = bookings;
   const shown = rows.filter((r) => r.status !== "started");
   if (!loaded && !error) return null;
 
@@ -83,7 +31,7 @@ export function ScheduledConversations() {
       {error && (
         <p className="text-body-xs text-warm" role="status">
           Scheduled conversations couldn&apos;t be loaded.{" "}
-          <button type="button" onClick={() => void load()} className="underline">Retry</button>
+          <button type="button" onClick={onRetry} className="underline">Retry</button>
         </p>
       )}
       {loaded && !error && shown.length === 0 && (

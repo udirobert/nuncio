@@ -29,3 +29,13 @@ export interface ConversationTurn {
   role: "user" | "agent";
   text: string;
 }
+
+/**
+ * The editable subset of the extracted profile — what the voice overlay hands
+ * back to a form. Lives here (not in the component) so the studio, the setup
+ * panel and the shared mapper can all speak the same type.
+ */
+export type VoiceProfileResult = Omit<
+  VoiceExtractedProfile,
+  "isComplete" | "missingFields" | "lastAgentMessage"
+>;

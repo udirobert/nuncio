@@ -15,11 +15,13 @@ import type { QuickProgressStep } from "./quick-progress";
 import { CollaborativeSession } from "./collaborative-session";
 import type { BandEvent } from "./collaborative-session";
 import { VoiceOverlay } from "@/components/voice-overlay";
-import type { VoiceProfileResult } from "@/components/voice-overlay";
+import type { VoiceProfileResult } from "@/lib/voice-agent/types";
+import { mapVoiceProfile } from "@/lib/voice-profile";
 import { DeepResearchToggle } from "@/components/deep-research-toggle";
 import { QualityLadder } from "@/components/quality-ladder";
 import type { UserPlan } from "@/components/quality-ladder";
 import { trackReconnectCardCreated, trackReconnectCardSent } from "@/lib/analytics";
+import { GETTING_STARTED_STEPS } from "@/lib/navigation";
 
 export type StudioStage = "input" | "enriching" | "collaborating" | "generating" | "review" | "building" | "ready" | "error";
 export type ArchetypeSelection = "auto" | "mirror" | "origin" | "future_cast" | "inside_joke" | "day_in_the_life";
@@ -37,7 +39,7 @@ const INTENT_META: Record<CaptureIntent, {
         <path d="M8 5v14l11-7z" />
       </svg>
     ),
-    label: "Render video",
+    label: "Record a video",
     chipClass: "bg-accent-soft border-accent/20 text-accent",
     iconClass: "bg-accent text-white",
   },
@@ -165,7 +167,6 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [showAdvancedInput, setShowAdvancedInput] = useState(false);
   const [urlError, setUrlError] = useState<string | null>(null);
-  const [showVoiceCard, setShowVoiceCard] = useState(false);
   const [scriptEditing, setScriptEditing] = useState(false);
   const [url, setUrl] = useState(() => {
     if (typeof window !== "undefined") {
@@ -300,6 +301,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
   const [videoRenderResult, setVideoRenderResult] = useState<{ videoUrl: string; videoId: string } | null>(null);
   const [videoCustomization, setVideoCustomization] = useState<VideoCustomization | undefined>();
   const [serverLiveConfigured, setServerLiveConfigured] = useState(false);
+  const [playbookConfigured, setPlaybookConfigured] = useState<boolean | null>(null);
   const [showCustomization, setShowCustomization] = useState(() => initialDeliveryMode === "livelink" && !initialIsReconnect);
   const [bandSessionId, setBandSessionId] = useState<string | null>(null);
   const [bandEvents, setBandEvents] = useState<BandEvent[]>([]);
@@ -414,6 +416,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
     fetch("/api/account/brief")
       .then((r) => r.json())
       .then((data) => {
+        setPlaybookConfigured(Boolean(data.liveReadiness?.playbookConfigured));
         if (data.senderName && !localStorage.getItem("nuncio_sender_name")) {
           setSenderName(data.senderName);
         }
@@ -582,26 +585,23 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
   }
 
   function applyVoiceProfile(profile: VoiceProfileResult) {
-    const populated = new Set<string>();
-    if (profile.url) { setUrl(profile.url); populated.add("url"); }
-    if (profile.name) { populated.add("name"); }
-    if (profile.company) { populated.add("company"); }
-    if (profile.role) { populated.add("role"); }
-    if (profile.senderName) { setSenderName(profile.senderName); populated.add("senderName"); }
-    if (profile.senderBrief) { setSenderBrief(profile.senderBrief); populated.add("senderBrief"); }
-    if (profile.senderBusiness) { setSenderBusiness(profile.senderBusiness); populated.add("senderBusiness"); }
-    if (profile.senderBrand) { setSenderBrand(profile.senderBrand); populated.add("senderBrand"); }
-    if (profile.senderPersonality) { setSenderPersonality(profile.senderPersonality); populated.add("senderPersonality"); }
-    if (profile.senderAudience) { setSenderAudience(profile.senderAudience); populated.add("senderAudience"); }
-    if (profile.senderOffer) { setSenderOffer(profile.senderOffer); populated.add("senderOffer"); }
-    if (profile.senderProofPoints) { setSenderProofPoints(profile.senderProofPoints.join("\n")); populated.add("senderProofPoints"); }
-    if (profile.archetype) setArchetype(profile.archetype as ArchetypeSelection);
-    if (profile.tone) setTonePreference(profile.tone);
-    if (profile.offer) { setPlaybookOffer(profile.offer); populated.add("offer"); }
-    if (profile.wants) { setPlaybookWants(profile.wants); populated.add("wants"); }
-    if (profile.wiggleRoom) { setPlaybookWiggleRoom(profile.wiggleRoom); populated.add("wiggleRoom"); }
-    if (profile.constraints) { setPlaybookConstraints(profile.constraints.join("\n")); populated.add("constraints"); }
-    if (profile.bookingUrl) { setBookingUrl(profile.bookingUrl); populated.add("bookingUrl"); }
+    const { fields, populated } = mapVoiceProfile(profile);
+    if (fields.url) setUrl(fields.url);
+    if (fields.senderName) setSenderName(fields.senderName);
+    if (fields.senderBrief) setSenderBrief(fields.senderBrief);
+    if (fields.senderBusiness) setSenderBusiness(fields.senderBusiness);
+    if (fields.senderBrand) setSenderBrand(fields.senderBrand);
+    if (fields.senderPersonality) setSenderPersonality(fields.senderPersonality);
+    if (fields.senderAudience) setSenderAudience(fields.senderAudience);
+    if (fields.senderOffer) setSenderOffer(fields.senderOffer);
+    if (fields.senderProofPoints) setSenderProofPoints(fields.senderProofPoints);
+    if (fields.archetype) setArchetype(fields.archetype as ArchetypeSelection);
+    if (fields.tone) setTonePreference(fields.tone);
+    if (fields.offer) setPlaybookOffer(fields.offer);
+    if (fields.wants) setPlaybookWants(fields.wants);
+    if (fields.wiggleRoom) setPlaybookWiggleRoom(fields.wiggleRoom);
+    if (fields.constraints) setPlaybookConstraints(fields.constraints);
+    if (fields.bookingUrl) setBookingUrl(fields.bookingUrl);
     setVoiceBrief(profile);
     setVoicePopulatedFields(populated);
     setVoiceOverlayOpen(false);
@@ -1588,124 +1588,8 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                       )}
                     </h1>
 
-                    {/* Voice brief — full card on desktop (sm:block), collapsible on mobile */}
+                    {/* The form below is left-aligned; the headline and badge above are centred. */}
                     <div className="space-y-3 text-left">
-                      {/* Mobile toggle */}
-                      <button
-                        type="button"
-                        onClick={() => setShowVoiceCard(!showVoiceCard)}
-                        aria-expanded={showVoiceCard}
-                        aria-controls="voice-brief-card"
-                        className="sm:hidden flex items-center gap-2 text-label-base text-ink-muted hover:text-ink transition-colors py-2 w-full"
-                      >
-                        <svg viewBox="0 0 16 16" className="w-4 h-4 text-accent" fill="none" stroke="currentColor" strokeWidth="1.6">
-                          <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
-                          <path d="M3 8a5 5 0 0010 0M8 13v2" />
-                        </svg>
-                        Brief with voice
-                        <svg viewBox="0 0 16 16" className={`w-3 h-3 ml-auto transition-transform ${showVoiceCard ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <path d="M6 4l4 4-4 4" />
-                        </svg>
-                      </button>
-                      <div id="voice-brief-card" className={`${showVoiceCard ? "block" : "hidden"} sm:block rounded-2xl border border-accent/20 bg-gradient-to-br from-accent-soft/60 via-white to-warm-soft/30 p-4 shadow-sm space-y-3`}>
-                        <div className="flex items-start gap-3">
-                          <div className="relative w-11 h-11 rounded-2xl bg-accent text-white flex items-center justify-center shadow-sm shrink-0">
-                            <span className="absolute inset-0 rounded-2xl bg-accent animate-ping opacity-15" />
-                            <svg viewBox="0 0 16 16" className="relative w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.6">
-                              <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
-                              <path d="M3 8a5 5 0 0010 0M8 13v2" />
-                            </svg>
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="text-body-sm font-medium text-ink">Brief your representative</p>
-                              <span className="rounded-full bg-white/70 border border-accent/15 px-2 py-0.5 text-label-xs uppercase tracking-widest text-accent">
-                                Speech Engine
-                              </span>
-                            </div>
-                            <p className="mt-1 text-body-xs leading-relaxed text-ink-muted">
-                              Say who you want to reach and why. Nuncio interviews you, extracts the brief, then fills this studio for you.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <button
-                            onClick={() => {
-                              setVoiceOverlayMode("campaign");
-                              setVoiceOverlayOpen(true);
-                            }}
-                            className="btn-press flex-1 rounded-xl border border-cream-dark bg-white text-ink py-3 text-body-sm font-medium hover:bg-cream-dark/30 transition-colors flex items-center justify-center gap-2"
-                          >
-                            Brief your representative
-                            <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M3 8h10M9 4l4 4-4 4" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => {
-                              setVoiceOverlayMode("playbook");
-                              setVoiceOverlayOpen(true);
-                            }}
-                            className="btn-press flex-1 rounded-xl border border-cream-dark bg-cream-soft text-ink py-3 text-body-sm font-medium hover:bg-cream-dark/30 transition-colors flex items-center justify-center gap-2"
-                          >
-                            Capture playbook
-                            <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M12 4l-6 6-2-2-2 2 4 4 8-8-2-2z" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-
-                      {voiceBrief && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="rounded-2xl border border-success/20 bg-success-soft/40 p-4 space-y-3"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-body-sm font-medium text-ink">Voice brief captured</p>
-                              <p className="text-body-xs text-ink-muted">Review the extracted campaign context before researching.</p>
-                            </div>
-                            <button
-                              onClick={() => {
-                                setVoiceOverlayMode("campaign");
-                                setVoiceOverlayOpen(true);
-                              }}
-                              className="text-label-base text-success hover:text-success/80 transition-colors"
-                            >
-                              Re-record
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-body-xs">
-                            {voiceBrief.name && (
-                              <div className="rounded-xl bg-white/70 border border-success/10 p-2">
-                                <span className="block text-label-xs uppercase tracking-widest text-ink-faint">Recipient</span>
-                                <span className="text-ink">{voiceBrief.name}</span>
-                              </div>
-                            )}
-                            {(voiceBrief.company || voiceBrief.role) && (
-                              <div className="rounded-xl bg-white/70 border border-success/10 p-2">
-                                <span className="block text-label-xs uppercase tracking-widest text-ink-faint">Context</span>
-                                <span className="text-ink">{[voiceBrief.role, voiceBrief.company].filter(Boolean).join(" · ")}</span>
-                              </div>
-                            )}
-                            {voiceBrief.tone && (
-                              <div className="rounded-xl bg-white/70 border border-success/10 p-2">
-                                <span className="block text-label-xs uppercase tracking-widest text-ink-faint">Tone</span>
-                                <span className="text-ink capitalize">{voiceBrief.tone}</span>
-                              </div>
-                            )}
-                            {voiceBrief.archetype && (
-                              <div className="rounded-xl bg-white/70 border border-success/10 p-2">
-                                <span className="block text-label-xs uppercase tracking-widest text-ink-faint">Hook</span>
-                                <span className="text-ink">{ARCHETYPE_OPTIONS.find((option) => option.id === voiceBrief.archetype)?.label || voiceBrief.archetype}</span>
-                              </div>
-                            )}
-                          </div>
-                        </motion.div>
-                      )}
-
                       <div>
                         <label className="text-label-sm uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
                           {mode === "reconnect" ? "Their public profile" : "Profile URL"}
@@ -1826,6 +1710,89 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                           </p>
                         </div>
 
+                        {/* Voice brief — the alternative to typing. One action, one
+                            purpose: brief this campaign. The sender's reusable
+                            playbook is captured in Setup, not here. */}
+                        <div className="space-y-3 text-left">
+                          <div className="rounded-xl border border-cream-dark bg-white/70 px-4 py-3 flex flex-wrap items-center gap-3">
+                            <span className="w-9 h-9 rounded-xl bg-accent text-white flex items-center justify-center shrink-0">
+                              <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.6">
+                                <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
+                                <path d="M3 8a5 5 0 0010 0M8 13v2" />
+                              </svg>
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-body-xs font-medium text-ink">Rather say it?</p>
+                              <p className="text-label-base text-ink-faint">
+                                Say who you want to reach and why — nuncio fills the fields for you.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setVoiceOverlayMode("campaign");
+                                setVoiceOverlayOpen(true);
+                              }}
+                              className="btn-press rounded-xl border border-accent/25 bg-accent-soft/50 px-3 py-2 text-body-xs font-medium text-accent hover:bg-accent-soft transition-[color,background-color,border-color,opacity,box-shadow,transform] min-h-[44px] inline-flex items-center gap-1.5"
+                            >
+                              Brief by voice
+                              <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M3 8h10M9 4l4 4-4 4" />
+                              </svg>
+                            </button>
+                          </div>
+
+                          {voiceBrief && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="rounded-2xl border border-success/20 bg-success-soft/40 p-4 space-y-3"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-body-sm font-medium text-ink">Voice brief captured</p>
+                                  <p className="text-body-xs text-ink-muted">Review the extracted campaign context before researching.</p>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setVoiceOverlayMode("campaign");
+                                    setVoiceOverlayOpen(true);
+                                  }}
+                                  className="text-label-base text-success hover:text-success/80 transition-colors"
+                                >
+                                  Re-record
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-body-xs">
+                                {voiceBrief.name && (
+                                  <div className="rounded-xl bg-white/70 border border-success/10 p-2">
+                                    <span className="block text-label-xs uppercase tracking-widest text-ink-faint">Recipient</span>
+                                    <span className="text-ink">{voiceBrief.name}</span>
+                                  </div>
+                                )}
+                                {(voiceBrief.company || voiceBrief.role) && (
+                                  <div className="rounded-xl bg-white/70 border border-success/10 p-2">
+                                    <span className="block text-label-xs uppercase tracking-widest text-ink-faint">Context</span>
+                                    <span className="text-ink">{[voiceBrief.role, voiceBrief.company].filter(Boolean).join(" · ")}</span>
+                                  </div>
+                                )}
+                                {voiceBrief.tone && (
+                                  <div className="rounded-xl bg-white/70 border border-success/10 p-2">
+                                    <span className="block text-label-xs uppercase tracking-widest text-ink-faint">Tone</span>
+                                    <span className="text-ink capitalize">{voiceBrief.tone}</span>
+                                  </div>
+                                )}
+                                {voiceBrief.archetype && (
+                                  <div className="rounded-xl bg-white/70 border border-success/10 p-2">
+                                    <span className="block text-label-xs uppercase tracking-widest text-ink-faint">Hook</span>
+                                    <span className="text-ink">{ARCHETYPE_OPTIONS.find((option) => option.id === voiceBrief.archetype)?.label || voiceBrief.archetype}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </div>
+
                         {mode === "reconnect" && (
                           <div>
                             <label className="text-label-sm uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
@@ -1844,7 +1811,9 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                           </div>
                         )}
 
-                      {/* Advanced settings — collapsed by default */}
+                      {/* More options — collapsed by default. The default path is
+                          one profile URL and one brief; everything else is an
+                          expert setting the sender rarely needs. */}
                       <div className="pt-2">
                         <button
                           type="button"
@@ -1856,8 +1825,11 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                           <svg viewBox="0 0 16 16" className={`w-3.5 h-3.5 transition-transform ${showAdvancedInput ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5">
                             <path d="M6 4l4 4-4 4" />
                           </svg>
-                          Advanced settings
+                          More options
                         </button>
+                        <p className="text-label-base text-ink-faint mt-1">
+                          Research depth, live vs recorded, hook style, booking link.
+                        </p>
 
 <AnimatePresence>
                         {showAdvancedInput && (
@@ -1917,7 +1889,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                             {/* Delivery mode — live link is the primary artifact when the pilot is enabled; recorded video is the fallback */}
                             <div>
                               <label className="text-label-sm uppercase tracking-widest font-medium text-ink-muted block mb-1.5">
-                                Delivery mode
+                                How do they receive it?
                               </label>
                               {liveLinkEnabled ? (
                                 <div className="flex rounded-xl border border-cream-dark bg-white p-1">
@@ -1930,7 +1902,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                                         : "text-ink-muted hover:text-ink"
                                     }`}
                                   >
-                                    Live link <span className="opacity-70 font-normal">· Recommended</span>
+                                    Live conversation <span className="opacity-70 font-normal">· Recommended</span>
                                   </button>
                                   <button
                                     type="button"
@@ -1941,7 +1913,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                                         : "text-ink-muted hover:text-ink"
                                     }`}
                                   >
-                                    Video
+                                    Recorded video
                                   </button>
                                 </div>
                               ) : null}
@@ -1975,6 +1947,21 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                   </div>
                 </div>
 
+                {playbookConfigured === false && (
+                  <div className="rounded-xl border border-accent/20 bg-accent-soft/40 px-4 py-3 text-left space-y-1.5">
+                    <p className="text-body-xs text-ink">
+                      Your representative has no playbook yet — it will answer from general
+                      guidance. You can send this one now and set the playbook later.
+                    </p>
+                    <Link
+                      href="/setup"
+                      className="inline-block text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
+                    >
+                      Set up your representative (2 min) →
+                    </Link>
+                  </div>
+                )}
+
                 {detectingLanguage && (
                   <span className="text-label-sm text-ink-faint flex items-center justify-center gap-2 block text-center">
                     <LottieIcon name="spinner" className="w-3 h-3" />
@@ -2004,7 +1991,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                   disabled={!url.trim()}
                   className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-body-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors flex items-center justify-center gap-2"
                 >
-                  {mode === "reconnect" ? "Write a warm script" : "Research & write script"}
+                  {mode === "reconnect" ? "Write a warm script" : "Research & write the opening"}
                   <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M3 8h10M9 4l4 4-4 4" />
                   </svg>
@@ -2023,14 +2010,13 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
 
                 {/* Flow steps + batch link — below CTA to reduce mobile scroll */}
                 <div className="pt-4 space-y-3">
-                  <div className="flex items-center justify-center gap-2 text-label-sm uppercase tracking-widest text-ink-faint">
-                    <span className="text-accent">Account</span>
-                    <span>→</span>
-                    <span>Reason</span>
-                    <span>→</span>
-                    <span>Review</span>
-                    <span>→</span>
-                    <span>Send</span>
+                  <div className="flex items-center justify-center gap-2 text-label-sm uppercase tracking-widest text-ink-faint flex-wrap">
+                    {GETTING_STARTED_STEPS.map((step, i) => (
+                      <span key={step.label} className="flex items-center gap-2">
+                        {i > 0 && <span aria-hidden>→</span>}
+                        <span className={i === 0 ? "text-accent" : undefined}>{step.label}</span>
+                      </span>
+                    ))}
                   </div>
                   <div className="text-center">
                     <Link
@@ -2817,7 +2803,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                   <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-success-soft border border-success/20">
                     <span className="w-1.5 h-1.5 rounded-full bg-success" />
                     <span className="text-label-sm uppercase tracking-widest font-medium text-success">
-                      {deliveryMode === "livelink" ? "Live link ready" : videoRendering === "done" ? "Video ready" : "Creative ready"}
+                      {deliveryMode === "livelink" ? "Live link ready" : videoRendering === "done" ? "Video ready" : "Ready to send"}
                     </span>
                   </div>
                   <p className="text-body-sm text-ink">
@@ -2845,6 +2831,46 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                   </button>
                 </div>
 
+                {/* The moment the sender has been working toward: the link
+                    exists, here is who it is for, and here is what happens
+                    next. A quiet "share" button is not a reward. */}
+                {shareUrl && (
+                  <div className="rounded-xl border border-success/20 bg-success-soft/30 px-4 py-3.5 space-y-2.5">
+                    <p className="font-display text-lg text-ink">
+                      {reviewProfile?.name ? `${reviewProfile.name}'s link is ready` : "Your link is ready"}
+                    </p>
+                    <p className="text-body-xs text-ink-muted leading-relaxed">
+                      {deliveryMode === "livelink"
+                        ? "Send it to them. When they open it, your AI representative answers — and you can step in whenever you want."
+                        : "Send it to them. When they open it, they see the video and can reply, ask for you, or pick a time."}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void navigator.clipboard?.writeText(
+                            `${window.location.origin}${shareUrl}`,
+                          );
+                        }}
+                        className="btn-press inline-flex items-center gap-1.5 rounded-lg bg-ink text-cream px-3 py-2 text-body-xs font-medium hover:bg-ink-light transition-colors"
+                      >
+                        Copy link
+                      </button>
+                      <a
+                        href={shareUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-press inline-flex items-center gap-1.5 rounded-lg border border-cream-dark bg-white px-3 py-2 text-body-xs font-medium text-ink-muted hover:text-ink transition-colors"
+                      >
+                        See what they&apos;ll see
+                        <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M6 3h7v7M13 3L5 11" />
+                        </svg>
+                      </a>
+                    </div>
+                  </div>
+                )}
+
                 <div className="border-t border-cream-dark/50 pt-4 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     {deliveryMode !== "livelink" && (
@@ -2855,7 +2881,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                         disabled={videoRendering === "rendering"}
                         className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-5 py-3 text-body-sm font-medium hover:bg-ink-light transition-colors shadow-sm disabled:opacity-40"
                       >
-                        {videoRendering === "rendering" ? "Rendering…" : videoRendering === "done" ? "Video ready" : "Render video"}
+                        {videoRendering === "rendering" ? "Recording…" : videoRendering === "done" ? "Video ready" : "Record a video"}
                       </button>
                     )}
 
@@ -3080,7 +3106,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                     transition={{ delay: 0.1, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                     className="font-display text-3xl tracking-tight"
                   >
-                    {captureIntent === "download" ? "Download video" : captureIntent === "share" ? "Share video" : captureIntent === "saveBrief" ? "Save your brief" : "Render video"}
+                    {captureIntent === "download" ? "Download video" : captureIntent === "share" ? "Share video" : captureIntent === "saveBrief" ? "Save your brief" : "Record a video"}
                   </motion.h2>
                 </div>
                 <button
@@ -3146,7 +3172,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                   disabled={captureLoading || !captureEmail.trim()}
                   className="btn-press w-full rounded-xl bg-ink text-cream py-3.5 text-body-sm font-medium disabled:opacity-40 hover:bg-ink-light transition-colors"
                 >
-                  {captureLoading ? (captureIntent === "saveBrief" ? "Saving…" : "Working…") : captureIntent === "download" ? "Download video" : captureIntent === "share" ? "Get share link" : captureIntent === "saveBrief" ? "Save brief" : "Render video"}
+                  {captureLoading ? (captureIntent === "saveBrief" ? "Saving…" : "Working…") : captureIntent === "download" ? "Download video" : captureIntent === "share" ? "Get share link" : captureIntent === "saveBrief" ? "Save brief" : "Record a video"}
                 </button>
               </motion.form>
             </motion.div>

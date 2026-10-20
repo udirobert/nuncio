@@ -136,6 +136,9 @@ export default function LiveAvatarLandingPage({
         shareIdRef.current = data.id;
         bookingUrlRef.current = resolveSchedulingProvider(data.bookingUrl)?.url ?? null;
         setShare(data);
+        // View beacon — the sender needs to know a prospect opened the link.
+        // Stores a timestamp and a counter only; no identity, no IP.
+        void fetch(`/api/share/${encodeURIComponent(data.id)}/view`, { method: "POST" }).catch(() => {});
         if (!openedTrackedRef.current && data.mode === "reconnect") {
           openedTrackedRef.current = true;
           trackReconnectCardOpened({
@@ -969,7 +972,14 @@ export default function LiveAvatarLandingPage({
                 mode={share.mode}
                 deliveryMode={share.deliveryMode}
                 playbookConfigured={share.liveReadiness?.playbookConfigured ?? false}
+                photoUrl={share.senderPhotoUrl}
+                logoUrl={share.senderCompanyLogoUrl}
               />
+              {share.senderCanAnswer && (
+                <p className="text-body-xs text-ink-muted max-w-[440px] leading-relaxed text-center">
+                  {share.senderCanAnswer}
+                </p>
+              )}
             </div>
           </motion.div>
 

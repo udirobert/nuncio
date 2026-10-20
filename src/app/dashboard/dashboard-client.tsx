@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { Header } from "@/components/header";
@@ -17,6 +17,10 @@ import { LottieIcon } from "@/components/lottie-icon";
 import posthog from "posthog-js";
 import { clearViralRef, readViralRef } from "@/lib/viral-ref-client";
 import { APP_ROUTES, PRODUCT_ONELINER } from "@/lib/navigation";
+import type { InboxPayload } from "@/lib/inbox";
+import type { BatchSummary } from "./components/recent-videos";
+
+const POLL_MS = 15_000;
 
 interface SessionData {
   authenticated: boolean;
@@ -50,6 +54,33 @@ export default function DashboardClient() {
   const router = useRouter();
   const [session, setSession] = useState<SessionData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [inbox, setInbox] = useState<InboxPayload | null>(null);
+  const [inboxError, setInboxError] = useState<string | null>(null);
+  const [batches, setBatches] = useState<BatchSummary[]>([]);
+  const [batchError, setBatchError] = useState(false);
+  const inFlightRef = useRef<AbortController | null>(null);
+
+  /**
+   * One request feeds the whole dashboard: the first-touch list with its
+   * relationship state, the scoreboard and the bookings card. It refreshes on
+   * the same 15s cadence the bookings card used to poll on its own.
+   */
+  const loadInbox = useCallback(async () => {
+    if (inFlightRef.current) return;
+    const controller = new AbortController();
+    inFlightRef.current = controller;
+    try {
+      const res = await fetch("/api/inbox", { signal: controller.signal, cache: "no-store" });
+      if (!res.ok) throw new Error("load failed");
+      const data = (await res.json()) as InboxPayload;
+      setInbox(data);
+      setInboxError(null);
+    } catch {
+      setInboxError("Could not load your inbox.");
+    } finally {
+      if (inFlightRef.current === controller) inFlightRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     fetch("/api/account/session")
@@ -67,6 +98,28 @@ export default function DashboardClient() {
         router.replace(`/login?next=${encodeURIComponent(APP_ROUTES.inbox)}`);
       });
   }, [router]);
+
+  useEffect(() => {
+    // Deferred so the first paint is not gated on the inbox request.
+    queueMicrotask(() => void loadInbox());
+    fetch("/api/batch")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((data) => setBatches(Array.isArray(data) ? data : []))
+      .catch(() => setBatchError(true));
+    const timer = setInterval(loadInbox, POLL_MS);
+    const onFocus = () => {
+      if (document.visibilityState !== "hidden") void loadInbox();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+      inFlightRef.current?.abort();
+      inFlightRef.current = null;
+    };
+  }, [loadInbox]);
 
   if (loading || !session) {
     return (
@@ -127,10 +180,15 @@ export default function DashboardClient() {
                 <CallRequestsCard />
               </section>
               <section aria-label="Bookings and live sessions">
-                <ScheduledConversations />
+                <ScheduledConversations
+                  bookings={inbox?.bookings ?? []}
+                  loaded={inbox !== null}
+                  error={inboxError !== null}
+                  onRetry={() => void loadInbox()}
+                />
               </section>
               <section aria-label="Sent first touches">
-                <RecentVideos />
+                <RecentVideos entries={inbox?.entries ?? []} batches={batches} batchError={batchError} />
               </section>
             </motion.div>
 
@@ -160,8 +218,12 @@ export default function DashboardClient() {
                 </summary>
                 <div className="grid grid-cols-1 gap-4 pt-3">
                   <CreditCard />
-                  <UsageSummary />
-                  <ScoreboardCard />
+                  <UsageSummary videoCount={inbox?.videoCount ?? 0} batches={batches} />
+                  <ScoreboardCard
+                    sessions={inbox?.sessions ?? []}
+                    loading={inbox === null && inboxError === null}
+                    error={inboxError}
+                  />
                 </div>
               </details>
             </motion.aside>

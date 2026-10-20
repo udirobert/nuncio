@@ -23,6 +23,7 @@ export default function SetupClient() {
   const router = useRouter();
   const [session, setSession] = useState<SessionData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [configured, setConfigured] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetch("/api/account/session")
@@ -39,6 +40,19 @@ export default function SetupClient() {
         router.replace(`/login?next=${encodeURIComponent(APP_ROUTES.representative)}`);
       });
   }, [router]);
+
+  // "Start with one message" is only worth offering to someone who has not
+  // configured anything yet. For everyone else, configuring first is the
+  // right advice — and nagging a configured user is noise.
+  useEffect(() => {
+    fetch("/api/account/brief", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((data: { playbookWants?: string; playbookOffer?: string; senderName?: string }) => {
+        const hasPlaybook = Boolean(data.playbookWants?.trim() || data.playbookOffer?.trim());
+        setConfigured(hasPlaybook || Boolean(data.senderName?.trim()));
+      })
+      .catch(() => setConfigured(null));
+  }, []);
 
   if (loading || !session) {
     return (
@@ -82,6 +96,28 @@ export default function SetupClient() {
               </Link>
             </div>
           </motion.div>
+
+          {configured === false && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.03 }}
+              className="rounded-2xl border border-accent/20 bg-accent-soft/40 p-5 space-y-2"
+            >
+              <h2 className="font-display text-lg text-ink">Start with one message</h2>
+              <p className="text-body-xs text-ink-muted leading-relaxed">
+                You don&apos;t have to finish this page before you send anything. Send one
+                first touch now — your representative answers from general guidance until
+                you set its playbook. You can come back here whenever you like.
+              </p>
+              <Link
+                href={APP_ROUTES.create}
+                className="inline-block text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
+              >
+                Create a first touch →
+              </Link>
+            </motion.div>
+          )}
 
           <motion.div
             initial={{ opacity: 0, y: 12 }}

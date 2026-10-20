@@ -230,6 +230,22 @@ The frontend redesign (homepage journey illustration, `/setup`, recipient front-
 7. Consent: "Draft brief" only sends dialogue after explicit click; the skip path ("Request … now") is never blocked by brief drafting.
 8. Copied links: "Copy link" on the dashboard only appears for ordinary shares; invitation-protected handoffs show "Owner view" and never offer a copyable link missing its fragment.
 
+## Sender proof, relationships and the studio path (user-owned)
+
+The trust-proof fields, the inbox relationship states, the view beacon and the studio's one-path input stage were implemented with typecheck, unit tests and a local browser pass — the user owns production verification. Nothing below has been run against production.
+
+1. Trust proof: set a photo, a company logo and a can-answer line in `/setup` → "2 · Trust proof"; create a first touch; open the share link and confirm the photo and logo appear in the trust badge and the can-answer line appears under it.
+2. Trust proof validation: an `http://` image URL is rejected with a visible message and is not saved; a `https://` one saves and renders.
+3. Snapshot: change the photo after creating a link, then open the old link — it must still show the old photo (the snapshot wins).
+4. View beacon: open a share link as a signed-out visitor, then check the Inbox — the row must read "They opened it". Open the same link while signed in as the owner — the counter must not move.
+5. Relationship states: a link with a live session must read "They talked"; with a booking, "Booked"; with a pending call request, "Asked for you".
+6. Inbox: one request feeds the first-touch list, the scoreboard and the bookings card — the dashboard polls `/api/inbox` every 15s and no longer makes separate calls per card.
+7. Studio path: the profile URL is the first control; "Rather say it?" offers exactly one action; "More options" is collapsed and describes what is inside; the flow strip reads "Send a link → They talk → They book".
+8. No-playbook notice: with an empty workspace the studio shows the notice and the CTA still works; on `/setup` an unconfigured workspace shows "Start with one message".
+9. Setup voice capture: "Talk it through" opens the playbook interview and fills the playbook fields; the extracted fields show "Set by voice".
+10. Ready stage: after a first touch is created, the ready screen names the recipient, explains what happens next, offers Copy link, and offers "See what they'll see" (opens the recipient page in a new tab).
+11. Live page: the photo, logo and can-answer line render on `/live/[id]` as well as `/v/[id]`.
+
 ## Information architecture simplification manual checklist (user-owned)
 
 The nav was cut from six header destinations to three spaces, Setup became a real route (`/setup`), the public examples moved to `/examples`, and the onboarding tour was consolidated into the root layout. Verified by typecheck + unit tests only — the user owns browser verification. Nothing below has been run.

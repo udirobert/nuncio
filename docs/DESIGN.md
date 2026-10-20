@@ -166,9 +166,54 @@ Rules that keep the surfaces disambiguable:
 - **Every destination carries a description.** Member surfaces are `memberOnly` — an anonymous visitor is never offered a page that dead-ends at the login wall.
 - `PRODUCT_ONELINER` ("Nuncio runs an AI representative that talks to your prospects using the playbook you set.") is rendered in the app shell — the Inbox header, the Setup header and the tour — so what the app *is* is never more than one sentence away.
 
+### Sender proof — the human behind the AI
+
+A stranger deciding whether to talk to an AI needs more than initials in a circle. The sender can publish three things, all snapshotted onto the share record when the link is created so a later change never rewrites what a prospect was shown:
+
+| Field | Where it is set | Where it appears |
+|---|---|---|
+| Photo | `/setup` → "2 · Trust proof" | `SenderTrustBadge` avatar on `/v/[id]` and `/live/[id]`; the prospect preview |
+| Company logo | `/setup` → "2 · Trust proof" | Next to the sender's name in the trust badge |
+| "What can your representative answer?" | `/setup` → "2 · Trust proof" | One line under the trust badge, before the prospect decides |
+
+Rules (`src/lib/sender-proof.ts`):
+
+- **https only** — `normalizeImageUrl` rejects http, `javascript:`, `data:` and credentialed URLs. Mixed content would silently break the badge.
+- **The can-answer line is sender-written, capped at 160 characters.** It is never auto-summarised from the playbook: a promise made to a prospect must be one the sender actually chose to make.
+- **The snapshot wins.** `senderProofForShare` prefers the share snapshot and falls back to the live workspace only for links created before the field existed.
+
+### The inbox read model (`src/lib/inbox.ts`, `GET /api/inbox`)
+
+The dashboard used to fetch first touches, live sessions and bookings separately and ask the client to work out what they meant together. One workspace-scoped endpoint now joins them server-side and returns a **relationship state** per first touch, so the Inbox answers "where is Maya?" instead of listing links.
+
+| State | Meaning | Signal |
+|---|---|---|
+| `sent` | created, never opened | no view, no session |
+| `opened` | the recipient opened the link | `firstViewedAt` |
+| `talking` | a live session started | a session for that share |
+| `booked` | a booking exists | a scheduling record for that share |
+| `requested` | a human call request is waiting on the owner | a pending/accepted call request |
+
+A pending call request outranks a booking — a prospect asking for the human is the most urgent thing on the list. `deriveRelationshipState` is a pure function and is unit-tested.
+
+**One request, three cards.** The dashboard polls `/api/inbox` every 15s and passes `entries`, `sessions` and `bookings` down to the first-touch list, the scoreboard and the bookings card. Previously each card fetched and polled on its own.
+
+**View beacon.** `POST /api/share/[id]/view` records that a prospect opened a link (`firstViewedAt`, `viewCount`). It stores a timestamp and a counter — no IP, no user agent, no recipient identity. The sender's own view never counts, invitation-protected links are never counted, and the route is rate-limited (`RATE_LIMITS.shareView`).
+
+### Studio: one obvious path
+
+The studio is the largest remaining surface, so it follows the same rule as the nav — one obvious answer per question:
+
+1. **Profile URL** — the primary input, first thing on the page.
+2. **Your name** and **Brief** (with sample chips).
+3. **"Rather say it?"** — one secondary action (Brief by voice). The capture-playbook action was removed from here: the playbook lives in `/setup`, so that is where you talk it through.
+4. **"More options"** — a collapsed disclosure for research depth, live vs recorded, hook style and the booking link, with a one-line description of what is inside.
+
+A **no-playbook notice** appears above the CTA when the workspace has no playbook: the sender can send this one now and set the playbook later. On `/setup`, an unconfigured workspace gets a **"Start with one message"** card offering the same thing. Configuring first is the right advice for everyone else, and nagging a configured user is noise.
+
 ### Dashboard views
-- `/dashboard` (Inbox) = operational inbox: "Needs your attention" (`ApprovalsCard`, `CallRequestsCard`), "Bookings" (provider-verified bookings; empty state links the teaching ladder at the booking step), "Sent first touches" (`RecentVideos` incl. the `firstTouches` projection of `GET /api/videos/recent`; empty state links the ladder at the first-link step), plus a compact "Your representative" readiness aside and a collapsed "Usage & account" section (scoreboard empty state links the ladder at the conversation step; non-empty scoreboards carry a latest-session debrief card — metric labels only, never dialogue).
-- `/setup` = `SetupPanel`: identity, playbook, scheduling (HTTPS-only booking URL input), and collapsible provider fields, with a server-loaded status checklist — configuration presence, never provider health. The checklist reports "unknown" while readiness can't be fetched, and derives only from the last saved server snapshot, not unsaved form input. `SetupPanel variant="summary"` renders the same saved statuses (no form) in the Inbox aside. Setup guides blank fields with `e.g.` placeholders (Alex/Northwind fiction), a `Try an example` fill (dirty-marked, never autosaves), a live prospect preview that reacts to unsaved typing, a `Hear your twin` TTS preview of the disclosure line (non-blocking errors), staged save states (`Saving…` → `Saved ✓` + `Preview updated` + one reduced-motion-aware pulse), and a playbook coverage meter (`n/5`: wants/offer/constraints + wiggle-room + identity).
+- `/dashboard` (Inbox) = operational inbox: "Needs your attention" (`ApprovalsCard`, `CallRequestsCard`), "Bookings" (provider-verified bookings; empty state links the teaching ladder at the booking step), "Sent first touches" (the `entries` projection of `GET /api/inbox`, each row carrying its relationship state and a plain-language sentence; empty state links the ladder at the first-link step), plus a compact "Your representative" readiness aside and a collapsed "Usage & account" section (scoreboard empty state links the ladder at the conversation step; non-empty scoreboards carry a latest-session debrief card — metric labels only, never dialogue).
+- `/setup` = `SetupPanel`: identity, trust proof (photo, company logo, "what can your representative answer"), playbook, scheduling (HTTPS-only booking URL input), and collapsible provider fields, with a server-loaded status checklist — configuration presence, never provider health. The checklist reports "unknown" while readiness can't be fetched, and derives only from the last saved server snapshot, not unsaved form input. `SetupPanel variant="summary"` renders the same saved statuses (no form) in the Inbox aside. Setup guides blank fields with `e.g.` placeholders (Alex/Northwind fiction), a `Try an example` fill (dirty-marked, never autosaves), a **Talk it through** voice capture (playbook mode, fills the playbook fields via the shared `mapVoiceProfile` mapping), a live prospect preview that reacts to unsaved typing, a `Hear your twin` TTS preview of the disclosure line (non-blocking errors), staged save states (`Saving…` → `Saved ✓` + `Preview updated` + one reduced-motion-aware pulse), and a coverage meter (`n/5`: wants/offer/constraints + wiggle-room + identity) labelled "What your representative knows".
 - Login return target: `resolveLoginNext` (`src/lib/auth/login-next.ts`) allowlists only `/setup`, `/dashboard`, `/dashboard?view=setup` (legacy), `/studio`, `/pricing`, `/examples`, `/batch` — everything else falls back to `/studio`. The `next` param flows LoginForm → `POST /api/auth/login` → verify-link query → `/api/auth/verify` redirect, and is preserved on error redirects.
 
 ---

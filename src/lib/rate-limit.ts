@@ -33,6 +33,8 @@ export const RATE_LIMITS = {
   agentLite: { maxRequests: 20, windowSeconds: 3600 },
   /** ChatGPT / MCP free discovery wedge — research + draft (no render) */
   mcpResearchDraft: { maxRequests: 20, windowSeconds: 3600 },
+  /** Share view beacon — records that a recipient opened a link */
+  shareView: { maxRequests: 30, windowSeconds: 60 },
 } as const;
 
 export interface RateLimitResult {

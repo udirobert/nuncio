@@ -4,6 +4,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { hasSenderPlaybook } from "@/lib/playbook";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
+import { VoiceOverlay } from "@/components/voice-overlay";
+import { mapVoiceProfile } from "@/lib/voice-profile";
+import { normalizeImageUrl, senderInitials } from "@/lib/sender-proof";
+import type { VoiceProfileResult } from "@/lib/voice-agent/types";
 
 const EXAMPLE_SETUP = {
   senderName: "Alex Rivera",
@@ -17,6 +21,9 @@ const EXAMPLE_SETUP = {
 interface BriefData {
   senderName?: string;
   senderBusiness?: string;
+  senderPhotoUrl?: string;
+  senderCompanyLogoUrl?: string;
+  senderCanAnswer?: string;
   playbookWants?: string;
   playbookOffer?: string;
   playbookWiggleRoom?: string;
@@ -86,10 +93,15 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
   const [ttsLoading, setTtsLoading] = useState(false);
   const [ttsPlaying, setTtsPlaying] = useState(false);
   const [ttsError, setTtsError] = useState<string | null>(null);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [voicePopulated, setVoicePopulated] = useState<Set<string>>(new Set());
   const reducedMotion = useReducedMotion();
 
   const [senderName, setSenderName] = useState("");
   const [senderBusiness, setSenderBusiness] = useState("");
+  const [senderPhotoUrl, setSenderPhotoUrl] = useState("");
+  const [senderCompanyLogoUrl, setSenderCompanyLogoUrl] = useState("");
+  const [senderCanAnswer, setSenderCanAnswer] = useState("");
   const [playbookWants, setPlaybookWants] = useState("");
   const [playbookOffer, setPlaybookOffer] = useState("");
   const [playbookWiggleRoom, setPlaybookWiggleRoom] = useState("");
@@ -121,6 +133,9 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
       if (applyForm && !isSummary) {
         setSenderName(data.senderName ?? "");
         setSenderBusiness(data.senderBusiness ?? "");
+        setSenderPhotoUrl(data.senderPhotoUrl ?? "");
+        setSenderCompanyLogoUrl(data.senderCompanyLogoUrl ?? "");
+        setSenderCanAnswer(data.senderCanAnswer ?? "");
         setPlaybookWants(data.playbookWants ?? "");
         setPlaybookOffer(data.playbookOffer ?? "");
         setPlaybookWiggleRoom(data.playbookWiggleRoom ?? "");
@@ -173,6 +188,30 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
     setSaveError(null);
   };
 
+  /**
+   * Voice capture — the same interview the studio uses, but pointed at the
+   * sender's reusable playbook instead of a one-off campaign. This is where
+   * the playbook lives, so this is where you talk it through.
+   */
+  const applyVoiceProfile = (profile: VoiceProfileResult) => {
+    const { fields, populated } = mapVoiceProfile(profile);
+    if (fields.senderName) setSenderName(fields.senderName);
+    if (fields.senderBusiness) setSenderBusiness(fields.senderBusiness);
+    if (fields.offer) setPlaybookOffer(fields.offer);
+    if (fields.wants) setPlaybookWants(fields.wants);
+    if (fields.wiggleRoom) setPlaybookWiggleRoom(fields.wiggleRoom);
+    if (fields.constraints) setPlaybookConstraints(fields.constraints);
+    if (fields.bookingUrl) setBookingUrl(fields.bookingUrl);
+    setVoicePopulated(populated);
+    setDirty(true);
+    setSaved(false);
+    setSaveStage("idle");
+    setVoiceOpen(false);
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => setVoicePopulated(new Set()), 3000);
+    }
+  };
+
   const bookingValid = validHttpsUrl(bookingUrl);
   const bookingEmpty = !bookingUrl.trim();
   const canSave = loaded && dirty && senderName.trim().length > 0 && (bookingEmpty || bookingValid) && !saving;
@@ -199,6 +238,9 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
         body: JSON.stringify({
           senderName: senderName.trim(),
           senderBusiness,
+          senderPhotoUrl: senderPhotoUrl.trim(),
+          senderCompanyLogoUrl: senderCompanyLogoUrl.trim(),
+          senderCanAnswer: senderCanAnswer.trim(),
           playbookWants,
           playbookOffer,
           playbookWiggleRoom,
@@ -304,7 +346,7 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
   const items: StatusItem[] = [
     { label: "Identity", state: snapshot ? Boolean(snapshot.senderName?.trim()) : null },
     { label: "Playbook", state: snapshot?.liveReadiness ? Boolean(snapshot.liveReadiness.playbookConfigured) : null },
-    { label: "Live provider", state: snapshot?.liveReadiness ? Boolean(snapshot.liveReadiness.configured) : null },
+    { label: "Live avatar", state: snapshot?.liveReadiness ? Boolean(snapshot.liveReadiness.configured) : null },
     { label: "Scheduling link", state: snapshot ? validHttpsUrl(snapshot.bookingUrl ?? "") : null },
   ];
 
@@ -367,6 +409,10 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
   // the sender types; fall back to saved snapshot, then to neutral examples.
   const previewName = senderName.trim() || snapshot?.senderName?.trim() || "";
   const previewBusiness = senderBusiness.trim() || snapshot?.senderBusiness?.trim() || "";
+  const previewPhotoUrl = normalizeImageUrl(senderPhotoUrl) || normalizeImageUrl(snapshot?.senderPhotoUrl);
+  const previewLogoUrl = normalizeImageUrl(senderCompanyLogoUrl) || normalizeImageUrl(snapshot?.senderCompanyLogoUrl);
+  const previewCanAnswer = senderCanAnswer.trim() || snapshot?.senderCanAnswer?.trim() || "";
+  const previewInitials = senderInitials(previewName);
   const previewOffer = playbookOffer.trim() || snapshot?.playbookOffer?.trim() || "";
   const previewBookingOk = (!bookingUrl.trim() && savedBookingOk) || validHttpsUrl(bookingUrl);
   const previewTwinLine = previewOffer
@@ -407,14 +453,28 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
               live health.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={fillExample}
-            disabled={!loaded || saving}
-            className="btn-press shrink-0 rounded-lg border border-cream-dark bg-white px-3 py-2 text-body-xs font-medium text-ink-muted hover:text-ink transition-[color,background-color,border-color,opacity,box-shadow,transform] disabled:opacity-50 min-h-[44px]"
-          >
-            Try an example
-          </button>
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setVoiceOpen(true)}
+              disabled={!loaded || saving}
+              className="btn-press rounded-lg border border-accent/25 bg-accent-soft/50 px-3 py-2 text-body-xs font-medium text-accent hover:bg-accent-soft transition-[color,background-color,border-color,opacity,box-shadow,transform] disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+            >
+              <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <path d="M8 2v8M5 6v4a3 3 0 006 0V6" />
+                <path d="M3 8a5 5 0 0010 0M8 13v2" />
+              </svg>
+              Talk it through
+            </button>
+            <button
+              type="button"
+              onClick={fillExample}
+              disabled={!loaded || saving}
+              className="btn-press rounded-lg border border-cream-dark bg-white px-3 py-2 text-body-xs font-medium text-ink-muted hover:text-ink transition-[color,background-color,border-color,opacity,box-shadow,transform] disabled:opacity-50 min-h-[44px]"
+            >
+              Try an example
+            </button>
+          </div>
         </div>
         <p className="text-label-base text-ink-faint -mt-3">
           Fills fictional details (Alex · Northwind) so you can see the preview — save only when it&apos;s really you.
@@ -423,11 +483,11 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
         <div
           className="rounded-xl border border-cream-dark bg-cream/60 px-4 py-3"
           role="status"
-          aria-label={`Playbook coverage: ${coverageCount} of 5 fields — ${coverageLabel}`}
+          aria-label={`What your representative knows: ${coverageCount} of 5 fields — ${coverageLabel}`}
         >
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
-              Playbook coverage · {coverageCount}/5
+              What your representative knows · {coverageCount}/5
             </span>
             <span className="text-label-base text-ink-muted">{coverageLabel}</span>
           </div>
@@ -465,28 +525,80 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
               </div>
             </section>
 
+            <section id="proof" className="scroll-mt-28 space-y-3">
+              <h3 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">2 · Trust proof</h3>
+              <p className="text-body-xs text-ink-faint">
+                A prospect deciding whether to talk to an AI needs to see who it belongs to. These appear on
+                the link they open.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-body-xs text-ink-muted">Your photo (optional)</span>
+                  <input
+                    value={senderPhotoUrl}
+                    onChange={(e) => edit(setSenderPhotoUrl)(e.target.value)}
+                    placeholder="e.g. https://example.com/you.jpg"
+                    inputMode="url"
+                    className={inputCls}
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-body-xs text-ink-muted">Company logo (optional)</span>
+                  <input
+                    value={senderCompanyLogoUrl}
+                    onChange={(e) => edit(setSenderCompanyLogoUrl)(e.target.value)}
+                    placeholder="e.g. https://example.com/logo.png"
+                    inputMode="url"
+                    className={inputCls}
+                  />
+                </label>
+              </div>
+              {senderPhotoUrl.trim() && !normalizeImageUrl(senderPhotoUrl) && (
+                <p className="text-body-xs text-warm">Use a full https:// link to the image.</p>
+              )}
+              {senderCompanyLogoUrl.trim() && !normalizeImageUrl(senderCompanyLogoUrl) && (
+                <p className="text-body-xs text-warm">Use a full https:// link to the image.</p>
+              )}
+              <label className="block">
+                <span className="text-body-xs text-ink-muted">What can your representative answer? (optional)</span>
+                <input
+                  value={senderCanAnswer}
+                  onChange={(e) => edit(setSenderCanAnswer)(e.target.value)}
+                  placeholder="e.g. Onboarding cleanup, pilots and timelines — I won’t quote pricing"
+                  className={inputCls}
+                />
+                <span className="block text-label-base text-ink-faint mt-1">
+                  One line, shown before they decide. It lowers the risk of the first click.
+                </span>
+              </label>
+            </section>
+
             <section id="playbook" className="scroll-mt-28 space-y-3">
-              <h3 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">2 · Playbook</h3>
+              <h3 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">3 · Playbook</h3>
               <label className="block">
                 <span className="text-body-xs text-ink-muted">What you want</span>
                 <textarea value={playbookWants} onChange={(e) => edit(setPlaybookWants)(e.target.value)} rows={2} placeholder="e.g. Book 20-minute intro calls with ops leads at 50–200 person companies" className={inputCls} />
+                {voicePopulated.has("wants") && <span className="mt-1 inline-block text-label-base text-success">Set by voice</span>}
               </label>
               <label className="block">
                 <span className="text-body-xs text-ink-muted">What you offer</span>
                 <textarea value={playbookOffer} onChange={(e) => edit(setPlaybookOffer)(e.target.value)} rows={2} placeholder="e.g. Done-for-you onboarding cleanup — handoffs mapped in a week, no rip-and-replace" className={inputCls} />
+                {voicePopulated.has("offer") && <span className="mt-1 inline-block text-label-base text-success">Set by voice</span>}
               </label>
               <label className="block">
                 <span className="text-body-xs text-ink-muted">Where there is room to move (optional)</span>
                 <textarea value={playbookWiggleRoom} onChange={(e) => edit(setPlaybookWiggleRoom)(e.target.value)} rows={2} placeholder="e.g. Can offer a free pilot for one team; timing is flexible this month" className={inputCls} />
+                {voicePopulated.has("wiggleRoom") && <span className="mt-1 inline-block text-label-base text-success">Set by voice</span>}
               </label>
               <label className="block">
                 <span className="text-body-xs text-ink-muted">What it must never promise</span>
                 <textarea value={playbookConstraints} onChange={(e) => edit(setPlaybookConstraints)(e.target.value)} rows={2} placeholder="e.g. Never promise pricing, timelines, or migrations on the call" className={inputCls} />
+                {voicePopulated.has("constraints") && <span className="mt-1 inline-block text-label-base text-success">Set by voice</span>}
               </label>
             </section>
 
             <section id="scheduling" className="scroll-mt-28 space-y-3">
-              <h3 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">3 · Scheduling (optional)</h3>
+              <h3 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">4 · Scheduling (optional)</h3>
               <label className="block">
                 <span className="text-body-xs text-ink-muted">Booking link — shown as “Choose a time” on your conversation links</span>
                 <input
@@ -504,7 +616,7 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
 
             <details id="live" className="scroll-mt-28 rounded-xl border border-cream-dark p-4 space-y-3">
               <summary className="text-label-sm uppercase tracking-widest text-ink-faint font-medium cursor-pointer list-none">
-                4 · Advanced — avatar &amp; voice
+                5 · Advanced — avatar &amp; voice
               </summary>
               <p className="text-body-xs text-ink-faint">
                 The live twin uses this Synthesia avatar and voice for your representative. Blank uses the deployment
@@ -512,11 +624,13 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="block">
-                  <span className="text-body-xs text-ink-muted">Synthesia interactive avatar ID</span>
+                  <span className="text-body-xs text-ink-muted">Live avatar ID</span>
+                  <span className="block text-label-base text-ink-faint">Synthesia interactive avatar (av_…)</span>
                   <input value={synthesiaAvatarId} onChange={(e) => edit(setSynthesiaAvatarId)(e.target.value)} placeholder="av_…" className={inputCls} />
                 </label>
                 <label className="block">
-                  <span className="text-body-xs text-ink-muted">ElevenLabs voice ID</span>
+                  <span className="text-body-xs text-ink-muted">Voice ID</span>
+                  <span className="block text-label-base text-ink-faint">ElevenLabs voice</span>
                   <input value={liveVoiceId} onChange={(e) => edit(setLiveVoiceId)(e.target.value)} placeholder="ElevenLabs voice id" className={inputCls} />
                 </label>
               </div>
@@ -572,14 +686,43 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
             className={`rounded-xl border bg-white p-4 space-y-2.5 pointer-events-none select-none transition-[border-color,box-shadow] duration-300 ${previewPulse ? "border-accent/50 shadow-[0_0_0_3px_var(--color-accent-soft)]" : "border-cream-dark"}`}
           >
             <p className="text-label-base text-ink-faint">A conversation with</p>
-            <p className="font-display text-xl text-ink break-words">{previewName || "Your name"}</p>
-            {previewBusiness && (
-              <p className="text-body-xs text-ink-muted break-words">{previewBusiness}</p>
-            )}
+            <div className="flex items-center gap-2.5">
+              {previewPhotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={previewPhotoUrl}
+                  alt=""
+                  className="w-9 h-9 rounded-full object-cover border border-cream-dark"
+                />
+              ) : (
+                <span className="w-9 h-9 rounded-full bg-ink text-cream flex items-center justify-center text-label-xs font-medium">
+                  {previewInitials}
+                </span>
+              )}
+              <div className="min-w-0">
+                <p className="font-display text-xl text-ink break-words">{previewName || "Your name"}</p>
+                {previewBusiness && (
+                  <p className="text-body-xs text-ink-muted break-words">{previewBusiness}</p>
+                )}
+              </div>
+              {previewLogoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={previewLogoUrl}
+                  alt=""
+                  className="ml-auto h-6 w-auto object-contain opacity-80"
+                />
+              )}
+            </div>
             <div className="space-y-1.5 pt-1">
               <div className="rounded-lg border border-accent/20 bg-accent-soft/60 px-3 py-2 text-body-xs text-ink break-words">
                 {previewName ? `I’m ${previewName}’s AI representative — disclosed, never disguised.` : "I’m your disclosed AI representative — never disguised."}
               </div>
+              {previewCanAnswer && (
+                <div className="rounded-lg border border-cream-dark bg-white px-3 py-2 text-body-xs text-ink-muted break-words">
+                  {previewCanAnswer}
+                </div>
+              )}
               <div className="rounded-lg border border-cream-dark bg-cream/60 px-3 py-2 text-body-xs text-ink-muted break-words">
                 {previewTwinLine}
               </div>
@@ -619,6 +762,14 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
           </p>
         </div>
       </div>
+
+      {/* The playbook interview, pointed at this page's fields. */}
+      <VoiceOverlay
+        open={voiceOpen}
+        mode="playbook"
+        onClose={() => setVoiceOpen(false)}
+        onComplete={applyVoiceProfile}
+      />
     </div>
   );
 }

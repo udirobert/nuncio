@@ -89,6 +89,9 @@ export default function VideoLandingPage({
         const data = await response.json();
         if (disposed) return;
         setVideoData(data);
+        // View beacon — the sender needs to know a prospect opened the link.
+        // Stores a timestamp and a counter only; no identity, no IP.
+        void fetch(`/api/share/${encodeURIComponent(id)}/view`, { method: "POST" }).catch(() => {});
         if (data.videoUrl) {
           hasVideoRef.current = true;
           return;
@@ -201,11 +204,11 @@ export default function VideoLandingPage({
   const senderCompany = videoData.profile?.company || "";
   const senderRole = videoData.profile?.current_role || "";
 
-  // Build a "why you're seeing this" line from the profile
-  const senderContext = senderName
-    ? senderRole || senderCompany
-      ? `${senderName}${senderRole ? ` — ${senderRole}` : ""}${senderCompany ? ` at ${senderCompany}` : ""}`
-      : senderName
+  // Build a "why you're seeing this" line from the profile. Only the role or
+  // company adds information here — repeating the name under a headline that
+  // already carries it is noise.
+  const senderContext = senderRole || senderCompany
+    ? `${senderName}${senderRole ? ` — ${senderRole}` : ""}${senderCompany ? ` at ${senderCompany}` : ""}`
     : "";
 
   // Booking CTA is the control arm for prediction P-c — https links only.
@@ -277,10 +280,17 @@ export default function VideoLandingPage({
                 recipientName={recipientName}
                 mode={videoData.mode}
                 deliveryMode={videoData.deliveryMode}
+                photoUrl={videoData.senderPhotoUrl}
+                logoUrl={videoData.senderCompanyLogoUrl}
               />
               <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
                 Disclosed, never disguised
               </p>
+              {videoData.senderCanAnswer && (
+                <p className="text-body-xs text-ink-muted max-w-[420px] leading-relaxed">
+                  {videoData.senderCanAnswer}
+                </p>
+              )}
             </div>
           </motion.div>
 

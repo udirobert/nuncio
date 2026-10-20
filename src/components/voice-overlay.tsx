@@ -5,12 +5,9 @@ import { motion, AnimatePresence } from "motion/react";
 import { Conversation } from "@elevenlabs/client";
 
 import { LottieIcon } from "@/components/lottie-icon";
-import type { VoiceExtractedProfile } from "@/lib/voice-agent/types";
+import type { VoiceExtractedProfile, VoiceProfileResult } from "@/lib/voice-agent/types";
 
-export type VoiceProfileResult = Omit<
-  VoiceExtractedProfile,
-  "isComplete" | "missingFields" | "lastAgentMessage"
->;
+export type { VoiceProfileResult };
 
 interface VoiceOverlayProps {
   open: boolean;

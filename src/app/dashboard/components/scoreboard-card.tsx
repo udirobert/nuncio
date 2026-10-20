@@ -1,72 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { motion } from "motion/react";
 import { LottieIcon } from "@/components/lottie-icon";
 import { SessionDebriefCard } from "@/components/session-debrief-card";
 import { TeachingLadder } from "./teaching-ladder";
+import type { InboxSession } from "@/lib/inbox";
 
-interface LiveSessionMetrics {
-  userTurns: number;
-  agentTurns: number;
-  questionTopics: string[];
-  bookingClicked: boolean;
-  bookingUrlPresent: boolean;
-  lastEvent?: string;
-  firstUserTurnAt?: string;
-  durationMs?: number;
-}
-
-interface LiveSession {
-  id: string;
-  shareId: string;
-  status: string;
-  createdAt: string;
-  startedAt?: string;
-  endedAt?: string;
-  durationMs?: number;
-  terminalReason?: string;
-  metrics?: LiveSessionMetrics;
-}
-
-function median(values: number[]): number {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[mid - 1] + sorted[mid]) / 2
-    : sorted[mid];
-}
-
-function formatDuration(ms?: number): string {
-  if (!ms || ms < 1000) return "0s";
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const remaining = seconds % 60;
-  return minutes > 0 ? `${minutes}m ${remaining}s` : `${remaining}s`;
-}
-
-export function ScoreboardCard() {
-  const [sessions, setSessions] = useState<LiveSession[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch("/api/live/sessions")
-      .then((r) => {
-        if (!r.ok) throw new Error("Failed to load sessions");
-        return r.json();
-      })
-      .then((data: { sessions?: LiveSession[] }) => {
-        setSessions(data.sessions || []);
-        setLoading(false);
-      })
-      .catch(() => {
-        setError("Could not load live session metrics.");
-        setLoading(false);
-      });
-  }, []);
-
+export function ScoreboardCard({
+  sessions,
+  loading,
+  error,
+}: {
+  sessions: InboxSession[];
+  loading: boolean;
+  error: string | null;
+}) {
   const stats = useMemo(() => {
     const total = sessions.length;
     const started = sessions.filter((s) => s.metrics?.firstUserTurnAt).length;
@@ -218,4 +167,21 @@ function Stat({ value, label }: { value: string | number; label: string }) {
       <div className="text-label-xs uppercase tracking-widest text-ink-faint">{label}</div>
     </div>
   );
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
+}
+
+function formatDuration(ms?: number): string {
+  if (!ms || ms < 1000) return "0s";
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const remaining = seconds % 60;
+  return minutes > 0 ? `${minutes}m ${remaining}s` : `${remaining}s`;
 }

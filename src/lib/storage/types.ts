@@ -56,6 +56,12 @@ export interface WorkspaceAccount {
   lastSenderBrief?: string;
   lastSenderName?: string;
   senderBusiness?: string;
+  /** Public photo of the sender (https URL) — shown to prospects on the share and live pages. */
+  senderPhotoUrl?: string;
+  /** Public company logo (https URL) — shown to prospects as trust proof. */
+  senderCompanyLogoUrl?: string;
+  /** One line the sender writes: what their AI representative can answer. Shown on the front door. */
+  senderCanAnswer?: string;
   senderBrand?: string;
   senderPersonality?: string;
   senderAudience?: string;

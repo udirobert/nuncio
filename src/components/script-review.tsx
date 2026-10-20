@@ -593,7 +593,7 @@ export function ScriptReview({
             }`}
           >
             <span className="flex items-center justify-center gap-2">
-              {hasInsufficientRenderCredits ? "Buy credits" : "Render video"}
+              {hasInsufficientRenderCredits ? "Buy credits" : "Record a video"}
               <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M3 8h10M9 4l4 4-4 4" />
               </svg>

@@ -1,28 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { LottieIcon } from "@/components/lottie-icon";
 import { TeachingLadder } from "./teaching-ladder";
-
-interface VideoData {
-  id: string;
-  videoUrl?: string;
-  recipientName?: string;
-  createdAt: string;
-  privacy?: string;
-}
-
-interface FirstTouch {
-  id: string;
-  recipientName?: string;
-  senderName?: string;
-  createdAt: string;
-  privacy?: string;
-  deliveryMode?: string;
-  hasRecordedVideo: boolean;
-  invitationProtected: boolean;
-}
+import { RelationshipChip, relationshipSentence } from "@/components/relationship-chip";
+import type { InboxEntry } from "@/lib/inbox";
+import { APP_ROUTES } from "@/lib/navigation";
 
 interface BatchJob {
   id: string;
@@ -33,7 +17,7 @@ interface BatchJob {
   error?: string;
 }
 
-interface Batch {
+export interface BatchSummary {
   id: string;
   name: string;
   status: string;
@@ -55,7 +39,7 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function batchStatus(b: Batch): "completed" | "failed" | "running" | "partial" {
+function batchStatus(b: BatchSummary): "completed" | "failed" | "running" | "partial" {
   const completedCount = b.completedCount || 0;
   const failedCount = b.failedCount || 0;
   const totalJobs = b.jobs?.length || 0;
@@ -72,46 +56,17 @@ const BATCH_STATUS_TEXT: Record<string, string> = {
   partial: "Partial",
 };
 
-export function RecentVideos() {
-  const [firstTouches, setFirstTouches] = useState<FirstTouch[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState(false);
-  const [batches, setBatches] = useState<Batch[]>([]);
-  const [batchError, setBatchError] = useState(false);
+export function RecentVideos({
+  entries,
+  batches,
+  batchError,
+}: {
+  entries: InboxEntry[];
+  batches: BatchSummary[];
+  batchError: boolean;
+}) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copyFailedId, setCopyFailedId] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch("/api/videos/recent?limit=20")
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then((data) => {
-        if (Array.isArray(data.firstTouches)) {
-          setFirstTouches(data.firstTouches);
-        } else {
-          setFirstTouches(
-            (data.videos || []).map((v: VideoData) => ({
-              id: v.id,
-              recipientName: v.recipientName,
-              createdAt: v.createdAt,
-              privacy: v.privacy,
-              deliveryMode: "video",
-              hasRecordedVideo: true,
-              invitationProtected: false,
-            }))
-          );
-        }
-        setLoading(false);
-      })
-      .catch(() => {
-        setFetchError(true);
-        setLoading(false);
-      });
-
-    fetch("/api/batch")
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then((data) => setBatches(Array.isArray(data) ? data : []))
-      .catch(() => setBatchError(true));
-  }, []);
 
   const copyLink = async (id: string, href: string) => {
     setCopyFailedId(null);
@@ -125,32 +80,6 @@ export function RecentVideos() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="rounded-2xl border border-cream-dark bg-white p-5">
-        <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
-          Sent first touches
-        </span>
-        <div className="mt-4 space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-10 bg-cream-dark/50 rounded-xl animate-pulse" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (fetchError) {
-    return (
-      <div className="rounded-2xl border border-cream-dark bg-white p-5">
-        <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
-          Sent first touches
-        </span>
-        <p className="text-sm text-warm mt-4">Couldn&apos;t load recent first touches — try refreshing.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="rounded-2xl border border-cream-dark bg-white p-5 space-y-4">
       <div className="flex items-center justify-between">
@@ -158,14 +87,14 @@ export function RecentVideos() {
           Sent first touches
         </span>
         <Link
-          href="/studio"
+          href={APP_ROUTES.create}
           className="text-label-sm uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
         >
           Create one
         </Link>
       </div>
 
-      {firstTouches.length === 0 ? (
+      {entries.length === 0 ? (
         <div className="text-center py-4">
           <p className="text-sm text-ink-muted mb-1">No first touches yet</p>
           <p className="text-label-base text-ink-faint mb-3">Your first link is the start — conversations and bookings follow.</p>
@@ -175,11 +104,11 @@ export function RecentVideos() {
         </div>
       ) : (
         <ul className="space-y-1">
-          {firstTouches.map((ft) => {
+          {entries.map((ft) => {
             const isLive = ft.deliveryMode === "livelink";
             const href = isLive ? `/live/${ft.id}` : `/v/${ft.id}`;
-            const label = isLive ? "Live link created" : "Recorded first touch";
             const created = formatDate(ft.createdAt);
+            const waiting = ft.firstViewedAt ? formatDate(ft.firstViewedAt) : null;
             return (
               <li key={ft.id} className="p-2.5 rounded-xl hover:bg-cream-dark/20 transition-colors">
                 <div className="flex items-center gap-3">
@@ -199,12 +128,18 @@ export function RecentVideos() {
                     )}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <div className="text-body-xs text-ink font-medium truncate">
-                      {ft.recipientName || "Untitled"}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-body-xs text-ink font-medium truncate">
+                        {ft.recipientName || "Untitled"}
+                      </span>
+                      <RelationshipChip state={ft.state} />
                     </div>
-                    <div className="text-label-sm text-ink-faint">
-                      {label} · {created}
-                      {ft.hasRecordedVideo && isLive ? " · recorded fallback included" : ""}
+                    <div className="text-label-sm text-ink-faint truncate">
+                      {relationshipSentence(ft.state, ft.recipientName, waiting)}
+                    </div>
+                    <div className="text-label-xs text-ink-faint">
+                      {isLive ? "Live link" : "Recorded first touch"} · sent {created}
+                      {ft.conversationCount > 0 ? ` · ${ft.conversationCount} conversation${ft.conversationCount > 1 ? "s" : ""}` : ""}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">

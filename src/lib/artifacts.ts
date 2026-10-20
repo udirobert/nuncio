@@ -51,6 +51,16 @@ export interface ShareRecord {
   deliveryMode?: "video" | "livelink";
   /** Snapshot of the sender's scheduling link — the booking CTA on /live and /v pages. */
   bookingUrl?: string;
+  /** Snapshot of the sender's photo — trust proof on the recipient-facing pages. */
+  senderPhotoUrl?: string;
+  /** Snapshot of the sender's company logo — trust proof on the recipient-facing pages. */
+  senderCompanyLogoUrl?: string;
+  /** Snapshot of the sender's "what can your representative answer" line. */
+  senderCanAnswer?: string;
+  /** First time a recipient opened this link. Drives "waiting on them" state in the inbox. */
+  firstViewedAt?: string;
+  /** How many times the link was opened. */
+  viewCount?: number;
   /** Campaign mode for this share: outreach (default) or reconnect (consumer wedge). Drives share-page CTA copy. */
   mode?: "outreach" | "reconnect";
   /** Per-sender Anam assets for live link sessions. */
