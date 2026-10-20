@@ -12,7 +12,7 @@
 import { fetchWithRetry } from "./retry";
 import { mark, traced } from "./neatlogs";
 
-type Provider = "anthropic" | "google" | "venice" | "featherless" | "tokenrouter";
+type Provider = "anthropic" | "google" | "venice" | "featherless" | "tokenrouter" | "flatkey";
 
 interface LLMConfig {
   provider: Provider;
@@ -26,6 +26,7 @@ const DEFAULT_GOOGLE_MODEL = "gemini-3.1-flash";
 const DEFAULT_VENICE_MODEL = "deepseek-v4-flash";
 const DEFAULT_FEATHERLESS_MODEL = "deepseek-ai/DeepSeek-V4-Flash";
 const DEFAULT_TOKENROUTER_MODEL = "MiniMax-M3";
+const DEFAULT_FLATKEY_MODEL = "deepseek-v4-1-flash";
 const DEFAULT_LLM_TIMEOUT_MS = 30000;
 
 function getConfig(): LLMConfig {
@@ -47,6 +48,9 @@ function getConfig(): LLMConfig {
   if (preferred === "tokenrouter" && process.env.TOKENROUTER_API_KEY) {
     return getTokenRouterConfig();
   }
+  if (preferred === "flatkey" && process.env.FLATKEY_API_KEY) {
+    return getFlatkeyConfig();
+  }
 
   // 2. Default Priority: Anthropic -> Google -> Venice -> Featherless -> TokenRouter
   if (process.env.ANTHROPIC_API_KEY) return getAnthropicConfig();
@@ -54,6 +58,7 @@ function getConfig(): LLMConfig {
   if (process.env.VENICE_API_KEY) return getVeniceConfig();
   if (process.env.FEATHERLESS_API_KEY) return getFeatherlessConfig();
   if (process.env.TOKENROUTER_API_KEY) return getTokenRouterConfig();
+  if (process.env.FLATKEY_API_KEY) return getFlatkeyConfig();
 
   throw new Error(
     "No LLM provider configured. Set ANTHROPIC_API_KEY, GOOGLE_API_KEY, VENICE_API_KEY, or FEATHERLESS_API_KEY."
@@ -110,6 +115,16 @@ function getTokenRouterConfig(): LLMConfig {
   };
 }
 
+function getFlatkeyConfig(): LLMConfig {
+  return {
+    provider: "flatkey",
+    model: process.env.FLATKEY_MODEL || DEFAULT_FLATKEY_MODEL,
+    baseUrl: "https://router.flatkey.ai/v1",
+    apiKey: process.env.FLATKEY_API_KEY!,
+    timeoutMs: Number(process.env.FLATKEY_TIMEOUT_MS || DEFAULT_LLM_TIMEOUT_MS),
+  };
+}
+
 /**
  * Build ordered list of all configured LLM providers.
  */
@@ -123,6 +138,7 @@ function getConfigs(): LLMConfig[] {
     venice: getVeniceConfig,
     featherless: getFeatherlessConfig,
     tokenrouter: getTokenRouterConfig,
+    flatkey: getFlatkeyConfig,
   };
 
   const keys: Record<string, string | undefined> = {
@@ -131,6 +147,7 @@ function getConfigs(): LLMConfig[] {
     venice: process.env.VENICE_API_KEY,
     featherless: process.env.FEATHERLESS_API_KEY,
     tokenrouter: process.env.TOKENROUTER_API_KEY,
+    flatkey: process.env.FLATKEY_API_KEY,
   };
 
   // Preferred provider first
@@ -139,7 +156,7 @@ function getConfigs(): LLMConfig[] {
   }
 
   // Then the rest in default priority order
-  const order: Provider[] = ["anthropic", "google", "venice", "featherless", "tokenrouter"];
+  const order: Provider[] = ["anthropic", "google", "venice", "featherless", "tokenrouter", "flatkey"];
   for (const p of order) {
     if (p === preferred) continue;
     if (keys[p]) configs.push(allConfigs[p]());

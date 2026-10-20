@@ -50,6 +50,9 @@ Framing: every role is an agent (Scout research → Emissary representation → 
 - **Masky** — Emissary avatar + conversations + speak turns power the live twin in prod
 - **BAND** — studio agent team (researcher/copywriter/producer/reviewer) + dual-mode Band/Hermes architecture
 - **Ask The W** — MCP connector wired at repo root (`.mcp.json`); sign in once at the connector to activate, choose the nuncio project
+- **Flatkey** — `flatkey` provider in the LLM fallback chain (`src/lib/llm.ts`, OpenAI-compatible, activates on `FLATKEY_API_KEY`; redeem at console.flatkey.ai/redeem?from=AIWORKFORCE2026)
+- **Snyk** — user installs the GitHub app on the repo (security scanning; satisfies the "reliability and security" requirement)
+- **Prelint** — user installs the GitHub app pointed at `docs/` (spec-drift PR review; $5k credit prize)
 
 Tracks: **Business, Growth & Productivity** (primary) + **Health, Wellness & Care** (reconnect mode).
 
