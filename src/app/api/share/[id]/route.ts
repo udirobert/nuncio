@@ -13,6 +13,7 @@ import {
 import { browserMutationAllowed, isWorkspaceOwner } from "@/lib/call-request";
 import { hasSenderPlaybook } from "@/lib/playbook";
 import { resolvePrimaryProvider, resolveStartAttempts } from "@/lib/live-avatar-providers";
+import { resolveRepresentativeMedia, type RepresentativeProvider } from "@/lib/representative";
 
 const PRIVATE_HEADERS = { "Cache-Control": "no-store", Vary: "Cookie" };
 
@@ -60,6 +61,18 @@ export async function GET(
     const firstAttempt = primary
       ? resolveStartAttempts(primary, { workspace, share: record })[0]
       : undefined;
+    // The representative's clip is a presigned provider URL that expires, so
+    // it is resolved per request rather than snapshotted onto the record.
+    // The still image is stable and *is* snapshotted.
+    if (workspace) {
+      const media = await resolveRepresentativeMedia(workspace, {
+        provider: firstAttempt?.adapter.id as RepresentativeProvider | undefined,
+        avatarId: firstAttempt?.ids.avatarId,
+      });
+      if (media.videoUrl) {
+        publicRecord.representativeVideoUrl = media.videoUrl;
+      }
+    }
     publicRecord.liveReadiness = {
       configured: liveOptions.twin,
       playbookConfigured: hasSenderPlaybook(workspace),

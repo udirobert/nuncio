@@ -7,6 +7,7 @@ import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { VoiceOverlay } from "@/components/voice-overlay";
 import { RepresentativeSetup } from "@/components/representative-setup";
 import { RepresentativeExample } from "@/components/representative-example";
+import { Face } from "@/components/face";
 import { mapVoiceProfile } from "@/lib/voice-profile";
 import { normalizeImageUrl, senderInitials } from "@/lib/sender-proof";
 import { representativeDisclosure, representativeHeadline } from "@/lib/representative";
@@ -373,10 +374,7 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
 
   // What the prospect will see, and the sentence they will read.
   const representativeSnapshot = {
-    kind: (snapshot?.representative?.kind ?? (snapshot?.anamAvatarId ? "self" : snapshot?.synthesiaAvatarId ? "persona" : "unset")) as
-      | "self"
-      | "persona"
-      | "unset",
+    kind: (snapshot?.representative?.kind ?? "unset") as "self" | "persona" | "unset",
     name: snapshot?.representative?.name || representativeName || "",
     provider: snapshot?.representative?.provider,
     configured: Boolean(snapshot?.representative?.configured),
@@ -838,21 +836,12 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
               {/* The representative: who answers, and the face they show. */}
               <div className="rounded-lg border border-accent/20 bg-accent-soft/60 px-3 py-2 text-body-xs text-ink break-words space-y-2">
                 <div className="flex items-center gap-2.5">
-                  {previewRepresentativeImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={previewRepresentativeImage}
-                      alt="Your AI representative"
-                      className="w-8 h-8 rounded-lg object-cover border border-cream-dark/40 bg-white shrink-0"
-                    />
-                  ) : (
-                    <span className="w-8 h-8 rounded-lg bg-white/70 border border-cream-dark/40 flex items-center justify-center text-ink-faint shrink-0">
-                      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <circle cx="12" cy="9" r="3.5" />
-                        <path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" />
-                      </svg>
-                    </span>
-                  )}
+                  <Face
+                    src={previewRepresentativeImage}
+                    name={representativeName.trim() || previewName}
+                    size="sm"
+                    alt="Your AI representative"
+                  />
                   <span className="min-w-0">
                     <span className="block font-medium text-ink">
                       {previewRepresentativeHeadline}

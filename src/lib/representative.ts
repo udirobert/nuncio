@@ -17,12 +17,18 @@
  *
  * Never collapse the two. "May not resemble you" and "is you" are different
  * promises, and a prospect is entitled to know which one they are getting.
+ *
+ * The description is resolved against the *provider that will actually
+ * answer* — the same resolution order the live session uses (primary → anam
+ * → masky). Showing a face that will not be the one on the call would be
+ * worse than showing none.
  */
 
 import { getAnamAvatar } from "@/lib/anam";
 import type { WorkspaceAccount } from "@/lib/storage/types";
 
 export type RepresentativeKind = "self" | "persona" | "unset";
+export type RepresentativeProvider = "anam" | "synthesia" | "masky";
 
 export interface RepresentativeDescription {
   kind: RepresentativeKind;
@@ -30,24 +36,17 @@ export interface RepresentativeDescription {
   name: string;
   /** Rendered image of the representative, when one can be resolved. */
   imageUrl?: string;
-  /** Rendered video of the representative — the avatar actually moving. */
-  videoUrl?: string;
   /** Which provider will serve the conversation. */
-  provider?: "anam" | "synthesia" | "masky";
+  provider?: RepresentativeProvider;
   /** Whether an avatar is configured at all. */
   configured: boolean;
 }
 
-/**
- * The sender's own photo drives the Anam path, so a configured Anam avatar
- * means the representative *is* the sender, visually.
- */
-function hasPhotoAvatar(workspace: Partial<WorkspaceAccount> | null | undefined): boolean {
-  return Boolean(workspace?.anamAvatarId?.trim());
-}
-
-function hasPersonaAvatar(workspace: Partial<WorkspaceAccount> | null | undefined): boolean {
-  return Boolean(workspace?.synthesiaAvatarId?.trim() || workspace?.maskyAvatarId?.trim());
+/** What the provider resolution decided: which avatar will answer. */
+export interface RepresentativeResolution {
+  provider?: RepresentativeProvider;
+  /** The avatar id that will actually be used. */
+  avatarId?: string;
 }
 
 /**
@@ -58,26 +57,30 @@ function hasPersonaAvatar(workspace: Partial<WorkspaceAccount> | null | undefine
  */
 export function describeRepresentative(
   workspace: Partial<WorkspaceAccount> | null | undefined,
+  resolution: RepresentativeResolution = {},
 ): RepresentativeDescription {
   const senderName = workspace?.lastSenderName?.trim() || "";
   const representativeName = workspace?.representativeName?.trim() || "";
+  const provider = resolution.provider;
+  const avatarId = resolution.avatarId?.trim();
 
-  if (hasPhotoAvatar(workspace)) {
+  // The sender's own photo means the representative *is* them, visually.
+  if (avatarId && workspace?.anamAvatarId && avatarId === workspace.anamAvatarId) {
     return {
       kind: "self",
       name: representativeName || senderName || "Your representative",
       imageUrl: workspace?.representativeImageUrl?.trim() || undefined,
-      provider: "anam",
+      provider,
       configured: true,
     };
   }
 
-  if (hasPersonaAvatar(workspace)) {
+  if (avatarId) {
     return {
       kind: "persona",
       name: representativeName || "Your AI representative",
       imageUrl: workspace?.representativeImageUrl?.trim() || undefined,
-      provider: workspace?.maskyAvatarId?.trim() ? "masky" : "synthesia",
+      provider,
       configured: true,
     };
   }
@@ -86,6 +89,7 @@ export function describeRepresentative(
     kind: "unset",
     name: representativeName || "Your AI representative",
     imageUrl: workspace?.representativeImageUrl?.trim() || undefined,
+    provider,
     configured: false,
   };
 }
@@ -186,24 +190,43 @@ export function representativeLabel(
 }
 
 /**
- * Resolve the rendered media for a photo avatar. Anam returns the image it
- * generated and a video of it moving; failures degrade to no media rather
- * than an error — a missing picture must never break a prospect's page.
+ * Resolve the rendered media for the avatar that will answer.
+ *
+ * Only the Anam path can hand back a picture and a clip. For a provider
+ * persona the sender can supply their own image, and the provider's own
+ * catalogue is not something we can render here — so the sender's image is
+ * used instead, and the name they chose goes with it.
+ *
+ * Failures degrade to no media rather than an error: a missing picture must
+ * never break a prospect's page.
  */
 export async function resolveRepresentativeMedia(
   workspace: Partial<WorkspaceAccount> | null | undefined,
-): Promise<{ imageUrl?: string; videoUrl?: string }> {
+  resolution: RepresentativeResolution = {},
+): Promise<{ imageUrl?: string; videoUrl?: string; name?: string }> {
   const override = workspace?.representativeImageUrl?.trim();
-  const avatarId = workspace?.anamAvatarId?.trim();
-  if (!avatarId) return { imageUrl: override || undefined };
+  const avatarId = resolution.avatarId?.trim();
+  const senderName = workspace?.lastSenderName?.trim() || "";
+  const configuredName = workspace?.representativeName?.trim() || "";
+
+  if (!avatarId || resolution.provider !== "anam") {
+    return {
+      imageUrl: override || undefined,
+      name: configuredName || undefined,
+    };
+  }
 
   try {
     const avatar = await getAnamAvatar(avatarId);
+    const isPhoto = workspace?.anamAvatarId && avatarId === workspace.anamAvatarId;
     return {
       imageUrl: avatar.imageUrl || override || undefined,
       videoUrl: avatar.videoUrl || undefined,
+      // The provider's own name for the persona ("Gabriel"), unless the
+      // sender named it themselves.
+      name: configuredName || (isPhoto ? senderName : avatar.displayName) || undefined,
     };
   } catch {
-    return { imageUrl: override || undefined };
+    return { imageUrl: override || undefined, name: configuredName || undefined };
   }
 }

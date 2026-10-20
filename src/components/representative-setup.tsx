@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { LottieIcon } from "@/components/lottie-icon";
+import { Face } from "@/components/face";
 import {
   representativeDisclosure,
   representativeLabel,
@@ -50,9 +51,7 @@ export function RepresentativeSetup({
 }) {
   const [training, setTraining] = useState<TrainingState>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [videoPlaying, setVideoPlaying] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const kind = snapshot.kind;
   const disclosure = representativeDisclosure({
@@ -107,42 +106,20 @@ export function RepresentativeSetup({
     }
   }
 
-  const media = snapshot.videoUrl || snapshot.imageUrl;
-  const isVideo = Boolean(snapshot.videoUrl);
 
   return (
     <div className="space-y-4">
       {/* The preview: what the prospect sees, and the sentence they read. */}
       <div className="rounded-xl border border-cream-dark bg-cream/40 p-4 space-y-3">
         <div className="flex items-start gap-3">
-          {media ? (
-            isVideo ? (
-              <video
-                ref={videoRef}
-                src={snapshot.videoUrl ?? undefined}
-                muted
-                loop
-                playsInline
-                onPlay={() => setVideoPlaying(true)}
-                onPause={() => setVideoPlaying(false)}
-                className="w-16 h-16 rounded-xl object-cover border border-cream-dark bg-ink shrink-0"
-              />
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={snapshot.imageUrl ?? ""}
-                alt="Your AI representative"
-                className="w-16 h-16 rounded-xl object-cover border border-cream-dark bg-white shrink-0"
-              />
-            )
-          ) : (
-            <span className="w-16 h-16 rounded-xl bg-cream-dark/70 border border-cream-dark flex items-center justify-center text-ink-faint shrink-0">
-              <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <circle cx="12" cy="9" r="3.5" />
-                <path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" />
-              </svg>
-            </span>
-          )}
+          <Face
+            src={snapshot.imageUrl}
+            videoUrl={snapshot.videoUrl}
+            live={Boolean(snapshot.videoUrl)}
+            name={snapshot.personaName || snapshot.name || snapshot.senderName}
+            size="lg"
+            alt="Your AI representative"
+          />
           <div className="min-w-0 flex-1">
             <p className="text-body-xs font-medium text-ink">
               {representativeLabel(
@@ -153,19 +130,10 @@ export function RepresentativeSetup({
             <p className="text-label-base text-ink-muted mt-1 leading-relaxed">
               {disclosure}
             </p>
-            {media && isVideo && (
-              <button
-                type="button"
-                onClick={() => {
-                  const el = videoRef.current;
-                  if (!el) return;
-                  if (videoPlaying) el.pause();
-                  else void el.play();
-                }}
-                className="mt-1.5 text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
-              >
-                {videoPlaying ? "Pause preview" : "Play preview"}
-              </button>
+            {snapshot.videoUrl && (
+              <p className="text-label-base text-ink-faint mt-1.5">
+                This is the clip a prospect sees — their representative, moving.
+              </p>
             )}
           </div>
         </div>
@@ -226,17 +194,23 @@ export function RepresentativeSetup({
       </div>
 
       {/* Path 2 — a disclosed persona that stands in for them. */}
-      <div className="rounded-xl border border-cream-dark bg-white p-4 space-y-2">
-        <p className="text-body-sm font-medium text-ink">Use a disclosed persona</p>
-        <p className="text-label-base text-ink-muted leading-relaxed">
-          A representative that is not you, standing in for you. The prospect is
-          told it is not the sender. Use this if a representative persona is
-          right for your brand —{" "}
-          <a href="/setup#representative-advanced" className="text-accent hover:text-accent/80 underline">
-            set it up below
-          </a>
-          .
+      <div className="rounded-2xl border border-cream-dark bg-white p-4 space-y-2">
+        <p className="text-body-sm font-medium text-ink">
+          {kind === "persona" && snapshot.name
+            ? `Your representative is ${snapshot.name}`
+            : "Use a disclosed persona"}
         </p>
+        <p className="text-label-base text-ink-muted leading-relaxed">
+          {kind === "persona" && snapshot.name
+            ? "A representative that is not you, standing in for you. The prospect is told it is not the sender — so nobody is ever misled about who they are talking to."
+            : "A representative that is not you, standing in for you. The prospect is told it is not the sender. Use this if a representative persona is right for your brand — set it up below."}
+        </p>
+        <a
+          href="/setup#representative-advanced"
+          className="inline-block text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
+        >
+          Change the persona
+        </a>
       </div>
     </div>
   );

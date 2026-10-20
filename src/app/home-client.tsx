@@ -320,7 +320,11 @@ export default function HomeClient() {
                 refuse, and hands you the conversation when it matters.
               </p>
             </div>
-            <RepresentativeExample kind="self" senderName="Alex Rivera" />
+            <RepresentativeExample
+              kind="persona"
+              senderName="Alex Rivera"
+              imageUrl="/representative.webp"
+            />
           </section>
 
           <VideoProof />

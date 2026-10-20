@@ -61,6 +61,8 @@ export interface ShareRecord {
   representativeKind?: "self" | "persona" | "unset";
   representativeName?: string;
   representativeImageUrl?: string;
+  /** Resolved per request (presigned, expiring) — never snapshotted. */
+  representativeVideoUrl?: string;
   /** First time a recipient opened this link. Drives "waiting on them" state in the inbox. */
   firstViewedAt?: string;
   /** How many times the link was opened. */

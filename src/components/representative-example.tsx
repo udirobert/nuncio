@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { LottieIcon } from "@/components/lottie-icon";
+import { Face } from "@/components/face";
 import {
   representativeDisclosure,
   representativeHeadline,
@@ -20,6 +21,8 @@ interface RepresentativeExampleProps {
   representativeName?: string;
   /** The representative's face, when there is one. */
   imageUrl?: string | null;
+  /** A short clip of the representative, for the moving face. */
+  videoUrl?: string | null;
 }
 
 /**
@@ -61,11 +64,25 @@ const TURNS: Turn[] = [
   },
 ];
 
+/**
+ * The house conversation language, from `RelationshipJourney`:
+ * the disclosed AI is the soft accent bubble on the left, the human is the
+ * ink bubble on the right. Colour *is* the disclosure — an AI must never be
+ * drawn like a person, and the human side must never be drawn like the AI.
+ */
+const BUBBLE = {
+  prospect: "bg-ink text-cream ml-auto",
+  representative: "bg-accent-soft/60 border border-accent/20 text-ink",
+} as const;
+
+const EASE = [0.22, 1, 0.36, 1] as const;
+
 export function RepresentativeExample({
   kind,
   senderName,
   representativeName,
   imageUrl,
+  videoUrl,
 }: RepresentativeExampleProps) {
   const reducedMotion = useReducedMotion();
   const [revealed, setRevealed] = useState(0);
@@ -106,29 +123,22 @@ export function RepresentativeExample({
         <button
           type="button"
           onClick={replay}
-          className="text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
+          className="text-label-xs uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
         >
           {isComplete ? "Replay" : "Play"}
         </button>
       </div>
 
       {/* Who is speaking — the same disclosure the prospect reads. */}
-      <div className="flex items-start gap-3 rounded-xl border border-cream-dark bg-cream/40 p-3">
-        {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={imageUrl}
-            alt="The AI representative"
-            className="w-10 h-10 rounded-lg object-cover border border-cream-dark bg-white shrink-0"
-          />
-        ) : (
-          <span className="w-10 h-10 rounded-lg bg-cream-dark/60 border border-cream-dark flex items-center justify-center text-ink-faint shrink-0">
-            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <circle cx="12" cy="9" r="3.5" />
-              <path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" />
-            </svg>
-          </span>
-        )}
+      <div className="flex items-start gap-3 rounded-xl border border-cream-dark bg-cream/60 p-3">
+        <Face
+          src={imageUrl}
+          videoUrl={videoUrl}
+          live={Boolean(videoUrl)}
+          name={representativeName || senderName}
+          size="sm"
+          alt="The AI representative"
+        />
         <div className="min-w-0">
           <p className="text-body-xs font-medium text-ink">{headline}</p>
           <p className="text-body-xs text-ink-muted mt-1 leading-relaxed">{disclosure}</p>
@@ -143,22 +153,16 @@ export function RepresentativeExample({
               key={`${turn.who}-${i}`}
               initial={reducedMotion ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className={`flex ${turn.who === "representative" ? "justify-end" : "justify-start"}`}
+              transition={{ duration: 0.3, ease: EASE }}
+              className={`flex ${turn.who === "representative" ? "justify-start" : "justify-end"}`}
             >
-              <div
-                className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-body-xs leading-relaxed ${
-                  turn.who === "representative"
-                    ? "bg-ink text-cream"
-                    : "bg-cream/70 text-ink border border-cream-dark"
-                }`}
-              >
+              <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${BUBBLE[turn.who]}`}>
                 {turn.who === "representative" && (
-                  <span className="block text-label-xs uppercase tracking-widest opacity-60 mb-1">
+                  <p className="text-label-sm uppercase tracking-widest opacity-60 mb-0.5">
                     {representativeName || "AI representative"}
-                  </span>
+                  </p>
                 )}
-                {turn.text}
+                <p className="text-body-sm leading-relaxed">{turn.text}</p>
               </div>
             </motion.div>
           ))}
@@ -175,7 +179,7 @@ export function RepresentativeExample({
           <button
             type="button"
             onClick={replay}
-            className="w-full rounded-xl border border-dashed border-cream-dark py-6 text-body-xs text-ink-faint hover:text-ink hover:border-ink-faint/40 transition-colors"
+            className="w-full rounded-2xl border border-dashed border-cream-dark py-6 text-body-xs text-ink-faint hover:text-ink hover:border-ink-faint/40 transition-colors"
           >
             See what a conversation looks like
           </button>

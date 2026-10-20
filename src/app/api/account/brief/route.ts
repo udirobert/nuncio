@@ -6,7 +6,12 @@ import { browserMutationAllowed } from "@/lib/call-request";
 import { getHandoffOptions } from "@/lib/live-handoff";
 import { hasSenderPlaybook } from "@/lib/playbook";
 import { normalizeCanAnswer, normalizeImageUrl } from "@/lib/sender-proof";
-import { describeRepresentative, resolveRepresentativeMedia } from "@/lib/representative";
+import {
+  describeRepresentative,
+  resolveRepresentativeMedia,
+  type RepresentativeProvider,
+} from "@/lib/representative";
+import { resolvePrimaryProvider, resolveStartAttempts } from "@/lib/live-avatar-providers";
 import { getAnamAvatarTrainingCreditCost } from "@/lib/live-link";
 
 const NO_STORE = { "Cache-Control": "no-store", Vary: "Cookie" } as const;
@@ -36,8 +41,18 @@ export async function GET(request: NextRequest) {
 
   // Who answers, and what the prospect will be told. The setup preview, the
   // prospect's lobby and the studio all read this one description.
-  const representative = describeRepresentative(workspace);
-  const media = await resolveRepresentativeMedia(workspace);
+  // The resolution follows the same provider order the live session uses, so
+  // the face shown is the face that will answer.
+  const primary = resolvePrimaryProvider();
+  const attempt = primary
+    ? resolveStartAttempts(primary, { workspace, share: {} })[0]
+    : undefined;
+  const resolution = {
+    provider: attempt?.adapter.id as RepresentativeProvider | undefined,
+    avatarId: attempt?.ids.avatarId,
+  };
+  const representative = describeRepresentative(workspace, resolution);
+  const media = await resolveRepresentativeMedia(workspace, resolution);
 
   return NextResponse.json({
     senderBrief: workspace.lastSenderBrief || null,
@@ -50,7 +65,7 @@ export async function GET(request: NextRequest) {
     representativeImageUrl: workspace.representativeImageUrl || null,
     representative: {
       kind: representative.kind,
-      name: representative.name,
+      name: media.name ?? representative.name,
       provider: representative.provider,
       configured: representative.configured,
       imageUrl: media.imageUrl ?? representative.imageUrl,

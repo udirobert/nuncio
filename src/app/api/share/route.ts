@@ -6,7 +6,12 @@ import { readAccountSession } from "@/lib/auth/session";
 import { isLiveLinkAllowed } from "@/lib/live-link";
 import { getAccountStorageProvider } from "@/lib/storage";
 import { normalizeCanAnswer, normalizeImageUrl } from "@/lib/sender-proof";
-import { describeRepresentative, resolveRepresentativeMedia } from "@/lib/representative";
+import {
+  describeRepresentative,
+  resolveRepresentativeMedia,
+  type RepresentativeProvider,
+} from "@/lib/representative";
+import { resolvePrimaryProvider, resolveStartAttempts } from "@/lib/live-avatar-providers";
 import { captureFunnelEvent } from "@/lib/funnel";
 
 export async function POST(request: NextRequest) {
@@ -91,11 +96,20 @@ export async function POST(request: NextRequest) {
     senderCompanyLogoUrl = normalizeImageUrl(workspace?.senderCompanyLogoUrl);
     senderCanAnswer = normalizeCanAnswer(workspace?.senderCanAnswer);
     // Who answers is part of the promise: a prospect must see the same face
-    // they were shown, and be told the same thing about it.
-    const representative = describeRepresentative(workspace);
-    const media = await resolveRepresentativeMedia(workspace);
+    // they were shown, and be told the same thing about it. The resolution
+    // follows the provider order the live session uses.
+    const primary = resolvePrimaryProvider();
+    const attempt = primary
+      ? resolveStartAttempts(primary, { workspace, share: {} })[0]
+      : undefined;
+    const resolution = {
+      provider: attempt?.adapter.id as RepresentativeProvider | undefined,
+      avatarId: attempt?.ids.avatarId,
+    };
+    const representative = describeRepresentative(workspace, resolution);
+    const media = await resolveRepresentativeMedia(workspace, resolution);
     representativeKind = representative.kind;
-    representativeName = representative.name || undefined;
+    representativeName = media.name ?? representative.name ?? undefined;
     representativeImageUrl = media.imageUrl ?? representative.imageUrl;
   }
 

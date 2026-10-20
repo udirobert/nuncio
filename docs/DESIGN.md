@@ -180,6 +180,12 @@ The user's question ("for an avatar app, surprisingly barren of avatars and exam
 
 "May not resemble you" and "is you" are different promises, and a prospect is entitled to know which one they are getting. The disclosure sentence is derived from the kind, so no surface can accidentally imply the wrong one.
 
+**The house conversation language.** `RelationshipJourney`'s `Bubble` is the app's conversation primitive, and its colour *is* the disclosure: the disclosed AI is the soft accent bubble, a human is the ink bubble. An AI must never be drawn like a person — so the example, the preview and the lobby all use the same mapping (`bg-accent-soft/60 border border-accent/20` for the representative, `bg-ink text-cream` for the human, the human on the right). Colour says "this is the AI" before the words do.
+
+**One `<Face>` primitive** (`src/components/face.tsx`) — every person in nuncio is a circle, so the shape is enforced in one place rather than reinvented per surface. It re-points Anam's image at the provider's **portrait** variant (the landscape one is 3:2 and gets its sides cut when cropped to a circle), falls back to initials, and can play the avatar's clip.
+
+**The face that will actually answer.** The description is resolved against the same provider order the live session uses (primary → anam → masky), so the app never shows a face that will not be on the call. A workspace with no photo avatar resolves to the deployment's default persona — named, pictured and moving — because that is what will answer. The still image is snapshotted onto the share record; the clip is a presigned URL and is resolved per request.
+
 Where the representative appears:
 
 - **Setup → "3 · Who answers"** — the two honest paths ("Use my photo" / "Use a disclosed persona"), the rendered avatar with a playable preview, and the exact sentence the prospect will read.

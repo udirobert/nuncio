@@ -1,6 +1,6 @@
 "use client";
 
-import { senderInitials } from "@/lib/sender-proof";
+import { Face } from "@/components/face";
 
 interface SenderTrustBadgeProps {
   senderName?: string;
@@ -23,7 +23,6 @@ export function SenderTrustBadge({
   logoUrl,
 }: SenderTrustBadgeProps) {
   const name = senderName || "your contact";
-  const initials = senderInitials(name);
 
   const live = deliveryMode === "livelink";
   const label = live
@@ -36,18 +35,12 @@ export function SenderTrustBadge({
 
   return (
     <div className="inline-flex items-center gap-2.5 rounded-full border border-cream-dark bg-white/80 pl-1.5 pr-3 py-1.5 shadow-sm">
-      {photoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={photoUrl}
-          alt={`${name}'s photo`}
-          className="w-7 h-7 rounded-full object-cover border border-cream-dark shrink-0"
-        />
-      ) : (
-        <div className="w-7 h-7 rounded-full bg-ink text-cream flex items-center justify-center text-label-xs font-medium shrink-0">
-          {initials}
-        </div>
-      )}
+      <Face
+        src={photoUrl}
+        name={name}
+        size="xs"
+        alt={photoUrl ? `${name}'s photo` : ""}
+      />
       <div className="text-left">
         <p className="text-label-sm text-ink font-medium leading-tight flex items-center gap-1.5">
           {name}

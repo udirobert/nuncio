@@ -9,10 +9,10 @@ import {
 
 describe("describeRepresentative", () => {
   it("calls a photo avatar the sender's own face", () => {
-    const described = describeRepresentative({
-      anamAvatarId: "av-123",
-      lastSenderName: "Alex Rivera",
-    });
+    const described = describeRepresentative(
+      { anamAvatarId: "av-photo", lastSenderName: "Alex Rivera" },
+      { provider: "anam", avatarId: "av-photo" },
+    );
     expect(described.kind).toBe("self");
     expect(described.configured).toBe(true);
     expect(described.provider).toBe("anam");
@@ -20,27 +20,35 @@ describe("describeRepresentative", () => {
   });
 
   it("calls a provider avatar a persona", () => {
-    const described = describeRepresentative({
-      synthesiaAvatarId: "av_abc",
-      representativeName: "Rowan",
-    });
+    const described = describeRepresentative(
+      { representativeName: "Rowan" },
+      { provider: "anam", avatarId: "av-default" },
+    );
     expect(described.kind).toBe("persona");
-    expect(described.provider).toBe("synthesia");
+    expect(described.provider).toBe("anam");
     expect(described.name).toBe("Rowan");
   });
 
   it("prefers the photo avatar when both are configured", () => {
-    const described = describeRepresentative({
-      anamAvatarId: "av-123",
-      synthesiaAvatarId: "av_abc",
-    });
+    const described = describeRepresentative(
+      { anamAvatarId: "av-photo" },
+      { provider: "anam", avatarId: "av-photo" },
+    );
     expect(described.kind).toBe("self");
   });
 
-  it("reports nothing configured when no avatar is set", () => {
+  it("reports nothing configured when no avatar will answer", () => {
     const described = describeRepresentative({});
     expect(described.kind).toBe("unset");
     expect(described.configured).toBe(false);
+  });
+
+  it("does not claim a persona when the provider has no avatar", () => {
+    const described = describeRepresentative(
+      { anamAvatarId: "av-photo" },
+      { provider: "synthesia" },
+    );
+    expect(described.kind).toBe("unset");
   });
 });
 
@@ -114,9 +122,9 @@ describe("representativeHeadline and representativeSummary", () => {
     const headline = representativeHeadline({
       kind: "persona",
       senderName: "Alex Rivera",
-      representativeName: "Rowan",
+      representativeName: "Gabriel",
     });
-    expect(headline).toContain("Rowan");
+    expect(headline).toContain("Gabriel");
     expect(headline).toContain("disclosed");
   });
 });

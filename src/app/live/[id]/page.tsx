@@ -28,6 +28,7 @@ import { classifyQuestionTopics } from "@/lib/live-topics";
 import { LottieIcon } from "@/components/lottie-icon";
 import { SenderTrustBadge } from "@/components/sender-trust-badge";
 import { representativeHeadline, representativeSummary } from "@/lib/representative";
+import { Face } from "@/components/face";
 import { CallRequestPanel } from "@/components/call-request-panel";
 import { SchedulingEmbed } from "@/components/scheduling-embed";
 import { SessionDebriefCard } from "@/components/session-debrief-card";
@@ -1030,22 +1031,47 @@ export default function LiveAvatarLandingPage({
                   <span className="w-2 h-2 rounded-full bg-accent/60 shrink-0" aria-hidden />
                   <p className="text-body-xs font-medium text-ink">Before you join</p>
                 </div>
+                {/* Who you are about to talk to — the same frame the session
+                    uses, so the shape does not jump on Join. */}
+                {share.representativeImageUrl && (
+                  <div className="relative mb-3 overflow-hidden rounded-2xl border border-cream-dark bg-ink">
+                    <div className="relative aspect-video">
+                      {share.representativeVideoUrl ? (
+                        <video
+                          src={share.representativeVideoUrl}
+                          muted
+                          loop
+                          autoPlay
+                          playsInline
+                          aria-label="A preview of the AI representative"
+                          className="absolute inset-0 h-full w-full object-cover"
+                        />
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={share.representativeImageUrl}
+                          alt="The AI representative you will talk to"
+                          className="absolute inset-0 h-full w-full object-cover"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-ink/25" aria-hidden />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/95 shadow-2xl">
+                          <svg viewBox="0 0 16 16" className="h-5 w-5 translate-x-px fill-ink" aria-hidden>
+                            <path d="M4 2.5v11l9-5.5-9-5.5Z" />
+                          </svg>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-start gap-3 mb-3">
-                  {share.representativeImageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={share.representativeImageUrl}
-                      alt="The AI representative you will talk to"
-                      className="w-12 h-12 rounded-xl object-cover border border-cream-dark bg-white shrink-0"
-                    />
-                  ) : (
-                    <span className="w-12 h-12 rounded-xl bg-cream-dark/60 border border-cream-dark flex items-center justify-center text-ink-faint shrink-0">
-                      <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <circle cx="12" cy="9" r="3.5" />
-                        <path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" />
-                      </svg>
-                    </span>
-                  )}
+                  <Face
+                    src={share.representativeImageUrl}
+                    name={share.representativeName || share.senderName}
+                    size="md"
+                    alt="The AI representative you will talk to"
+                  />
                   <div className="min-w-0">
                     <p className="text-body-xs font-medium text-ink">
                       You are talking to {liveHeadline}

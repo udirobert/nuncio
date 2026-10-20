@@ -108,6 +108,8 @@ export async function createAnamAvatar(
  */
 export async function getAnamAvatar(avatarId: string): Promise<{
   id: string;
+  /** The provider's own name for the persona — shown to the sender. */
+  displayName?: string;
   imageUrl?: string;
   videoUrl?: string;
   availableVersions?: string[];
@@ -129,6 +131,7 @@ export async function getAnamAvatar(avatarId: string): Promise<{
   const data = (await res.json()) as AnamAvatar;
   return {
     id: data.id,
+    displayName: data.displayName,
     imageUrl: data.imageUrl,
     videoUrl: data.videoUrl,
     availableVersions: data.availableVersions,
