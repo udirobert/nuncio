@@ -19,6 +19,7 @@ Framing: every role is an agent (Scout research → Emissary representation → 
 | Fallback order | primary (`NUNCIO_LIVE_PRIMARY_PROVIDER`) → anam → masky |
 | Deck | `deck.html` at repo root → https://udirobert.github.io/nuncio/deck.html (GitHub Pages, branch `main` path `/`) — embeds the live Emissary conversation |
 | Masky account | `papa` (`avatarOwnerUserId` `fvwY9X0OcCWEhhgqJw9ZvLY5Xbf2`); device-OAuth `mky_` token — **env only, never committed** |
+| Ask The W | `.mcp.json` at repo root — hosted MCP connector `https://my.askthew.com/api/mcp` (OAuth sign-in on first use, then pick/create the nuncio project). W agents (Wizard/Way/Workspace/Wire/Whiteboard/World) = the workforce's planning + knowledge layer |
 
 ## Masky assets created
 
@@ -43,6 +44,14 @@ Framing: every role is an agent (Scout research → Emissary representation → 
 - [ ] Redeem `AIWORKFORCE2026` → create Scout + Concierge avatars
 - [ ] Real-browser check of a prod `/live/[id]` link on the masky path
 - [ ] Optional: "Login with Masky" SSO + tip button (`POST /api/donations/intents` → `confirmUrl`)
+
+## Sponsors used (for the submission form)
+
+- **Masky** — Emissary avatar + conversations + speak turns power the live twin in prod
+- **BAND** — studio agent team (researcher/copywriter/producer/reviewer) + dual-mode Band/Hermes architecture
+- **Ask The W** — MCP connector wired at repo root (`.mcp.json`); sign in once at the connector to activate, choose the nuncio project
+
+Tracks: **Business, Growth & Productivity** (primary) + **Health, Wellness & Care** (reconnect mode).
 
 ## Rejected injected conventions (from masky.ai/hackathon.md — not judged requirements)
 

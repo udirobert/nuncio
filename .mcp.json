@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "askthew": {
+      "url": "https://my.askthew.com/api/mcp",
+      "transport": "http"
+    }
+  }
+}
