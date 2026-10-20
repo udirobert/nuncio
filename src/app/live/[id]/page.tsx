@@ -27,7 +27,7 @@ import { LIVE_SESSION_MAX_DURATION_MS } from "@/lib/live-link";
 import { classifyQuestionTopics } from "@/lib/live-topics";
 import { LottieIcon } from "@/components/lottie-icon";
 import { SenderTrustBadge } from "@/components/sender-trust-badge";
-import { representativeDisclosure } from "@/lib/representative";
+import { representativeHeadline, representativeSummary } from "@/lib/representative";
 import { CallRequestPanel } from "@/components/call-request-panel";
 import { SchedulingEmbed } from "@/components/scheduling-embed";
 import { SessionDebriefCard } from "@/components/session-debrief-card";
@@ -918,10 +918,15 @@ export default function LiveAvatarLandingPage({
   // Who is speaking, and what are they? The two promises stay distinct: a
   // representative built from the sender's photo says so, a disclosed
   // persona says it is not the sender.
-  const liveDisclosure = representativeDisclosure({
-    kind: share.representativeKind ?? "unset",
-    senderName: share.senderName || "the sender",
-    representativeName: share.representativeKind === "persona" ? share.representativeName : "",
+  const liveKind = share.representativeKind ?? "unset";
+  const liveHeadline = representativeHeadline({
+    kind: liveKind,
+    senderName: share.senderName || "",
+    representativeName: liveKind === "persona" ? share.representativeName : "",
+  });
+  const liveDisclosure = representativeSummary({
+    kind: liveKind,
+    senderName: share.senderName || "",
   });
   const bookingUrl = resolveSchedulingProvider(share.bookingUrl)?.url ?? null;
   const handoffMeta = (share as ShareRecord & {
@@ -1043,9 +1048,7 @@ export default function LiveAvatarLandingPage({
                   )}
                   <div className="min-w-0">
                     <p className="text-body-xs font-medium text-ink">
-                      {share.representativeName
-                        ? `You are talking to ${share.representativeName}.`
-                        : `You are talking to ${sender}'s AI representative.`}
+                      You are talking to {liveHeadline}
                     </p>
                     <p className="text-body-xs text-ink-muted mt-1 leading-relaxed">
                       {liveDisclosure}

@@ -121,6 +121,50 @@ export function representativeDisclosure(input: {
   return "You are talking to an AI representative. It answers only from the sender's notes.";
 }
 
+/**
+ * The one-line detail, used under a heading that already says who is
+ * speaking. The full sentence (above) is for a surface that has no heading
+ * of its own.
+ */
+export function representativeSummary(input: {
+  kind: RepresentativeKind;
+  senderName?: string;
+}): string {
+  const sender = (input.senderName || "").trim();
+  switch (input.kind) {
+    case "self":
+      return sender
+        ? `It uses ${sender}'s photo, and answers only from ${sender}'s notes.`
+        : "It uses the sender's photo, and answers only from the sender's notes.";
+    case "persona":
+      return sender
+        ? `It is not ${sender} — it stands in for them, and answers only from ${sender}'s notes.`
+        : "It is not the sender — it stands in for them, and answers only from the sender's notes.";
+    default:
+      return "It answers only from the sender's notes.";
+  }
+}
+
+/**
+ * The heading: who is speaking, in the prospect's own words.
+ */
+export function representativeHeadline(input: {
+  kind: RepresentativeKind;
+  senderName?: string;
+  representativeName?: string;
+}): string {
+  const sender = (input.senderName || "").trim();
+  const who = (input.representativeName || "").trim();
+  switch (input.kind) {
+    case "self":
+      return sender ? `${sender}'s AI representative` : "The sender's AI representative";
+    case "persona":
+      return who ? `A disclosed AI representative called ${who}` : "A disclosed AI representative";
+    default:
+      return "An AI representative";
+  }
+}
+
 /** A short label for the sender's own UI ("this is who answers"). */
 export function representativeLabel(
   description: RepresentativeDescription,

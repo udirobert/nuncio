@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   describeRepresentative,
   representativeDisclosure,
+  representativeHeadline,
   representativeLabel,
+  representativeSummary,
 } from "./representative";
 
 describe("describeRepresentative", () => {
@@ -90,5 +92,31 @@ describe("representativeLabel", () => {
     expect(
       representativeLabel({ kind: "unset", name: "Your AI representative", configured: false }),
     ).toContain("Not set");
+  });
+});
+
+describe("representativeHeadline and representativeSummary", () => {
+  it("names who is speaking without repeating the detail", () => {
+    const headline = representativeHeadline({ kind: "self", senderName: "Alex Rivera" });
+    const summary = representativeSummary({ kind: "self", senderName: "Alex Rivera" });
+    expect(headline).toContain("AI representative");
+    expect(summary).toContain("photo");
+    // The headline says who; the summary says how. Neither repeats the other.
+    expect(summary).not.toContain("You are talking to");
+  });
+
+  it("says a persona is not the sender", () => {
+    const summary = representativeSummary({ kind: "persona", senderName: "Alex Rivera" });
+    expect(summary).toContain("not Alex Rivera");
+  });
+
+  it("names a persona when it has one", () => {
+    const headline = representativeHeadline({
+      kind: "persona",
+      senderName: "Alex Rivera",
+      representativeName: "Rowan",
+    });
+    expect(headline).toContain("Rowan");
+    expect(headline).toContain("disclosed");
   });
 });

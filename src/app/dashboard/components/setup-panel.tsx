@@ -9,7 +9,7 @@ import { RepresentativeSetup } from "@/components/representative-setup";
 import { RepresentativeExample } from "@/components/representative-example";
 import { mapVoiceProfile } from "@/lib/voice-profile";
 import { normalizeImageUrl, senderInitials } from "@/lib/sender-proof";
-import { representativeDisclosure, representativeLabel } from "@/lib/representative";
+import { representativeDisclosure, representativeHeadline } from "@/lib/representative";
 import type { VoiceProfileResult } from "@/lib/voice-agent/types";
 
 const EXAMPLE_SETUP = {
@@ -464,14 +464,11 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
     senderName: previewName,
     representativeName: representativeName.trim(),
   });
-  const previewRepresentativeLabel = representativeLabel(
-    {
-      kind: previewRepresentativeKind,
-      name: representativeName.trim() || snapshot?.representative?.name || "Your AI representative",
-      configured: true,
-    },
-    previewName,
-  );
+  const previewRepresentativeHeadline = representativeHeadline({
+    kind: previewRepresentativeKind,
+    senderName: previewName,
+    representativeName: representativeName.trim(),
+  });
   const previewInitials = senderInitials(previewName);
   const previewOffer = playbookOffer.trim() || snapshot?.playbookOffer?.trim() || "";
   const previewBookingOk = (!bookingUrl.trim() && savedBookingOk) || validHttpsUrl(bookingUrl);
@@ -858,7 +855,7 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
                   )}
                   <span className="min-w-0">
                     <span className="block font-medium text-ink">
-                      {previewRepresentativeLabel}
+                      {previewRepresentativeHeadline}
                     </span>
                     <span className="block text-label-base text-ink-muted">
                       {previewDisclosure}

@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { LottieIcon } from "@/components/lottie-icon";
-import { representativeDisclosure, type RepresentativeKind } from "@/lib/representative";
+import {
+  representativeDisclosure,
+  representativeHeadline,
+  type RepresentativeKind,
+} from "@/lib/representative";
 
 interface Turn {
   who: "prospect" | "representative";
@@ -72,6 +76,11 @@ export function RepresentativeExample({
     senderName: senderName ?? "",
     representativeName: kind === "persona" ? representativeName : "",
   });
+  const headline = representativeHeadline({
+    kind,
+    senderName: senderName ?? "",
+    representativeName: kind === "persona" ? representativeName : "",
+  });
 
   // Completion is derived, not stored — so the effect never has to set state
   // synchronously (and never cascades a render).
@@ -120,7 +129,10 @@ export function RepresentativeExample({
             </svg>
           </span>
         )}
-        <p className="text-body-xs text-ink-muted leading-relaxed">{disclosure}</p>
+        <div className="min-w-0">
+          <p className="text-body-xs font-medium text-ink">{headline}</p>
+          <p className="text-body-xs text-ink-muted mt-1 leading-relaxed">{disclosure}</p>
+        </div>
       </div>
 
       {/* The exchange. */}
