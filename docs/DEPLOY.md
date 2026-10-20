@@ -181,6 +181,17 @@ NUNCIO_LIVELINK_WORKSPACE_IDS=
 NUNCIO_LIVELINK_SENDER_EMAILS=
 NUNCIO_LIVELINK_CRON_TOKEN=
 
+# Masky — live avatar provider (masky-embed transport: text-in, avatar answers
+# on camera in the embedded live view; no mic required). Set
+# NUNCIO_LIVE_PRIMARY_PROVIDER=masky to prefer it; it is also the last fallback
+# whenever configured.
+MASKY_API_KEY=
+MASKY_AVATAR_ID=
+# Per-turn render: video (default, ~30-60s/turn) or audio (~5-10s).
+MASKY_TURN_OUTPUT=video
+# Optional: pre-render idle "waiting" clips for the embed (billed once per avatar image).
+MASKY_SILENT_RENDERS=false
+
 # Synthesia / LiveKit live twin (primary live provider)
 # Customer-owned LiveKit project; also required for recipient→owner call requests.
 LIVEKIT_URL=

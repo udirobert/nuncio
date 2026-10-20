@@ -194,7 +194,7 @@ return the exact container values — and by confirming
   the "Governance hold" detection fired and is visible on trace
   `4c215a10…32a9`; `agent.lite_run` traces show the full 8-span waterfall
   (research → tinyfish → llm.featherless → script → review)
-- [x] Demo video cut — `~/Desktop/neathack-demo-final.mp4` (58s, real prod
+- [x] Demo video cut — `~/Downloads/neathack-demo-v2.mp4` (60s narrated, real prod
   traces + dashboard footage). Still to do: post on X, tagging
   @neatlogs @EntireHQ @arithecfo
 - [ ] Fill in the submission form (does not count on its own)
