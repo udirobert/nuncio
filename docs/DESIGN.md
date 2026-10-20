@@ -166,6 +166,30 @@ Rules that keep the surfaces disambiguable:
 - **Every destination carries a description.** Member surfaces are `memberOnly` — an anonymous visitor is never offered a page that dead-ends at the login wall.
 - `PRODUCT_ONELINER` ("Nuncio runs an AI representative that talks to your prospects using the playbook you set.") is rendered in the app shell — the Inbox header, the Setup header and the tour — so what the app *is* is never more than one sentence away.
 
+### The representative — who answers
+
+The user's question ("for an avatar app, surprisingly barren of avatars and examples of the experience users can expect") was pointing at a capability that already existed and was invisible: `POST /api/anam/avatar` trains a live avatar from a photo and persists it to the workspace, but the upload lived three clicks deep in the studio's video-customization panel and the rendered face was never shown to anyone.
+
+`src/lib/representative.ts` is the single description of *who answers*, with **two kinds that never collapse into one another**:
+
+| Kind | What it is | What the prospect is told |
+|---|---|---|
+| `self` | the representative uses the sender's own photo | "It uses the sender's photo and answers only from the sender's notes." |
+| `persona` | a disclosed provider persona standing in for the sender | "It is not the sender — it stands in for them, and answers only from the sender's notes." |
+| `unset` | no avatar configured | "You are talking to an AI representative. It answers only from the sender's notes." |
+
+"May not resemble you" and "is you" are different promises, and a prospect is entitled to know which one they are getting. The disclosure sentence is derived from the kind, so no surface can accidentally imply the wrong one.
+
+Where the representative appears:
+
+- **Setup → "3 · Who answers"** — the two honest paths ("Use my photo" / "Use a disclosed persona"), the rendered avatar with a playable preview, and the exact sentence the prospect will read.
+- **Setup → prospect preview** — the face beside the disclosure line, so the sender sees the whole front door.
+- **The prospect's lobby** (`/live/[id]`) — the face and the disclosure *before* the mic check. A prospect should never be asked to trust a voice with nothing to look at.
+- **The studio** — shows the configured representative and links to Setup to change it. The studio is no longer the place where a representative is configured.
+- **The landing page** — `RepresentativeExample`, a scripted exchange labelled "Illustrative conversation · not a live session", so the shape of the conversation is visible before anyone signs up.
+
+The kind, the name and the image are **snapshotted onto the share record** when a link is created, so a prospect sees the same face they were shown even if the sender later changes it. The provider avatar ID (`av_…`) moved into "6 · Advanced — provider details", is never shown to a user as a headline, and the advanced section says plainly that it is ignored when a photo avatar is configured.
+
 ### Sender proof — the human behind the AI
 
 A stranger deciding whether to talk to an AI needs more than initials in a circle. The sender can publish three things, all snapshotted onto the share record when the link is created so a later change never rewrites what a prospect was shown:

@@ -10,6 +10,7 @@ import { LottieIcon } from "@/components/lottie-icon";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { ShowcaseStrip } from "@/components/landing/showcase-strip";
 import { VideoProof } from "@/components/landing/video-proof";
+import { RepresentativeExample } from "@/components/representative-example";
 import { RelationshipJourney } from "@/components/landing/relationship-journey";
 import { SHOWCASE_RECIPIENTS, splitShowcase } from "@/lib/showcase";
 import { trackViralLanding } from "@/lib/analytics";
@@ -305,6 +306,21 @@ export default function HomeClient() {
             <p data-reveal="fade-up" className="text-center text-body-xs text-ink-muted mt-5 max-w-[390px] mx-auto leading-relaxed">
               Nuncio is for the one person you&apos;d write to yourself — the message that only works if it actually sounds like you.
             </p>
+          </section>
+
+          {/* What the conversation actually looks like — the thing the
+              product sells, shown before anyone signs up. */}
+          <section className="px-6 py-10 max-w-[720px] mx-auto" data-reveal="fade-up">
+            <div className="mb-4 text-center">
+              <h2 className="font-display text-2xl md:text-3xl tracking-tight mb-2">
+                What the conversation looks like
+              </h2>
+              <p className="text-body-sm text-ink-muted max-w-[460px] mx-auto">
+                Your representative answers from your playbook, refuses what it must
+                refuse, and hands you the conversation when it matters.
+              </p>
+            </div>
+            <RepresentativeExample kind="self" senderName="Alex Rivera" />
           </section>
 
           <VideoProof />

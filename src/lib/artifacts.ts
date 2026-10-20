@@ -57,6 +57,10 @@ export interface ShareRecord {
   senderCompanyLogoUrl?: string;
   /** Snapshot of the sender's "what can your representative answer" line. */
   senderCanAnswer?: string;
+  /** Snapshot of the representative: which promise it makes, and how it looks. */
+  representativeKind?: "self" | "persona" | "unset";
+  representativeName?: string;
+  representativeImageUrl?: string;
   /** First time a recipient opened this link. Drives "waiting on them" state in the inbox. */
   firstViewedAt?: string;
   /** How many times the link was opened. */

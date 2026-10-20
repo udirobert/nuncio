@@ -27,6 +27,7 @@ import { LIVE_SESSION_MAX_DURATION_MS } from "@/lib/live-link";
 import { classifyQuestionTopics } from "@/lib/live-topics";
 import { LottieIcon } from "@/components/lottie-icon";
 import { SenderTrustBadge } from "@/components/sender-trust-badge";
+import { representativeDisclosure } from "@/lib/representative";
 import { CallRequestPanel } from "@/components/call-request-panel";
 import { SchedulingEmbed } from "@/components/scheduling-embed";
 import { SessionDebriefCard } from "@/components/session-debrief-card";
@@ -914,6 +915,14 @@ export default function LiveAvatarLandingPage({
   // Recipient name comes from the share record only — never inferred.
   // Guarded: empty/blank means no personalized greeting at all.
   const recipientName = share.recipientName?.trim() || "";
+  // Who is speaking, and what are they? The two promises stay distinct: a
+  // representative built from the sender's photo says so, a disclosed
+  // persona says it is not the sender.
+  const liveDisclosure = representativeDisclosure({
+    kind: share.representativeKind ?? "unset",
+    senderName: share.senderName || "the sender",
+    representativeName: share.representativeKind === "persona" ? share.representativeName : "",
+  });
   const bookingUrl = resolveSchedulingProvider(share.bookingUrl)?.url ?? null;
   const handoffMeta = (share as ShareRecord & {
     handoff?: {
@@ -1016,11 +1025,33 @@ export default function LiveAvatarLandingPage({
                   <span className="w-2 h-2 rounded-full bg-accent/60 shrink-0" aria-hidden />
                   <p className="text-body-xs font-medium text-ink">Before you join</p>
                 </div>
-                <p className="text-body-xs text-ink-muted mb-3">
-                  {share.liveReadiness?.transport === "masky-embed"
-                    ? `You'll talk to ${sender}'s AI representative — disclosed, never disguised. Type your questions; it answers on camera from ${sender}'s playbook. No mic needed.`
-                    : `You'll talk to ${sender}'s AI representative — disclosed, never disguised. It answers from ${sender}'s playbook and can point you to a booking link. Mic stays in this browser.`}
-                </p>
+                <div className="flex items-start gap-3 mb-3">
+                  {share.representativeImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={share.representativeImageUrl}
+                      alt="The AI representative you will talk to"
+                      className="w-12 h-12 rounded-xl object-cover border border-cream-dark bg-white shrink-0"
+                    />
+                  ) : (
+                    <span className="w-12 h-12 rounded-xl bg-cream-dark/60 border border-cream-dark flex items-center justify-center text-ink-faint shrink-0">
+                      <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <circle cx="12" cy="9" r="3.5" />
+                        <path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" />
+                      </svg>
+                    </span>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-body-xs font-medium text-ink">
+                      {share.representativeName
+                        ? `You are talking to ${share.representativeName}.`
+                        : `You are talking to ${sender}'s AI representative.`}
+                    </p>
+                    <p className="text-body-xs text-ink-muted mt-1 leading-relaxed">
+                      {liveDisclosure}
+                    </p>
+                  </div>
+                </div>
                 {share.liveReadiness?.transport !== "masky-embed" && (
                 <div className="flex flex-wrap items-center gap-2">
                   <button

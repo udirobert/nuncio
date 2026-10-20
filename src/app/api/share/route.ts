@@ -6,6 +6,7 @@ import { readAccountSession } from "@/lib/auth/session";
 import { isLiveLinkAllowed } from "@/lib/live-link";
 import { getAccountStorageProvider } from "@/lib/storage";
 import { normalizeCanAnswer, normalizeImageUrl } from "@/lib/sender-proof";
+import { describeRepresentative, resolveRepresentativeMedia } from "@/lib/representative";
 import { captureFunnelEvent } from "@/lib/funnel";
 
 export async function POST(request: NextRequest) {
@@ -78,6 +79,9 @@ export async function POST(request: NextRequest) {
   let senderPhotoUrl: string | undefined;
   let senderCompanyLogoUrl: string | undefined;
   let senderCanAnswer: string | undefined;
+  let representativeKind: "self" | "persona" | "unset" = "unset";
+  let representativeName: string | undefined;
+  let representativeImageUrl: string | undefined;
   if (session?.workspaceId) {
     const workspace = await getAccountStorageProvider().getWorkspace(session.workspaceId);
     bookingUrl = workspace?.bookingUrl?.trim() || undefined;
@@ -86,6 +90,13 @@ export async function POST(request: NextRequest) {
     senderPhotoUrl = normalizeImageUrl(workspace?.senderPhotoUrl);
     senderCompanyLogoUrl = normalizeImageUrl(workspace?.senderCompanyLogoUrl);
     senderCanAnswer = normalizeCanAnswer(workspace?.senderCanAnswer);
+    // Who answers is part of the promise: a prospect must see the same face
+    // they were shown, and be told the same thing about it.
+    const representative = describeRepresentative(workspace);
+    const media = await resolveRepresentativeMedia(workspace);
+    representativeKind = representative.kind;
+    representativeName = representative.name || undefined;
+    representativeImageUrl = media.imageUrl ?? representative.imageUrl;
   }
 
   const record = await createShareRecord({
@@ -106,6 +117,9 @@ export async function POST(request: NextRequest) {
     senderPhotoUrl,
     senderCompanyLogoUrl,
     senderCanAnswer,
+    representativeKind,
+    representativeName,
+    representativeImageUrl,
     mode: campaignMode === "reconnect" ? "reconnect" : "outreach",
     anamAvatarId,
     anamVoiceId,

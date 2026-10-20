@@ -5,8 +5,11 @@ import Link from "next/link";
 import { hasSenderPlaybook } from "@/lib/playbook";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { VoiceOverlay } from "@/components/voice-overlay";
+import { RepresentativeSetup } from "@/components/representative-setup";
+import { RepresentativeExample } from "@/components/representative-example";
 import { mapVoiceProfile } from "@/lib/voice-profile";
 import { normalizeImageUrl, senderInitials } from "@/lib/sender-proof";
+import { representativeDisclosure, representativeLabel } from "@/lib/representative";
 import type { VoiceProfileResult } from "@/lib/voice-agent/types";
 
 const EXAMPLE_SETUP = {
@@ -24,6 +27,18 @@ interface BriefData {
   senderPhotoUrl?: string;
   senderCompanyLogoUrl?: string;
   senderCanAnswer?: string;
+  representativeName?: string;
+  representativeImageUrl?: string;
+  representative?: {
+    kind: "self" | "persona" | "unset";
+    name: string;
+    provider?: string;
+    configured: boolean;
+    imageUrl?: string | null;
+    videoUrl?: string | null;
+  };
+  avatarTrainingCost?: number;
+  anamAvatarId?: string | null;
   playbookWants?: string;
   playbookOffer?: string;
   playbookWiggleRoom?: string;
@@ -102,6 +117,8 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
   const [senderPhotoUrl, setSenderPhotoUrl] = useState("");
   const [senderCompanyLogoUrl, setSenderCompanyLogoUrl] = useState("");
   const [senderCanAnswer, setSenderCanAnswer] = useState("");
+  const [representativeName, setRepresentativeName] = useState("");
+  const [representativeImageUrl, setRepresentativeImageUrl] = useState("");
   const [playbookWants, setPlaybookWants] = useState("");
   const [playbookOffer, setPlaybookOffer] = useState("");
   const [playbookWiggleRoom, setPlaybookWiggleRoom] = useState("");
@@ -136,6 +153,8 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
         setSenderPhotoUrl(data.senderPhotoUrl ?? "");
         setSenderCompanyLogoUrl(data.senderCompanyLogoUrl ?? "");
         setSenderCanAnswer(data.senderCanAnswer ?? "");
+        setRepresentativeName(data.representativeName ?? "");
+        setRepresentativeImageUrl(data.representativeImageUrl ?? "");
         setPlaybookWants(data.playbookWants ?? "");
         setPlaybookOffer(data.playbookOffer ?? "");
         setPlaybookWiggleRoom(data.playbookWiggleRoom ?? "");
@@ -241,6 +260,8 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
           senderPhotoUrl: senderPhotoUrl.trim(),
           senderCompanyLogoUrl: senderCompanyLogoUrl.trim(),
           senderCanAnswer: senderCanAnswer.trim(),
+          representativeName: representativeName.trim(),
+          representativeImageUrl: representativeImageUrl.trim(),
           playbookWants,
           playbookOffer,
           playbookWiggleRoom,
@@ -350,6 +371,25 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
     { label: "Scheduling link", state: snapshot ? validHttpsUrl(snapshot.bookingUrl ?? "") : null },
   ];
 
+  // What the prospect will see, and the sentence they will read.
+  const representativeSnapshot = {
+    kind: (snapshot?.representative?.kind ?? (snapshot?.anamAvatarId ? "self" : snapshot?.synthesiaAvatarId ? "persona" : "unset")) as
+      | "self"
+      | "persona"
+      | "unset",
+    name: snapshot?.representative?.name || representativeName || "",
+    provider: snapshot?.representative?.provider,
+    configured: Boolean(snapshot?.representative?.configured),
+    imageUrl: snapshot?.representative?.imageUrl || representativeImageUrl || null,
+    videoUrl: snapshot?.representative?.videoUrl ?? null,
+    senderName: snapshot?.senderName || "",
+    trainingCost: snapshot?.avatarTrainingCost,
+    hasPhotoAvatar: Boolean(snapshot?.anamAvatarId),
+    personaId: snapshot?.synthesiaAvatarId || null,
+    personaName: representativeName || null,
+    personaImageUrl: representativeImageUrl || null,
+  };
+
   if (isSummary) {
     return (
       <div className="space-y-3">
@@ -412,6 +452,26 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
   const previewPhotoUrl = normalizeImageUrl(senderPhotoUrl) || normalizeImageUrl(snapshot?.senderPhotoUrl);
   const previewLogoUrl = normalizeImageUrl(senderCompanyLogoUrl) || normalizeImageUrl(snapshot?.senderCompanyLogoUrl);
   const previewCanAnswer = senderCanAnswer.trim() || snapshot?.senderCanAnswer?.trim() || "";
+  const previewRepresentativeImage =
+    snapshot?.representative?.imageUrl || representativeImageUrl.trim() || null;
+  const previewRepresentativeKind = (snapshot?.representative?.kind ??
+    (snapshot?.anamAvatarId ? "self" : snapshot?.synthesiaAvatarId ? "persona" : "unset")) as
+    | "self"
+    | "persona"
+    | "unset";
+  const previewDisclosure = representativeDisclosure({
+    kind: previewRepresentativeKind,
+    senderName: previewName,
+    representativeName: representativeName.trim(),
+  });
+  const previewRepresentativeLabel = representativeLabel(
+    {
+      kind: previewRepresentativeKind,
+      name: representativeName.trim() || snapshot?.representative?.name || "Your AI representative",
+      configured: true,
+    },
+    previewName,
+  );
   const previewInitials = senderInitials(previewName);
   const previewOffer = playbookOffer.trim() || snapshot?.playbookOffer?.trim() || "";
   const previewBookingOk = (!bookingUrl.trim() && savedBookingOk) || validHttpsUrl(bookingUrl);
@@ -573,8 +633,37 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
               </label>
             </section>
 
+            <section id="representative" className="scroll-mt-28 space-y-3">
+              <h3 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">3 · Who answers</h3>
+              <p className="text-body-xs text-ink-faint">
+                Your representative is the AI a prospect talks to. Two honest choices:
+                your own face, or a disclosed persona that stands in for you. The
+                prospect is told which one they are getting.
+              </p>
+              <RepresentativeSetup
+                snapshot={representativeSnapshot}
+                onChanged={async () => {
+                  await load(false);
+                }}
+                saving={saving}
+              />
+              <details className="rounded-xl border border-cream-dark bg-white p-4">
+                <summary className="text-label-sm uppercase tracking-widest text-ink-faint font-medium cursor-pointer list-none">
+                  See what a conversation looks like
+                </summary>
+                <div className="mt-3">
+                  <RepresentativeExample
+                    kind={representativeSnapshot.kind === "unset" ? "persona" : representativeSnapshot.kind}
+                    senderName={representativeSnapshot.senderName ?? undefined}
+                    representativeName={representativeName || undefined}
+                    imageUrl={representativeSnapshot.imageUrl}
+                  />
+                </div>
+              </details>
+            </section>
+
             <section id="playbook" className="scroll-mt-28 space-y-3">
-              <h3 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">3 · Playbook</h3>
+              <h3 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">4 · Playbook</h3>
               <label className="block">
                 <span className="text-body-xs text-ink-muted">What you want</span>
                 <textarea value={playbookWants} onChange={(e) => edit(setPlaybookWants)(e.target.value)} rows={2} placeholder="e.g. Book 20-minute intro calls with ops leads at 50–200 person companies" className={inputCls} />
@@ -598,7 +687,7 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
             </section>
 
             <section id="scheduling" className="scroll-mt-28 space-y-3">
-              <h3 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">4 · Scheduling (optional)</h3>
+              <h3 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">5 · Scheduling (optional)</h3>
               <label className="block">
                 <span className="text-body-xs text-ink-muted">Booking link — shown as “Choose a time” on your conversation links</span>
                 <input
@@ -616,16 +705,50 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
 
             <details id="live" className="scroll-mt-28 rounded-xl border border-cream-dark p-4 space-y-3">
               <summary className="text-label-sm uppercase tracking-widest text-ink-faint font-medium cursor-pointer list-none">
-                5 · Advanced — avatar &amp; voice
+                6 · Advanced — provider details
               </summary>
               <p className="text-body-xs text-ink-faint">
-                The live twin uses this Synthesia avatar and voice for your representative. Blank uses the deployment
-                default, if configured. The demo avatar may not resemble you. Never enter API keys here.
+                Only needed when you use a provider persona. If you uploaded your photo in
+                &ldquo;3 · Who answers&rdquo;, the avatar below is not used. Never enter API keys here.
               </p>
+
+              {snapshot?.anamAvatarId && (
+                <p className="text-label-base text-ink-muted">
+                  Your representative uses your photo, so the persona avatar below is ignored.
+                </p>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="block">
-                  <span className="text-body-xs text-ink-muted">Live avatar ID</span>
-                  <span className="block text-label-base text-ink-faint">Synthesia interactive avatar (av_…)</span>
+                  <span className="text-body-xs text-ink-muted">Representative name</span>
+                  <span className="block text-label-base text-ink-faint">What the prospect calls the persona</span>
+                  <input
+                    value={representativeName}
+                    onChange={(e) => edit(setRepresentativeName)(e.target.value)}
+                    placeholder="e.g. Alex's representative"
+                    className={inputCls}
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-body-xs text-ink-muted">Representative photo</span>
+                  <span className="block text-label-base text-ink-faint">Shown to the prospect — https link</span>
+                  <input
+                    value={representativeImageUrl}
+                    onChange={(e) => edit(setRepresentativeImageUrl)(e.target.value)}
+                    placeholder="https://example.com/avatar.png"
+                    inputMode="url"
+                    className={inputCls}
+                  />
+                </label>
+              </div>
+              {representativeImageUrl.trim() && !normalizeImageUrl(representativeImageUrl) && (
+                <p className="text-body-xs text-warm">Use a full https:// link to the image.</p>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-body-xs text-ink-muted">Provider avatar ID</span>
+                  <span className="block text-label-base text-ink-faint">From your provider dashboard — av_…</span>
                   <input value={synthesiaAvatarId} onChange={(e) => edit(setSynthesiaAvatarId)(e.target.value)} placeholder="av_…" className={inputCls} />
                 </label>
                 <label className="block">
@@ -715,8 +838,33 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
               )}
             </div>
             <div className="space-y-1.5 pt-1">
-              <div className="rounded-lg border border-accent/20 bg-accent-soft/60 px-3 py-2 text-body-xs text-ink break-words">
-                {previewName ? `I’m ${previewName}’s AI representative — disclosed, never disguised.` : "I’m your disclosed AI representative — never disguised."}
+              {/* The representative: who answers, and the face they show. */}
+              <div className="rounded-lg border border-accent/20 bg-accent-soft/60 px-3 py-2 text-body-xs text-ink break-words space-y-2">
+                <div className="flex items-center gap-2.5">
+                  {previewRepresentativeImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={previewRepresentativeImage}
+                      alt="Your AI representative"
+                      className="w-8 h-8 rounded-lg object-cover border border-cream-dark/40 bg-white shrink-0"
+                    />
+                  ) : (
+                    <span className="w-8 h-8 rounded-lg bg-white/70 border border-cream-dark/40 flex items-center justify-center text-ink-faint shrink-0">
+                      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <circle cx="12" cy="9" r="3.5" />
+                        <path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" />
+                      </svg>
+                    </span>
+                  )}
+                  <span className="min-w-0">
+                    <span className="block font-medium text-ink">
+                      {previewRepresentativeLabel}
+                    </span>
+                    <span className="block text-label-base text-ink-muted">
+                      {previewDisclosure}
+                    </span>
+                  </span>
+                </div>
               </div>
               {previewCanAnswer && (
                 <div className="rounded-lg border border-cream-dark bg-white px-3 py-2 text-body-xs text-ink-muted break-words">

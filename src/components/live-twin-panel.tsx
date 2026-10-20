@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { LIVE_SESSION_CREDITS_PER_MINUTE, LIVE_SESSION_MAX_CREDITS } from "@/lib/live-link";
 
 export type AnamAssetStatus = "idle" | "uploading" | "processing" | "ready" | "failed";
@@ -18,6 +19,13 @@ interface LiveTwinPanelProps {
   anamVoiceError?: string | null;
   onDeliveryModeChange?: (mode: "video" | "livelink") => void;
   liveBackendConfigured?: boolean;
+  /** Who answers, and the face they show. Configured in Setup. */
+  representative?: {
+    kind: "self" | "persona" | "unset";
+    name: string;
+    imageUrl?: string | null;
+    videoUrl?: string | null;
+  } | null;
 }
 
 export function LiveTwinPanel({
@@ -34,6 +42,7 @@ export function LiveTwinPanel({
   anamVoiceError,
   onDeliveryModeChange,
   liveBackendConfigured = false,
+  representative = null,
 }: LiveTwinPanelProps) {
   const insufficientCredits =
     typeof creditBalance === "number" && creditBalance < trainingCreditCost;
@@ -41,6 +50,9 @@ export function LiveTwinPanel({
   // Live twin configuration only appears when the deployment supports live link
   // and the user is actively in live-link mode.
   const showLiveTwinSection = liveLinkEnabled && deliveryMode === "livelink";
+
+  // Who answers. Set up in Setup — the studio only shows it.
+  const representativeConfigured = Boolean(representative && representative.kind !== "unset");
 
   // Cross-sell appears in recorded-video B2B mode, but only if live link is
   // actually enabled for this deployment. If live link is disabled, we hide
@@ -90,6 +102,48 @@ export function LiveTwinPanel({
                 </a>
               )}
             </p>
+          )}
+
+          {liveLinkEnabled && deliveryMode === "livelink" && (
+            <div className="rounded-xl border border-cream-dark bg-cream/40 p-3 space-y-2">
+              <div className="flex items-center gap-2.5">
+                {representative?.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={representative.imageUrl}
+                    alt="Your AI representative"
+                    className="w-10 h-10 rounded-lg object-cover border border-cream-dark bg-white shrink-0"
+                  />
+                ) : (
+                  <span className="w-10 h-10 rounded-lg bg-cream-dark/60 border border-cream-dark flex items-center justify-center text-ink-faint shrink-0">
+                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <circle cx="12" cy="9" r="3.5" />
+                      <path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" />
+                    </svg>
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-body-xs font-medium text-ink">
+                    {representativeConfigured
+                      ? representative?.kind === "self"
+                        ? "Your representative answers with your photo"
+                        : `Your representative is a disclosed persona${representative?.name ? ` called ${representative.name}` : ""}`
+                      : "No representative yet"}
+                  </p>
+                  <p className="text-label-base text-ink-faint mt-0.5">
+                    {representativeConfigured
+                      ? "Set up in Your representative — change it any time before you send."
+                      : "Upload a photo or choose a persona so your prospect can see who they are talking to."}
+                  </p>
+                </div>
+                <Link
+                  href="/setup"
+                  className="shrink-0 text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
+                >
+                  {representativeConfigured ? "Change" : "Set up"}
+                </Link>
+              </div>
+            </div>
           )}
 
           {liveTwinEnabled && (

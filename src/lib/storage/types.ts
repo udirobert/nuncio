@@ -62,6 +62,10 @@ export interface WorkspaceAccount {
   senderCompanyLogoUrl?: string;
   /** One line the sender writes: what their AI representative can answer. Shown on the front door. */
   senderCanAnswer?: string;
+  /** Display name of the AI representative (the persona's name, for a disclosed persona). */
+  representativeName?: string;
+  /** Image of the representative, when the provider cannot supply one. */
+  representativeImageUrl?: string;
   senderBrand?: string;
   senderPersonality?: string;
   senderAudience?: string;

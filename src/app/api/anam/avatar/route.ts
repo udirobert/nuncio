@@ -32,7 +32,11 @@ function anamErrorResponse(err: unknown) {
 export async function POST(request: NextRequest) {
   let reservationId: string | undefined;
   try {
-    const { imageUrl, name } = (await request.json()) as { imageUrl?: string; name?: string };
+    const { imageUrl, name, representativeName } = (await request.json()) as {
+      imageUrl?: string;
+      name?: string;
+      representativeName?: string;
+    };
 
     if (!imageUrl) {
       return NextResponse.json({ error: "imageUrl is required" }, { status: 400 });
@@ -60,13 +64,38 @@ export async function POST(request: NextRequest) {
     const session = readAccountSession(request);
     if (session?.workspaceId) {
       try {
-        await getAccountStorageProvider().updateWorkspace(session.workspaceId, { anamAvatarId: result.avatarId });
+        // A photo avatar means the representative *is* the sender, visually.
+        // Persist the name the sender chose for it, and the rendered image so
+        // the setup preview and the prospect's lobby can show the face
+        // without another provider round-trip.
+        const updates: Record<string, string> = { anamAvatarId: result.avatarId };
+        if (typeof representativeName === "string" && representativeName.trim()) {
+          updates.representativeName = representativeName.trim();
+        }
+        if (result.imageUrl) {
+          updates.representativeImageUrl = result.imageUrl;
+        }
+        await getAccountStorageProvider().updateWorkspace(session.workspaceId, updates);
       } catch (err) {
         console.error("[anam/avatar] Failed to persist avatar to workspace:", err);
       }
     }
 
-    return NextResponse.json({ avatarId: result.avatarId, imageUrl: result.imageUrl });
+    // Return the rendered media so the sender sees who will answer, here and
+    // now, rather than discovering it on the prospect's page.
+    let videoUrl: string | undefined;
+    try {
+      const status = await getAnamAvatar(result.avatarId);
+      videoUrl = status.videoUrl;
+    } catch {
+      // The avatar is still training — the UI polls for it.
+    }
+
+    return NextResponse.json({
+      avatarId: result.avatarId,
+      imageUrl: result.imageUrl,
+      videoUrl,
+    });
   } catch (err) {
     if (reservationId) await refundCreditReservation(reservationId, "avatar_creation_failed");
     console.error("[anam/avatar] Error:", err);

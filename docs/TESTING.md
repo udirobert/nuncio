@@ -249,6 +249,19 @@ The frontend redesign (homepage journey illustration, `/setup`, recipient front-
 7. Consent: "Draft brief" only sends dialogue after explicit click; the skip path ("Request … now") is never blocked by brief drafting.
 8. Copied links: "Copy link" on the dashboard only appears for ordinary shares; invitation-protected handoffs show "Owner view" and never offer a copyable link missing its fragment.
 
+## The representative and the example (user-owned)
+
+The representative ("who answers"), the two honest kinds, the photo→avatar flow in Setup, and the scripted conversation example were verified with typecheck, unit tests and a local browser pass (including a real Anam avatar trained from a photo). The user owns production verification. Nothing below has been run against production.
+
+1. Setup → "3 · Who answers": upload a photo → the avatar trains → the rendered face and a playable preview appear, and the label reads "Your photo, answering as an AI".
+2. The disclosure line under it reads "It uses the sender's photo and answers only from the sender's notes" for a photo avatar, and "It is not the sender…" for a persona. The two must never read the same.
+3. The prospect preview shows the representative's face next to the disclosure.
+4. The lobby on `/live/[id]` shows the face and the disclosure **before** the mic check.
+5. A link created after training shows the same face on the prospect's page — the snapshot, not the live workspace.
+6. A persona (no photo) shows the "not the sender" wording everywhere, and the provider avatar ID lives only under "6 · Advanced".
+7. The landing page example plays through and is labelled "Illustrative conversation · not a live session".
+8. The studio shows the configured representative and links to Setup; it does not offer a second way to configure one.
+
 ## Sender proof, relationships and the studio path (user-owned)
 
 The trust-proof fields, the inbox relationship states, the view beacon and the studio's one-path input stage were implemented with typecheck, unit tests and a local browser pass — the user owns production verification. Nothing below has been run against production.

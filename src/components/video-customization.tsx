@@ -75,6 +75,13 @@ interface VideoCustomizationProps {
   onDeliveryModeChange?: (mode: "video" | "livelink") => void;
   /** Server-reported live readiness — Synthesia etc. configured independent of Anam assets. */
   liveBackendConfigured?: boolean;
+  /** Who answers, and the face they show. Configured in Setup. */
+  representative?: {
+    kind: "self" | "persona" | "unset";
+    name: string;
+    imageUrl?: string | null;
+    videoUrl?: string | null;
+  } | null;
 }
 
 export function VideoCustomization({
@@ -94,6 +101,7 @@ export function VideoCustomization({
   trainingCreditCost = 2,
   onDeliveryModeChange,
   liveBackendConfigured = false,
+  representative = null,
 }: VideoCustomizationProps) {
   const [avatars, setAvatars] = useState<HeyGenAvatar[]>(() => {
     const base = initialAvatars || readCache<HeyGenAvatar[]>(CACHE_KEY_AVATARS) || [];
@@ -623,6 +631,7 @@ export function VideoCustomization({
         anamAvatarError={anamAvatarError}
         anamVoiceError={anamVoiceError}
         onDeliveryModeChange={onDeliveryModeChange}
+        representative={representative}
         liveBackendConfigured={liveBackendConfigured}
       />
 

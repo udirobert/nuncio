@@ -8,6 +8,7 @@ import { languageLabel } from "@/lib/languages";
 import { DuckingAudio } from "@/components/ducking-audio";
 import { LottieIcon } from "@/components/lottie-icon";
 import { SenderTrustBadge } from "@/components/sender-trust-badge";
+import { representativeDisclosure } from "@/lib/representative";
 import { prepareHandoffAccess } from "@/lib/live-handoff-client";
 import {
   trackBookingClicked,
@@ -286,6 +287,15 @@ export default function VideoLandingPage({
               <p className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
                 Disclosed, never disguised
               </p>
+              {videoData.representativeKind && videoData.representativeKind !== "unset" && (
+                <p className="text-body-xs text-ink-muted max-w-[440px] leading-relaxed">
+                  {representativeDisclosure({
+                    kind: videoData.representativeKind,
+                    senderName,
+                    representativeName: videoData.representativeKind === "persona" ? videoData.representativeName : "",
+                  })}
+                </p>
+              )}
               {videoData.senderCanAnswer && (
                 <p className="text-body-xs text-ink-muted max-w-[420px] leading-relaxed">
                   {videoData.senderCanAnswer}

@@ -301,6 +301,14 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
   const [videoRenderResult, setVideoRenderResult] = useState<{ videoUrl: string; videoId: string } | null>(null);
   const [videoCustomization, setVideoCustomization] = useState<VideoCustomization | undefined>();
   const [serverLiveConfigured, setServerLiveConfigured] = useState(false);
+  // Who answers — read from setup, so the studio never has to be the place
+  // where a sender configures their representative.
+  const [representative, setRepresentative] = useState<{
+    kind: "self" | "persona" | "unset";
+    name: string;
+    imageUrl?: string | null;
+    videoUrl?: string | null;
+  } | null>(null);
   const [playbookConfigured, setPlaybookConfigured] = useState<boolean | null>(null);
   const [showCustomization, setShowCustomization] = useState(() => initialDeliveryMode === "livelink" && !initialIsReconnect);
   const [bandSessionId, setBandSessionId] = useState<string | null>(null);
@@ -473,6 +481,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
           setUserPlan(data.plan as UserPlan);
         }
         setServerLiveConfigured(Boolean(data.liveReadiness?.configured));
+        setRepresentative(data.representative ?? null);
       })
       .catch(() => {});
   }, [liveLinkEnabled, searchParams]);
@@ -2631,6 +2640,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                           trainingCreditCost={avatarTrainingCost + voiceTrainingCost}
                           onDeliveryModeChange={handleDeliveryModeChange}
                           liveBackendConfigured={serverLiveConfigured}
+                          representative={representative}
                         />
                       </motion.div>
                     )}

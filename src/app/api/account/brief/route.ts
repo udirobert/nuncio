@@ -6,6 +6,8 @@ import { browserMutationAllowed } from "@/lib/call-request";
 import { getHandoffOptions } from "@/lib/live-handoff";
 import { hasSenderPlaybook } from "@/lib/playbook";
 import { normalizeCanAnswer, normalizeImageUrl } from "@/lib/sender-proof";
+import { describeRepresentative, resolveRepresentativeMedia } from "@/lib/representative";
+import { getAnamAvatarTrainingCreditCost } from "@/lib/live-link";
 
 const NO_STORE = { "Cache-Control": "no-store", Vary: "Cookie" } as const;
 const NO_READINESS = { configured: false, playbookConfigured: false } as const;
@@ -32,6 +34,11 @@ export async function GET(request: NextRequest) {
     playbookConfigured: hasSenderPlaybook(workspace),
   };
 
+  // Who answers, and what the prospect will be told. The setup preview, the
+  // prospect's lobby and the studio all read this one description.
+  const representative = describeRepresentative(workspace);
+  const media = await resolveRepresentativeMedia(workspace);
+
   return NextResponse.json({
     senderBrief: workspace.lastSenderBrief || null,
     senderName: workspace.lastSenderName || null,
@@ -39,6 +46,17 @@ export async function GET(request: NextRequest) {
     senderPhotoUrl: workspace.senderPhotoUrl || null,
     senderCompanyLogoUrl: workspace.senderCompanyLogoUrl || null,
     senderCanAnswer: workspace.senderCanAnswer || null,
+    representativeName: workspace.representativeName || null,
+    representativeImageUrl: workspace.representativeImageUrl || null,
+    representative: {
+      kind: representative.kind,
+      name: representative.name,
+      provider: representative.provider,
+      configured: representative.configured,
+      imageUrl: media.imageUrl ?? representative.imageUrl,
+      videoUrl: media.videoUrl,
+    },
+    avatarTrainingCost: getAnamAvatarTrainingCreditCost(),
     senderBrand: workspace.senderBrand || null,
     senderPersonality: workspace.senderPersonality || null,
     senderAudience: workspace.senderAudience || null,
@@ -72,7 +90,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { senderBrief, senderName, senderBusiness, senderPhotoUrl, senderCompanyLogoUrl, senderCanAnswer, senderBrand, senderPersonality, senderAudience, senderOffer, senderProofPoints, playbookWants, playbookOffer, playbookWiggleRoom, playbookConstraints, bookingUrl, deliveryMode, anamAvatarId, anamVoiceId, synthesiaAvatarId, liveVoiceId } = body;
+  const { senderBrief, senderName, senderBusiness, senderPhotoUrl, senderCompanyLogoUrl, senderCanAnswer, representativeName, representativeImageUrl, senderBrand, senderPersonality, senderAudience, senderOffer, senderProofPoints, playbookWants, playbookOffer, playbookWiggleRoom, playbookConstraints, bookingUrl, deliveryMode, anamAvatarId, anamVoiceId, synthesiaAvatarId, liveVoiceId } = body;
 
   const provider = getAccountStorageProvider();
   const workspace = await provider.getWorkspace(session.workspaceId);
@@ -99,6 +117,12 @@ export async function PATCH(request: NextRequest) {
   }
   if (typeof senderCanAnswer === "string") {
     updates.senderCanAnswer = normalizeCanAnswer(senderCanAnswer) ?? "";
+  }
+  if (typeof representativeName === "string") {
+    updates.representativeName = representativeName.trim().slice(0, 80);
+  }
+  if (typeof representativeImageUrl === "string") {
+    updates.representativeImageUrl = normalizeImageUrl(representativeImageUrl) ?? "";
   }
   if (typeof senderBrand === "string") updates.senderBrand = senderBrand;
   if (typeof senderPersonality === "string") updates.senderPersonality = senderPersonality;
