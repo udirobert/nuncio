@@ -12,6 +12,7 @@ import {
 } from "@/lib/live-handoff";
 import { browserMutationAllowed, isWorkspaceOwner } from "@/lib/call-request";
 import { hasSenderPlaybook } from "@/lib/playbook";
+import { resolvePrimaryProvider, resolveStartAttempts } from "@/lib/live-avatar-providers";
 
 const PRIVATE_HEADERS = { "Cache-Control": "no-store", Vary: "Cookie" };
 
@@ -55,9 +56,14 @@ export async function GET(
     ? getHandoffOptions(record, workspace, true)
     : null;
   if (liveOptions) {
+    const primary = resolvePrimaryProvider();
+    const firstAttempt = primary
+      ? resolveStartAttempts(primary, { workspace, share: record })[0]
+      : undefined;
     publicRecord.liveReadiness = {
       configured: liveOptions.twin,
       playbookConfigured: hasSenderPlaybook(workspace),
+      transport: firstAttempt?.adapter.transport,
     };
   }
   if (handoff) {

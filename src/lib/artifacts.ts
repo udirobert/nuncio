@@ -56,6 +56,8 @@ export interface ShareRecord {
   /** Per-sender Anam assets for live link sessions. */
   anamAvatarId?: string;
   anamVoiceId?: string;
+  /** Per-sender Masky avatar for live link sessions. */
+  maskyAvatarId?: string;
   /** Custom thumbnail generated via GMI Cloud through Genblaze. */
   thumbnailUrl?: string;
   /** Generation provenance (Genblaze manifests, content hashes, models used). */
@@ -64,6 +66,8 @@ export interface ShareRecord {
   liveReadiness?: {
     configured: boolean;
     playbookConfigured: boolean;
+    /** Transport the first start attempt will use — lets the client tailor UX (e.g. masky needs no mic). */
+    transport?: string;
   };
 }
 

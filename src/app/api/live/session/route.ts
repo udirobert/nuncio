@@ -215,12 +215,15 @@ async function tryAdapterStart(
     const finalRecord: LiveSessionRecord = {
       ...currentRecord,
       roomName: adapter.transport === "livekit" ? started.roomName : undefined,
+      maskyConversationId: started.masky?.conversationId,
+      maskyShareSlug: started.masky?.shareSlug,
       roomClosedAt: undefined,
     };
     if (
       finalRecord.provider !== record.provider
       || finalRecord.transport !== record.transport
       || finalRecord.roomName !== record.roomName
+      || finalRecord.maskyConversationId !== record.maskyConversationId
     ) {
       await getLiveSessionStorageProvider().update(finalRecord);
     }

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>nuncio — an honest AI workforce · AI Workforce 2026</title>
+<meta name="description" content="nuncio is an agent-run company: AI agents research, represent, and route first-touch conversations — disclosed, never disguised. Built for AI Workforce 2026 with Masky avatars." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --cream: #FAF9F6;
+    --cream-soft: #F7F5F1;
+    --cream-dark: #F0EDE8;
+    --ink: #1A1A1A;
+    --ink-muted: #6B6B6B;
+    --ink-faint: #A3A3A3;
+    --accent: #4A3AFF;
+    --accent-soft: #E8E5FF;
+    --warm: #C4563B;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: "Inter", system-ui, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .display { font-family: "Fraunces", Georgia, serif; font-weight: 400; letter-spacing: -0.02em; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+  section { padding: 96px 0; }
+  .label {
+    font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 600; margin-bottom: 20px;
+  }
+  h1 { font-size: clamp(44px, 8vw, 84px); line-height: 0.95; font-weight: 300; }
+  h2 { font-size: clamp(30px, 5vw, 48px); line-height: 1.05; font-weight: 300; margin-bottom: 24px; }
+  h3 { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+  p.lede { font-size: 19px; color: var(--ink-muted); max-width: 620px; }
+  p.body { color: var(--ink-muted); font-size: 15px; }
+  .card {
+    background: #fff; border: 1px solid var(--cream-dark);
+    border-radius: 20px; padding: 28px;
+  }
+  .grid { display: grid; gap: 16px; }
+  .grid-3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  a { color: var(--accent); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--ink); color: var(--cream);
+    border-radius: 12px; padding: 14px 24px;
+    font-size: 14px; font-weight: 500; text-decoration: none;
+  }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--cream-dark); }
+  .pill {
+    display: inline-block; padding: 4px 12px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent);
+    font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
+  }
+  .avatar-img {
+    width: 72px; height: 72px; border-radius: 16px; object-fit: cover;
+    border: 1px solid var(--cream-dark);
+  }
+  .role-tag { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+  iframe.live-embed {
+    width: 100%; aspect-ratio: 16/9; border: 0; border-radius: 20px;
+    background: var(--ink);
+  }
+  .step { display: flex; gap: 16px; align-items: flex-start; }
+  .step-num {
+    flex: none; width: 32px; height: 32px; border-radius: 10px;
+    background: var(--cream-dark); display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600;
+  }
+  footer { border-top: 1px solid var(--cream-dark); padding: 48px 0; }
+  .divider { border-top: 1px solid var(--cream-dark); }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; }
+  .quote {
+    font-family: "Fraunces", Georgia, serif; font-size: clamp(22px, 3.4vw, 32px);
+    line-height: 1.3; font-weight: 300; color: var(--ink);
+  }
+  .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#2f9e44; margin-right:6px; }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<section style="padding-top: 72px; padding-bottom: 64px;">
+  <div class="wrap">
+    <p class="label">AI Workforce 2026 · sponsored by Masky</p>
+    <h1 class="display">nuncio</h1>
+    <p class="display" style="font-size: clamp(24px, 4vw, 38px); color: var(--ink-muted); margin-top: 8px;">
+      an honest AI workforce for first-touch conversations
+    </p>
+    <p class="lede" style="margin-top: 28px;">
+      In an age of infinite AI content, the scarce resource in sales is <em>credible presence</em>.
+      nuncio is an agent-run company whose workforce makes a real person honestly present at
+      every first touch — a disclosed AI representative with a face, a voice, and the sender's own
+      playbook.
+    </p>
+    <div style="margin-top: 32px; display: flex; gap: 12px; flex-wrap: wrap;">
+      <a class="btn" href="#demo">Watch the workforce run</a>
+      <a class="btn ghost" href="https://github.com/udirobert/nuncio">GitHub repo →</a>
+      <a class="btn ghost" href="https://nuncio.persidian.com">Live product →</a>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- THE WORKFORCE -->
+<section>
+  <div class="wrap">
+    <p class="label">The workforce</p>
+    <h2 class="display">Agents do the work. Humans get the meeting.</h2>
+    <p class="body" style="max-width: 640px; margin-bottom: 40px;">
+      Every role at nuncio is performed by an agent — research, representation, and dispatch —
+      with Masky avatars as their faces and voices. The human sender stays in charge through a
+      written playbook; the human recipient is always told they're talking to an AI.
+    </p>
+    <div class="grid grid-3">
+      <div class="card">
+        <p class="role-tag">Research</p>
+        <h3 style="margin-top: 6px;">Scout</h3>
+        <p class="body">
+          Researches each recipient from public sources — role, company, recent posts — and
+          distills honest personalization hooks. Low-confidence research blocks the send rather
+          than shipping a flimsy message.
+        </p>
+      </div>
+      <div class="card" style="border-color: var(--accent);">
+        <img class="avatar-img" src="https://firebasestorage.googleapis.com/v0/b/maskydotnet.firebasestorage.app/o/userData%2FfvwY9X0OcCWEhhgqJw9ZvLY5Xbf2%2Favatars%2Favatar_Qn87PNvIPbHoP2qEBeF9_1792455644196.jpeg?alt=media&token=6f52beceb66e1d6205ea213f56201894" alt="Emissary — Masky avatar" />
+        <p class="role-tag" style="margin-top: 14px;">Representation · Masky avatar</p>
+        <h3 style="margin-top: 6px;">Emissary</h3>
+        <p class="body">
+          The live representative on every conversation link — a Masky avatar that answers
+          questions on camera, guided by the sender's playbook, disclosed from the first second.
+          Fallbacks: Synthesia (LiveKit) and Anam.
+        </p>
+      </div>
+      <div class="card">
+        <p class="role-tag">Dispatch</p>
+        <h3 style="margin-top: 6px;">Concierge</h3>
+        <p class="body">
+          Delivers the first touch, watches live sessions for booking intent, and hands warm
+          prospects to the human — an explicit, expiring call request or a scheduling link.
+          Never promises availability the sender didn't declare.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- LIVE DEMO -->
+<section id="demo">
+  <div class="wrap">
+    <p class="label">Working today</p>
+    <h2 class="display">Meet Emissary, live.</h2>
+    <p class="body" style="max-width: 640px; margin-bottom: 24px;">
+      This is a real Masky conversation — the same avatar that fronts nuncio live links.
+      Every turn is a rendered reply in its own face and voice. Press play; it speaks.
+    </p>
+    <iframe
+      class="live-embed"
+      src="https://masky.ai/live/c-26-10-puje?token=baf59f762b20a15dcbc2ece8205d5fd9f29d9e0cad1bc267"
+      title="Emissary — nuncio's Masky avatar, live conversation"
+      allow="autoplay; encrypted-media; fullscreen"
+      loading="lazy"></iframe>
+    <p class="body" style="margin-top: 16px;">
+      <span class="status-dot"></span>In the product, recipients type or talk and Emissary answers from the sender's
+      playbook — each reply routed through nuncio's governed prompt, then spoken by the Masky avatar.
+      Try the real thing on any live link at
+      <a href="https://nuncio.persidian.com">nuncio.persidian.com</a>.
+    </p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- HOW IT WORKS -->
+<section>
+  <div class="wrap">
+    <p class="label">How it works</p>
+    <h2 class="display">One pipeline, four agents' worth of work.</h2>
+    <div class="grid" style="max-width: 640px;">
+      <div class="step"><div class="step-num">1</div><div><h3>Research</h3><p class="body">Scout enriches the recipient from public sources and scores research confidence before anything is sent.</p></div></div>
+      <div class="step"><div class="step-num">2</div><div><h3>Playbook</h3><p class="body">The sender's wants, offer, wiggle room, and hard constraints become the twin's constitution — sanitized against injection before it reaches any model.</p></div></div>
+      <div class="step"><div class="step-num">3</div><div><h3>Represent</h3><p class="body">Emissary holds the first conversation on a live link — Masky avatar, governed prompt, booking-aware. Recorded video is the fallback artifact.</p></div></div>
+      <div class="step"><div class="step-num">4</div><div><h3>Hand off</h3><p class="body">Concierge escalates warm conversations to the human: a scoped call request inside the same room, or the sender's booking link. Consent gates everything.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- WHY IT MATTERS -->
+<section>
+  <div class="wrap">
+    <p class="label">Communities &amp; wellbeing</p>
+    <h2 class="display">Presence without the performance.</h2>
+    <p class="quote" style="max-width: 720px;">
+      "The artifact doesn't advertise the conversation — it is the conversation."
+    </p>
+    <div class="grid grid-2" style="margin-top: 40px;">
+      <div class="card">
+        <h3>Honesty as the interface</h3>
+        <p class="body">
+          Every nuncio touch is labeled "AI representative — disclosed to your recipient."
+          No disguised volume, no fake "I recorded this just for you." Trust is the product:
+          recipients who know they're talking to an agent still engage, because the engagement
+          is real.
+        </p>
+      </div>
+      <div class="card">
+        <h3>Reconnect mode</h3>
+        <p class="body">
+          Beyond sales: nuncio's reconnect mode helps people restart lapsed relationships —
+          a card built around a real shared memory, followed by a live representative that
+          carries the conversation until both humans are ready to talk. Presence, not pressure.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- HONEST SCOREBOARD -->
+<section>
+  <div class="wrap">
+    <p class="label">Honest scoreboard</p>
+    <h2 class="display">What works today.</h2>
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Live now</h3>
+        <p class="body">
+          Masky avatar provider integrated end-to-end (<span class="mono">masky-embed</span> transport):
+          session creation, governed per-turn replies via <span class="mono">/api/live/turn</span>, and the
+          embedded live view. LiveKit/Synthesia and Anam paths already in production. Credit-gated,
+          rate-limited, metrics-instrumented.
+        </p>
+      </div>
+      <div class="card">
+        <h3>Deliberately not claimed</h3>
+        <p class="body">
+          Masky turns render in seconds-to-a-minute rather than streaming — it's a considered
+          reply, not a phone call. Human call bridging is opt-in and expiry-bound. We say so on
+          the page.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap" style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+    <div>
+      <p class="display" style="font-size: 22px;">nuncio</p>
+      <p class="body" style="margin-top: 8px; max-width: 380px;">
+        Conversational presence, honestly disclosed. Built for AI Workforce 2026 with
+        Masky avatars.
+      </p>
+    </div>
+    <div class="body" style="line-height: 2;">
+      <a href="https://github.com/udirobert/nuncio">github.com/udirobert/nuncio</a><br />
+      <a href="https://nuncio.persidian.com">nuncio.persidian.com</a><br />
+      <a href="https://masky.ai">Avatars by Masky</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

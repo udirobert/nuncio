@@ -1,5 +1,10 @@
 import { createAnamSessionToken } from "@/lib/anam";
 import {
+  createMaskyConversation,
+  enableMaskySilentRenders,
+  getMaskyAvatar,
+} from "@/lib/masky";
+import {
   createSynthesiaSession,
   cleanupSynthesiaSession,
   isLiveKitConfigured,
@@ -10,8 +15,8 @@ import {
 } from "@/lib/call-request";
 import type { WorkspaceAccount } from "@/lib/storage/types";
 
-export type LiveAvatarProviderId = "synthesia" | "anam";
-export type LiveAvatarTransport = "livekit" | "anam-sdk";
+export type LiveAvatarProviderId = "synthesia" | "anam" | "masky";
+export type LiveAvatarTransport = "livekit" | "anam-sdk" | "masky-embed";
 
 export interface LiveAvatarCapabilities {
   transcripts: boolean;
@@ -20,7 +25,7 @@ export interface LiveAvatarCapabilities {
 
 export interface ProviderReadinessContext {
   workspace: WorkspaceAccount | null;
-  share: { anamAvatarId?: string; anamVoiceId?: string };
+  share: { anamAvatarId?: string; anamVoiceId?: string; maskyAvatarId?: string };
 }
 
 export interface ProviderStartContext {
@@ -38,6 +43,8 @@ export interface ProviderStartHandle {
   agentName?: string;
   roomName?: string;
   dispatchId?: string;
+  /** Masky conversation backing a masky-embed session. */
+  masky?: { conversationId: string; shareSlug: string };
   response: Record<string, unknown>;
 }
 
@@ -137,9 +144,58 @@ const anamAdapter: LiveAvatarAdapter = {
   },
 };
 
+const MASKY_AVATAR_ID = /^[A-Za-z0-9_-]{1,128}$/;
+
+const maskyAdapter: LiveAvatarAdapter = {
+  id: "masky",
+  transport: "masky-embed",
+  // Text-in / rendered-out transport: the page embeds Masky's live view and
+  // recipient turns go through /api/live/turn, so mic + human-room reuse do
+  // not apply.
+  capabilities: { transcripts: true, reuseHumanRoom: false },
+  readiness(context) {
+    if (!process.env.MASKY_API_KEY) return null;
+    const avatarId =
+      context.workspace?.maskyAvatarId ||
+      context.share.maskyAvatarId ||
+      process.env.MASKY_AVATAR_ID;
+    if (!avatarId || !MASKY_AVATAR_ID.test(avatarId)) return null;
+    // Masky avatars carry their own voice — no separate voice id to resolve.
+    return { avatarId, voiceId: "masky" };
+  },
+  async start(context) {
+    const avatar = await getMaskyAvatar(context.avatarId);
+    if (!avatar) throw new Error("Masky avatar not found");
+    const conversation = await createMaskyConversation(avatar);
+    if (process.env.MASKY_SILENT_RENDERS === "true") {
+      enableMaskySilentRenders(conversation.conversationId).catch(() => {});
+    }
+    return {
+      provider: "masky",
+      transport: "masky-embed",
+      capabilities: { transcripts: true, reuseHumanRoom: false },
+      masky: {
+        conversationId: conversation.conversationId,
+        shareSlug: conversation.shareSlug,
+      },
+      response: {
+        provider: "masky",
+        transport: "masky-embed",
+        capabilities: { transcripts: true, reuseHumanRoom: false },
+        liveUrl: conversation.liveUrl,
+        conversationSlug: conversation.shareSlug,
+      },
+    };
+  },
+  async cleanup() {
+    return true;
+  },
+};
+
 const ADAPTERS: Record<LiveAvatarProviderId, LiveAvatarAdapter> = {
   synthesia: synthesiaAdapter,
   anam: anamAdapter,
+  masky: maskyAdapter,
 };
 
 export function getLiveAvatarAdapter(id: string): LiveAvatarAdapter | null {
@@ -160,13 +216,18 @@ export function resolveStartAttempts(
   if (primary.id === "anam") {
     return primaryIds ? [{ adapter: primary, ids: primaryIds }] : [];
   }
+  // Fallback order: primary → anam → masky. Masky goes last because it swaps
+  // the live voice call for a text-in/embed experience — only configured
+  // deployments should ever reach it.
+  const attempts: { adapter: LiveAvatarAdapter; ids: { avatarId: string; voiceId: string } }[] = [];
+  if (primaryIds) attempts.push({ adapter: primary, ids: primaryIds });
   const anamIds = anamAdapter.readiness(context);
-  if (primaryIds) {
-    return anamIds
-      ? [{ adapter: primary, ids: primaryIds }, { adapter: anamAdapter, ids: anamIds }]
-      : [{ adapter: primary, ids: primaryIds }];
+  if (anamIds) attempts.push({ adapter: anamAdapter, ids: anamIds });
+  if (primary.id !== "masky") {
+    const maskyIds = maskyAdapter.readiness(context);
+    if (maskyIds) attempts.push({ adapter: maskyAdapter, ids: maskyIds });
   }
-  return anamIds ? [{ adapter: anamAdapter, ids: anamIds }] : [];
+  return attempts;
 }
 
 export function isLiveTwinReady(context: ProviderReadinessContext): boolean {

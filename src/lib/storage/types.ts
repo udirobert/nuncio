@@ -76,6 +76,8 @@ export interface WorkspaceAccount {
   anamVoiceId?: string;
   /** Synthesia Interactive Avatar ID (av_*), primary live twin provider. */
   synthesiaAvatarId?: string;
+  /** Masky avatar ID for live AI twin sessions (masky provider). */
+  maskyAvatarId?: string;
   /** ElevenLabs voice ID used by the Synthesia/LiveKit twin. */
   liveVoiceId?: string;
   /** Explicit expiring sender availability for human call requests (ISO). Never inferred. */
@@ -148,6 +150,10 @@ export interface LiveSessionRecord {
   reuseHumanRoom?: boolean;
   /** LiveKit room name for Synthesia sessions; reused by an accepted human call. */
   roomName?: string;
+  /** Masky conversation backing a masky-embed session. */
+  maskyConversationId?: string;
+  /** Masky conversation slug for turn polling/readback. */
+  maskyShareSlug?: string;
   /** Set only after the LiveKit room's absence is confirmed post-teardown. */
   roomClosedAt?: string;
   /** True when room teardown could not be verified; retried by the cleanup pass. */

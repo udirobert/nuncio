@@ -56,7 +56,10 @@ export default function LiveAvatarLandingPage({
   const humanHandoffRef = useRef(false);
   const seenSegmentsRef = useRef<Set<string>>(new Set());
   const lkAudioContainerRef = useRef<HTMLDivElement | null>(null);
-  const transportRef = useRef<"livekit" | "anam-sdk" | null>(null);
+  const transportRef = useRef<"livekit" | "anam-sdk" | "masky-embed" | null>(null);
+  const [maskyLiveUrl, setMaskyLiveUrl] = useState<string | null>(null);
+  const [maskyInput, setMaskyInput] = useState("");
+  const [maskySending, setMaskySending] = useState(false);
   const startedRef = useRef(false);
   const shareIdRef = useRef<string | null>(null);
   const liveSessionIdRef = useRef<string | null>(null);
@@ -328,6 +331,51 @@ export default function LiveAvatarLandingPage({
     window.open(url, "_blank", "noopener,noreferrer");
   }, [markBookingClicked]);
 
+  // masky-embed transport: recipient types; the server drafts the twin's reply
+  // through the governed prompt and injects it into the Masky conversation,
+  // where the embedded live view auto-plays the rendered turn.
+  const sendMaskyMessage = useCallback(async () => {
+    const text = maskyInput.trim();
+    const sessionId = liveSessionIdRef.current;
+    const shareId = shareIdRef.current;
+    const syncToken = liveSessionSyncTokenRef.current;
+    if (!text || !sessionId || !shareId || !syncToken || maskySending) return;
+
+    const metrics = metricsRef.current;
+    metrics.userTurns += 1;
+    pushDialogue("user", text);
+    maybeEscalate({ id: `masky-${Date.now()}`, text });
+    for (const topic of classifyQuestionTopics(text)) metrics.topics.add(topic);
+    metrics.lastEvent = metrics.firstUserTurnAt ? "conversation" : "first_user_turn";
+    metrics.firstUserTurnAt ??= new Date().toISOString();
+
+    setMaskyInput("");
+    setMaskySending(true);
+    setStatus("The representative is answering…");
+    try {
+      const res = await fetch("/api/live/turn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          shareId,
+          syncToken,
+          text,
+          history: dialogueRef.current.slice(0, -1),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { reply?: string; error?: string };
+      if (!res.ok) throw new Error(data.error || "Message could not be sent");
+      metrics.agentTurns += 1;
+      if (data.reply) pushDialogue("assistant", data.reply);
+      setStatus("Connected — type below to talk");
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Message could not be sent — try again");
+    } finally {
+      setMaskySending(false);
+    }
+  }, [maskyInput, maskySending, pushDialogue, maybeEscalate]);
+
   const endSession = useCallback((reason: "manual" | "provider_closed" | "max_duration" | "unload" | "human_handoff" = "manual") => {
     // Reset the lobby mic probe — each session re-verifies, never trusts a stale pass.
     micReadyRef.current = false;
@@ -350,6 +398,9 @@ export default function LiveAvatarLandingPage({
     }
     dialogueRef.current = [];
     setEscalationHint(null);
+    setMaskyLiveUrl(null);
+    setMaskyInput("");
+    setMaskySending(false);
     if (reason === "human_handoff") {
       humanHandoffRef.current = true;
       setLiveSessionInfo(null);
@@ -491,6 +542,9 @@ export default function LiveAvatarLandingPage({
     seenSegmentsRef.current.clear();
     hintedUtteranceIdsRef.current.clear();
     avatarParticipantIdentityRef.current = null;
+    setMaskyLiveUrl(null);
+    setMaskyInput("");
+    setMaskySending(false);
     setEscalationHint(null);
     dialogueRef.current = [];
     setOwnerArrived(false);
@@ -518,8 +572,9 @@ export default function LiveAvatarLandingPage({
 
     // Reuse the lobby mic check. When the lobby already verified the mic,
     // skip the second probe so session creation — and the avatar worker —
-    // starts immediately (worker head start).
-    if (!micReadyRef.current) {
+    // starts immediately (worker head start). Masky's embed transport is
+    // text-in, so it never gates on the microphone.
+    if (!micReadyRef.current && share?.liveReadiness?.transport !== "masky-embed") {
       const micOk = await checkMicrophone();
       if (!micOk) {
         setStarting(false);
@@ -540,14 +595,15 @@ export default function LiveAvatarLandingPage({
       }
 
       const data = (await res.json()) as {
-        provider?: "anam" | "synthesia";
-        transport?: "livekit" | "anam-sdk";
+        provider?: "anam" | "synthesia" | "masky";
+        transport?: "livekit" | "anam-sdk" | "masky-embed";
         capabilities?: { transcripts?: boolean; reuseHumanRoom?: boolean };
         avatarParticipantIdentity?: string;
         sessionToken?: string;
         serverUrl?: string;
         participantToken?: string;
         roomName?: string;
+        liveUrl?: string;
         sessionId: string;
         syncToken: string;
       };
@@ -555,8 +611,8 @@ export default function LiveAvatarLandingPage({
       liveSessionSyncTokenRef.current = data.syncToken;
       setLiveSessionInfo({ id: data.sessionId, syncToken: data.syncToken });
       const transport = data.transport
-        ?? (data.provider === "synthesia" ? "livekit" : data.provider === "anam" ? "anam-sdk" : undefined);
-      if (transport !== "livekit" && transport !== "anam-sdk") {
+        ?? (data.provider === "synthesia" ? "livekit" : data.provider === "anam" ? "anam-sdk" : data.provider === "masky" ? "masky-embed" : undefined);
+      if (transport !== "livekit" && transport !== "anam-sdk" && transport !== "masky-embed") {
         throw new Error("Could not start live session");
       }
       if (transport === "livekit" && (!data.serverUrl || !data.participantToken)) {
@@ -564,6 +620,26 @@ export default function LiveAvatarLandingPage({
       }
       if (transport === "anam-sdk" && !data.sessionToken) {
         throw new Error("Could not start live session");
+      }
+      if (transport === "masky-embed" && !data.liveUrl) {
+        throw new Error("Could not start live session");
+      }
+
+      if (transport === "masky-embed") {
+        transportRef.current = "masky-embed";
+        setMaskyLiveUrl(data.liveUrl!);
+        sessionStartedAtRef.current = Date.now();
+        trackLiveSessionConnected({ shareId: id });
+        setRetryCount(0);
+        maxDurationTimerRef.current = setTimeout(() => {
+          setStatus("Session limit reached");
+          endSession("max_duration");
+        }, LIVE_SESSION_MAX_DURATION_MS);
+        heartbeatTimerRef.current = setInterval(sendHeartbeat, 15_000);
+        setStatus("Connected — type below to talk");
+        setLive(true);
+        startedRef.current = true;
+        return;
       }
 
       if (transport === "livekit") {
@@ -715,6 +791,9 @@ export default function LiveAvatarLandingPage({
       setLiveSessionInfo(null);
       sessionSyncedRef.current = false;
       setEscalationHint(null);
+      setMaskyLiveUrl(null);
+      setMaskyInput("");
+      setMaskySending(false);
       if (clientRef.current) {
         try {
           clientRef.current.removeListener(AnamEvent.MESSAGE_HISTORY_UPDATED, handleMessageHistory);
@@ -928,8 +1007,11 @@ export default function LiveAvatarLandingPage({
                   <p className="text-body-xs font-medium text-ink">Before you join</p>
                 </div>
                 <p className="text-body-xs text-ink-muted mb-3">
-                  You&apos;ll talk to {sender}&apos;s AI representative — disclosed, never disguised. It answers from {sender}&apos;s playbook and can point you to a booking link. Mic stays in this browser.
+                  {share.liveReadiness?.transport === "masky-embed"
+                    ? `You'll talk to ${sender}'s AI representative — disclosed, never disguised. Type your questions; it answers on camera from ${sender}'s playbook. No mic needed.`
+                    : `You'll talk to ${sender}'s AI representative — disclosed, never disguised. It answers from ${sender}'s playbook and can point you to a booking link. Mic stays in this browser.`}
                 </p>
+                {share.liveReadiness?.transport !== "masky-embed" && (
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={handleCheckMic}
@@ -954,6 +1036,7 @@ export default function LiveAvatarLandingPage({
                         : "A quick check avoids a second prompt on Join."}
                   </p>
                 </div>
+                )}
               </div>
             )}
             <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${bookingUrl ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
@@ -990,11 +1073,54 @@ export default function LiveAvatarLandingPage({
                       <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M8 12.5a4.5 4.5 0 004.5-4.5M8 12.5a4.5 4.5 0 01-4.5-4.5M8 12.5V14m0-13v1.5" />
                       </svg>
-                      {micState === "ready" ? `Join now — mic ready` : `Join conversation`}
+                      {share.liveReadiness?.transport === "masky-embed"
+                        ? "Start conversation"
+                        : micState === "ready"
+                          ? `Join now — mic ready`
+                          : `Join conversation`}
                     </>
                   )}
                 </button>
                 )
+              ) : maskyLiveUrl ? (
+                <div className="w-full flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={maskyInput}
+                      onChange={(e) => setMaskyInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void sendMaskyMessage();
+                        }
+                      }}
+                      disabled={maskySending}
+                      placeholder={`Ask ${sender}'s representative…`}
+                      aria-label={`Message ${sender}'s AI representative`}
+                      maxLength={1000}
+                      className="flex-1 rounded-xl border border-ink/15 bg-white/80 px-4 py-3 text-body-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent/50 disabled:opacity-50 min-h-[44px]"
+                    />
+                    <button
+                      onClick={() => void sendMaskyMessage()}
+                      disabled={maskySending || !maskyInput.trim()}
+                      aria-label="Send message"
+                      className="btn-press rounded-xl bg-accent text-white px-5 py-3 text-body-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-h-[44px]"
+                    >
+                      {maskySending ? <LottieIcon name="spinner-light" className="w-4 h-4" /> : "Send"}
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => endSession("manual")}
+                    aria-label="End live conversation"
+                    className="btn-press self-start rounded-xl bg-warm text-white px-6 py-3 text-body-sm font-medium hover:bg-warm/90 transition-colors flex items-center gap-2 min-h-[44px]"
+                  >
+                    <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="10" height="10" rx="2" />
+                    </svg>
+                    End conversation
+                  </button>
+                </div>
               ) : (
                 <>
                 <button
@@ -1168,6 +1294,15 @@ export default function LiveAvatarLandingPage({
             <div className="absolute -inset-1.5 rounded-3xl bg-cream-dark -z-5 transform -rotate-0.5" />
 
             <div className="aspect-video w-full rounded-2xl overflow-hidden bg-ink shadow-2xl shadow-ink/20 ring-1 ring-ink/5 flex items-center justify-center relative">
+              {maskyLiveUrl ? (
+                <iframe
+                  src={maskyLiveUrl}
+                  title="Live AI representative"
+                  allow="autoplay; encrypted-media; fullscreen"
+                  className="absolute inset-0 w-full h-full border-0"
+                />
+              ) : (
+                <>
               {/* The video element mounts before any SDK stream — the Anam and
                   LiveKit attach calls need a stable target. */}
               <video
@@ -1177,6 +1312,8 @@ export default function LiveAvatarLandingPage({
                 playsInline
                 className={`absolute inset-0 w-full h-full object-cover ${live ? "" : "invisible"}`}
               />
+                </>
+              )}
               <div ref={lkAudioContainerRef} aria-hidden className="hidden" />
               {!live && (
                 <div className="text-center text-cream/80 px-6">
@@ -1212,7 +1349,9 @@ export default function LiveAvatarLandingPage({
 
           {(live || starting || humanCallActive) && (
             <p className="mt-3 text-center text-body-xs text-ink-faint">
-              No camera needed. Microphone is active only during the conversation.
+              {maskyLiveUrl
+                ? "No camera or microphone needed — type below and the representative answers on camera."
+                : "No camera needed. Microphone is active only during the conversation."}
             </p>
           )}
 
@@ -1241,9 +1380,11 @@ export default function LiveAvatarLandingPage({
               How this works
             </p>
             <p className="text-xs text-ink-muted leading-relaxed">
-              {share.mode === "reconnect"
-                ? `This is an AI representative speaking for ${sender}. It can answer questions about the message — the card was built around a real memory they shared and approved before it was sent. You'll need to allow microphone access to talk. Your mic is only active while the session is running.`
-                : `This is an AI representative for ${sender}. It can answer questions about the reason for reaching out${bookingUrl ? ", and point you to scheduling" : ""}. You'll need to allow microphone access to talk. Your mic is only active while the session is running.`}
+              {share.liveReadiness?.transport === "masky-embed"
+                ? `This is an AI representative for ${sender}. It answers from ${sender}'s playbook on camera — you type, it replies. No microphone or camera access is needed.`
+                : share.mode === "reconnect"
+                  ? `This is an AI representative speaking for ${sender}. It can answer questions about the message — the card was built around a real memory they shared and approved before it was sent. You'll need to allow microphone access to talk. Your mic is only active while the session is running.`
+                  : `This is an AI representative for ${sender}. It can answer questions about the reason for reaching out${bookingUrl ? ", and point you to scheduling" : ""}. You'll need to allow microphone access to talk. Your mic is only active while the session is running.`}
             </p>
           </motion.div>
         </div>
