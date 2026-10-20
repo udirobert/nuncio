@@ -1,8 +1,12 @@
 const ALLOWED_LOGIN_TARGETS = new Set([
-  "/dashboard?view=setup",
+  "/setup",
   "/dashboard",
+  // Legacy address for Setup — the dashboard redirects it to /setup.
+  "/dashboard?view=setup",
   "/studio",
   "/pricing",
+  "/examples",
+  "/batch",
 ]);
 
 const DEFAULT_LOGIN_TARGET = "/studio";

@@ -129,7 +129,7 @@ export function RecentVideos() {
     return (
       <div className="rounded-2xl border border-cream-dark bg-white p-5">
         <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
-          Recent first touches
+          Sent first touches
         </span>
         <div className="mt-4 space-y-3">
           {[1, 2, 3].map((i) => (
@@ -144,7 +144,7 @@ export function RecentVideos() {
     return (
       <div className="rounded-2xl border border-cream-dark bg-white p-5">
         <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
-          Recent first touches
+          Sent first touches
         </span>
         <p className="text-sm text-warm mt-4">Couldn&apos;t load recent first touches — try refreshing.</p>
       </div>
@@ -155,7 +155,7 @@ export function RecentVideos() {
     <div className="rounded-2xl border border-cream-dark bg-white p-5 space-y-4">
       <div className="flex items-center justify-between">
         <span className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">
-          Recent first touches
+          Sent first touches
         </span>
         <Link
           href="/studio"

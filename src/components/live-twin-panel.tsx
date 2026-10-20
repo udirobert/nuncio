@@ -60,7 +60,7 @@ export function LiveTwinPanel({
               <p className="text-label-base text-ink-muted mt-0.5">
                 {liveBackendConfigured
                   ? "Your live representative is configured on the server. These photo/voice controls are optional Anam fallback assets."
-                  : "Configure Synthesia in Conversations, or add Anam avatar/voice assets here."}{" "}
+                  : "Set up your representative first, or add Anam avatar/voice assets here."}{" "}
                 Optional training costs <strong>{trainingCreditCost} credits</strong>;
                 conversations use <strong>{LIVE_SESSION_CREDITS_PER_MINUTE} credit/min</strong> (max {LIVE_SESSION_MAX_CREDITS} per session).
               </p>
@@ -114,7 +114,7 @@ export function LiveTwinPanel({
 
           {deliveryMode === "livelink" && !liveTwinEnabled && !liveBackendConfigured && !insufficientCredits && (
             <p className="text-label-base text-warm">
-              Live link mode is on, but no live representative is configured. Configure Synthesia in Conversations setup, or enable Anam fallback assets here.
+              Live link mode is on, but no live representative is configured. Set up your representative first, or enable Anam fallback assets here.
             </p>
           )}
         </div>

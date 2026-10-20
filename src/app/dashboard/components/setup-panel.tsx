@@ -330,7 +330,7 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
         </p>
         <div className="flex items-center gap-3 flex-wrap">
           <Link
-            href="/dashboard?view=setup"
+            href="/setup"
             className="text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
           >
             Open setup →
@@ -346,7 +346,7 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
   if (loadError && !loaded) {
     return (
       <div className="rounded-2xl border border-cream-dark bg-white p-5 space-y-3">
-        <h2 className="font-display text-lg text-ink">Setup</h2>
+        <h2 className="font-display text-lg text-ink">Your representative</h2>
         <p className="text-body-sm text-warm">Couldn&apos;t load your current setup.</p>
         <button
           onClick={() => void load(true)}
@@ -359,7 +359,7 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
   }
 
   const inputCls =
-    "mt-1 w-full rounded-lg border border-ink/15 bg-white px-3 py-2.5 text-sm text-ink placeholder:text-ink-faint disabled:opacity-50";
+    "mt-1 w-full rounded-lg border border-ink/15 bg-white px-3 py-2.5 text-body-sm text-ink placeholder:text-ink-faint disabled:opacity-50";
   const savedBooking = snapshot?.bookingUrl?.trim() ?? "";
   const savedBookingOk = validHttpsUrl(savedBooking);
 
@@ -399,8 +399,8 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       <div className="lg:col-span-7 rounded-2xl border border-cream-dark bg-white p-5 space-y-6">
         <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <h2 className="font-display text-lg text-ink">Your representative</h2>
+          <div className="max-w-[520px]">
+            <h2 className="font-display text-lg text-ink">What your representative knows</h2>
             <p className="text-body-xs text-ink-muted mt-1">
               Set who your disclosed AI representative speaks for, and the boundaries it answers within. Saving
               settings doesn&apos;t verify provider availability — the checklist shows configuration presence, not

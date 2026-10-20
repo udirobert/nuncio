@@ -189,7 +189,10 @@ B2 and Genblaze are opt-in (`B2_*` and `GENBLAZE_WORKER_URL` env vars) and non-b
 | Route | Description |
 |-------|-------------|
 | `/` | Landing page |
-| `/studio` | Video builder |
+| `/studio` | Create a first touch (the "Create" space) |
+| `/dashboard` | Inbox — requests, live sessions, bookings, sent first touches |
+| `/setup` | Your representative — identity, playbook, scheduling, provider |
+| `/batch` | Batch outreach (multi-profile campaigns) |
+| `/examples` | First-touch worked examples (redirect from the old `/playbook`) |
 | `/v/[id]` | Video share page |
 | `/live/[id]` | Live avatar conversation page (Synthesia via LiveKit or Anam; recipient call-request panel) |
-| `/playbook` | Usage examples |

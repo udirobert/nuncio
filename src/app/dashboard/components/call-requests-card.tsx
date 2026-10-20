@@ -451,8 +451,8 @@ export function CallRequestsCard() {
         <p className="text-body-xs text-warm leading-relaxed">
           Your sender playbook isn&apos;t configured — your AI representative answers from general
           guidance only.{" "}
-          <a href="/dashboard?view=setup" className="underline text-accent hover:text-accent/80 transition-colors">
-            Set up your playbook
+          <a href="/setup" className="underline text-accent hover:text-accent/80 transition-colors">
+            Set up your representative
           </a>
           .
         </p>

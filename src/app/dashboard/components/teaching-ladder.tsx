@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { APP_ROUTES, GETTING_STARTED_STEPS } from "@/lib/navigation";
 
-const STEPS = [
-  { label: "First link", desc: "Create a first touch in the studio" },
-  { label: "First conversation", desc: "A prospect talks with your AI representative" },
-  { label: "First booking", desc: "They choose a time or request you live" },
-] as const;
-
+/**
+ * The three moments of the product, in plain language. Shares its copy with
+ * the onboarding tour (src/lib/navigation.ts) so the two never drift.
+ */
 export function TeachingLadder({
   activeStep,
   compact = false,
@@ -21,7 +20,7 @@ export function TeachingLadder({
       aria-label="Getting started steps"
       className={`text-left space-y-2 ${compact ? "" : "mt-4"}`}
     >
-      {STEPS.map((step, i) => {
+      {GETTING_STARTED_STEPS.map((step, i) => {
         const done = i < activeStep;
         const current = i === activeStep;
         return (
@@ -58,7 +57,7 @@ export function TeachingLadder({
       })}
       <li className="pt-1">
         <Link
-          href="/studio"
+          href={APP_ROUTES.create}
           className="inline-block text-label-sm uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
         >
           Create a first touch →

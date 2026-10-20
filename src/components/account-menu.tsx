@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import posthog from "posthog-js";
+import { APP_ROUTES, SECONDARY_NAV } from "@/lib/navigation";
+import { requestOnboardingTour } from "@/lib/onboarding";
 
 interface SessionData {
   authenticated: boolean;
@@ -53,6 +55,8 @@ export function AccountMenu() {
       {session.authenticated ? (
         <button
           onClick={() => setOpen(!open)}
+          aria-haspopup="menu"
+          aria-expanded={open}
           className="text-label-base uppercase tracking-widest font-medium text-ink-muted hover:text-ink transition-colors"
         >
           {session.email?.split("@")[0]}
@@ -73,7 +77,9 @@ export function AccountMenu() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.96 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-cream-dark bg-white p-3 shadow-lg"
+            role="menu"
+            aria-label="Account"
+            className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-cream-dark bg-white p-3 shadow-lg"
           >
             <div className="space-y-2">
               <p className="text-xs text-ink-muted truncate">{session.email}</p>
@@ -86,24 +92,49 @@ export function AccountMenu() {
                 <span className="text-ink font-medium">{session.balance ?? "—"}</span>
               </div>
               <hr className="border-cream-dark my-2" />
+
+              {/* The three spaces first — the account menu is a fallback, not the map. */}
               <Link
-                href="/dashboard"
+                href={APP_ROUTES.inbox}
                 onClick={() => setOpen(false)}
                 className="block text-label-base text-accent hover:text-accent-soft transition-colors"
               >
-                Dashboard
+                Inbox
               </Link>
               <Link
-                href="/pricing"
+                href={APP_ROUTES.representative}
                 onClick={() => setOpen(false)}
                 className="block text-label-base text-accent hover:text-accent-soft transition-colors"
               >
-                Buy credits
+                Your representative
               </Link>
+              <Link
+                href={APP_ROUTES.create}
+                onClick={() => setOpen(false)}
+                className="block text-label-base text-accent hover:text-accent-soft transition-colors"
+              >
+                Create a first touch
+              </Link>
+
+              <hr className="border-cream-dark my-2" />
+
+              {SECONDARY_NAV.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className="block text-label-base text-ink-muted hover:text-ink transition-colors"
+                >
+                  {item.label}
+                </Link>
+              ))}
+
+              <hr className="border-cream-dark my-2" />
+
               <button
                 onClick={() => {
-                  localStorage.removeItem("nuncio_onboarding_done");
-                  window.location.reload();
+                  setOpen(false);
+                  requestOnboardingTour();
                 }}
                 className="block text-label-base text-ink-faint hover:text-ink transition-colors"
               >

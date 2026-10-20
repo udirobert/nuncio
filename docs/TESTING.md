@@ -218,28 +218,43 @@ The latest concurrency/lifecycle hardening pass was implemented without automate
 
 ## Frontend IA redesign manual checklist (user-owned)
 
-The frontend redesign (homepage journey illustration, `/dashboard?view=setup`, recipient front-door cards, first-touch list) was implemented without automated verification — the user owns testing. Nothing below has been run.
+The frontend redesign (homepage journey illustration, `/setup`, recipient front-door cards, first-touch list) was implemented without automated verification — the user owns testing. Nothing below has been run.
 
-1. Setup view: load `/dashboard?view=setup` — the panel loads saved values or reports a load error with Retry; save with/without a booking URL; non-HTTPS booking URLs are rejected client-side; the status checklist shows "unknown" when the brief fetch fails and never claims provider health.
+1. Setup view: load `/setup` — the panel loads saved values or reports a load error with Retry; save with/without a booking URL; non-HTTPS booking URLs are rejected client-side; the status checklist shows "unknown" when the brief fetch fails and never claims provider health.
 2. Keyboard: tab through the homepage `RelationshipJourney` — all four stage buttons and choice buttons are focusable, `aria-pressed` reflects the active stage, and no timer advances anything.
 3. Reduced motion: with `prefers-reduced-motion` on, the journey swaps stages without transforms/durations.
 4. Mobile + long names: narrow viewport and very long sender names wrap in the live front-door cards; touch targets ≥44px.
 5. Request states on `/live/[id]`: pending ≠ accepted ≠ joined; the "Human call room" banner marks the human phase (room open), while the joined/connected text inside `LiveCallRoom` is the only observed-presence claim.
-5b. Login return: sign out, visit `/dashboard?view=setup` → login → verify lands on setup (not studio); `/login?next=https://evil.example` falls back to `/studio`; invalid verify tokens return to login with `next` preserved.
+5b. Login return: sign out, visit `/setup` → login → verify lands on setup (not studio); `/login?next=https://evil.example` falls back to `/studio`; invalid verify tokens return to login with `next` preserved.
 6. Stable video: starting/stopping the AI session and entering a human call never remounts the `<video>` element or `CallRequestPanel`.
 7. Consent: "Draft brief" only sends dialogue after explicit click; the skip path ("Request … now") is never blocked by brief drafting.
 8. Copied links: "Copy link" on the dashboard only appears for ordinary shares; invitation-protected handoffs show "Owner view" and never offer a copyable link missing its fragment.
+
+## Information architecture simplification manual checklist (user-owned)
+
+The nav was cut from six header destinations to three spaces, Setup became a real route (`/setup`), the public examples moved to `/examples`, and the onboarding tour was consolidated into the root layout. Verified by typecheck + unit tests only — the user owns browser verification. Nothing below has been run.
+
+1. Header (signed in): exactly three primary destinations — Inbox, Your representative, Create — plus the credits pill and the account menu. Batch outreach / Worked examples / Plan & credits appear only in the account menu and the mobile "More" group.
+2. Header (signed out): only Worked examples, Plan & credits and Sign in — no member surfaces that dead-end at the login wall.
+3. Mobile menu: the primary group shows a one-line description under each label; the toggle is reachable and the menu closes on selection.
+4. `/dashboard?view=setup` redirects to `/setup`; `/playbook` redirects to `/examples`. Old bookmarks and shared links land on the right page.
+5. `/setup` is reachable while signed out and sends the visitor to login with `next=/setup`; after verification they land on Setup, not the studio.
+6. Tour: on a fresh browser the tour opens on the Inbox (or Setup / Create) and its first panel is "What nuncio does"; the steps match the empty-state ladder wording.
+7. Tour: "Show tips" in the account menu re-opens the tour from any page (not just the Inbox); "Skip" and the close button dismiss it and it does not return on the next page load.
+8. Tour: it does not auto-open for an anonymous visitor, and does not open on public pages (`/`, `/pricing`, `/examples`).
+9. Every destination still reachable: Create, Batch outreach, Worked examples, Plan & credits, and the recipient-facing `/v/[id]` and `/live/[id]` pages.
+10. "Your representative" is the only place that says "playbook" for the sender's own setup; the public examples page never uses the word.
 
 ## Guided setup + delight manual checklist (user-owned)
 
 The Setup guidance (placeholders, `Try an example`, live preview, `Hear your twin`, staged save, coverage meter), studio sample chips, teaching ladders, money-button states, live lobby, debrief cards, and share-record-only recipient names were implemented with typecheck + lint only — the user owns browser verification. Nothing below has been run against a live session.
 
-1. Setup example: load `/dashboard?view=setup` empty — every field shows an `e.g.` placeholder; `Try an example` fills Alex/Northwind fiction and marks Save dirty without saving; the preview updates (name, business, twin line, `Choose a time` visibility) as you type.
+1. Setup example: load `/setup` empty — every field shows an `e.g.` placeholder; `Try an example` fills Alex/Northwind fiction and marks Save dirty without saving; the preview updates (name, business, twin line, `Choose a time` visibility) as you type.
 2. Twin voice: `Hear your twin` plays the disclosure line (default voice, or saved `liveVoiceId` when set); Stop halts it; with ElevenLabs unconfigured a non-blocking "Voice preview is unavailable right now" appears and saving still works.
 3. Save staging: Save shows `Saving…` → `Saved ✓` + `Preview updated`, the preview pulses once (no pulse under `prefers-reduced-motion`); coverage meter reads `n/5` with Getting started / Almost there / Playbook complete.
-4. Ladders + buttons: empty Conversations shows the three-step ladder at the right step per card; Accept shows `Accepting…`, Join shows `Joining…`, scheduling shows `Preparing…`; double-clicks never double-fire.
+4. Ladders + buttons: empty Inbox shows the three-step ladder at the right step per card; Accept shows `Accepting…`, Join shows `Joining…`, scheduling shows `Preparing…`; double-clicks never double-fire.
 5. Lobby + debrief: on `/live/[id]`, `Before you join` offers Check mic (ready/blocked/idle states); Join after a passed check skips the second probe; after a deliberate end, `What they asked about` shows metric labels only; greeting uses the share-record name or nothing — never a researched name.
-6. Playbook deep-links: `/playbook#<entry>` expands the entry and smooth-scrolls with header offset (instant under reduced motion).
+6. Playbook deep-links: `/examples#<entry>` expands the entry and smooth-scrolls with header offset (instant under reduced motion).
 
 ## Plugin telemetry + viral-loop attribution checklist
 

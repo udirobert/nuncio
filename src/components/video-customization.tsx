@@ -563,8 +563,8 @@ export function VideoCustomization({
           </svg>
           <p className="text-label-base text-ink-muted">
             Live link mode is on but no live representative is configured yet.{" "}
-            <Link href="/dashboard?view=setup" className="text-accent hover:underline">
-              Open Conversations setup →
+            <Link href="/setup" className="text-accent hover:underline">
+              Open your representative setup →
             </Link>{" "}
             or add Anam avatar/voice assets below.
           </p>

@@ -6,11 +6,11 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import type { PipelineState } from "@/lib/pipeline";
 import { AccountMenu } from "@/components/account-menu";
+import { APP_ROUTES, MEMBER_NAV, PUBLIC_NAV, SECONDARY_NAV, type NavItem } from "@/lib/navigation";
 
 interface HeaderProps {
   stage?: PipelineState["stage"];
   isDemo?: boolean;
-  activeWorkspaceView?: "conversations" | "setup";
 }
 
 const STAGE_LABELS: Record<PipelineState["stage"], string> = {
@@ -23,7 +23,7 @@ const STAGE_LABELS: Record<PipelineState["stage"], string> = {
   error: "",
 };
 
-export function Header({ stage, isDemo, activeWorkspaceView }: HeaderProps) {
+export function Header({ stage, isDemo }: HeaderProps) {
   const pathname = usePathname();
   const showStage = stage && stage !== "input" && stage !== "error";
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
@@ -42,23 +42,15 @@ export function Header({ stage, isDemo, activeWorkspaceView }: HeaderProps) {
       .catch(() => {});
   }, []);
 
-  const NAV_LINKS: { label: string; href: string; view?: "conversations" | "setup"; subtitle?: string; memberOnly?: boolean }[] = [
-    { label: "Conversations", href: "/dashboard", view: "conversations" as const, memberOnly: true },
-    { label: "Setup", href: "/dashboard?view=setup", view: "setup" as const, memberOnly: true },
-    { label: "New first touch", href: "/studio" },
-    { label: "Examples", href: "/playbook" },
-    { label: "Pricing", href: "/pricing" },
-  ];
-  // Member surfaces dead-end at the login wall for anonymous visitors —
-  // don't offer what they can't open.
-  const visibleLinks = NAV_LINKS.filter((l) => !l.memberOnly || authenticated);
+  // Members get the three spaces of the product. Everyone else gets the two
+  // things they can actually open — member surfaces dead-end at the login wall.
+  const primaryNav: NavItem[] = authenticated ? MEMBER_NAV : PUBLIC_NAV;
+  const isActive = (href: string) => pathname === href;
 
-  const isLinkActive = (link: (typeof NAV_LINKS)[number]) => {
-    if (link.view === "setup") return pathname === "/dashboard" && activeWorkspaceView === "setup";
-    if (link.view === "conversations")
-      return pathname === "/dashboard" && activeWorkspaceView !== "setup";
-    return pathname === link.href;
-  };
+  const navLinkClass = (active: boolean) =>
+    `text-label-base uppercase tracking-widest font-medium transition-colors ${
+      active ? "text-accent" : "text-ink-muted hover:text-ink"
+    }`;
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between bg-cream/80 backdrop-blur-md border-b border-cream-dark/60 pointer-events-auto">
@@ -73,8 +65,11 @@ export function Header({ stage, isDemo, activeWorkspaceView }: HeaderProps) {
             aria-label="Main navigation"
             className="xl:hidden pointer-events-auto absolute top-full left-6 right-6 mt-2 rounded-2xl border border-cream-dark bg-cream shadow-lg shadow-ink/5 p-2 flex flex-col"
           >
-            {visibleLinks.map((link, i) => {
-              const isActive = isLinkActive(link);
+            <p className="px-4 pt-2 pb-1 text-label-xs uppercase tracking-widest text-ink-faint font-medium">
+              {authenticated ? "Your workspace" : "Explore"}
+            </p>
+            {primaryNav.map((link, i) => {
+              const active = isActive(link.href);
               return (
                 <motion.div
                   key={link.href}
@@ -84,29 +79,44 @@ export function Header({ stage, isDemo, activeWorkspaceView }: HeaderProps) {
                 >
                   <Link
                     href={link.href}
-                    aria-current={isActive ? "page" : undefined}
+                    title={link.description}
+                    aria-current={active ? "page" : undefined}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`block rounded-xl px-4 py-3 text-body-sm font-medium transition-colors ${
-                      isActive ? "bg-accent-soft text-accent" : "text-ink hover:bg-cream-dark/50"
+                      active ? "bg-accent-soft text-accent" : "text-ink hover:bg-cream-dark/50"
                     }`}
                   >
                     {link.label}
-                    {link.subtitle && (
-                      <span className="block text-label-base font-normal text-ink-faint">{link.subtitle}</span>
-                    )}
+                    <span className="block text-label-base font-normal text-ink-faint">
+                      {link.description}
+                    </span>
                   </Link>
                 </motion.div>
               );
             })}
             {authenticated && (
-              <Link
-                href="/batch"
-                onClick={() => setMobileMenuOpen(false)}
-                aria-current={pathname === "/batch" ? "page" : undefined}
-                className="block rounded-xl px-4 py-3 text-label-base font-medium text-ink-faint hover:text-ink hover:bg-cream-dark/50 transition-colors border-t border-cream-dark mt-1"
-              >
-                Batch
-              </Link>
+              <>
+                <p className="px-4 pt-3 pb-1 text-label-xs uppercase tracking-widest text-ink-faint font-medium border-t border-cream-dark mt-1">
+                  More
+                </p>
+                {SECONDARY_NAV.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    title={link.description}
+                    onClick={() => setMobileMenuOpen(false)}
+                    aria-current={isActive(link.href) ? "page" : undefined}
+                    className={`block rounded-xl px-4 py-3 text-body-sm font-medium transition-colors ${
+                      isActive(link.href) ? "bg-accent-soft text-accent" : "text-ink-muted hover:bg-cream-dark/50"
+                    }`}
+                  >
+                    {link.label}
+                    <span className="block text-label-base font-normal text-ink-faint">
+                      {link.description}
+                    </span>
+                  </Link>
+                ))}
+              </>
             )}
           </motion.nav>
         )}
@@ -118,7 +128,7 @@ export function Header({ stage, isDemo, activeWorkspaceView }: HeaderProps) {
         className="pointer-events-auto flex items-center gap-3"
       >
         <Link
-          href="/"
+          href={authenticated ? APP_ROUTES.inbox : APP_ROUTES.home}
           className="font-display text-xl font-medium tracking-tight text-ink hover:text-ink-light transition-colors"
         >
           nuncio
@@ -169,8 +179,11 @@ export function Header({ stage, isDemo, activeWorkspaceView }: HeaderProps) {
 
       <div className="pointer-events-auto flex items-center gap-6">
         <nav aria-label="Main navigation" className="hidden xl:flex items-center gap-5">
-          {visibleLinks.map((link) => {
-            const isActive = isLinkActive(link);
+          {primaryNav.map((link) => {
+            const active = isActive(link.href);
+            // Create is the one action, not one of three places — it gets the
+            // primary treatment so "where do I go to make something?" has one answer.
+            const isPrimaryAction = link.href === APP_ROUTES.create;
             return (
               <motion.div
                 key={link.href}
@@ -180,38 +193,28 @@ export function Header({ stage, isDemo, activeWorkspaceView }: HeaderProps) {
               >
                 <Link
                   href={link.href}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`text-label-base uppercase tracking-widest font-medium transition-colors ${
-                    isActive ? "text-accent" : "text-ink-muted hover:text-ink"
-                  }`}
+                  title={link.description}
+                  aria-current={active ? "page" : undefined}
+                  className={
+                    isPrimaryAction
+                      ? `rounded-xl px-4 py-2 text-label-base uppercase tracking-widest font-medium transition-colors ${
+                          active
+                            ? "bg-accent text-white"
+                            : "border border-ink/15 text-ink hover:bg-white hover:border-ink/30"
+                        }`
+                      : navLinkClass(active)
+                  }
                 >
                   {link.label}
-                  {link.subtitle && (
-                    <span className="normal-case tracking-normal text-label-xs text-ink-faint ml-1">
-                      {link.subtitle}
-                    </span>
-                  )}
                 </Link>
               </motion.div>
             );
           })}
         </nav>
 
-          {authenticated && (
-            <Link
-              href="/batch"
-              aria-current={pathname === "/batch" ? "page" : undefined}
-              className={`hidden xl:inline text-label-sm font-medium transition-colors ${
-                pathname === "/batch" ? "text-accent" : "text-ink-faint hover:text-ink"
-              }`}
-            >
-              Batch
-            </Link>
-          )}
-
           {creditBalance !== null && (
             <Link
-              href="/pricing"
+              href={APP_ROUTES.pricing}
               title="Credits — research, drafts and renders each spend from this balance. Click for packs."
               aria-label={`${creditBalance} credits remaining — research, drafts and renders each spend from this balance`}
               className={`text-label-sm font-bold tabular-nums px-2 py-0.5 rounded-md transition-colors ${

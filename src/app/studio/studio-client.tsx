@@ -9,7 +9,6 @@ import { Header } from "@/components/header";
 import { LottieIcon } from "@/components/lottie-icon";
 import type { VideoCustomization, HeyGenAvatar, HeyGenVoice } from "@/lib/heygen";
 import { VideoCustomization as VideoCustomizationComponent } from "@/components/video-customization";
-import { OnboardingModal } from "@/components/onboarding-modal";
 import { LANGUAGES } from "@/lib/languages";
 import { QuickProgress } from "./quick-progress";
 import type { QuickProgressStep } from "./quick-progress";
@@ -1203,7 +1202,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
     if (deliveryMode === "livelink") {
       const serverReady = await refreshServerLiveReadiness();
       if (!(serverReady || hasAvailableAnamAssets())) {
-        setToastMessage("Configure a live representative in Conversations setup, or add Anam avatar/voice assets here before creating a live link.");
+        setToastMessage("Set up your representative first — or add Anam avatar/voice assets here before creating a live link.");
         setStage("review");
         return;
       }
@@ -1237,7 +1236,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
     if (deliveryMode === "livelink") {
       const serverReady = await refreshServerLiveReadiness();
       if (!(serverReady || hasAvailableAnamAssets())) {
-        setToastMessage("Configure a live representative in Conversations setup, or add Anam avatar/voice assets here before creating a live link.");
+        setToastMessage("Set up your representative first — or add Anam avatar/voice assets here before creating a live link.");
         return null;
       }
     }
@@ -1510,9 +1509,6 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
   return (
     <>
       <Header stage={stage === "ready" ? "review" : (stage === "building" || stage === "enriching" || stage === "collaborating" || stage === "generating") ? "progress" : stage === "review" ? "review" : "input"} />
-      {/* Setup walkthrough only makes sense once the visitor can act on it —
-          anonymous explorers don't get a modal selling a page behind login. */}
-      {session?.authenticated && <OnboardingModal />}
 
       <main className="flex-1 w-full">
         {/* Post-checkout success toast */}
@@ -1559,14 +1555,14 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
               <section className="relative px-6 pt-24 pb-16">
                 <div className="max-w-lg mx-auto space-y-8">
                   <nav aria-label="Progress" className="flex items-center justify-center gap-1.5 text-label-sm">
-                    <Link href="/dashboard?view=setup" className="text-ink-faint hover:text-ink transition-colors font-medium">
-                      1 Set up
+                    <Link href="/setup" className="text-ink-faint hover:text-ink transition-colors font-medium">
+                      1 Set up your representative
                     </Link>
                     <span className="text-ink-faint" aria-hidden>→</span>
-                    <span className="text-accent font-medium" aria-current="step">2 Create first touch</span>
+                    <span className="text-accent font-medium" aria-current="step">2 Create a first touch</span>
                     <span className="text-ink-faint" aria-hidden>→</span>
                     <Link href="/dashboard" className="text-ink-faint hover:text-ink transition-colors font-medium">
-                      3 Continue conversation
+                      3 They choose to continue
                     </Link>
                   </nav>
                   <div className="space-y-7 text-center">
@@ -2672,7 +2668,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                       title={
                         deliveryMode === "livelink" &&
                         !(serverLiveConfigured || hasAvailableAnamAssets())
-                          ? "Configure a live representative in Conversations setup, or add Anam avatar/voice assets"
+                          ? "Set up your representative first, or add Anam avatar/voice assets"
                           : undefined
                       }
                       className="flex-[2] btn-press rounded-xl bg-ink text-cream py-3 text-body-sm font-medium hover:bg-ink-light transition-colors flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"

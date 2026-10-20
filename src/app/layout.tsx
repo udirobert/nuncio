@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Instrument_Serif } from "next/font/google";
 import { PostHogProvider } from "./providers";
 import { MotionProvider } from "@/components/motion-provider";
+import { OnboardingModal } from "@/components/onboarding-modal";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -58,27 +60,41 @@ export default function RootLayout({
         <PostHogProvider>
           <MotionProvider>
             {children}
+            {/* One tour for the whole app — so "Show tips" works from anywhere. */}
+            <OnboardingModal />
           </MotionProvider>
         </PostHogProvider>
         <footer className="mt-auto px-6 py-6 text-center space-x-4">
-          <a
-            href="/studio"
+          <Link
+            href="/"
             className="text-label-base text-ink-faint hover:text-accent transition-colors"
           >
             nuncio
-          </a>
-          <a
+          </Link>
+          <Link
+            href="/examples"
+            className="text-label-base text-ink-faint hover:text-accent transition-colors"
+          >
+            Examples
+          </Link>
+          <Link
+            href="/pricing"
+            className="text-label-base text-ink-faint hover:text-accent transition-colors"
+          >
+            Pricing
+          </Link>
+          <Link
             href="/privacy"
             className="text-label-base text-ink-faint hover:text-accent transition-colors"
           >
             Privacy
-          </a>
-          <a
+          </Link>
+          <Link
             href="/support"
             className="text-label-base text-ink-faint hover:text-accent transition-colors"
           >
             Support
-          </a>
+          </Link>
         </footer>
       </body>
     </html>

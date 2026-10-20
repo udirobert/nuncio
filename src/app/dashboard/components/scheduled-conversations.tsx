@@ -79,7 +79,7 @@ export function ScheduledConversations() {
 
   return (
     <div className="rounded-2xl border border-cream-dark bg-white/70 p-5 space-y-3">
-      <h2 className="font-display text-lg text-ink">Scheduled conversations</h2>
+      <h2 className="font-display text-lg text-ink">Bookings</h2>
       {error && (
         <p className="text-body-xs text-warm" role="status">
           Scheduled conversations couldn&apos;t be loaded.{" "}

@@ -3,7 +3,15 @@ import { resolveLoginNext } from "./login-next";
 
 describe("resolveLoginNext", () => {
   it("allows each allowlisted target", () => {
-    for (const path of ["/dashboard?view=setup", "/dashboard", "/studio", "/pricing"]) {
+    for (const path of [
+      "/setup",
+      "/dashboard",
+      "/dashboard?view=setup",
+      "/studio",
+      "/pricing",
+      "/examples",
+      "/batch",
+    ]) {
       expect(resolveLoginNext(path)).toBe(path);
     }
   });
@@ -20,8 +28,8 @@ describe("resolveLoginNext", () => {
     expect(resolveLoginNext("https://evil.example.com")).toBe("/studio");
     expect(resolveLoginNext("//evil.example.com")).toBe("/studio");
     expect(resolveLoginNext("\\\\evil.example.com")).toBe("/studio");
-    expect(resolveLoginNext("/dashboard%3Fview%3Dsetup")).toBe("/studio");
-    expect(resolveLoginNext("/dashboard?view=setup&x=1")).toBe("/studio");
+    expect(resolveLoginNext("/setup%3Fview%3Dsetup")).toBe("/studio");
+    expect(resolveLoginNext("/setup?view=setup&x=1")).toBe("/studio");
     expect(resolveLoginNext("/dashb0ard")).toBe("/studio");
     expect(resolveLoginNext("dashboard")).toBe("/studio");
     expect(resolveLoginNext("/api/account/brief")).toBe("/studio");

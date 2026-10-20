@@ -130,7 +130,7 @@ Per `docs/STRATEGY.md`, the live link is a personal front door — the recipient
 
 ### Owner (`CallRequestsCard` on `/dashboard`)
 - Availability toggle is explicit and expiring ("Available for calls — 15 min"), never inferred from a calendar. Pending requests list with accept/decline; accepted state shows a "Join call" button — no automatic mic/camera prompts. Accept/Join show optimistic busy states (`Accepting…` / `Joining…` with spinner, buttons disabled) so double-clicks never double-fire.
-- Owner-facing setup fields (`synthesiaAvatarId` `av_*`, `liveVoiceId`, identity, playbook, booking URL) live in the Setup view (`/dashboard?view=setup`, `SetupPanel`) — not inside the inbox card.
+- Owner-facing setup fields (`synthesiaAvatarId` `av_*`, `liveVoiceId`, identity, playbook, booking URL) live in the Setup view (`/setup`, `SetupPanel`) — not inside the inbox card.
 
 ### Shared room (`LiveCallRoom`)
 - One component for owner and recipient; distinct LiveKit identities (`owner-<userId>` / `recipient-<requestId>`), audio-only publish grants.
@@ -148,10 +148,28 @@ Per `docs/STRATEGY.md`, the live link is a personal front door — the recipient
 - `#prospect-experience` is a single self-contained, manually steppable illustration (Alex → Maya) labeled "Illustrative journey · not a live session" — four stages (First touch / Your choices / Request / Human call) with `aria-pressed` stage buttons, reduced-motion respect, and no autoplay, timers, network, or real chat/call UI.
 - It teaches the actual branch semantics: ask the AI, request the sender, or choose a configured scheduling link; a request is not an acceptance, and a human call happens only when the owner accepts and both participants join — the AI steps aside. No qualification is implied and no call auto-connects.
 
+### Information architecture (single source of truth: `src/lib/navigation.ts`)
+
+The app has **three spaces**, each a real route, each with a one-line description shown next to the label so the user never has to guess which is which:
+
+| Space | Route | What it is |
+|---|---|---|
+| Inbox | `/dashboard` | Requests, live sessions and bookings — everything a prospect sends back |
+| Your representative | `/setup` | Who it speaks for, and what it may promise |
+| Create | `/studio` | Make a first touch from a prospect's profile |
+
+Rules that keep the surfaces disambiguable:
+
+- **No navigation differs only by a query string.** Setup used to live at `/dashboard?view=setup`; that URL now redirects to `/setup` so a bookmark, a browser-history entry and a shared link all say the same thing.
+- **"Playbook" means your representative's playbook, always.** The public worked examples moved from `/playbook` to `/examples` (old URL redirects) precisely because the same word was used for two different things.
+- **One primary action.** `Create` is the only filled button in the header; Batch, Worked examples and Plan & credits live in the account menu (and the mobile menu's "More" group).
+- **Every destination carries a description.** Member surfaces are `memberOnly` — an anonymous visitor is never offered a page that dead-ends at the login wall.
+- `PRODUCT_ONELINER` ("Nuncio runs an AI representative that talks to your prospects using the playbook you set.") is rendered in the app shell — the Inbox header, the Setup header and the tour — so what the app *is* is never more than one sentence away.
+
 ### Dashboard views
-- `/dashboard` (Conversations) = operational inbox: "Needs your attention" (`CallRequestsCard`), "Scheduled conversations" (provider-verified bookings; empty state links the teaching ladder at the booking step), "Recent first touches" (`RecentVideos` incl. the `firstTouches` projection of `GET /api/videos/recent`; empty state links the ladder at the first-link step), plus a compact "Your representative" readiness aside and a collapsed "Usage & account" section (scoreboard empty state links the ladder at the conversation step; non-empty scoreboards carry a latest-session debrief card — metric labels only, never dialogue).
-- `/dashboard?view=setup` = `SetupPanel`: identity, playbook, scheduling (HTTPS-only booking URL input), and collapsible provider fields, with a server-loaded status checklist — configuration presence, never provider health. The checklist reports "unknown" while readiness can't be fetched, and derives only from the last saved server snapshot, not unsaved form input. `SetupPanel variant="summary"` renders the same saved statuses (no form) in the conversations aside. Setup guides blank fields with `e.g.` placeholders (Alex/Northwind fiction), a `Try an example` fill (dirty-marked, never autosaves), a live prospect preview that reacts to unsaved typing, a `Hear your twin` TTS preview of the disclosure line (non-blocking errors), staged save states (`Saving…` → `Saved ✓` + `Preview updated` + one reduced-motion-aware pulse), and a playbook coverage meter (`n/5`: wants/offer/constraints + wiggle-room + identity).
-- Login return target: `resolveLoginNext` (`src/lib/auth/login-next.ts`) allowlists only `/dashboard?view=setup`, `/dashboard`, `/studio`, `/pricing` — everything else falls back to `/studio`. The `next` param flows LoginForm → `POST /api/auth/login` → verify-link query → `/api/auth/verify` redirect, and is preserved on error redirects.
+- `/dashboard` (Inbox) = operational inbox: "Needs your attention" (`ApprovalsCard`, `CallRequestsCard`), "Bookings" (provider-verified bookings; empty state links the teaching ladder at the booking step), "Sent first touches" (`RecentVideos` incl. the `firstTouches` projection of `GET /api/videos/recent`; empty state links the ladder at the first-link step), plus a compact "Your representative" readiness aside and a collapsed "Usage & account" section (scoreboard empty state links the ladder at the conversation step; non-empty scoreboards carry a latest-session debrief card — metric labels only, never dialogue).
+- `/setup` = `SetupPanel`: identity, playbook, scheduling (HTTPS-only booking URL input), and collapsible provider fields, with a server-loaded status checklist — configuration presence, never provider health. The checklist reports "unknown" while readiness can't be fetched, and derives only from the last saved server snapshot, not unsaved form input. `SetupPanel variant="summary"` renders the same saved statuses (no form) in the Inbox aside. Setup guides blank fields with `e.g.` placeholders (Alex/Northwind fiction), a `Try an example` fill (dirty-marked, never autosaves), a live prospect preview that reacts to unsaved typing, a `Hear your twin` TTS preview of the disclosure line (non-blocking errors), staged save states (`Saving…` → `Saved ✓` + `Preview updated` + one reduced-motion-aware pulse), and a playbook coverage meter (`n/5`: wants/offer/constraints + wiggle-room + identity).
+- Login return target: `resolveLoginNext` (`src/lib/auth/login-next.ts`) allowlists only `/setup`, `/dashboard`, `/dashboard?view=setup` (legacy), `/studio`, `/pricing`, `/examples`, `/batch` — everything else falls back to `/studio`. The `next` param flows LoginForm → `POST /api/auth/login` → verify-link query → `/api/auth/verify` redirect, and is preserved on error redirects.
 
 ---
 
@@ -292,23 +310,38 @@ The batch page (`/batch`) introduces a new flow for multi-profile campaigns. It 
 
 ## Auth header & account menu
 
-The shared `Header` component is fixed at the top with a `bg-cream/80 backdrop-blur-md` background, subtle border, and `pointer-events-auto` so it remains readable and clickable over page content. When signed in, the header shows:
+The shared `Header` component is fixed at the top with a `bg-cream/80 backdrop-blur-md` background, subtle border, and `pointer-events-auto` so it remains readable and clickable over page content.
+
+When signed in, the header shows the three spaces plus the credits pill and the account menu:
 
 ```
-[Logo]  Studio  Batch  Pricing         [email@example.com ▼]
-                                          ┌──────────────┐
-                                          │ email@me.com  │
-                                          │ Pro plan      │
-                                          │ 142 credits   │
-                                          │──────────────│
-                                          │ Sign out      │
-                                          └──────────────┘
+[Logo]  Inbox  Your representative  [Create]   [142 cr]  [email@example.com ▼]
+                                                              ┌──────────────────┐
+                                                              │ email@me.com      │
+                                                              │ Pro plan          │
+                                                              │ 142 credits       │
+                                                              │───────────────────│
+                                                              │ Inbox             │
+                                                              │ Your representative│
+                                                              │ Create a first touch│
+                                                              │───────────────────│
+                                                              │ Batch outreach    │
+                                                              │ Worked examples   │
+                                                              │ Plan & credits    │
+                                                              │───────────────────│
+                                                              │ Show tips         │
+                                                              │ Sign out          │
+                                                              └──────────────────┘
 ```
 
+- The three spaces come from `MEMBER_NAV` in `src/lib/navigation.ts`; each has a `description` used as the link's `title` and as the sub-line in the mobile menu.
+- `Create` is the only filled button (primary action); `Inbox` and `Your representative` are plain links, with the current route in the accent color.
+- Secondary surfaces (`Batch outreach`, `Worked examples`, `Plan & credits`) live in the account menu and in the mobile menu's "More" group — never in the top bar.
 - Account menu is a simple dropdown triggered on click
 - Displays email, plan name, current credit balance
+- "Show tips" dispatches the onboarding-open event — the tour is mounted once, in the root layout, so it opens from any page
 - "Sign out" calls `POST /api/auth/logout`
-- When not signed in, the header shows a "Sign in" link
+- When not signed in, the header shows only the public surfaces (`Worked examples`, `Plan & credits`) and a "Sign in" link
 - Pricing page is always accessible (even before sign-in)
 
 ## Pricing page
@@ -395,28 +428,34 @@ The dashboard (`/dashboard`) is the post-login landing page that unifies all nun
 
 ## Onboarding modal
 
-Shown on first visit to `/dashboard` or `/studio`:
+Mounted once, in the root layout (`src/app/layout.tsx`), so "Show tips" works from every page. Auto-opens on the three member surfaces (`/dashboard`, `/setup`, `/studio`) for signed-in members only — an anonymous explorer has nothing to set up yet.
+
+The first panel answers "what is this app?" before any task; the rest walk the three steps:
 
 ```
 ┌──────────────────────────┐
 │ ━━━━━━━━━━━━━━━━━━━━━━  │
 │                          │
-│ Paste a social URL       │
+│ What nuncio does         │
 │                          │
-│ LinkedIn, Twitter, or    │
-│ any profile link. Nuncio │
-│ enriches public context  │
-│ to personalise your      │
-│ video.                   │
+│ Nuncio runs an AI        │
+│ representative that talks │
+│ to your prospects using  │
+│ the playbook you set.    │
+│                          │
+│ 1 Send a link            │
+│ 2 They talk              │
+│ 3 They book              │
 │                          │
 │ Skip              Next → │
 └──────────────────────────┘
 ```
 
-- **3 tips:** Paste URL → Review script → Share link
-- **Tracking:** `localStorage` (`nuncio_onboarding_done` key)
+- **4 panels:** "What nuncio does" → "1. Set up your representative" → "2. Create a first touch" → "3. They choose how to continue". Panels 2 and 3 link straight to the surface they describe.
+- **Copy is shared** with the teaching ladder (`GETTING_STARTED_STEPS` in `src/lib/navigation.ts`) so the tour and the empty states never drift apart.
+- **Tracking:** `localStorage` (`nuncio_onboarding_done_v2` key, via `src/lib/onboarding.ts` — one key, one owner, so "Show tips" can actually bring the tour back)
 - **Dismissible:** close button, "Skip" link, or "Got it" on last step
-- **Replayable:** "Show tips" button in account menu
+- **Replayable:** "Show tips" button in the account menu, from any page
 - **Animation:** modal fades in with backdrop blur, steps slide horizontally
 - **Progress indicator:** segmented bar at top shows position
 

@@ -231,7 +231,7 @@ export default function HomeClient() {
                   >
                     <div className="flex flex-wrap gap-3">
                       <Link
-                        href="/dashboard?view=setup"
+                        href="/setup"
                         className="btn-press rounded-xl bg-ink text-cream px-6 py-3.5 text-body-sm font-medium shadow-xl shadow-ink/15 hover:shadow-2xl hover:-translate-y-0.5 transition-[box-shadow,transform] duration-300 min-h-[44px] inline-flex items-center gap-2"
                       >
                         Set up your representative
@@ -326,7 +326,7 @@ export default function HomeClient() {
                 : "Approve the opening. Set the boundaries for live answers."}
             </p>
             <Link
-              href={mode === "reconnect" ? "/studio?mode=reconnect" : "/dashboard?view=setup"}
+              href={mode === "reconnect" ? "/studio?mode=reconnect" : "/setup"}
               className="btn-press inline-flex items-center gap-2 rounded-xl bg-ink text-cream px-6 py-3.5 text-body-sm font-medium shadow-xl shadow-ink/15 hover:shadow-2xl hover:-translate-y-0.5 transition-[box-shadow,transform] duration-300 min-h-[44px]"
             >
               {mode === "reconnect" ? "Create a reconnection card" : "Set up your representative"}
