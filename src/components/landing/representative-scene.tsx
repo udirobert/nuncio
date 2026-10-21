@@ -5,17 +5,68 @@ import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Face } from "@/components/face";
 
 /**
- * The hero: the prospect's actual screen.
+ * The hero: the prospect's actual screen, with the faces you can flick through.
  *
  * A diagram of a conversation is not a conversation, and a screenshot of one
- * is a picture of a conversation. This is the *thing* — the frame the
- * session uses, the representative moving in it, the exchange in the house
- * conversation language, and the three ways the recipient can continue —
- * rendered as live components rather than described.
+ * is a picture of a conversation. This is the *thing* — the frame the session
+ * uses, the representative moving in it, the exchange in the house
+ * conversation language, and the three ways the recipient can continue.
  *
- * The exchange plays once when it comes into view, so the page opens
- * mid-conversation instead of on an empty frame.
+ * The deck on the frame is not a gallery. It is the product's one idea: a
+ * representative has a face, and there are exactly two honest ways to get
+ * one — the sender's own photo, or a disclosed persona that stands in for
+ * them. Flicking the deck changes the face, the name and the disclosure
+ * together, because that is what a sender is actually choosing.
  */
+interface FaceOption {
+  id: string;
+  name: string;
+  /** What this option is, in a few words. */
+  role: string;
+  image?: string;
+  video?: string;
+  /** "self" uses the sender's photo; "persona" stands in for them. */
+  kind: "self" | "persona";
+  /** What the representative says when it introduces itself. */
+  line: string;
+  /** The disclosure the prospect reads. */
+  disclosure: string;
+}
+
+const FACES: FaceOption[] = [
+  {
+    id: "gabriel",
+    name: "Gabriel",
+    role: "The default persona",
+    image: "/representative.webp",
+    video: "/representative-loop.mp4",
+    kind: "persona",
+    line: "I’m Alex’s AI representative — I’m not Alex, I stand in for him, and I answer from his notes.",
+    disclosure:
+      "A disclosed AI representative. It is not Alex — it stands in for him, and answers only from Alex’s notes.",
+  },
+  {
+    id: "mia",
+    name: "Mia",
+    role: "Another persona from the library",
+    image: "/representative-mia.webp",
+    video: "/representative-mia-loop.mp4",
+    kind: "persona",
+    line: "I’m Alex’s AI representative — I’m not Alex, I stand in for him, and I answer from his notes.",
+    disclosure:
+      "A disclosed AI representative. It is not Alex — it stands in for him, and answers only from Alex’s notes.",
+  },
+  {
+    id: "you",
+    name: "Your photo",
+    role: "Your own face, disclosed",
+    kind: "self",
+    line: "I’m Alex’s AI representative — this is Alex’s photo, and I answer from his notes.",
+    disclosure:
+      "An AI representative that uses Alex’s photo. It answers only from Alex’s notes, and the prospect is told it is his face.",
+  },
+];
+
 const EXCHANGE: { who: "prospect" | "representative"; text: string }[] = [
   {
     who: "prospect",
@@ -32,8 +83,11 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 export function RepresentativeScene() {
   const reducedMotion = useReducedMotion();
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(reducedMotion ? EXCHANGE.length : 0);
   const [started, setStarted] = useState(false);
+
+  const face = FACES[index];
 
   // Play the exchange once, when the scene is actually on screen.
   useEffect(() => {
@@ -59,6 +113,21 @@ export function RepresentativeScene() {
     return () => clearTimeout(timer);
   }, [started, revealed, reducedMotion]);
 
+  // Changing the face replays the exchange — the representative is a different
+  // person saying the same thing.
+  function select(next: number) {
+    if (next === index) return;
+    setIndex(next);
+    setRevealed(reducedMotion ? EXCHANGE.length : 0);
+  }
+
+  function onKeyDown(event: React.KeyboardEvent) {
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+    event.preventDefault();
+    const delta = event.key === "ArrowRight" ? 1 : -1;
+    select((index + delta + FACES.length) % FACES.length);
+  }
+
   return (
     <div
       ref={rootRef}
@@ -70,7 +139,7 @@ export function RepresentativeScene() {
           Conversation link
         </p>
         <div className="flex items-center gap-1.5 rounded-full border border-cream-dark bg-cream/60 py-1 pl-1 pr-2.5">
-          <Face src="/representative.webp" name="Alex Rivera" size="xs" alt="" />
+          <Face src={face.image} name={face.kind === "self" ? "Alex Rivera" : face.name} size="xs" alt="" />
           <span className="text-label-xs text-ink font-medium leading-none">Alex Rivera</span>
           <span className="text-label-xs text-ink-faint leading-none">·</span>
           <span className="rounded border border-ink-faint/40 px-1 text-label-xs font-semibold text-ink-faint leading-none">
@@ -86,28 +155,105 @@ export function RepresentativeScene() {
       {/* The frame the session uses. */}
       <div className="relative overflow-hidden rounded-xl border border-cream-dark bg-ink">
         <div className="relative aspect-video">
-          {reducedMotion ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src="/representative.webp"
-              alt="The AI representative a prospect meets"
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          ) : (
-            <video
-              src="/representative-loop.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              aria-label="The AI representative a prospect meets"
-              className="absolute inset-0 h-full w-full object-cover"
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={face.id}
+              initial={reducedMotion ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={reducedMotion ? undefined : { opacity: 0 }}
+              transition={{ duration: 0.35, ease: EASE }}
+              className="absolute inset-0"
+            >
+              {face.video ? (
+                <video
+                  key={face.video}
+                  src={face.video}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  aria-label={`${face.name}, the AI representative`}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : face.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={face.image}
+                  alt={`${face.name}, the AI representative`}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-cream-soft px-6 text-center">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-dashed border-ink-faint/60 text-ink-muted">
+                    <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <circle cx="12" cy="9" r="3.5" />
+                      <path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" />
+                    </svg>
+                  </span>
+                  <p className="text-body-xs text-ink-muted max-w-[240px] leading-relaxed">
+                    Alex&rsquo;s photo goes here &mdash; the representative then answers in
+                    his face, and says so.
+                  </p>
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+          {(face.video || face.image) && (
+            <div
+              className="absolute inset-0 bg-gradient-to-t from-ink/50 via-transparent to-transparent"
+              aria-hidden
             />
           )}
-          <div
-            className="absolute inset-0 bg-gradient-to-t from-ink/50 via-transparent to-transparent"
-            aria-hidden
-          />
+        </div>
+      </div>
+
+      {/* The deck — stacked, and the product's one idea in three cards. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
+        <div
+          role="tablist"
+          aria-label="Faces a representative can wear"
+          onKeyDown={onKeyDown}
+          className="flex items-center -space-x-2"
+        >
+          {FACES.map((option, i) => {
+            const selected = i === index;
+            return (
+              <button
+                key={option.id}
+                role="tab"
+                aria-selected={selected}
+                aria-label={option.name}
+                title={`${option.name} — ${option.role}`}
+                onClick={() => select(i)}
+                className={`w-11 h-11 rounded-full border-2 transition-[transform,box-shadow,border-color,opacity] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream ${
+                  selected
+                    ? "border-accent opacity-100 -translate-y-0.5 scale-110 z-10 shadow-md"
+                    : "border-cream opacity-55 hover:opacity-90 hover:-translate-y-0.5"
+                }`}
+              >
+                {option.image ? (
+                  <Face
+                    src={option.image}
+                    name={option.name}
+                    size="xs"
+                    alt=""
+                    className="w-full h-full border-0 opacity-100"
+                  />
+                ) : (
+                  <span className="w-full h-full rounded-full bg-cream-soft flex items-center justify-center text-ink-faint">
+                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <circle cx="12" cy="9" r="3.5" />
+                      <path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" />
+                    </svg>
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <div className="min-w-0">
+          <p className="text-body-xs font-medium text-ink leading-tight">{face.name}</p>
+          <p className="text-label-base text-ink-faint">{face.role}</p>
         </div>
       </div>
 
@@ -157,11 +303,21 @@ export function RepresentativeScene() {
             Choose a time
           </span>
         </div>
-        <p className="text-label-base text-ink-faint pt-0.5">
-          A disclosed AI representative. It is not Alex — it stands in for him, and answers
-          only from Alex&rsquo;s notes.
-        </p>
       </div>
+
+      {/* The disclosure, which changes with the face. */}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.p
+          key={face.id}
+          initial={reducedMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={reducedMotion ? undefined : { opacity: 0 }}
+          transition={{ duration: 0.3, ease: EASE }}
+          className="text-label-base text-ink-faint leading-relaxed pt-0.5"
+        >
+          {face.disclosure}
+        </motion.p>
+      </AnimatePresence>
     </div>
   );
 }
