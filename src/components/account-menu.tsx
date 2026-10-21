@@ -64,7 +64,7 @@ export function AccountMenu() {
       ) : (
         <Link
           href="/login"
-          className="inline-flex items-center rounded-full border border-accent/20 bg-accent-soft px-3 py-1.5 text-label-base uppercase tracking-widest font-medium text-accent hover:bg-accent/10 transition-colors"
+          className="inline-flex items-center rounded-full border border-accent/20 bg-accent-soft px-3.5 py-2.5 text-label-base uppercase tracking-widest font-medium text-accent hover:bg-accent/10 transition-colors min-h-[44px]"
         >
           Sign in
         </Link>
