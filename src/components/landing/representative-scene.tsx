@@ -1,30 +1,91 @@
 "use client";
 
-import { useRef } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Face } from "@/components/face";
 
 /**
- * The hero scene.
+ * The hero: the prospect's actual screen.
  *
- * A diagram of a conversation is not a conversation. The landing used to
- * lead with a wireframe — a labelled four-stage illustration of the flow —
- * which for a product whose entire claim is *a face that talks* showed no
- * face at all.
+ * A diagram of a conversation is not a conversation, and a screenshot of one
+ * is a picture of a conversation. This is the *thing* — the frame the
+ * session uses, the representative moving in it, the exchange in the house
+ * conversation language, and the three ways the recipient can continue —
+ * rendered as live components rather than described.
  *
- * This is the product instead: the representative, moving, in the frame the
- * session actually uses, with the disclosure and its first line in the house
- * conversation language (the disclosed AI is the soft accent bubble).
+ * The exchange plays once when it comes into view, so the page opens
+ * mid-conversation instead of on an empty frame.
  */
+const EXCHANGE: { who: "prospect" | "representative"; text: string }[] = [
+  {
+    who: "prospect",
+    text: "We keep losing handoffs between support and onboarding. Does this actually help?",
+  },
+  {
+    who: "representative",
+    text: "We map your handoffs and show you where work gets stuck, then fix the worst one first. It usually takes a week, and nothing gets ripped out and replaced.",
+  },
+];
+
+const EASE = [0.22, 1, 0.36, 1] as const;
+
 export function RepresentativeScene() {
   const reducedMotion = useReducedMotion();
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [revealed, setRevealed] = useState(reducedMotion ? EXCHANGE.length : 0);
+  const [started, setStarted] = useState(false);
+
+  // Play the exchange once, when the scene is actually on screen.
+  useEffect(() => {
+    if (started || reducedMotion) return;
+    const node = rootRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setStarted(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.35 },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [started, reducedMotion]);
+
+  useEffect(() => {
+    if (!started || revealed >= EXCHANGE.length) return;
+    const timer = setTimeout(() => setRevealed((n) => n + 1), reducedMotion ? 120 : 900);
+    return () => clearTimeout(timer);
+  }, [started, revealed, reducedMotion]);
 
   return (
-    <div className="relative">
-      {/* The frame — the same shape the prospect meets in the session. */}
-      <div className="relative overflow-hidden rounded-2xl border border-cream-dark bg-ink shadow-xl shadow-ink/10">
-        <div className="relative aspect-[3/2]">
+    <div
+      ref={rootRef}
+      className="rounded-2xl border border-cream-dark bg-white p-4 sm:p-5 shadow-xl shadow-ink/5 space-y-3.5"
+    >
+      {/* The header the prospect actually sees. */}
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-label-xs uppercase tracking-widest text-ink-faint font-medium">
+          Conversation link
+        </p>
+        <div className="flex items-center gap-1.5 rounded-full border border-cream-dark bg-cream/60 py-1 pl-1 pr-2.5">
+          <Face src="/representative.webp" name="Alex Rivera" size="xs" alt="" />
+          <span className="text-label-xs text-ink font-medium leading-none">Alex Rivera</span>
+          <span className="text-label-xs text-ink-faint leading-none">·</span>
+          <span className="rounded border border-ink-faint/40 px-1 text-label-xs font-semibold text-ink-faint leading-none">
+            AI
+          </span>
+        </div>
+      </div>
+
+      <p className="font-display text-2xl sm:text-3xl tracking-tight leading-[0.95] -mt-1">
+        A conversation with Alex Rivera
+      </p>
+
+      {/* The frame the session uses. */}
+      <div className="relative overflow-hidden rounded-xl border border-cream-dark bg-ink">
+        <div className="relative aspect-video">
           {reducedMotion ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -34,7 +95,6 @@ export function RepresentativeScene() {
             />
           ) : (
             <video
-              ref={videoRef}
               src="/representative-loop.mp4"
               autoPlay
               muted
@@ -44,45 +104,64 @@ export function RepresentativeScene() {
               className="absolute inset-0 h-full w-full object-cover"
             />
           )}
-          {/* A soft scrim so the disclosure below always has something to sit on. */}
           <div
-            className="absolute inset-0 bg-gradient-to-t from-ink/45 via-transparent to-transparent"
+            className="absolute inset-0 bg-gradient-to-t from-ink/50 via-transparent to-transparent"
             aria-hidden
           />
         </div>
       </div>
 
-      {/* The disclosure, and the first thing it says. */}
-      <div className="mt-4 flex items-start gap-3">
-        <Face
-          src="/representative.webp"
-          name="Alex's AI representative"
-          size="sm"
-          alt="The AI representative"
-        />
-        <div className="min-w-0">
-          <p className="text-body-xs font-medium text-ink">A disclosed AI representative</p>
-          <p className="text-body-xs text-ink-muted mt-1 leading-relaxed">
-            It is not Alex &mdash; it stands in for him, and answers only from Alex&rsquo;s notes.
-          </p>
-        </div>
+      {/* The exchange, in the house language: the human is ink, the AI is accent. */}
+      <div className="space-y-2">
+        <AnimatePresence initial={false}>
+          {EXCHANGE.slice(0, revealed).map((turn, i) => (
+            <motion.div
+              key={turn.who + i}
+              initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: EASE }}
+              className={`flex ${turn.who === "representative" ? "justify-start" : "justify-end"}`}
+            >
+              <div
+                className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
+                  turn.who === "representative"
+                    ? "bg-accent-soft/60 border border-accent/20 text-ink"
+                    : "bg-ink text-cream ml-auto"
+                }`}
+              >
+                {turn.who === "representative" && (
+                  <p className="text-label-sm uppercase tracking-widest opacity-60 mb-0.5">
+                    Alex&rsquo;s AI representative
+                  </p>
+                )}
+                <p className="text-body-sm leading-relaxed">{turn.text}</p>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
-      {/* The AI's voice, in the house language: accent-soft, always. */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
-        className="mt-4 max-w-[85%] rounded-2xl border border-accent/20 bg-accent-soft/60 px-4 py-2.5"
-      >
-        <p className="text-label-sm uppercase tracking-widest opacity-60 mb-0.5">
-          Alex&rsquo;s AI representative
+      {/* The three ways the recipient continues — the real choices. */}
+      <div className="space-y-2 pt-1">
+        <p className="text-label-xs uppercase tracking-widest text-ink-faint font-medium">
+          Choose how to continue
         </p>
-        <p className="text-body-sm leading-relaxed text-ink">
-          I&rsquo;m Alex&rsquo;s AI representative — I can answer from his playbook, or you can
-          ask for Alex himself on this link.
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-xl bg-accent px-3.5 py-2 text-body-xs font-medium text-white">
+            Ask the AI representative
+          </span>
+          <span className="rounded-xl border border-ink/15 bg-white px-3.5 py-2 text-body-xs font-medium text-ink-muted">
+            Request Alex Rivera
+          </span>
+          <span className="rounded-xl border border-ink/15 bg-white px-3.5 py-2 text-body-xs font-medium text-ink-muted">
+            Choose a time
+          </span>
+        </div>
+        <p className="text-label-base text-ink-faint pt-0.5">
+          A disclosed AI representative. It is not Alex — it stands in for him, and answers
+          only from Alex&rsquo;s notes.
         </p>
-      </motion.div>
+      </div>
     </div>
   );
 }

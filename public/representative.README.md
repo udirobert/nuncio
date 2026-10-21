@@ -1,16 +1,17 @@
 # public/representative.webp
 
-The illustrative AI representative shown in the landing-page conversation
-example ("What the conversation looks like").
+The still of the representative shown in the landing hero and in the
+conversation example.
 
-It is a **stock persona** from HeyGen's public avatar set — the same avatars
-the app offers in its video avatar selector — cropped to a square and
-flattened onto the house cream (`#FAF9F6`).
+It is the **default persona configured for this deployment**
+(`ANAM_AVATAR_ID`) — the same avatar whose clip is
+`public/representative-loop.mp4`, cropped from the provider's portrait
+variant so the face sits correctly in a circle.
 
-It is **not** a real customer, a real employee, or anyone's likeness being
-used to represent them. The example it illustrates is explicitly labelled
-"Illustrative conversation · not a live session", and the disclosure in that
-example says the representative "is not Alex Rivera — it stands in for them".
+It is a synthetic provider persona — not a real customer, not an
+employee, and not anyone's likeness being used to represent them. The
+example it illustrates is labelled "Illustrative conversation · not a
+live session", and the disclosure in it says the representative "is not
+Alex Rivera — it stands in for them".
 
-Replacing it: drop a new square image at this path. The component crops it to
-a circle, so keep the face centred.
+Replacing it: drop a square image at this path with the face centred.

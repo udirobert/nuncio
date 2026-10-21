@@ -13,6 +13,7 @@ import { VideoProof } from "@/components/landing/video-proof";
 import { RepresentativeExample } from "@/components/representative-example";
 import { RelationshipJourney } from "@/components/landing/relationship-journey";
 import { RepresentativeScene } from "@/components/landing/representative-scene";
+import { FaceRow, PromiseCards } from "@/components/landing/promise-cards";
 import { SHOWCASE_RECIPIENTS, splitShowcase } from "@/lib/showcase";
 import { trackViralLanding } from "@/lib/analytics";
 import { rememberViralRef } from "@/lib/viral-ref-client";
@@ -196,7 +197,7 @@ export default function HomeClient() {
             </section>
           ) : (
             <section className="px-6 pt-28 lg:pt-32 pb-12 scroll-mt-20">
-              <div className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+              <div className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
                 <div className="lg:col-span-5">
                   <motion.p
                     initial={reducedMotion ? false : { opacity: 0, y: 12 }}
@@ -210,7 +211,7 @@ export default function HomeClient() {
                     initial={reducedMotion ? false : { opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={reducedMotion ? { duration: 0 } : { delay: 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                    className="font-display text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[0.95] mb-4"
+                    className="font-display text-5xl md:text-6xl lg:text-7xl tracking-[-0.02em] leading-[0.9] mb-5"
                   >
                     Start the conversation.
                     <br />
@@ -255,6 +256,7 @@ export default function HomeClient() {
                     <p className="text-label-base text-ink-faint">
                       Approve the opening. Set the boundaries for live answers.
                     </p>
+                    <FaceRow />
                     <Link
                       href="/studio"
                       className="inline-block text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
@@ -274,6 +276,22 @@ export default function HomeClient() {
               </div>
             </section>
           )}
+
+          {/* The contrast, then the promises proved by real artefacts. */}
+          <section className="px-6 py-12" data-reveal="fade-up">
+            <div className="max-w-[1200px] mx-auto">
+              <h2 className="font-display text-4xl md:text-5xl tracking-[-0.02em] leading-[0.95] max-w-[760px] mb-3">
+                A link nobody opens.
+                <br />
+                <span className="text-ink-light">A conversation that books itself.</span>
+              </h2>
+              <p className="text-body-sm text-ink-muted max-w-[520px] mb-8 leading-relaxed">
+                The representative is the relationship. It knows what you would say, holds
+                the line you set, and brings you in the moment it should.
+              </p>
+              <PromiseCards />
+            </div>
+          </section>
 
           {/* The flow, explained — it was the hero's right column, but a
               wireframe is not a hero. The product moment goes first; the
@@ -325,27 +343,6 @@ export default function HomeClient() {
             <p data-reveal="fade-up" className="text-center text-body-xs text-ink-muted mt-5 max-w-[390px] mx-auto leading-relaxed">
               Nuncio is for the one person you&apos;d write to yourself — the message that only works if it actually sounds like you.
             </p>
-          </section>
-
-          {/* What the conversation actually looks like — the thing the
-              product sells, shown before anyone signs up. */}
-          <section className="px-6 py-10" data-reveal="fade-up">
-            <div className="max-w-[720px] mx-auto">
-            <div className="mb-4 text-center">
-              <h2 className="font-display text-2xl md:text-3xl tracking-tight mb-2">
-                What the conversation looks like
-              </h2>
-              <p className="text-body-sm text-ink-muted max-w-[460px] mx-auto">
-                Your representative answers from your playbook, refuses what it must
-                refuse, and hands you the conversation when it matters.
-              </p>
-            </div>
-            <RepresentativeExample
-              kind="persona"
-              senderName="Alex Rivera"
-              imageUrl="/representative.webp"
-            />
-            </div>
           </section>
 
           <VideoProof />
