@@ -198,6 +198,19 @@ Where the representative appears:
 
 The kind, the name and the image are **snapshotted onto the share record** when a link is created, so a prospect sees the same face they were shown even if the sender later changes it. The provider avatar ID (`av_…`) moved into "6 · Advanced — provider details", is never shown to a user as a headline, and the advanced section says plainly that it is ignored when a photo avatar is configured.
 
+### Mobile
+
+The app is used on a phone more than a laptop: the *sender* is on their phone when a reply lands, and the *prospect* is on their phone when they open a link. The mobile rules that follow from that:
+
+- **The face comes first.** On a 390px viewport the hero used to put the scene card at y=804 — literally the fold — so a phone visitor saw text and two buttons and no face at all. The hero now reads: headline → explanation → the scene (frame, deck, disclosure) → call to action, and the face lands at ~y=420 with the primary CTA at ~y=776. Both clear the fold. On desktop the scene keeps the right-hand column.
+- **One scene, never two.** The mobile and desktop scenes are the same component with a `compact` flag, and only one is ever mounted — rendering both and hiding one with `display: none` would still cost a second request for the same video. `useMediaQuery` (src/lib/use-media-query.ts) picks the layout.
+- **The prospect's action clears the fold too.** On `/live/[id]` the preview frame, the disclosure, the mic check and the three choices all fit in the first screen: the face at ~y=390 and "Ask the AI representative" at ~y=750. The small face circle beside the disclosure is desktop-only — the frame already shows the face.
+- **Touch targets are 44px.** The house rule is documented; it is now applied. Every control on the landing, dashboard, setup, studio, live and examples surfaces measures ≥40px, and the 44px standard is explicit in the markup.
+- **Safe areas.** `viewportFit: "cover"` plus `env(safe-area-inset-*)` on the fixed header, the footer's bottom edge and the studio's sticky action bar, so nothing sits under a notch or a home indicator.
+- **Dead ends do not take the prime slot.** "Needs your attention" only shows cards the sender can act on; a card saying "live calls are not enabled" collapsed to a single line, because on mobile it was pushing everything that matters down a screen.
+- **The flow, not a diagram, in a narrow space.** The studio's three-step nav became "Step 2 of 3 · Create a first touch" on a phone; the full nav stays for wide screens.
+- **Setup leads with the face.** The sections are now 1 Identity, 2 Who answers, 3 Trust proof, 4 Playbook, 5 Scheduling, 6 Advanced — the representative before the paperwork, on every viewport.
+
 ### Sender proof — the human behind the AI
 
 A stranger deciding whether to talk to an AI needs more than initials in a circle. The sender can publish three things, all snapshotted onto the share record when the link is created so a later change never rewrites what a prospect was shown:

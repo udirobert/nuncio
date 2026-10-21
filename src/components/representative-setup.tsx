@@ -207,7 +207,7 @@ export function RepresentativeSetup({
         </p>
         <a
           href="/setup#representative-advanced"
-          className="inline-block text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
+          className="inline-flex items-center min-h-[44px] text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
         >
           Change the persona
         </a>

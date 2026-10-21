@@ -67,7 +67,7 @@ export function RelationshipJourney() {
         </p>
         <Link
           href="/v/cf2ce2ee-c6d"
-          className="text-label-base font-medium text-accent hover:text-accent/80 transition-colors"
+          className="text-label-base font-medium text-accent hover:text-accent/80 transition-colors min-h-[44px] inline-flex items-center"
         >
           Watch a real first touch →
         </Link>

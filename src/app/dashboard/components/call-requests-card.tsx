@@ -398,6 +398,21 @@ export function CallRequestsCard() {
     );
   }
 
+  // Nothing to attend to: live calls are off for this workspace. A whole
+  // card here would promise an action the sender cannot take — and on a
+  // phone it would push everything that matters down a screen.
+  if (availabilityLoaded && !callsEnabled && requests.length === 0) {
+    return (
+      <p className="text-body-xs text-ink-muted leading-relaxed">
+        Prospects can ask to speak with you live —{" "}
+        <a href="/setup" className="underline text-accent hover:text-accent/80 transition-colors inline-flex items-center min-h-[44px]">
+          turn that on in your representative setup
+        </a>
+        .
+      </p>
+    );
+  }
+
   return (
     <div className="rounded-2xl border border-cream-dark bg-white/70 p-5 space-y-4">
       <div className="flex items-center justify-between">
@@ -416,19 +431,6 @@ export function CallRequestsCard() {
           </button>
         )}
       </div>
-      {availabilityLoaded && !callsEnabled && (
-        /* Live calls are not enabled for this workspace. Showing the full
-           request UI would promise an action the sender cannot take, so this
-           collapses to one line and a way to turn the capability on. */
-        <p className="text-body-xs text-ink-muted leading-relaxed">
-          Prospects can ask to speak with you live. That is switched on in your
-          representative setup —{" "}
-          <a href="/setup" className="underline text-accent hover:text-accent/80 transition-colors">
-            open your setup
-          </a>
-          .
-        </p>
-      )}
       {availabilityLoaded && callsEnabled && (
         <>
       {pollError && (
@@ -460,7 +462,7 @@ export function CallRequestsCard() {
       {playbookConfigured === false && (
         <p className="text-body-xs text-warm leading-relaxed">
           Your representative has no playbook yet — it answers from general guidance only.{" "}
-          <a href="/setup" className="underline text-accent hover:text-accent/80 transition-colors">
+          <a href="/setup" className="underline text-accent hover:text-accent/80 transition-colors inline-flex items-center min-h-[44px]">
             Set up your representative
           </a>
           .

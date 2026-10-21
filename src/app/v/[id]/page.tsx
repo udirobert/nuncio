@@ -225,7 +225,7 @@ export default function VideoLandingPage({
       <header className="px-6 py-5 flex items-center justify-between">
         <Link
           href="/"
-          className="font-display text-lg tracking-tight text-ink hover:text-ink-light transition-colors"
+          className="font-display text-lg tracking-tight text-ink hover:text-ink-light transition-colors inline-flex items-center min-h-[44px]"
         >
           nuncio
         </Link>

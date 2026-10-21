@@ -411,11 +411,11 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
         <div className="flex items-center gap-3 flex-wrap">
           <Link
             href="/setup"
-            className="text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
+            className="text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors inline-flex items-center min-h-[44px]"
           >
             Open setup →
           </Link>
-          <Link href="/studio" className="text-label-base uppercase tracking-widest font-medium text-ink-faint hover:text-ink transition-colors">
+          <Link href="/studio" className="text-label-base uppercase tracking-widest font-medium text-ink-faint hover:text-ink transition-colors inline-flex items-center min-h-[44px]">
             Create a first touch
           </Link>
         </div>
@@ -580,8 +580,37 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
               </div>
             </section>
 
+            <section id="representative" className="scroll-mt-28 space-y-3">
+              <h3 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">2 · Who answers</h3>
+              <p className="text-body-xs text-ink-faint">
+                Your representative is the AI a prospect talks to. Two honest choices:
+                your own face, or a disclosed persona that stands in for you. The
+                prospect is told which one they are getting.
+              </p>
+              <RepresentativeSetup
+                snapshot={representativeSnapshot}
+                onChanged={async () => {
+                  await load(false);
+                }}
+                saving={saving}
+              />
+              <details className="rounded-xl border border-cream-dark bg-white p-4">
+                <summary className="text-label-sm uppercase tracking-widest text-ink-faint font-medium cursor-pointer list-none">
+                  See what a conversation looks like
+                </summary>
+                <div className="mt-3">
+                  <RepresentativeExample
+                    kind={representativeSnapshot.kind === "unset" ? "persona" : representativeSnapshot.kind}
+                    senderName={representativeSnapshot.senderName ?? undefined}
+                    representativeName={representativeName || undefined}
+                    imageUrl={representativeSnapshot.imageUrl}
+                  />
+                </div>
+              </details>
+            </section>
+
             <section id="proof" className="scroll-mt-28 space-y-3">
-              <h3 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">2 · Trust proof</h3>
+              <h3 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">3 · Trust proof</h3>
               <p className="text-body-xs text-ink-faint">
                 A prospect deciding whether to talk to an AI needs to see who it belongs to. These appear on
                 the link they open.
@@ -626,35 +655,6 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
                   One line, shown before they decide. It lowers the risk of the first click.
                 </span>
               </label>
-            </section>
-
-            <section id="representative" className="scroll-mt-28 space-y-3">
-              <h3 className="text-label-sm uppercase tracking-widest text-ink-faint font-medium">3 · Who answers</h3>
-              <p className="text-body-xs text-ink-faint">
-                Your representative is the AI a prospect talks to. Two honest choices:
-                your own face, or a disclosed persona that stands in for you. The
-                prospect is told which one they are getting.
-              </p>
-              <RepresentativeSetup
-                snapshot={representativeSnapshot}
-                onChanged={async () => {
-                  await load(false);
-                }}
-                saving={saving}
-              />
-              <details className="rounded-xl border border-cream-dark bg-white p-4">
-                <summary className="text-label-sm uppercase tracking-widest text-ink-faint font-medium cursor-pointer list-none">
-                  See what a conversation looks like
-                </summary>
-                <div className="mt-3">
-                  <RepresentativeExample
-                    kind={representativeSnapshot.kind === "unset" ? "persona" : representativeSnapshot.kind}
-                    senderName={representativeSnapshot.senderName ?? undefined}
-                    representativeName={representativeName || undefined}
-                    imageUrl={representativeSnapshot.imageUrl}
-                  />
-                </div>
-              </details>
             </section>
 
             <section id="playbook" className="scroll-mt-28 space-y-3">
@@ -704,7 +704,7 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
               </summary>
               <p className="text-body-xs text-ink-faint">
                 Only needed when you use a provider persona. If you uploaded your photo in
-                &ldquo;3 · Who answers&rdquo;, the avatar below is not used. Never enter API keys here.
+                &ldquo;2 · Who answers&rdquo;, the avatar below is not used. Never enter API keys here.
               </p>
 
               {snapshot?.anamAvatarId && (
@@ -888,11 +888,11 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
           <p className="text-label-base text-ink-faint">
             Plays the disclosure line above in {liveVoiceId.trim() ? "your saved voice" : "the default voice"}.
           </p>
-          <Link href="/#prospect-experience" className="inline-block text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors">
+          <Link href="/#prospect-experience" className="inline-flex items-center min-h-[44px] text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors inline-flex items-center min-h-[44px]">
             Preview the experience →
           </Link>
           <p className="text-label-base text-ink-faint">
-            Next: <Link href="/studio" className="text-accent hover:underline">create a first touch</Link>.
+            Next: <Link href="/studio" className="text-accent hover:underline inline-flex items-center min-h-[44px]">create a first touch</Link>.
           </p>
         </div>
       </div>

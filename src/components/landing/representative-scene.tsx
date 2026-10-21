@@ -80,7 +80,16 @@ const EXCHANGE: { who: "prospect" | "representative"; text: string }[] = [
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-export function RepresentativeScene() {
+/** The disclosure the prospect reads. Shared with the hero's caption. */
+export const SCENE_DISCLOSURE =
+  "A disclosed AI representative. It is not Alex \u2014 it stands in for him, and answers only from Alex\u2019s notes.";
+
+export function RepresentativeScene({
+  compact = false,
+}: {
+  /** Mobile: frame, deck and disclosure only — the face above the fold. */
+  compact?: boolean;
+}) {
   const reducedMotion = useReducedMotion();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [index, setIndex] = useState(0);
@@ -131,7 +140,7 @@ export function RepresentativeScene() {
   return (
     <div
       ref={rootRef}
-      className="rounded-2xl border border-cream-dark bg-white p-4 sm:p-5 shadow-xl shadow-ink/5 space-y-3.5"
+      className={`rounded-2xl border border-cream-dark bg-white shadow-xl shadow-ink/5 space-y-3 ${compact ? "p-3" : "p-4 sm:p-5"}`}
     >
       {/* The header the prospect actually sees. */}
       <div className="flex items-center justify-between gap-3">
@@ -148,9 +157,11 @@ export function RepresentativeScene() {
         </div>
       </div>
 
-      <p className="font-display text-2xl sm:text-3xl tracking-tight leading-[0.95] -mt-1">
-        A conversation with Alex Rivera
-      </p>
+      {!compact && (
+        <p className="font-display text-2xl sm:text-3xl tracking-tight leading-[0.95] -mt-1">
+          A conversation with Alex Rivera
+        </p>
+      )}
 
       {/* The frame the session uses. */}
       <div className="relative overflow-hidden rounded-xl border border-cream-dark bg-ink">
@@ -258,7 +269,7 @@ export function RepresentativeScene() {
       </div>
 
       {/* The exchange, in the house language: the human is ink, the AI is accent. */}
-      <div className="space-y-2">
+      <div className={`space-y-2 ${compact ? "hidden lg:block" : ""}`}>
         <AnimatePresence initial={false}>
           {EXCHANGE.slice(0, revealed).map((turn, i) => (
             <motion.div
@@ -288,7 +299,7 @@ export function RepresentativeScene() {
       </div>
 
       {/* The three ways the recipient continues — the real choices. */}
-      <div className="space-y-2 pt-1">
+      <div className={`space-y-2 pt-1 ${compact ? "hidden lg:block" : ""}`}>
         <p className="text-label-xs uppercase tracking-widest text-ink-faint font-medium">
           Choose how to continue
         </p>
@@ -306,6 +317,7 @@ export function RepresentativeScene() {
       </div>
 
       {/* The disclosure, which changes with the face. */}
+      {!compact && (
       <AnimatePresence mode="wait" initial={false}>
         <motion.p
           key={face.id}
@@ -313,11 +325,12 @@ export function RepresentativeScene() {
           animate={{ opacity: 1 }}
           exit={reducedMotion ? undefined : { opacity: 0 }}
           transition={{ duration: 0.3, ease: EASE }}
-          className="text-label-base text-ink-faint leading-relaxed pt-0.5"
+          className="text-label-base text-ink-faint leading-snug pt-0.5"
         >
           {face.disclosure}
         </motion.p>
       </AnimatePresence>
+      )}
     </div>
   );
 }

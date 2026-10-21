@@ -57,7 +57,7 @@ export function AccountMenu() {
           onClick={() => setOpen(!open)}
           aria-haspopup="menu"
           aria-expanded={open}
-          className="text-label-base uppercase tracking-widest font-medium text-ink-muted hover:text-ink transition-colors"
+          className="text-label-base uppercase tracking-widest font-medium text-ink-muted hover:text-ink transition-colors min-h-[44px] inline-flex items-center"
         >
           {session.email?.split("@")[0]}
         </button>

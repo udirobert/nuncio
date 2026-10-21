@@ -56,16 +56,16 @@ export function Header({ stage, isDemo, minimal = false }: HeaderProps) {
 
   if (minimal) {
     return (
-      <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between bg-cream/80 backdrop-blur-md border-b border-cream-dark/60 pointer-events-auto">
+      <header className="fixed top-0 left-0 right-0 z-50 pt-[max(1rem,env(safe-area-inset-top))] pb-4 px-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] flex items-center justify-between bg-cream/80 backdrop-blur-md border-b border-cream-dark/60 pointer-events-auto">
         <Link
           href="/"
-          className="font-display text-xl font-medium tracking-tight text-ink hover:text-ink-light transition-colors"
+          className="font-display text-xl font-medium tracking-tight text-ink hover:text-ink-light transition-colors min-h-[44px] inline-flex items-center"
         >
           nuncio
         </Link>
         <Link
           href={APP_ROUTES.inbox}
-          className="text-label-base uppercase tracking-widest font-medium text-ink-muted hover:text-ink transition-colors"
+          className="text-label-base uppercase tracking-widest font-medium text-ink-muted hover:text-ink transition-colors min-h-[44px] inline-flex items-center"
         >
           For sales teams →
         </Link>
@@ -79,7 +79,7 @@ export function Header({ stage, isDemo, minimal = false }: HeaderProps) {
     }`;
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between bg-cream/80 backdrop-blur-md border-b border-cream-dark/60 pointer-events-auto">
+    <header className="fixed top-0 left-0 right-0 z-50 pt-[max(1rem,env(safe-area-inset-top))] pb-4 px-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] flex items-center justify-between bg-cream/80 backdrop-blur-md border-b border-cream-dark/60 pointer-events-auto">
       {/* Mobile nav dropdown */}
       <AnimatePresence>
         {mobileMenuOpen && (
@@ -155,7 +155,7 @@ export function Header({ stage, isDemo, minimal = false }: HeaderProps) {
       >
         <Link
           href={authenticated ? APP_ROUTES.inbox : APP_ROUTES.home}
-          className="font-display text-xl font-medium tracking-tight text-ink hover:text-ink-light transition-colors"
+          className="font-display text-xl font-medium tracking-tight text-ink hover:text-ink-light transition-colors min-h-[44px] inline-flex items-center"
         >
           nuncio
         </Link>
@@ -163,7 +163,7 @@ export function Header({ stage, isDemo, minimal = false }: HeaderProps) {
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label="Toggle navigation"
           aria-expanded={mobileMenuOpen}
-          className="xl:hidden btn-press flex items-center justify-center w-9 h-9 rounded-lg border border-cream-dark bg-white/70 text-ink-muted hover:text-ink transition-colors"
+          className="xl:hidden btn-press flex items-center justify-center w-11 h-11 -ml-2 rounded-lg border border-cream-dark bg-white/70 text-ink-muted hover:text-ink transition-colors"
         >
           <AnimatePresence mode="wait" initial={false}>
             {mobileMenuOpen ? (
@@ -243,7 +243,7 @@ export function Header({ stage, isDemo, minimal = false }: HeaderProps) {
               href={APP_ROUTES.pricing}
               title="Credits — research, drafts and renders each spend from this balance. Click for packs."
               aria-label={`${creditBalance} credits remaining — research, drafts and renders each spend from this balance`}
-              className={`text-label-sm font-bold tabular-nums px-2 py-0.5 rounded-md transition-colors ${
+              className={`text-label-sm font-bold tabular-nums px-2 py-0.5 rounded-md transition-colors min-h-[44px] inline-flex items-center ${
                 creditBalance < 11
                   ? "bg-warm-soft text-warm hover:bg-warm-soft/80"
                   : "bg-cream-dark text-ink-muted hover:bg-cream-dark/80"

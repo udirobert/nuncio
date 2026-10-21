@@ -12,7 +12,8 @@ import { ShowcaseStrip } from "@/components/landing/showcase-strip";
 import { VideoProof } from "@/components/landing/video-proof";
 import { RepresentativeExample } from "@/components/representative-example";
 import { RelationshipJourney } from "@/components/landing/relationship-journey";
-import { RepresentativeScene } from "@/components/landing/representative-scene";
+import { RepresentativeScene, SCENE_DISCLOSURE } from "@/components/landing/representative-scene";
+import { DESKTOP_QUERY, useMediaQuery } from "@/lib/use-media-query";
 import { FaceRow, PromiseCards } from "@/components/landing/promise-cards";
 import { SHOWCASE_RECIPIENTS, splitShowcase } from "@/lib/showcase";
 import { trackViralLanding } from "@/lib/analytics";
@@ -26,6 +27,7 @@ const RECONNECT_FLOW: { id: string; label: string; desc: string }[] = [
 
 export default function HomeClient() {
   const reducedMotion = useReducedMotion();
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
   const [activeStep, setActiveStep] = useState(0);
   const { left, right } = splitShowcase(SHOWCASE_RECIPIENTS);
   const [mode, setMode] = useState<"outreach" | "reconnect">("outreach");
@@ -211,7 +213,7 @@ export default function HomeClient() {
                     initial={reducedMotion ? false : { opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={reducedMotion ? { duration: 0 } : { delay: 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                    className="font-display text-5xl md:text-6xl lg:text-7xl tracking-[-0.02em] leading-[0.9] mb-5"
+                    className="font-display text-4xl md:text-6xl lg:text-7xl tracking-[-0.02em] leading-[0.9] mb-5"
                   >
                     Start the conversation.
                     <br />
@@ -226,6 +228,24 @@ export default function HomeClient() {
                     Your SDR opens the relationship. Your disclosed AI representative answers from your playbook.
                     Prospects can request you—and you decide when to join.
                   </motion.p>
+                  {/* On a phone the face has to be in the first screen, so the
+                      scene condenses and sits between the explanation and the
+                      call to action. On desktop it keeps the right-hand column.
+                      Only one copy is ever mounted — two would mean two
+                      requests for the same video. */}
+                  {!isDesktop && (
+                    <motion.div
+                      initial={reducedMotion ? false : { opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={reducedMotion ? { duration: 0 } : { delay: 0.18, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                      className="mb-6"
+                    >
+                      <RepresentativeScene compact />
+                      <p className="text-label-base text-ink-faint leading-snug mt-2.5">
+                        {SCENE_DISCLOSURE}
+                      </p>
+                    </motion.div>
+                  )}
                   <motion.div
                     initial={reducedMotion ? false : { opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -259,20 +279,22 @@ export default function HomeClient() {
                     <FaceRow />
                     <Link
                       href="/studio"
-                      className="inline-block text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
+                      className="inline-flex items-center min-h-[44px] text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
                     >
                       New first touch →
                     </Link>
                   </motion.div>
                 </div>
-                <motion.div
-                  initial={reducedMotion ? false : { opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={reducedMotion ? { duration: 0 } : { delay: 0.25, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                  className="lg:col-span-7"
-                >
-                  <RepresentativeScene />
-                </motion.div>
+                {isDesktop && (
+                  <motion.div
+                    initial={reducedMotion ? false : { opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={reducedMotion ? { duration: 0 } : { delay: 0.25, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                    className="lg:col-span-7"
+                  >
+                    <RepresentativeScene />
+                  </motion.div>
+                )}
               </div>
             </section>
           )}

@@ -88,7 +88,7 @@ export function RecentVideos({
         </span>
         <Link
           href={APP_ROUTES.create}
-          className="text-label-sm uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
+          className="text-label-sm uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors inline-flex items-center min-h-[44px]"
         >
           Create one
         </Link>
@@ -146,7 +146,7 @@ export function RecentVideos({
                     {ft.invitationProtected ? (
                       <Link
                         href={href}
-                        className="text-label-sm uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
+                        className="text-label-sm uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors inline-flex items-center min-h-[44px]"
                       >
                         Owner view
                       </Link>
@@ -161,7 +161,7 @@ export function RecentVideos({
                         <Link
                           href={href}
                           target="_blank"
-                          className="text-label-sm uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
+                          className="text-label-sm uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors inline-flex items-center min-h-[44px]"
                         >
                           View
                         </Link>
@@ -225,7 +225,7 @@ export function RecentVideos({
                   </div>
                   <Link
                     href="/batch"
-                    className="text-label-sm uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors shrink-0"
+                    className="text-label-sm uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors shrink-0 inline-flex items-center min-h-[44px]"
                   >
                     Open
                   </Link>

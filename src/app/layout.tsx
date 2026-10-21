@@ -24,6 +24,14 @@ const instrumentSerif = Instrument_Serif({
   style: ["normal", "italic"],
 });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Opt into the full screen so env(safe-area-inset-*) is meaningful on
+  // notched iPhones and iPads with a home indicator.
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   title: "nuncio — your intelligent emissary",
   description:
@@ -64,34 +72,34 @@ export default function RootLayout({
             <OnboardingModal />
           </MotionProvider>
         </PostHogProvider>
-        <footer className="mt-auto px-6 py-6 text-center space-x-4">
+        <footer className="mt-auto px-6 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center space-x-4">
           <Link
             href="/"
-            className="text-label-base text-ink-faint hover:text-accent transition-colors"
+            className="text-label-base text-ink-faint hover:text-accent transition-colors inline-flex items-center min-h-[44px]"
           >
             nuncio
           </Link>
           <Link
             href="/examples"
-            className="text-label-base text-ink-faint hover:text-accent transition-colors"
+            className="text-label-base text-ink-faint hover:text-accent transition-colors inline-flex items-center min-h-[44px]"
           >
             Examples
           </Link>
           <Link
             href="/pricing"
-            className="text-label-base text-ink-faint hover:text-accent transition-colors"
+            className="text-label-base text-ink-faint hover:text-accent transition-colors inline-flex items-center min-h-[44px]"
           >
             Pricing
           </Link>
           <Link
             href="/privacy"
-            className="text-label-base text-ink-faint hover:text-accent transition-colors"
+            className="text-label-base text-ink-faint hover:text-accent transition-colors inline-flex items-center min-h-[44px]"
           >
             Privacy
           </Link>
           <Link
             href="/support"
-            className="text-label-base text-ink-faint hover:text-accent transition-colors"
+            className="text-label-base text-ink-faint hover:text-accent transition-colors inline-flex items-center min-h-[44px]"
           >
             Support
           </Link>

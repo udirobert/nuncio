@@ -943,7 +943,7 @@ export default function LiveAvatarLandingPage({
       <header className="px-6 py-5 flex items-center justify-between">
         <Link
           href="/"
-          className="font-display text-lg tracking-tight text-ink hover:text-ink-light transition-colors"
+          className="font-display text-lg tracking-tight text-ink hover:text-ink-light transition-colors inline-flex items-center min-h-[44px]"
         >
           nuncio
         </Link>
@@ -1025,7 +1025,7 @@ export default function LiveAvatarLandingPage({
             {!live && !starting && !debrief && (
               <div
                 aria-label="Before you join"
-                className="mb-3 rounded-2xl border border-cream-dark bg-white/70 p-4"
+                className="mb-3 rounded-2xl border border-cream-dark bg-white/70 p-3 sm:p-4"
               >
                 <div className="flex items-center gap-2 mb-2">
                   <span className="w-2 h-2 rounded-full bg-accent/60 shrink-0" aria-hidden />
@@ -1066,12 +1066,14 @@ export default function LiveAvatarLandingPage({
                   </div>
                 )}
                 <div className="flex items-start gap-3 mb-3">
-                  <Face
-                    src={share.representativeImageUrl}
-                    name={share.representativeName || share.senderName}
-                    size="md"
-                    alt="The AI representative you will talk to"
-                  />
+                  <div className="hidden lg:block">
+                    <Face
+                      src={share.representativeImageUrl}
+                      name={share.representativeName || share.senderName}
+                      size="md"
+                      alt="The AI representative you will talk to"
+                    />
+                  </div>
                   <div className="min-w-0">
                     <p className="text-body-xs font-medium text-ink">
                       You are talking to {liveHeadline}
@@ -1103,7 +1105,7 @@ export default function LiveAvatarLandingPage({
                       ? "Mic ready — Join starts the conversation right away."
                       : micState === "blocked"
                         ? "Mic blocked — allow access, then check again."
-                        : "A quick check avoids a second prompt on Join."}
+                        : ""}
                   </p>
                 </div>
                 )}

@@ -58,7 +58,7 @@ export function TeachingLadder({
       <li className="pt-1">
         <Link
           href={APP_ROUTES.create}
-          className="inline-block text-label-sm uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
+          className="inline-block text-label-sm uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors inline-flex items-center min-h-[44px]"
         >
           Create a first touch →
         </Link>

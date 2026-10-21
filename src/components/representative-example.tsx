@@ -123,7 +123,7 @@ export function RepresentativeExample({
         <button
           type="button"
           onClick={replay}
-          className="text-label-xs uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
+          className="text-label-xs uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors inline-flex items-center min-h-[44px]"
         >
           {isComplete ? "Replay" : "Play"}
         </button>

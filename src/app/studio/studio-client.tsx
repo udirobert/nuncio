@@ -1566,7 +1566,15 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
             >
               <section className="relative px-6 pt-24 pb-16">
                 <div className="max-w-lg mx-auto space-y-8">
-                  <nav aria-label="Progress" className="flex items-center justify-center gap-1.5 text-label-sm">
+                  {/* On a phone the three-step nav wraps to three ragged lines,
+                      so mobile gets a compact stepper instead. */}
+                  <p className="lg:hidden text-center text-label-sm text-ink-faint mb-1">
+                    <span className="text-ink">Step 2 of 3</span> · Create a first touch
+                  </p>
+                  <nav
+                    aria-label="Progress"
+                    className="hidden lg:flex items-center justify-center gap-1.5 text-label-sm"
+                  >
                     {mode === "reconnect" ? (
                       <>
                         <span className="text-ink-faint">Their profile</span>
@@ -1577,13 +1585,13 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                       </>
                     ) : (
                       <>
-                        <Link href="/setup" className="text-ink-faint hover:text-ink transition-colors font-medium">
+                        <Link href="/setup" className="text-ink-faint hover:text-ink transition-colors font-medium min-h-[44px] inline-flex items-center">
                           1 Set up your representative
                         </Link>
                         <span className="text-ink-faint" aria-hidden>→</span>
                         <span className="text-accent font-medium" aria-current="step">2 Create a first touch</span>
                         <span className="text-ink-faint" aria-hidden>→</span>
-                        <Link href="/dashboard" className="text-ink-faint hover:text-ink transition-colors font-medium">
+                        <Link href="/dashboard" className="text-ink-faint hover:text-ink transition-colors font-medium min-h-[44px] inline-flex items-center">
                           3 They choose to continue
                         </Link>
                       </>
@@ -1667,7 +1675,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                                 if (!senderName.trim()) setSenderName(example.name);
                                 if (!senderBrief.trim()) setSenderBrief(example.brief);
                               }}
-                              className="text-label-base text-ink-muted hover:text-accent transition-colors px-2.5 py-1 rounded-md border border-cream-dark/70 hover:border-accent/30 bg-white/60"
+                              className="text-label-base text-ink-muted hover:text-accent transition-colors px-3 py-2 min-h-[44px] inline-flex items-center rounded-md border border-cream-dark/70 hover:border-accent/30 bg-white/60"
                             >
                               Try {example.label}
                             </button>
@@ -1723,7 +1731,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                                   setSenderBrief(sample.brief);
                                   setTonePreference(sample.tone);
                                 }}
-                                className="text-label-base text-ink-muted hover:text-accent transition-colors px-2.5 py-1 rounded-md border border-cream-dark/70 hover:border-accent/30 bg-white/60"
+                                className="text-label-base text-ink-muted hover:text-accent transition-colors px-3 py-2 min-h-[44px] inline-flex items-center rounded-md border border-cream-dark/70 hover:border-accent/30 bg-white/60"
                               >
                                 {sample.label}
                               </button>
@@ -1844,7 +1852,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                           onClick={() => setShowAdvancedInput(!showAdvancedInput)}
                           aria-expanded={showAdvancedInput}
                           aria-controls="advanced-studio-settings"
-                          className="text-label-base text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5"
+                          className="text-label-base text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5 min-h-[44px]"
                         >
                           <svg viewBox="0 0 16 16" className={`w-3.5 h-3.5 transition-transform ${showAdvancedInput ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5">
                             <path d="M6 4l4 4-4 4" />
@@ -1979,7 +1987,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                     </p>
                     <Link
                       href="/setup"
-                      className="inline-block text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
+                      className="inline-flex items-center min-h-[44px] text-label-base uppercase tracking-widest font-medium text-accent hover:text-accent/80 transition-colors"
                     >
                       Set up your representative (2 min) →
                     </Link>
@@ -2046,7 +2054,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
 {mode !== "reconnect" && (
                       <Link
                         href="/batch"
-                        className="text-label-base text-accent hover:text-accent/80 transition-colors inline-block"
+                        className="text-label-base text-accent hover:text-accent/80 transition-colors inline-flex items-center min-h-[44px]"
                       >
                         Need to reach multiple people? Try Batch →
                       </Link>
@@ -2648,7 +2656,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                 </div>
 
                 {/* Actions — sticky */}
-                <div className="sticky bottom-4 z-10 bg-gradient-to-t from-cream via-cream/95 to-transparent pt-6 pb-2 -mx-6 px-6 space-y-2">
+                <div className="sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-10 bg-gradient-to-t from-cream via-cream/95 to-transparent pt-6 pb-2 -mx-6 px-6 space-y-2">
                   {session?.authenticated && typeof session.balance === "number" && (
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between text-label-base">
@@ -3020,7 +3028,7 @@ function StudioClient({ initialAvatars, initialVoices, liveLinkEnabled, avatarTr
                 <div className="border-t border-cream-dark/50 pt-3 flex items-center justify-between">
                   <button
                     onClick={() => { setShowCustomization(true); setStage("review"); }}
-                    className="text-label-base text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5"
+                    className="text-label-base text-ink-faint hover:text-accent transition-colors flex items-center gap-1.5 min-h-[44px]"
                   >
                     <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <circle cx="8" cy="5" r="3" />
