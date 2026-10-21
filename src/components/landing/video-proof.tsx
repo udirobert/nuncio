@@ -29,7 +29,7 @@ export function VideoProof() {
           </p>
           <Link
             href={GOLDEN_SHARE_PAGE}
-            className="text-body-xs text-ink-faint hover:text-accent transition-colors"
+            className="text-body-xs text-ink-faint hover:text-accent transition-colors inline-flex items-center min-h-[44px]"
           >
             View share page →
           </Link>
