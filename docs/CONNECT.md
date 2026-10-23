@@ -56,8 +56,8 @@ Render and live avatar / livelink require an **existing nuncio account** or the 
 request origin, so they follow the deployed domain). Both pages exist:
 `/privacy` (what is stored, what is deliberately not, third parties, salted
 analytics ids, referral attribution, no in-plugin checkout, deletion) and
-`/support` (address from `NUNCIO_SUPPORT_EMAIL`; placeholder text until that env
-var is set). Both are linked from the site footer.
+`/support` (address from `NUNCIO_SUPPORT_EMAIL`, set to `hello@persidian.com`) and
+`/privacy` are both published and linked from the site footer.
 
 ## Telemetry
 

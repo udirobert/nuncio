@@ -189,7 +189,7 @@ Sequencing and gates come from `docs/STRATEGY.md` phases. Engineering items:
 1. **Run the two-person browser verification (`docs/E2E-VERIFICATION.md`)** — verify the Synthesia/LiveKit and Anam live paths, mic check, playbook guardrails, call-request human takeover, and booking on a real second device.
 2. **Update Week 1 of `docs/KEIKI_MARITIME.md`** — record the first real artifacts sent, live sessions started, and baseline user metrics toward the 1,000-user Dec 1 goal.
 3. **Wire email reply → live-invite escalation** — connect Resend inbound reply classification (`/api/webhook/resend`) to the shipped `/api/agent/live-invite` / handoff primitive so interested/question replies automatically deliver a live conversation link.
-4. **Ship the ChatGPT / MCP directory submission (`docs/CONNECT.md`)** — set `NUNCIO_SUPPORT_EMAIL` and `NUNCIO_ANALYTICS_SALT` in prod, resolve the checkout-free `plansUrl`, and run the 15-prompt intent eval (`docs/EVAL.md`).
+4. **Ship the ChatGPT / MCP directory submission (`docs/CONNECT.md`)** — `NUNCIO_SUPPORT_EMAIL` (`hello@persidian.com`) and `NUNCIO_ANALYTICS_SALT` are set in prod, `plansUrl` points to the checkout-free view; run the 15-prompt intent eval (`docs/EVAL.md`).
 5. **Pre-send review & visual proof brief** — collect 1–3 sender assets (screenshot, logo, proof point, case study, deck slide) and let users review the visual plan before credits are spent.
 
 ---

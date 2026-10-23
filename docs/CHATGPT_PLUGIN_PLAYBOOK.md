@@ -51,7 +51,7 @@ deliberately before submitting — see `docs/CONNECT.md`.
 - [x] Free read-only (or low-side-effect) tool shipped and stable
 - [x] Paid/deep action available via existing account or external product — not in-plugin checkout
 - [ ] Intent test set (10+ prompts) with pass/fail — written in [EVAL.md](./EVAL.md), run it
-- [x] Privacy policy + support contact ready (`/privacy`, `/support`; `NUNCIO_SUPPORT_EMAIL` must be set to a real address before submission) — identity verification / demo account still pending
+- [x] Privacy policy + support contact ready (`/privacy`, `/support`; `NUNCIO_SUPPORT_EMAIL` is set to `hello@persidian.com`) — identity verification / demo account still pending
 - [ ] Example Prompts on the directory listing — copy ready in [STARTER_PROMPTS.md](./STARTER_PROMPTS.md)
 - [ ] Measure recommendation rate → double down
 

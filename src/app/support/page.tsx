@@ -7,7 +7,9 @@ export const metadata: Metadata = {
   description: "Contact nuncio for account, data, or plugin questions.",
 };
 
-const SUPPORT_EMAIL = process.env.NUNCIO_SUPPORT_EMAIL || "support@example.com";
+export const dynamic = "force-dynamic";
+
+const SUPPORT_EMAIL = process.env.NUNCIO_SUPPORT_EMAIL || "hello@persidian.com";
 
 export default function SupportPage() {
   return (
