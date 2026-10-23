@@ -101,6 +101,10 @@ Concentric expansion (gated on Phase 2 results): founders → high-ticket servic
 - Recipient→sender conversion coefficient (`viral_cta_clicked` → `viral_landing` → signup).
 - Sean Ellis %.
 
+## Keiki × Maritime — user growth overlay
+
+The STRATEGY scoreboard above tracks conversion and engagement per artifact. The Keiki × Maritime board tracks **cumulative users** against the programme goal: [`KEIKI_MARITIME.md`](./KEIKI_MARITIME.md) — 1,000 users in six weeks (programme started Oct 20, 2026). Both boards roll up into the same weekly user count.
+
 > **Shipped:** a `ScoreboardCard` on `/dashboard` surfaces live-session aggregates from `GET /api/live/sessions` — total sessions, "Spoke to AI" rate, "Ended", "Booking clicks", median user turns, median duration, and a question-topic distribution bar chart — labeled as recent ended/expired/failed sessions, not page-load conversion.
 
 ## The first move

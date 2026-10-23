@@ -122,6 +122,10 @@ The video is the hook. The long-term goal is a live, conversational AI avatar th
 ## Virality (Nikita Bier playbook)
 Recipient→sender signup (`?ref=` links) is the loop — run the invite-flow teardown + K-factor worksheet on it, then a 48-hour test on share-CTA copy. Ladder check: core flow proven; find the first unproven rung (spreads → hops → pays) and stop work above it.
 
+## Programme: Keiki × Maritime
+
+Accepted into the Keiki × Maritime programme (Oct 20 – Dec 1, 2026): build an always-on business agent, reach 1,000 users in six weeks. Transparent user tracking starts at zero: [`docs/KEIKI_MARITIME.md`](./docs/KEIKI_MARITIME.md). The STRATEGY scoreboard ([`docs/STRATEGY.md`](./docs/STRATEGY.md)) tracks conversion and engagement per artifact; the Keiki × Maritime board tracks cumulative users against the programme goal.
+
 ---
 
 ## Key features

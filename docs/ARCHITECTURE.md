@@ -2,9 +2,9 @@
 
 ## Overview
 
-nuncio is a multi-agent platform for personalized outreach. The current product is video-first: agents research a prospect, draft a script, and render a personalized video. The next chapter is a **conversational SDR** — a live AI avatar of the sender that can hold a real-time conversation with the prospect.
+nuncio is a multi-agent platform for **conversational SDR** — honest presence at every first touch. Agents research a prospect, synthesize a profile, and draft an opening grounded in the sender's `SenderPlaybook`. The default delivery mode (when pilot-enabled via `isLiveLinkAllowed`) is a **live AI representative** (`/live/[id]`) that holds a disclosed real-time conversation with the prospect, can escalate to a live human call (`CallRequestRecord` over LiveKit), or book time on the sender's calendar.
 
-Recorded video is the fallback artifact; live conversation is the product; the same research and synthesis pipeline powers both. Full thesis and plan: `docs/STRATEGY.md` (single source of truth for strategy).
+Recorded video (`/v/[id]`) is the fallback artifact inside the live link, and the same research and synthesis pipeline powers both. Full thesis and plan: `docs/STRATEGY.md` (single source of truth for strategy).
 
 ---
 
@@ -23,7 +23,11 @@ Recorded video is the fallback artifact; live conversation is the product; the s
 | `/api/persist` | POST | Persist HeyGen video to Backblaze B2 |
 | `/api/persist/trace` | POST | Persist pipeline trace + asset manifest to B2 |
 | `/api/thumbnail` | POST | Generate thumbnail via Genblaze worker (GMI Cloud) |
-| `/api/live/session` | POST | Create a short-lived live session (Synthesia/LiveKit primary, Anam fallback) with durable lifecycle record; returns a provider-tagged token union |
+| `/api/inbox` | GET | Workspace-scoped relationship read model joining first touches, live sessions, call requests, and bookings into `sent` / `opened` / `talking` / `booked` / `requested` states |
+| `/api/share/[id]/view` | POST | Privacy-preserving view beacon (`firstViewedAt`, `viewCount`; ignores owner views and protected handoffs) |
+| `/api/live/session` | POST | Create a short-lived live session (Synthesia/LiveKit primary, Anam fallback, Masky `masky-embed` third fallback) with durable lifecycle record; returns a provider-tagged token union |
+| `/api/live/turn` | POST | Governed text-in / rendered-out turn handler for the `masky-embed` transport |
+| `/api/live/brief` | POST | Recipient-consented, rate-limited one-shot brief draft from recent dialogue (reviewed before attach; raw dialogue never stored) |
 | `/api/live/sync` | POST | Reconcile a browser terminal event using a per-session sync token |
 | `/api/live/expire` | POST | Secret-protected scheduled expiry/reconciliation for stale sessions |
 | `/api/live/availability` | GET/PATCH | Explicit sender availability (`callAvailabilityUntil`); GET with `?shareId` returns public `{acceptingCalls, callRequestsEnabled}` |

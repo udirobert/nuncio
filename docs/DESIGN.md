@@ -188,7 +188,7 @@ The user's question ("for an avatar app, surprisingly barren of avatars and exam
 
 Where the representative appears:
 
-- **Setup → "3 · Who answers"** — the two honest paths ("Use my photo" / "Use a disclosed persona"), the rendered avatar with a playable preview, and the exact sentence the prospect will read.
+- **Setup → "2 · Who answers"** — the two honest paths ("Use my photo" / "Use a disclosed persona"), the rendered avatar with a playable preview, and the exact sentence the prospect will read.
 - **Setup → prospect preview** — the face beside the disclosure line, so the sender sees the whole front door.
 - **The prospect's lobby** (`/live/[id]`) — the face and the disclosure *before* the mic check. A prospect should never be asked to trust a voice with nothing to look at.
 - **The studio** — shows the configured representative and links to Setup to change it. The studio is no longer the place where a representative is configured.
@@ -217,9 +217,9 @@ A stranger deciding whether to talk to an AI needs more than initials in a circl
 
 | Field | Where it is set | Where it appears |
 |---|---|---|
-| Photo | `/setup` → "2 · Trust proof" | `SenderTrustBadge` avatar on `/v/[id]` and `/live/[id]`; the prospect preview |
-| Company logo | `/setup` → "2 · Trust proof" | Next to the sender's name in the trust badge |
-| "What can your representative answer?" | `/setup` → "2 · Trust proof" | One line under the trust badge, before the prospect decides |
+| Photo | `/setup` → "3 · Trust proof" | `SenderTrustBadge` avatar on `/v/[id]` and `/live/[id]`; the prospect preview |
+| Company logo | `/setup` → "3 · Trust proof" | Next to the sender's name in the trust badge |
+| "What can your representative answer?" | `/setup` → "3 · Trust proof" | One line under the trust badge, before the prospect decides |
 
 Rules (`src/lib/sender-proof.ts`):
 

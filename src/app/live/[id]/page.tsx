@@ -1402,16 +1402,54 @@ export default function LiveAvatarLandingPage({
                   {error && errorReason !== "mic" && (
                     <p className="text-xs text-red-300 mt-2 max-w-xs mx-auto">{error}</p>
                   )}
-                  {error && errorReason !== "mic" && (retryCount >= 2 || errorReason === "provider") && (share.videoUrl || share.videoId) && (
-                    <Link
-                      href={`/v/${share.id}`}
-                      className="inline-flex items-center gap-1.5 mt-4 text-xs text-accent hover:text-accent/80 transition-colors"
-                    >
-                      <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M3 8h10M9 4l4 4-4 4" />
-                      </svg>
-                      Or watch the recorded video instead
-                    </Link>
+                  {error && (
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                      {(retryCount >= 2 || errorReason === "provider") && (share.videoUrl || share.videoId) && (
+                        <Link
+                          href={`/v/${share.id}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-cream/25 bg-cream/10 px-3 py-1.5 text-xs text-cream hover:bg-cream/20 transition-colors"
+                        >
+                          <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path d="M3 8h10M9 4l4 4-4 4" />
+                          </svg>
+                          Watch recorded video
+                        </Link>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const reduced =
+                            typeof window !== "undefined" &&
+                            window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+                          requestCardRef.current?.scrollIntoView({
+                            behavior: reduced ? "auto" : "smooth",
+                            block: "center",
+                          });
+                          requestCardRef.current?.focus();
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-cream/25 bg-cream/10 px-3 py-1.5 text-xs text-cream hover:bg-cream/20 transition-colors"
+                      >
+                        Request {sender}
+                      </button>
+                      {bookingUrl && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const reduced =
+                              typeof window !== "undefined" &&
+                              window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+                            scheduleCardRef.current?.scrollIntoView({
+                              behavior: reduced ? "auto" : "smooth",
+                              block: "center",
+                            });
+                            scheduleCardRef.current?.focus();
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-cream/25 bg-cream/10 px-3 py-1.5 text-xs text-cream hover:bg-cream/20 transition-colors"
+                        >
+                          Choose a time
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               )}

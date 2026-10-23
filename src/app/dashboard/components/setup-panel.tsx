@@ -451,12 +451,15 @@ export function SetupPanel({ variant = "full" }: { variant?: "full" | "summary" 
   const previewLogoUrl = normalizeImageUrl(senderCompanyLogoUrl) || normalizeImageUrl(snapshot?.senderCompanyLogoUrl);
   const previewCanAnswer = senderCanAnswer.trim() || snapshot?.senderCanAnswer?.trim() || "";
   const previewRepresentativeImage =
-    snapshot?.representative?.imageUrl || representativeImageUrl.trim() || null;
-  const previewRepresentativeKind = (snapshot?.representative?.kind ??
-    (snapshot?.anamAvatarId ? "self" : snapshot?.synthesiaAvatarId ? "persona" : "unset")) as
-    | "self"
-    | "persona"
-    | "unset";
+    normalizeImageUrl(representativeImageUrl) || snapshot?.representative?.imageUrl || null;
+  const previewRepresentativeKind: "self" | "persona" | "unset" = snapshot?.anamAvatarId
+    ? "self"
+    : synthesiaAvatarId.trim() ||
+        representativeName.trim() ||
+        normalizeImageUrl(representativeImageUrl) ||
+        snapshot?.representative?.kind === "persona"
+      ? "persona"
+      : (snapshot?.representative?.kind ?? "unset");
   const previewDisclosure = representativeDisclosure({
     kind: previewRepresentativeKind,
     senderName: previewName,

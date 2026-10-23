@@ -97,7 +97,7 @@ export default function VideoLandingPage({
           hasVideoRef.current = true;
           return;
         }
-        if (data.handoff) return;
+        if (data.handoff || (!data.videoId && data.deliveryMode === "livelink")) return;
         interval = setInterval(async () => {
           if (hasVideoRef.current) {
             if (interval) clearInterval(interval);
@@ -264,7 +264,7 @@ export default function VideoLandingPage({
                 ? senderName
                   ? `${senderName} recorded this for you`
                   : "Someone recorded this video just for you"
-                : (videoData as { handoff?: unknown }).handoff
+                : (videoData as { handoff?: unknown }).handoff || (!videoData.videoId && videoData.deliveryMode === "livelink")
                   ? `${senderName || "The sender"} sent you a live link`
                   : senderName
                     ? `${senderName} is preparing a video for you`
@@ -320,7 +320,7 @@ export default function VideoLandingPage({
             <div className="absolute -inset-1.5 rounded-3xl bg-cream-dark -z-5 transform -rotate-0.5" />
 
             <div className="aspect-video w-full rounded-2xl overflow-hidden bg-ink shadow-2xl shadow-ink/20 ring-1 ring-ink/5">
-              {!videoData.videoUrl && (videoData as { handoff?: unknown }).handoff ? (
+              {!videoData.videoUrl && ((videoData as { handoff?: unknown }).handoff || (!videoData.videoId && videoData.deliveryMode === "livelink")) ? (
                 <div className="w-full h-full flex flex-col items-center justify-center bg-ink/90 text-cream px-6">
                   <p className="text-body-sm text-cream/80 mb-1 text-center">
                     No recorded video on this link yet
@@ -489,6 +489,15 @@ export default function VideoLandingPage({
                   >
                     {videoData.mode === "reconnect" ? `Let's catch up with ${senderName || "the sender"}` : `Book time with ${senderName || "the sender"}`}
                   </button>
+                )}
+                {(videoData.deliveryMode === "livelink" || videoData.liveReadiness?.configured) && (
+                  <Link
+                    href={`/live/${videoData.id}`}
+                    className="btn-press rounded-xl bg-accent text-white px-5 py-2.5 text-xs font-medium hover:bg-accent/90 transition-colors flex items-center gap-1.5"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-white/90" aria-hidden />
+                    Ask {senderName ? `${senderName}'s` : "the"} AI representative
+                  </Link>
                 )}
               </div>
               <div className="flex flex-wrap items-center justify-center gap-3">

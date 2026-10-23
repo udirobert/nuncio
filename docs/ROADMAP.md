@@ -35,17 +35,16 @@ nuncio's thesis is that the scarce resource in sales is no longer attention but 
 
 ### Conversational SDR / LiveLink
 
-Per `docs/STRATEGY.md`, the live link is becoming the **primary artifact** with recorded video as its fallback (STRATEGY Phase 1). Provider posture (updated 2026-09): **Synthesia Interactive Avatars via customer-owned LiveKit is the primary live provider, Anam is the startup fallback** (`NUNCIO_LIVE_PRIMARY_PROVIDER` defaults to `synthesia`); **HeyGen remains the default recorded-video layer** and the artifact fallback. Live stays opt-in via `NUNCIO_LIVELINK_ENABLED=true` and limited to allowlisted senders during validation. LiveLink is locally implemented for Synthesia routing but **pending account setup**: no LiveKit project or eligible `av_*` interactive avatar exists yet — live verification is outstanding.
+Per `docs/STRATEGY.md`, the live link is the **primary artifact** when the pilot gate allows (`isLiveLinkAllowed`), with recorded video as its fallback (STRATEGY Phase 1). Provider posture (updated 2026-10): **Synthesia Interactive Avatars via customer-owned LiveKit is the primary live provider, Anam is the startup fallback, and Masky (`masky-embed`) is the third text-in/rendered-out fallback** (`NUNCIO_LIVE_PRIMARY_PROVIDER` defaults to `synthesia`); **HeyGen remains the default recorded-video layer** and the artifact fallback. Live stays gated by `NUNCIO_LIVELINK_ENABLED=true` and allowlisted workspaces/senders during validation. Production environment is configured for the Synthesia path (LiveKit trio, `SYNTHESIA_AVATAR_ID`, `NUNCIO_LIVE_WORKER_TOKEN`, `NUNCIO_SYNTHESIA_WORKER_ENABLED=true`) and the `nuncio-live-avatar` worker container runs on `nuncio-vultr`; Anam is configured and verified end-to-end locally. Real-browser two-person verification (`docs/E2E-VERIFICATION.md`) remains the immediate gate.
 
 The next goal is not broad commercialization; it is to prove that an honest, disclosed AI twin of the sender increases qualified conversations and booked meetings enough to justify live-session cost and operational complexity (see STRATEGY falsification criteria).
 
 #### LiveLink decision gate
 
-- **Default:** recorded HeyGen video remains available and unchanged.
-- **Experimental path:** Synthesia/LiveKit is the primary live path and Anam is the startup fallback; LiveLink stays opt-in via `NUNCIO_LIVELINK_ENABLED=true` and workspace/sender allowlists, limited to one sender during validation.
-- **Fallback:** provider startup failure falls back from Synthesia to Anam only after confirmed cleanup; a failed live path preserves the recorded `/v/[id]` share experience rather than showing a dead end.
+- **Default:** `livelink` is the default delivery mode in studio, `/api/share`, and `/api/pipeline` when `isLiveLinkAllowed` passes; recorded HeyGen video remains the fallback inside the live link and the default when LiveLink is gated off or explicitly chosen (`deliveryMode: "video"`).
+- **Experimental path:** Synthesia/LiveKit is the primary live path, Anam is the startup fallback, and Masky is the text-in/rendered-out fallback; LiveLink is gated by `NUNCIO_LIVELINK_ENABLED=true` and workspace/sender allowlists during validation.
+- **Fallback:** provider startup failure falls back from Synthesia to Anam (and Masky when configured) only after confirmed cleanup; a failed live path preserves the recorded `/v/[id]` share experience when a video exists, or offers in-page human call request and scheduling actions so the recipient never hits a dead end.
 - **Commercial posture:** do not call LiveLink a paid upsell until the pilot demonstrates conversion lift, acceptable latency, predictable cost per booked meeting, and safe playbook adherence.
-- **Fallback vendor:** retain HeyGen LiveAvatar Lite as a later option; do not build additional live providers during the first experiment.
 
 #### Twin → human bridge (call requests)
 
@@ -161,7 +160,7 @@ Sequencing and gates come from `docs/STRATEGY.md` phases. Engineering items:
 2. ~~**Live-session instrumentation**~~ ✅ — started, turns, question topics (classified labels only, never raw transcript), booking event, drop-off marker persisted as `LiveSessionRecord.metrics`; 15s heartbeats + terminal sync via `/api/live/sync`; read path `GET /api/live/sessions`
 3. **LiveLink experiment controls** — allowlist, capped/idle sessions, provider startup fallback, recorded-video fallback, call-request lifecycle cleanup, and provider-neutral error surfacing are implemented; live-provider verification, owner push notifications, and scheduling remain
 4. **Guardrails and booking integration** — hard constraints, explicit AI disclosure (S2: disclosure as a feature), fallback answers, calendar booking (booking-link field + on-page CTA + prompt guidance shipped; guardrail tuning continues in Phase 2)
-5. **Reply-to-live escalation** — email replies can open a live avatar session instead of static follow-up (the artifact stays a conversation)
+5. **Reply-to-live escalation** — the server-side handoff/invite primitive (`POST /api/agent/handoffs` and `/api/agent/live-invite`) is shipped and tested; remaining work is wiring outbound email reply flows (`/api/webhook/resend` → `/api/agent/reply-webhook`) to automatically issue and send `#handoff=` live links instead of static follow-up
 
 ### STRATEGY Phase 2 — ten founders, hand-served
 6. ~~**Playbook capture**~~ ✅ — `VoiceOverlay` now supports `campaign` and `playbook` modes; extraction prompts capture sender identity + `SenderPlaybook` fields (`offer`, `wants`, `wiggleRoom`, `constraints`, `bookingUrl`, `senderBusiness`, `senderBrand`, `senderPersonality`, `senderAudience`, `senderOffer`, `senderProofPoints`); studio applies and persists them via `/api/account/brief`.
@@ -170,8 +169,8 @@ Sequencing and gates come from `docs/STRATEGY.md` phases. Engineering items:
 9. **Pre-send review** — research, hook, script, and visual plan reviewable before credits are spent
 
 ### STRATEGY Phase 3 — positioning rewrite (parallel)
-10. ~~**Share-page viral loop**~~ ✅ — `/v/[id]` CTA rewritten as recipient→sender signup loop (`?ref=share-{id}-cta{a|b}`, header carries the same variant); live-page footer carries `?ref=live-{id}`; landing captures `ref` via `trackViralLanding` **and now persists it**: localStorage first-touch (30-day) → `/api/account/attribution` → `WorkspaceAccount.referredBy`, with `signed_up` / `referred_signup` events. Referrals-converted is measurable at last; teardown + K-factor worksheet in `docs/VIRAL-LOOP.md`.
-11. ~~**Honest-twin framing**~~ ✅ — "AI-powered · personalised video" killed across studio badge, landing, metadata, share/live pages; disclosure worn as a badge ("disclosed, never disguised"). Remaining: trust signals (sender photo, verified badge)
+10. ~~**Share-page viral loop**~~ ✅ — `/v/[id]` CTA rewritten as recipient→sender signup loop (`?ref=share-{id}-cta{a|b}`, header carries the same variant); live-page footer carries `?ref=live-${id}`; landing captures `ref` via `trackViralLanding` **and now persists it**: localStorage first-touch (30-day) → `/api/account/attribution` → `WorkspaceAccount.referredBy`, with `signed_up` / `referred_signup` events. Referrals-converted is measurable at last; teardown + K-factor worksheet in `docs/VIRAL-LOOP.md`.
+11. ~~**Honest-twin framing & share-page trust signals**~~ ✅ — "AI-powered · personalised video" killed across studio badge, landing, metadata, share/live pages; disclosure worn as a badge ("disclosed, never disguised"); `src/lib/representative.ts` enforces `self` vs `persona` disclosure; `src/lib/sender-proof.ts` + `SenderTrustBadge` snapshot sender photo, company logo, and "what can your representative answer" onto `/v/[id]` and `/live/[id]`
 12. ~~**Value-metric experiment**~~ ✅ (copy anchor) — pricing anchored to meetings booked / twin first touches; "we never charge for more sends". Remaining: report meetings booked per workspace once booking data accumulates
 
 ### Artifact quality (supports recorded fallback)
@@ -187,12 +186,11 @@ Sequencing and gates come from `docs/STRATEGY.md` phases. Engineering items:
 4. **Credit spend transparency** — show credits spent this session on the ready screen; replace token-start reservation with duration-aware live usage reconciliation before commercialization
 
 ### Suggested immediate next steps
-1. **Verify the Synthesia/LiveKit pilot** — configure the project, `av_*` avatar, ElevenLabs voice, webhook, cleanup scheduler, and deployed worker; run the manual checklist in `docs/TESTING.md`.
-2. **Exercise the twin→human bridge** — request, accept/decline, shared-room connect, avatar step-aside, cancellation, expiry, and fallback to Anam or recorded video.
-3. **Reply-to-live escalation** — email replies can open a live avatar session instead of static follow-up (keeps the artifact as a conversation).
-4. **Pre-send review** — let users review research, hook, script, and visual plan before credits are spent.
-5. **Share-page trust signals** — sender photo, company logo, or verified-sender badge on `/v/[id]` and `/live/[id]`.
-6. **Visual proof brief** — collect 1–3 sender assets (screenshot, logo, proof point, case study, deck slide) and wire them into a proof-first composition.
+1. **Run the two-person browser verification (`docs/E2E-VERIFICATION.md`)** — verify the Synthesia/LiveKit and Anam live paths, mic check, playbook guardrails, call-request human takeover, and booking on a real second device.
+2. **Update Week 1 of `docs/KEIKI_MARITIME.md`** — record the first real artifacts sent, live sessions started, and baseline user metrics toward the 1,000-user Dec 1 goal.
+3. **Wire email reply → live-invite escalation** — connect Resend inbound reply classification (`/api/webhook/resend`) to the shipped `/api/agent/live-invite` / handoff primitive so interested/question replies automatically deliver a live conversation link.
+4. **Ship the ChatGPT / MCP directory submission (`docs/CONNECT.md`)** — set `NUNCIO_SUPPORT_EMAIL` and `NUNCIO_ANALYTICS_SALT` in prod, resolve the checkout-free `plansUrl`, and run the 15-prompt intent eval (`docs/EVAL.md`).
+5. **Pre-send review & visual proof brief** — collect 1–3 sender assets (screenshot, logo, proof point, case study, deck slide) and let users review the visual plan before credits are spent.
 
 ---
 
