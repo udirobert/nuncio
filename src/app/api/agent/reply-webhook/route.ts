@@ -101,15 +101,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Try to link to original share record
+    // Try to link to original share record (via explicit shareId, inReplyTo, or a /v/ or /live/ URL in the quoted reply)
     let shareId: string | undefined;
-    if (inReplyTo) {
-      try {
-        const shareProvider = getShareStorageProvider();
-        const share = await shareProvider.get(inReplyTo);
-        if (share) shareId = share.id;
-      } catch { /* not critical */ }
-    }
+    try {
+      const shareProvider = getShareStorageProvider();
+      const candidates = new Set<string>();
+      if (typeof body.shareId === "string" && body.shareId.trim()) {
+        candidates.add(body.shareId.trim());
+      }
+      if (typeof inReplyTo === "string" && inReplyTo.trim()) {
+        candidates.add(inReplyTo.trim());
+      }
+      const combinedText = `${subject || ""}\n${replyBody}`;
+      const urlMatches = combinedText.matchAll(/\/(?:v|live)\/([a-zA-Z0-9_-]{6,64})/g);
+      for (const match of urlMatches) {
+        if (match[1]) candidates.add(match[1]);
+      }
+      for (const candidate of candidates) {
+        const share = await shareProvider.get(candidate);
+        if (share) {
+          shareId = share.id;
+          break;
+        }
+      }
+    } catch { /* not critical */ }
 
     const record: ReplyRecord = {
       id: replyId,
@@ -131,10 +146,10 @@ export async function POST(request: NextRequest) {
       unknown: "review_manually",
     }[intent];
 
-    // Reply-to-live: an interested reply can be escalated into a live
+    // Reply-to-live: an interested or question reply can be escalated into a live
     // conversation on the same link. The agent owns the email side, so the
     // app only has to say how — and only when the reply is tied to a share.
-    const escalation = intent === "interested" && shareId
+    const escalation = (intent === "interested" || intent === "question") && shareId
       ? {
           tool: "agent.live-invite",
           endpoint: "/api/agent/live-invite",

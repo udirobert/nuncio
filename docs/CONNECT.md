@@ -48,7 +48,7 @@ curl -s -X POST http://localhost:3000/api/mcp \
 Render and live avatar / livelink require an **existing nuncio account** or the informational plans page on the product site. Do **not** start subscribe/checkout inside ChatGPT (OpenAI allows plugin commerce for physical goods only).
 
 - Product: https://nuncio.persidian.com  
-- Plans (informational): https://nuncio.persidian.com/pricing  
+- Plans (informational, checkout-free): https://nuncio.persidian.com/pricing?source=mcp  
 
 ## Privacy + support surfaces
 
@@ -79,9 +79,7 @@ and support contact are shipped; example prompts live in
 [STARTER_PROMPTS.md](./STARTER_PROMPTS.md); intent QA is [EVAL.md](./EVAL.md)
 (not yet run — user-owned).
 
-**Open before submission:** `/pricing` currently renders live Stripe checkout
-buttons, while the guidelines say the plugin should lead to an *informational*
-plans surface (with the account as the paid path). Either point `PLANS_URL` at a
-non-checkout page (`src/app/api/mcp/research-and-draft/route.ts`, hardcoded
-alongside `PRODUCT_URL`) or accept the current page deliberately — product
-decision, see `docs/CHATGPT_PLUGIN_PLAYBOOK.md`.
+**Plans surface:** `PLANS_URL` in `src/app/api/mcp/research-and-draft/route.ts`
+points to `https://nuncio.persidian.com/pricing?source=mcp`, which renders the
+plan comparison and credit breakdown in informational mode (no Stripe checkout
+buttons, linking to `/login?next=/studio` instead).

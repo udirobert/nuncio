@@ -32,7 +32,7 @@ export const runtime = "nodejs";
 const MAX_URL_LENGTH = 2048;
 const MAX_BRIEF_LENGTH = 4000;
 const PRODUCT_URL = "https://nuncio.persidian.com";
-const PLANS_URL = "https://nuncio.persidian.com/pricing";
+const PLANS_URL = "https://nuncio.persidian.com/pricing?source=mcp";
 
 const CHANNEL_GUIDELINES: Record<string, string> = {
   email:

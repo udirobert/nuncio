@@ -106,6 +106,7 @@ function PricingContent() {
   const [account, setAccount] = useState<{ authenticated: boolean; balance?: number; plan?: string } | null>(null);
   const searchParams = useSearchParams();
   const canceled = searchParams.get("canceled");
+  const isMcpReadOnly = searchParams.get("source") === "mcp";
 
   useEffect(() => {
     fetch("/api/account/session")
@@ -311,25 +312,36 @@ function PricingContent() {
                 ))}
               </ul>
 
-              {!currentPriceId && (
-                <p className="text-body-xs text-ink-faint text-center mb-3">
-                  Purchases unavailable right now — please try again later.
-                </p>
+              {isMcpReadOnly ? (
+                <a
+                  href="/login?next=/studio"
+                  className="btn-press w-full rounded-xl py-4 text-sm font-bold transition-[color,background-color,border-color,opacity,box-shadow,transform] mt-auto bg-ink text-cream hover:bg-ink-light shadow-xl shadow-ink/10 flex items-center justify-center gap-2"
+                >
+                  Sign in on nuncio to manage plans
+                </a>
+              ) : (
+                <>
+                  {!currentPriceId && (
+                    <p className="text-body-xs text-ink-faint text-center mb-3">
+                      Purchases unavailable right now — please try again later.
+                    </p>
+                  )}
+                  <button
+                    onClick={() => handleCheckout()}
+                    disabled={loading !== null || !currentPriceId}
+                    className="btn-press w-full rounded-xl py-4 text-sm font-bold transition-[color,background-color,border-color,opacity,box-shadow,transform] mt-auto disabled:opacity-40 bg-ink text-cream hover:bg-ink-light shadow-xl shadow-ink/10 flex items-center justify-center gap-2"
+                  >
+                    {isLoading ? (
+                      <>
+                        <LottieIcon name="spinner-light" className="w-4 h-4" />
+                        Preparing secure checkout...
+                      </>
+                    ) : (
+                      `${tier.cta}${annual ? " Annual" : " Monthly"}`
+                    )}
+                  </button>
+                </>
               )}
-              <button
-                onClick={() => handleCheckout()}
-                disabled={loading !== null || !currentPriceId}
-                className="btn-press w-full rounded-xl py-4 text-sm font-bold transition-[color,background-color,border-color,opacity,box-shadow,transform] mt-auto disabled:opacity-40 bg-ink text-cream hover:bg-ink-light shadow-xl shadow-ink/10 flex items-center justify-center gap-2"
-              >
-                {isLoading ? (
-                  <>
-                    <LottieIcon name="spinner-light" className="w-4 h-4" />
-                    Preparing secure checkout...
-                  </>
-                ) : (
-                  `${tier.cta}${annual ? " Annual" : " Monthly"}`
-                )}
-              </button>
             </motion.div>
           );
         })()}
@@ -389,7 +401,7 @@ function PricingContent() {
         Live conversations are available to configured pilot workspaces; a plan does not configure your avatar or playbook.
       </p>
 
-      {CREDIT_PACKS.some((pack) => pack.priceId) && (
+      {!isMcpReadOnly && CREDIT_PACKS.some((pack) => pack.priceId) && (
       <motion.section
         id="packs"
         initial={{ opacity: 0, y: 16 }}

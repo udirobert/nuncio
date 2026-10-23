@@ -151,11 +151,36 @@ export async function POST(request: NextRequest) {
       if (internalResponse.ok) {
         const result = await internalResponse.json();
         console.log(`[resend-webhook] Forwarded to reply-webhook: replyId=${result.replyId}, intent=${result.intent}`);
+
+        // Automatically execute reply-to-live escalation when the reply is
+        // classified as interested or question and tied to a share record.
+        let liveInvite: { shareId?: string; liveUrl?: string; emailed?: boolean } | null = null;
+        if (result.escalation?.endpoint === "/api/agent/live-invite" && result.escalation?.body) {
+          try {
+            const inviteResponse = await fetch(`${appUrl}/api/agent/live-invite`, {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${agentToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(result.escalation.body),
+            });
+            if (inviteResponse.ok) {
+              liveInvite = await inviteResponse.json();
+              console.log(`[resend-webhook] Sent live invite for shareId=${liveInvite?.shareId}`);
+            }
+          } catch (inviteErr) {
+            console.warn("[resend-webhook] Automatic live-invite escalation skipped:", inviteErr);
+          }
+        }
+
         return NextResponse.json({
           received: true,
           replyId: result.replyId,
           intent: result.intent,
           suggestedAction: result.suggestedAction,
+          shareId: result.shareId,
+          liveInvite,
         });
       }
     }
