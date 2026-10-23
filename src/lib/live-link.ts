@@ -65,8 +65,9 @@ export function isLiveLinkAllowed(input: {
   const workspaceIds = csvEnv("NUNCIO_LIVELINK_WORKSPACE_IDS");
   const senderEmails = csvEnv("NUNCIO_LIVELINK_SENDER_EMAILS");
   // A global flag alone is not sufficient for a paid pilot. Require an
-  // explicit workspace or sender entry whenever LiveLink is enabled.
+  // explicit workspace, sender entry, or wildcard ("*") whenever LiveLink is enabled.
   if (workspaceIds.length === 0 && senderEmails.length === 0) return false;
+  if (workspaceIds.includes("*") || senderEmails.includes("*")) return true;
 
   const workspaceMatches = Boolean(input.workspaceId && workspaceIds.includes(input.workspaceId.toLowerCase()));
   const senderMatches = Boolean(input.senderEmail && senderEmails.includes(input.senderEmail.trim().toLowerCase()));

@@ -41,6 +41,11 @@ describe("LiveLink configuration", () => {
     vi.stubEnv("NUNCIO_LIVELINK_SENDER_EMAILS", "pilot@example.com");
     expect(isLiveLinkAllowed({ senderEmail: "PILOT@example.com" })).toBe(true);
     expect(isLiveLinkAllowed({ senderEmail: "other@example.com" })).toBe(false);
+
+    vi.stubEnv("NUNCIO_LIVELINK_WORKSPACE_IDS", "*");
+    vi.stubEnv("NUNCIO_LIVELINK_SENDER_EMAILS", "");
+    expect(isLiveLinkAllowed({ workspaceId: "any-new-workspace" })).toBe(true);
+    expect(isLiveLinkAllowed({})).toBe(true);
   });
 
   it("keeps the pilot session cap at five minutes", () => {
